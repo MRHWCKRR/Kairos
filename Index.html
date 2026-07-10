@@ -7,19 +7,59 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="dashboard-container">
+    <div class="app-layout">
+
+
         <!--Left Sidebar. Non negos and Routine stats-->
-        <aside class="routine-sidebar">
-            <div class="brand">
-                <h1>Kairos</h1>
-                <span class="status-badge"></span>
-            </div>
+
+        <aside id="sidebar" class="sidebar collapsed">
+            <button id="sidebar-toggle" class="toggle-btn">☰</button>
+
             <nav class="sidebar-nav">
-                <ul>
-                    <li><a href="#">Dashboard</a></li>
-                    <li><a href="#">Routines</a></li>
-                    <li><a href="#">Statistics</a></li>
-                    <li><a href="#">Settings</a></li>
-                </ul>
+                <button class="nav-item active" data-taget="ai-page">AI Helper</button>
+                <button class="nav-item" data-target="calender-page">Calender</button>
+                <button class="nav-item" data-target="settings-page">Settings</button>
             </nav>
+
+            <div class="whats-next-widget">
+                <span class="widget-label">What's Next</span>
+                <p id="next-task-title" class="due-tag">Due Tomorrow<span>
+            </div>
         </aside>
+
+
+        <!--Main Canvas-->
+
+        <main class="main-content">
+
+            <!--AI Helper-->
+            <div id="ai-page" class="page-view active">
+                <h2>AI Study Coach</h2>
+                <p> Paste your syllabus or assignment guidelines below.</p>
+                <div class="ai-box">
+                    <textarea placeholder="Paste assignment details here..."></textarea>
+                    <button class="action-btn">Create Plan</button>
+                </div>
+            </div>
+
+        <!--Calender and Routines-->
+        <div id="calender-page" class="page-view">
+            <h2>My Timeline</h2>
+            <p>View and manage your routines and assignment dates live here.</p>
+            <!-- Dynamic calender loops or tables will render here -->
+             <div class="calender-container">
+
+             </div>
+        </div>
+
+
+        <!--Settings-->
+        <div id="settings-page" class="page-view">
+            <h2>Configuration</h2>
+            <p>Customize your experience and manage your account settings.</p>
+            <div class="settings-box">
+                <label>Gemini API Key:</label>
+                <input type="password" placeholder="Key is secured locally in your browser.">
+            </div>
+        </div>
+        </main>
