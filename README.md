@@ -6,9 +6,9 @@ Instead of traditional calendars that let tasks pile up endlessly, **Kairos** us
 
 ---
 
-## 🚀 Key Features
+## 🚀 Planned Key Features
 
-*   **Immutable Boundary Enforcer:** Hard-locks non-negotiable blocks in your day (School: 7:00 AM - 3:30 PM, Cycling: 3:30 PM - 4:30 PM, Dinner: 6:00 PM - 6:30 PM) and strictly safeguards a sleep lockout after 10:00 PM.
+*   **Immutable Boundary Enforcer:** Hard-locks non-negotiable blocks in your day (School, work, non negotiable tasks no questions asked) and strictly safeguards a sleep lockout at a set time, helping maintain a healthy sleep schedual and preventing overburden and burnout.
 *   **AI-Powered Window Carving:** Integrates with the Gemini 1.5 Flash API to look at your upcoming assignment deadlines and automatically split complex work into bite-sized code or study sprints inside your exact free gaps.
 *   **True Client-Side Persistence:** Zero heavy databases or account setups. All schedules, assignments, and structural states are entirely managed inside your browser via localStorage.
 
