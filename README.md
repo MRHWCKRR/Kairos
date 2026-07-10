@@ -1,4 +1,4 @@
-# Kairos 🚴‍♂️📅
+# Kairos 📅🏫
 
 A smart, hyper-personalized daily routine and assignment planner built to achieve psychological balance and seamless progress tracking. Designed specifically to hit a 182-hour development milestone for **Hack Club Macondo** while juggling rigid high-school timetables, high-intensity cycling fitness goals, and essential rest cycles.
 
