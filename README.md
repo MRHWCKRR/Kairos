@@ -14,7 +14,7 @@ Instead of traditional calendars that let tasks pile up endlessly, **Kairos** us
 
 ---
 
-## 🛠️ Tech Stack
+## 🛠️ What its Made Of
 
 *   **Structure:** Semantic HTML5
 *   **Styling:** Modern CSS3 (featuring custom CSS variables for effortless themes, fluid Flexbox/Grid layouts, and a clean minimalist aesthetic)
