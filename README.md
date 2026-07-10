@@ -1,15 +1,18 @@
 # Kairos 📅🏫
 
-A smart, hyper-personalized daily routine and assignment planner built to achieve psychological balance and seamless progress tracking. Designed specifically to hit a 182-hour development milestone for **Hack Club Macondo** while juggling rigid high-school timetables, high-intensity cycling fitness goals, and essential rest cycles.
+*Everyone has 24 hours a day. The elite are the elite because time is utilised properly.*
 
-Instead of traditional calendars that let tasks pile up endlessly, **Kairos** uses a deterministic backward-planning engine paired with AI to dynamically restructure your open windows of free time without disrupting your locked life boundaries.
+A smart, personalised and practical solution to school/work stress and last minute tasks.
+**Kairos** is an Ai assisted smart schedual, allowing you to fit your tasks into an organised and packed day.
 
 ---
 
-## 🚀 Planned Key Features
+##  Planned Key Features
 
-*   **Immutable Boundary Enforcer:** Hard-locks non-negotiable blocks in your day (School, work, non negotiable tasks no questions asked) and strictly safeguards a sleep lockout at a set time, helping maintain a healthy sleep schedual and preventing overburden and burnout.
-*   **AI-Powered Window Carving:** Integrates with the Gemini 1.5 Flash API to look at your upcoming assignment deadlines and automatically split complex work into bite-sized code or study sprints inside your exact free gaps.
+*   **Boundary Enforcer:** Hard-locks non-negotiable blocks in your day (School, work, non negotiable tasks no questions asked) and strictly safeguards a sleep lockout at a set time, helping maintain a healthy sleep schedual and preventing overburden and burnout.
+  
+*   **AI-Powered Scheduling:** Integrates with the Gemini 1.5 Flash API to maximise free time and give you the best and most optimised workflow.
+  
 *   **True Client-Side Persistence:** Zero heavy databases or account setups. All schedules, assignments, and structural states are entirely managed inside your browser via localStorage.
 
 ---
@@ -31,3 +34,8 @@ Get your local copy of **Kairos** up and running in less than two minutes.
 ```bash
 git clone [https://github.com/mrhwckrr/kairos.git](https://github.com/mrhwckrr/kairos.git)
 cd kairos
+```
+
+---
+
+## Notes:
