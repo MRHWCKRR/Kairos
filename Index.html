@@ -16,14 +16,14 @@
             <button id="sidebar-toggle" class="toggle-btn">☰</button>
 
             <nav class="sidebar-nav">
-                <button class="nav-item active" data-taget="ai-page">AI Helper</button>
-                <button class="nav-item" data-target="calender-page">Calender</button>
+                <button class="nav-item active" data-tagret="ai-page">AI Helper</button>
+                <button class="nav-item" data-target="calendar-page">Calendar</button>
                 <button class="nav-item" data-target="settings-page">Settings</button>
             </nav>
 
             <div class="whats-next-widget">
                 <span class="widget-label">What's Next</span>
-                <p id="next-task-title" class="due-tag">Due Tomorrow<span>
+                <p id="next-task-title" class="due-tag">Due Tomorrow</p>
             </div>
         </aside>
 
@@ -42,25 +42,31 @@
                 </div>
             </div>
 
-        <!--Calender and Routines-->
-        <div id="calender-page" class="page-view">
-            <h2>My Timeline</h2>
-            <p>View and manage your routines and assignment dates live here.</p>
-            <!-- Dynamic calender loops or tables will render here -->
-             <div class="calender-container">
+             <!--Calendar and Routines-->
+            <div id="calendar-page" class="page-view">
+                <h2>My Timeline</h2>
+                <p>View and manage your routines and assignment dates live here.</p>
+                <!-- Dynamic calendar loops or tables will render here -->
+                 <div class="calendar-container">
 
-             </div>
-        </div>
-
-
-        <!--Settings-->
-        <div id="settings-page" class="page-view">
-            <h2>Configuration</h2>
-            <p>Customize your experience and manage your account settings.</p>
-            <div class="settings-box">
-                <label>Gemini API Key:</label>
-                <input type="password" placeholder="Key is secured locally in your browser.">
-                <button id="save-settings-btn" class="action-btn">Save Keys</button>
+                </div>
             </div>
-        </div>
+
+
+            <!--Settings-->
+            <div id="settings-page" class="page-view">
+                <h2>Configuration</h2>
+                <p>Customize your experience and manage your account settings.</p>
+                <div class="settings-box">
+                    <label>Gemini API Key:</label>
+                    <input type="password" placeholder="Key is secured locally in your browser.">
+                    <button id="save-settings-btn" class="action-btn">Save Keys</button>
+                </div>
+            </div>
+
         </main>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>    
