@@ -15,13 +15,15 @@
         <!--Left Sidebar. Non negos and Routine stats-->
 
         <aside id="sidebar" class="sidebar">
-            
-
-
-            <button id="sidebar-toggle" class="toggle-btn">☰</button>
+            <div class="sidebar-header">
+                <div class="logo-mark">K</div>
+                <h1 class="logo-text">Kairos</h1>
+                <button id="sidebar-toggle" class="toggle-btn"></button>☰</button>
+            </div>
 
             <nav class="sidebar-nav">
-                <button class="nav-item active" data-target="ai-page">AI Helper</button>
+                <button class="nav-item active" data-target="home-page">Dashboard</button>
+                <button class="nav-item" data-target="ai-page">AI Helper</button>
                 <button class="nav-item" data-target="calendar-page">Calendar</button>
                 <button class="nav-item" data-target="settings-page">Settings</button>
             </nav>
@@ -37,7 +39,39 @@
 
         <main class="main-content">
 
-            <!--AI Helper-->
+            <!--Util Bar-->
+            <header class="top-bar">
+                <div class="spacer"></div>
+                <div class="top-bar-actions">
+                    <button class="icon-btn" title="Reminders">🔔</button>
+                    <button class="profile-btn">Sign In</button>
+                </div>
+            </header>
+
+            <!--Dashboard-->
+            <div id="home-page" class="page-view active">
+                <div class="hero-header">
+                    <h2 id="live-time">00:00</h2>
+                    <p id="live-date">Loading date...</p>
+                </div>
+
+                <div class="dashboard-grid">
+                    <div class="dash-card">
+                        <h3>Up Next</h3>
+                        <p class="text-muted">No immediate tasks.</p>
+                    <div>
+                    <div class ="dash-card">
+                        <h3>Routine Stats</h3>
+                        <p class="text-muted">0% completed today.</p>
+                    </div>
+                    <div class="dash-card mini-cal-card"></div>
+                        <h3>Mini Calender</h3>
+                        <p class="text-muted">Calender view coming soon.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!--A I Helper-->
             <div id="ai-page" class="page-view active">
                 <h2>AI Study Coach</h2>
                 <p> Paste your syllabus or assignment guidelines below.</p>
@@ -46,6 +80,7 @@
                     <button class="action-btn">Create Plan</button>
                 </div>
             </div>
+
 
              <!--Calendar and Routines-->
             <div id="calendar-page" class="page-view">

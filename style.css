@@ -49,6 +49,33 @@ body {
     padding: 24px 12px !important;
 }
 
+.sidebar-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 32px;
+    gap: 12px;
+}
+
+.logo-mark {
+    min-width: 32px;
+    height: 32px;
+    background-color: var(--accent-glow);
+    color: white;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 1.2rem;
+}
+
+.logo-text {
+    font-size: 1.2rem;
+    font-weight: 800;
+    flex-grow: 1;
+    transition: opacity 0.2s;
+}
+
 .toggle-btn {
     background: none;
     border: none;
@@ -65,6 +92,10 @@ body {
 .toggle-btn:hover {
     background-color: var(--border-subtle);
 }
+
+.sidebar.collapsed .logo-text { opacity: 0; display: none; }
+.sidebar.collapsed .sidebar-header { justify-content: center; flex-direction: column; }
+.sidebar.collapsed .toggle-btn { margin-top: 16px; }
 
 .sidebar-nav {
     display: flex;
@@ -98,8 +129,99 @@ body {
 
 .sidebar.collapsed .nav-item {
     color:transparent !important;
-    border-color: transparent !important;
 }
+
+/* Main content + top bar*/
+.main-content {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+}
+
+.top-bar {
+    display: flex;
+    justify-content: space-between;
+    padding: 24px 40px;
+    align-items: center;
+}
+
+.top-bar-actions {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+}
+
+.icon-btn {
+    background: none;
+    border: none;
+    font-size: 1.2rem;
+    cursor: pointer;
+    opacity: 0.7;
+    transition: opacity 0.2s;
+}
+
+.icon-btn:hover { opacity: 1;}
+
+/* Pages and Dashboard Grid Layout */
+.page-view {
+    display: none;
+    max-width: 1000px;
+    margin: 0 auto;
+    width: 100%;
+    padding: 0 40px 40px 40px;
+}
+
+.page-view.active {
+    display: block;
+    animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.hero-header {
+    margin-bottom: 32px;
+}
+
+#live-time {
+    font-size: 3.5rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    margin-bottom: 4px;
+}
+
+#live-date {
+    font-size: 1.1rem;
+    color: var(--text-muted);
+}
+
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 24px;
+}
+
+.dash-card {
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+    padding: 24px;
+}
+
+.dashcard h3 {
+    font-size: 1rem;
+    margin-bottom: 12px;
+}
+
+.text-muted { color: var(--text-muted); font-size: 0.9rem;}
+
+.page-view h2 { font-size: 1.8rem; margin-bottom: 8px; font-weight: 800; }
+.page-view p { color: var(--text-muted); margin-bottom: 24px; line-height: 1.5; }
+
+
 
 .whats-next-widget {
     background-color: var(--bg-main);
@@ -135,41 +257,6 @@ body {
     border-radius: 4px;
 }
 
-.main-content {
-    flex-grow: 1;
-    padding: 40px;
-    overflow-y: auto;
-}
-
-.page-view {
-    display: none;
-    max-width: 800px;
-    margin: 0 auto;
-}
-
-.page-view.active {
-    display: block;
-    animation: fadeIn 0.2s ease-out;
-}
-
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(4px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-/* UI Styling Elements extra stuff */
-
-.page-view h2 {
-    font-size: 1.8rem;
-    margin-bottom: 8px;
-    font-weight: 900;
-}
-
-.page-view p {
-    color: var(--text-muted);
-    margin-bottom: 24px;
-    line-height: 1.5;
-}
 
 /* Text boxes etc */
 
