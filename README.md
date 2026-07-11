@@ -32,9 +32,11 @@ Get your local copy of **Kairos** up and running in less than two minutes.
 
 ### 1. Clone the Repository
 ```bash
-git clone [https://github.com/mrhwckrr/kairos.git](https://github.com/mrhwckrr/kairos.git)
-cd kairos
+Coming Soon!
 ```
+### 2. Use the Website
+
+Coming Soon!
 
 ---
 
