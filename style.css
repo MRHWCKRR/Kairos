@@ -12,8 +12,7 @@
 
 * {
     box-sizing: border-box;
-    margin: 0;
-    padding: 0'
+    margin: 0;    padding: 0;
 }
 
 body {
@@ -83,3 +82,135 @@ body {
     transition: all 0.2s;
 }
 
+.nav-item:hover {
+    background-color: var(--border-subtle);
+    color: var(--text-primary);
+}
+
+.nav-item.active {
+    background-color: var(--border-subtle);
+    color: var(--text-primary);
+    border-left: 3cm solid var(--accent-glow);
+}
+
+.whats-next-widget {
+    background-color: var(--bg-main);
+    border: 1px solid var(--border-subtle);
+    padding: 16px;
+    border-radius: 8px;
+    transition: opacity 0.2s;
+}
+
+.sidebar.collapsed .whats-next-widget {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.widget-lable {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+#next-task-title {
+    font-size: 0.95rem;
+    margin: 4px 0 8px 0;
+    font-weight: 500;
+}
+
+.due-tag {
+    font-size: 0.8rem;
+    color: var(--accent-glow);
+    background-color: rgba(168, 85, 247, 0.1);
+    padding: 2px 8px;
+    border-radius: 4px;
+}
+
+.main-content {
+    flex-grow: 1;
+    padding: 40px;
+    overflow-y: auto;
+}
+
+.page-view {
+    display: none;
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.page-view.active {
+    display: block;
+    animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* UI Styling Elements extra stuff */
+
+.page-view h2 {
+    font-size: 1.8rem;
+    margin-bottom: 8px;
+    font-weight: 900;
+}
+
+.page-view p {
+    color: var(--text-muted);
+    margin-bottom: 24px;
+    line-height: 1.5;
+}
+
+/* Text boxes etc */
+
+.ai-box textarea,
+.settings-box input {
+    width: 100%;
+    background-color: var(--bg-main);
+    color: var(--text-primary);
+    border: 1px solid var(--border-subtle);
+    padding: 16px;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 0.95rem;
+    margin-top: 8px;
+    margin-bottom: 16px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.ai-box textarea {
+    min-height: 140px;
+    resize:vertical;
+}
+
+.settings-box input {
+    min-height:auto;
+}
+
+/* Extra Glam for Text Boxes*/
+
+.aibox textarea:focus,
+.settings-box input:focus {
+    outline: none;
+    border-color: var(--accent-glow);
+    box-shadow: 0 0 0 2px rgba(168, 85, 247, 0.2);
+}
+
+.action-btn {
+    background-color: var(--accent-glow);
+    color: #ffffff;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.1s;
+}
+
+.action-btn:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+}
