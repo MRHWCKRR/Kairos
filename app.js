@@ -13,20 +13,21 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
     // tab logic
-    const navItems = document.querySelectorAll(".nav-items");
+    // Bug was here. Fixed it by fixing a typo lol
+    const navItems = document.querySelectorAll(".nav-item");
     const pageViews = document.querySelectorAll(".page-view");
 
     navItems.forEach(button => {
         button.addEventListener("click", () => {
 
             navItems.forEach(item => item.classList.remove("active"));
-            
-            button.classList.add("active");
-
             pageViews.forEach(page => page.classList.remove("active"));
+
+            button.classList.add("active");
 
             const targetPageId = button.getAttribute("data-target");
             const targetPage = document.getElementById(targetPageId);
+            
             if (targetPage) {
                 targetPage.classList.add("active");
             }

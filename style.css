@@ -31,19 +31,22 @@ body {
 
 .sidebar {
     width:var(--sidebar-expanded);
+    min-width: var(--sidebar-expanded);
     background-color: var(--bg-card);
     border-right: 1px solid var(--border-subtle);
     display: flex;
     flex-direction: column;
     padding: 24px;
+    flex-shrink: 0;
     transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), padding 0.3s;
     overflow: hidden;
     white-space: nowrap;
 }
 
 .sidebar.collapsed {
-    width: var(--sidebar-collapsed);
-    padding: 24px 12px;
+    width: var(--sidebar-collapsed) !important;
+    min-width: var(--sidebar-collapsed) !important;
+    padding: 24px 12px !important;
 }
 
 .toggle-btn {
@@ -90,7 +93,12 @@ body {
 .nav-item.active {
     background-color: var(--border-subtle);
     color: var(--text-primary);
-    border-left: 3cm solid var(--accent-glow);
+    border-left: 3px solid var(--accent-glow);
+}
+
+.sidebar.collapsed .nav-item {
+    color:transparent !important;
+    border-color: transparent !important;
 }
 
 .whats-next-widget {
@@ -102,11 +110,11 @@ body {
 }
 
 .sidebar.collapsed .whats-next-widget {
-    opacity: 0;
-    pointer-events: none;
+    opacity: 0 !important;
+    pointer-events: none !important;
 }
 
-.widget-lable {
+.widget-label {
     font-size: 0.75rem;
     color: var(--text-muted);
     text-transform: uppercase;
@@ -191,7 +199,7 @@ body {
 
 /* Extra Glam for Text Boxes*/
 
-.aibox textarea:focus,
+.ai-box textarea:focus,
 .settings-box input:focus {
     outline: none;
     border-color: var(--accent-glow);
