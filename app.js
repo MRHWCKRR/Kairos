@@ -131,41 +131,56 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // --- 4. INTERACTION & STATS ---
 
-    // NEW: Uses Event Delegation to listen for clicks on any checkbox, even dynamically generated ones
+    // --- 4. INTERACTION & STATS ---
+
+    // Uses Event Delegation to listen for clicks on any checkbox
     document.body.addEventListener('change', (e) => {
         if (e.target.matches("input[type='checkbox'][data-task]")) {
             const sectionId = e.target.getAttribute('data-section');
             const taskId = e.target.getAttribute('data-task');
             const isChecked = e.target.checked;
 
-            // Update the Data Engine
+            // 1. Update the Data Engine
             const section = routinesData.find(s => s.id === sectionId);
             const task = section.tasks.find(t => t.id === taskId);
             task.completed = isChecked;
 
-            // Update local DOM for the strike-through effect immediately for a snappy feel
-            const taskItem = e.target.closest('.task-item');
-            if (isChecked) taskItem.classList.add('completed');
-            else taskItem.classList.remove('completed');
+            // 2. BUG FIX: Find ALL instances of this task on the screen (Dashboard & Manager) 
+            // and sync them instantly so the smooth CSS animations still play.
+            const identicalCheckboxes = document.querySelectorAll(`input[data-task='${taskId}']`);
+            identicalCheckboxes.forEach(cb => {
+                cb.checked = isChecked;
+                const taskItem = cb.closest('.task-item');
+                if (isChecked) {
+                    taskItem.classList.add('completed');
+                } else {
+                    taskItem.classList.remove('completed');
+                }
+            });
 
-            // Update global stats
+            // 3. Update global stats
             updateRoutineStats();
 
-            // Check if we just finished the whole section
-            const sectionFinished = section.tasks.every(t => t.completed);
-            if (sectionFinished && isChecked) {
+            // 4. Handle section completion and Dashboard sliding
+            const isSectionFinished = section.tasks.every(t => t.completed);
+            
+            if (isSectionFinished && isChecked) {
                 // Trigger Dopamine Hit (Confetti)
                 if (window.confetti) {
                     confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 }, colors: ['#a855f7', '#ffffff'] });
                 }
                 
-                // Wait half a second so they can enjoy the checkbox animation, then slide to next section
+                // Wait for the animation, then advance the Dashboard
                 setTimeout(() => {
-                    renderApp(); // Re-render moves Dashboard to next section
+                    renderApp(); 
                 }, 600);
             } else {
-                // If section isn't done, just re-render Manager in background (Dashboard stays same)
-                renderManagerMode();
+                // BUG FIX: If you uncheck a past task, the Dashboard needs to evaluate if it 
+                // should slide backwards to show the now-incomplete section!
+                // We add a tiny delay so you can see your click animate before the UI calculates.
+                setTimeout(() => {
+                    renderFocusMode();
+                }, 400);
             }
         }
     });
