@@ -231,4 +231,39 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         });
     }
+
+    // AI Stuff
+
+    const aiInput = document.getElementById("ai-input");
+    const aiGenerateBtn = document.getElementById("ai-generate-btn");
+
+    if (aiInput && aiGenerateBtn) {
+        aiGenerateBtn.addEventListener("click", async () => {
+            const assignmentText = aiInput.value.trim();
+            const apiKey = localStorage.getItem("kairos_api_key");
+
+            // checking if the keys there cuz like some people are...forgetful (cant relate mhmhm)
+            if (!apiKey) {
+                alert("Please go to Settings and save your Gemini API Key first!");
+                return;
+            }
+            if (!assignmentText) {
+                alert("Empty input, please put your assignment details or a syllabus in first!");
+                return;
+            }
+
+
+            const originalBtnText = aiGenerateBtn.innerText;
+            aiGenerateBtn.innerText = "Generating Plan...";
+            aiGenerateBtn.disabled = true;
+            aiGenerateBtn.style.opacity = "0.7";
+
+            // Prompt:
+            const systemPrompt = `
+            `
+
+        })
+    }
+
+
 });
