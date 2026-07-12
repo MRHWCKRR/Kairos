@@ -1,3 +1,4 @@
+console.log("APP.js is loaded and running")
 document.addEventListener("DOMContentLoaded", () => {
     
     // --- 1. UI Navigation & Clock (Kept Intact) ---
@@ -338,24 +339,28 @@ ${assignmentText}
         });
     }
 
-    // --- 8. MODAL LOGIC (Delegated Version) ---
+    // --- 8. MODAL LOGIC (Robust Delegation) ---
     document.body.addEventListener("click", (e) => {
-        // 1. Check if the clicked element is our "Open" link
-        if (e.target.id === "open-api-modal") {
+        // Find the closest element that matches our IDs
+        const openBtn = e.target.closest("#open-api-modal");
+        const closeBtn = e.target.closest("#close-api-modal");
+        const modal = document.getElementById("api-guide-modal");
+
+        // 1. Open
+        if (openBtn) {
             e.preventDefault();
-            const modal = document.getElementById("api-guide-modal");
+            console.log("Open button clicked/found via closest()");
             if (modal) modal.classList.add("active");
         }
 
-        // 2. Check if the clicked element is the "Close" button
-        if (e.target.id === "close-api-modal") {
-            const modal = document.getElementById("api-guide-modal");
+        // 2. Close
+        if (closeBtn) {
             if (modal) modal.classList.remove("active");
         }
 
-        // 3. Close when clicking the dark background
+        // 3. Close on background click
         if (e.target.classList.contains("modal-overlay")) {
-            e.target.classList.remove("active");
+            if (modal) modal.classList.remove("active");
         }
     });
 
