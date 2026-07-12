@@ -260,10 +260,73 @@ document.addEventListener("DOMContentLoaded", () => {
 
             // Prompt:
             const systemPrompt = `
-            `
+            You are an expert AI Study Coach. The user will provide a syllabus, assignment, or goal. 
+You are an expert AI Study Coach. The user will provide a syllabus, assignment, or goal. 
+Break it down into logical, actionable study sections and tasks.
 
-        })
+CRITICAL INSTRUCTION: You MUST respond with ONLY a valid, raw JSON array. 
+Do NOT include markdown formatting, backticks, or the word 'json'. 
+Just the raw array.
+
+Use this exact structure:
+[
+  {
+    "id": "gen-sec-1",
+    "title": "Phase 1: Research",
+    "tasks": [
+      { "id": "gen-task-1", "title": "Find 3 academic sources", "completed": false },
+      { "id": "gen-task-2", "title": "Read and highlight sources", "completed": false }
+    ]
+  }
+]
+
+User's Request:
+${assignmentText}
+            `;
+
+            try {
+                // 4. Make the call to the Gemini API
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: systemPrompt }] }]
+                    })
+                });
+
+                if (!response.ok) throw new Error("Failed to reach Gemini API. Check your API Key.");
+
+                const data = await response.json();
+                let aiResponseText = data.candidates[0].content.parts[0].text;
+
+                aiResponseText = aiResponseText.replace(/```json/gi, "").replace(/```/gi, "").trim();
+
+                const newSections = JSON.parse(aiResponseText);
+
+                const uniqueId = Date.now();
+                NewSections.forEach((sec, sIndex) => {
+                    sec.id = `ai-sec-${uniqueId}-${sIndex}`;
+                    sec.tasks.forEach((task, tIndex) => {
+                        task.id = `ai-task-${uniqueId}-${sIndex}-${tIndex}`;
+                        task.completed = false; // ensure they start unchecked
+                    });
+                });
+
+                routinesData = newSections;
+
+                renderApp();
+
+                aiInput.value = "";
+                document.querySelector('[data-target="tasks-page"]').click();
+
+            } catch (error) {
+                console.error(error);
+                alert("Whoops! Something went terribly wrong generating the plan. Make sure your API key is correct. Check console for more details.");
+            } finally {
+                aiGenerateBtn.innerText = originalBtnText;
+                aiGenerateBtn.disabled = false;
+                aiGenerateBtn.style.opacity = "1";
+            }
+        });
     }
-
-
 });
