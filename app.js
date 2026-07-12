@@ -1,16 +1,10 @@
 document.addEventListener("DOMContentLoaded", () => {
     
-    // --- 1. Sidebar Collapse Logic ---
+    // --- 1. UI Navigation & Clock (Kept Intact) ---
     const sidebar = document.getElementById("sidebar");
     const sidebarToggle = document.getElementById("sidebar-toggle");
+    if (sidebarToggle && sidebar) sidebarToggle.addEventListener("click", () => sidebar.classList.toggle("collapsed"));
 
-    if (sidebarToggle && sidebar) {
-        sidebarToggle.addEventListener("click", () => {
-            sidebar.classList.toggle("collapsed");
-        });
-    }
-
-    // --- 2. Tab Switching Logic ---
     const navItems = document.querySelectorAll(".nav-item");
     const pageViews = document.querySelectorAll(".page-view");
 
@@ -18,82 +12,190 @@ document.addEventListener("DOMContentLoaded", () => {
         button.addEventListener("click", () => {
             navItems.forEach(item => item.classList.remove("active"));
             pageViews.forEach(page => page.classList.remove("active"));
-            
             button.classList.add("active");
-
-            const targetPageId = button.getAttribute("data-target");
-            const targetPage = document.getElementById(targetPageId);
-            
-            if (targetPage) {
-                targetPage.classList.add("active");
-            }
+            const targetPage = document.getElementById(button.getAttribute("data-target"));
+            if (targetPage) targetPage.classList.add("active");
         });
     });
 
-    // --- 3. Live Dashboard Clock ---
     function updateClock() {
         const timeElement = document.getElementById("live-time");
         const dateElement = document.getElementById("live-date");
-        
         if (timeElement && dateElement) {
             const now = new Date();
-            timeElement.textContent = now.toLocaleTimeString('en-US', { 
-                hour: 'numeric', minute: '2-digit', hour12: true 
-            });
-            dateElement.textContent = now.toLocaleDateString('en-US', { 
-                weekday: 'long', month: 'long', day: 'numeric', year: 'numeric'
-            });
+            timeElement.textContent = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+            dateElement.textContent = now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
         }
     }
     updateClock();
     setInterval(updateClock, 60000);
 
+    // --- 2. THE DATA ENGINE (The "Brain") ---
+    // NEW: Instead of hardcoded HTML, we store your routines here. 
+    // Later, the AI will just push new sections into this array!
+    let routinesData = [
+        {
+            id: 'sec-1',
+            title: 'Morning Setup',
+            tasks: [
+                { id: 't-1', title: 'Review AI flashcards', completed: false },
+                { id: 't-2', title: 'Draft English essay outline', completed: false }
+            ]
+        },
+        {
+            id: 'sec-2',
+            title: 'Afternoon Deep Work',
+            tasks: [
+                { id: 't-3', title: 'Read Chapter 4', completed: false },
+                { id: 't-4', title: 'Complete Math worksheet', completed: false },
+                { id: 't-5', title: 'Upload assignment', completed: false }
+            ]
+        }
+    ];
 
-    // --- 4. Checklist & Progress Bar Logic ---
-    const taskCheckboxes = document.querySelectorAll(".task-item input[type='checkbox']");
-    
-    // NEW: Function to calculate and update the visual progress bar
+    // --- 3. RENDERING ENGINE ---
+    const focusContainer = document.getElementById("dashboard-focus-container");
+    const managerContainer = document.getElementById("tasks-manager-container");
+
+    // NEW: Generates the HTML for a single task
+    function createTaskHTML(task, sectionId) {
+        return `
+            <li class="task-item ${task.completed ? 'completed' : ''}">
+                <label class="custom-checkbox">
+                    <input type="checkbox" data-section="${sectionId}" data-task="${task.id}" ${task.completed ? 'checked' : ''}>
+                    <span class="checkmark"></span>
+                </label>
+                <input type="text" class="task-text" value="${task.title}" readonly>
+            </li>
+        `;
+    }
+
+    // NEW: Paints the entire app based on the Data Engine
+    function renderApp() {
+        renderFocusMode();
+        renderManagerMode();
+        updateRoutineStats();
+    }
+
+    // NEW: Dashboard sync - Finds the FIRST section that isn't 100% complete
+    function renderFocusMode() {
+        if (!focusContainer) return;
+
+        const activeSection = routinesData.find(section => section.tasks.some(task => !task.completed));
+
+        if (activeSection) {
+            let tasksHTML = activeSection.tasks.map(task => createTaskHTML(task, activeSection.id)).join('');
+            
+            focusContainer.innerHTML = `
+                <div class="fade-in-section">
+                    <div class="checklist-header">
+                        <h3 class="editable-title" spellcheck="false">${activeSection.title}</h3>
+                    </div>
+                    <ul class="task-list">
+                        ${tasksHTML}
+                    </ul>
+                </div>
+            `;
+        } else {
+            // All Done State!
+            focusContainer.innerHTML = `
+                <div class="fade-in-section all-done-state">
+                    <span class="all-done-icon">🎉</span>
+                    <h3>You're all caught up!</h3>
+                    <p class="text-muted">Take a break or plan your next routine.</p>
+                </div>
+            `;
+        }
+    }
+
+    // NEW: Manager sync - Renders EVERYTHING for the Tasks tab
+    function renderManagerMode() {
+        if (!managerContainer) return;
+
+        let managerHTML = routinesData.map(section => {
+            let tasksHTML = section.tasks.map(task => createTaskHTML(task, section.id)).join('');
+            return `
+                <div class="manager-section fade-in-section">
+                    <div class="checklist-header">
+                        <h3 class="editable-title" spellcheck="false">${section.title}</h3>
+                    </div>
+                    <ul class="task-list">
+                        ${tasksHTML}
+                    </ul>
+                </div>
+            `;
+        }).join('');
+
+        managerContainer.innerHTML = managerHTML || `<p class="text-muted">No routines created yet.</p>`;
+    }
+
+    // --- 4. INTERACTION & STATS ---
+
+    // NEW: Uses Event Delegation to listen for clicks on any checkbox, even dynamically generated ones
+    document.body.addEventListener('change', (e) => {
+        if (e.target.matches("input[type='checkbox'][data-task]")) {
+            const sectionId = e.target.getAttribute('data-section');
+            const taskId = e.target.getAttribute('data-task');
+            const isChecked = e.target.checked;
+
+            // Update the Data Engine
+            const section = routinesData.find(s => s.id === sectionId);
+            const task = section.tasks.find(t => t.id === taskId);
+            task.completed = isChecked;
+
+            // Update local DOM for the strike-through effect immediately for a snappy feel
+            const taskItem = e.target.closest('.task-item');
+            if (isChecked) taskItem.classList.add('completed');
+            else taskItem.classList.remove('completed');
+
+            // Update global stats
+            updateRoutineStats();
+
+            // Check if we just finished the whole section
+            const sectionFinished = section.tasks.every(t => t.completed);
+            if (sectionFinished && isChecked) {
+                // Trigger Dopamine Hit (Confetti)
+                if (window.confetti) {
+                    confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 }, colors: ['#a855f7', '#ffffff'] });
+                }
+                
+                // Wait half a second so they can enjoy the checkbox animation, then slide to next section
+                setTimeout(() => {
+                    renderApp(); // Re-render moves Dashboard to next section
+                }, 600);
+            } else {
+                // If section isn't done, just re-render Manager in background (Dashboard stays same)
+                renderManagerMode();
+            }
+        }
+    });
+
     function updateRoutineStats() {
-        // 1. Get total number of checkboxes
-        const totalTasks = taskCheckboxes.length;
-        
-        // 2. Filter down to only the ones that are currently checked
-        const completedTasks = Array.from(taskCheckboxes).filter(cb => cb.checked).length;
-        
-        // 3. Do the math to get the percentage (Handle 0 tasks to avoid dividing by zero)
+        let totalTasks = 0;
+        let completedTasks = 0;
+
+        routinesData.forEach(section => {
+            totalTasks += section.tasks.length;
+            completedTasks += section.tasks.filter(t => t.completed).length;
+        });
+
         const percentage = totalTasks === 0 ? 0 : Math.round((completedTasks / totalTasks) * 100);
 
-        // 4. Find the HTML elements we need to update
         const percentageText = document.getElementById("stats-percentage");
         const fractionText = document.getElementById("stats-fraction");
         const fillBar = document.getElementById("progress-bar-fill");
 
-        // 5. Inject the new values into the HTML
         if (percentageText && fractionText && fillBar) {
             percentageText.textContent = `${percentage}%`;
             fractionText.textContent = `${completedTasks} / ${totalTasks} tasks completed`;
-            fillBar.style.width = `${percentage}%`; // Changes the CSS width dynamically
+            fillBar.style.width = `${percentage}%`;
         }
     }
 
-    // Run it once immediately when the page loads to set the initial 0% state
-    updateRoutineStats();
+    // --- 5. INITIALIZE ---
+    renderApp();
 
-    taskCheckboxes.forEach(checkbox => {
-        checkbox.addEventListener("change", (e) => {
-            const taskItem = e.target.closest(".task-item");
-            if (e.target.checked) {
-                taskItem.classList.add("completed");
-            } else {
-                taskItem.classList.remove("completed");
-            }
-            
-            // NEW: Every time a checkbox is clicked, recalculate the stats
-            updateRoutineStats();
-        });
-    });
-
-    // --- 5. Local Storage (API Key) ---
+    // --- 6. Local Storage (API Key) ---
     const apiKeyInput = document.getElementById("api-key-input");
     const saveSettingsBtn = document.getElementById("save-settings-btn");
 
@@ -105,12 +207,10 @@ document.addEventListener("DOMContentLoaded", () => {
             const key = apiKeyInput.value.trim();
             if (key !== "") {
                 localStorage.setItem("kairos_api_key", key);
-                const originalText = saveSettingsBtn.innerText;
                 saveSettingsBtn.innerText = "Key Saved! ✓";
                 saveSettingsBtn.style.backgroundColor = "#22c55e";
-
                 setTimeout(() => {
-                    saveSettingsBtn.innerText = originalText;
+                    saveSettingsBtn.innerText = "Save Keys";
                     saveSettingsBtn.style.backgroundColor = "var(--accent-glow)";
                 }, 2000);
             }

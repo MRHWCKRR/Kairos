@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kairos | Opportune Routine Planner</title>
     <link rel="stylesheet" href="style.css">
+    <!-- NEW: Lightweight confetti library for the dopamine hit -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 </head>
 <body>
     <div class="app-layout">
@@ -20,6 +22,8 @@
             <nav class="sidebar-nav">
                 <button class="nav-item active" data-target="home-page">Dashboard</button>
                 <button class="nav-item" data-target="ai-page">AI Helper</button>
+                <!-- NEW: Tasks & Routines Tab added right under AI Helper -->
+                <button class="nav-item" data-target="tasks-page">Routines & Tasks</button>
                 <button class="nav-item" data-target="calendar-page">Calendar</button>
                 <button class="nav-item" data-target="settings-page">Settings</button>
             </nav>
@@ -33,7 +37,6 @@
         <!-- Main Canvas -->
         <main class="main-content">
             
-            <!-- Top Utility Bar -->
             <header class="top-bar">
                 <div class="spacer"></div>
                 <div class="top-bar-actions">
@@ -51,47 +54,18 @@
                 
                 <div class="dashboard-grid">
                     
-                    <!-- PLANIFY STYLE CHECKLIST -->
-                    <div class="dash-card checklist-card">
-                        <div class="checklist-header">
-                            <h3 contenteditable="true" class="editable-title" spellcheck="false">Morning Routine</h3>
-                        </div>
-                        <ul class="task-list">
-                            <li class="task-item">
-                                <label class="custom-checkbox">
-                                    <input type="checkbox">
-                                    <span class="checkmark"></span>
-                                </label>
-                                <input type="text" class="task-text" value="Review AI flashcards" readonly>
-                            </li>
-                            <li class="task-item">
-                                <label class="custom-checkbox">
-                                    <input type="checkbox">
-                                    <span class="checkmark"></span>
-                                </label>
-                                <input type="text" class="task-text" value="Draft English essay" readonly>
-                            </li>
-                            <!-- I removed the "completed" class and checked status here so it starts at 0% -->
-                            <li class="task-item">
-                                <label class="custom-checkbox">
-                                    <input type="checkbox">
-                                    <span class="checkmark"></span>
-                                </label>
-                                <input type="text" class="task-text" value="Drink water" readonly>
-                            </li>
-                        </ul>
+                    <!-- NEW: Empty container for the Dashboard Focus Mode. JS will fill this. -->
+                    <div id="dashboard-focus-container" class="dash-card checklist-card">
+                        <!-- Content injected by JavaScript -->
                     </div>
 
-                    <!-- NEW: Updated Routine Stats Card to include dynamic elements -->
                     <div class="dash-card">
                         <div class="stats-header">
                             <h3>Routine Stats</h3>
                             <span id="stats-percentage" class="stats-percentage">0%</span>
                         </div>
-                        <!-- We will inject text like "1 / 3 tasks completed" here -->
                         <p id="stats-fraction" class="text-muted" style="margin-bottom: 16px;">0 / 0 tasks completed</p>
                         
-                        <!-- The visual bar itself -->
                         <div class="progress-bar-container">
                             <div id="progress-bar-fill" class="progress-bar-fill"></div>
                         </div>
@@ -106,6 +80,17 @@
                 <div class="ai-box">
                     <textarea placeholder="Paste assignment details here..."></textarea>
                     <button class="action-btn">Create Plan</button>
+                </div>
+            </div>
+
+            <!-- NEW: Tasks & Routines Page (Manager Mode) -->
+            <div id="tasks-page" class="page-view">
+                <h2>Routines & Tasks</h2>
+                <p>Manage your master list. AI plans will populate here.</p>
+                
+                <!-- Container where all sections will render -->
+                <div id="tasks-manager-container" class="tasks-manager">
+                    <!-- Content injected by JavaScript -->
                 </div>
             </div>
 
