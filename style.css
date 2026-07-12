@@ -226,3 +226,90 @@ body {
     display: inline-block;
     animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
+
+/* --- API HELPER TEXT --- */
+.api-helper-text {
+    font-size: 0.85rem;
+    color: #9ca3af;
+    margin-top: 15px;
+}
+
+.api-helper-text a {
+    color: #a855f7;
+    text-decoration: none;
+    transition: 0.2s;
+}
+
+.api-helper-text a:hover {
+    text-decoration: underline;
+    color: #c084fc;
+}
+
+/* --- MODAL (POPUP) STYLES --- */
+.modal-overlay {
+    display: none; /* Hidden until clicked */
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(4px);
+    z-index: 9999;
+    justify-content: center;
+    align-items: center;
+}
+
+/* We add this class via JavaScript to make it visible */
+.modal-overlay.active {
+    display: flex;
+    animation: popIn 0.2s ease-out;
+}
+
+.modal-content {
+    background-color: #1e1e2f;
+    padding: 30px;
+    border-radius: 12px;
+    max-width: 550px;
+    width: 90%;
+    position: relative;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+.close-modal {
+    position: absolute;
+    top: 15px; right: 20px;
+    font-size: 28px;
+    color: #9ca3af;
+    cursor: pointer;
+    line-height: 1;
+}
+
+.close-modal:hover {
+    color: #ffffff;
+}
+
+.api-steps {
+    margin-top: 20px;
+    padding-left: 20px;
+    color: #e2e8f0;
+    line-height: 1.6;
+}
+
+.api-steps li {
+    margin-bottom: 15px;
+}
+
+.api-steps a {
+    color: #a855f7;
+}
+
+.guide-img {
+    width: 100%;
+    border-radius: 8px;
+    margin-top: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+@keyframes popIn {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+}

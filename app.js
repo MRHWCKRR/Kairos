@@ -337,4 +337,26 @@ ${assignmentText}
             }
         });
     }
+
+    // --- 8. MODAL LOGIC (Delegated Version) ---
+    document.body.addEventListener("click", (e) => {
+        // 1. Check if the clicked element is our "Open" link
+        if (e.target.id === "open-api-modal") {
+            e.preventDefault();
+            const modal = document.getElementById("api-guide-modal");
+            if (modal) modal.classList.add("active");
+        }
+
+        // 2. Check if the clicked element is the "Close" button
+        if (e.target.id === "close-api-modal") {
+            const modal = document.getElementById("api-guide-modal");
+            if (modal) modal.classList.remove("active");
+        }
+
+        // 3. Close when clicking the dark background
+        if (e.target.classList.contains("modal-overlay")) {
+            e.target.classList.remove("active");
+        }
+    });
+
 });
