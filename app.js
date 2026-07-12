@@ -1,9 +1,8 @@
-console.log("APP.js is loaded and running")
 import { auth, db } from './firebase.js';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { auth } from './firebase.js';
-import { singInWithEmailAndPassword, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+
+console.log("APP.js is loaded and running");
 
 document.addEventListener("DOMContentLoaded", () => {
     
