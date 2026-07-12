@@ -115,20 +115,21 @@
         </main>
     </div>
 
+<!-- API Modal -->
     <div id="api-guide-modal" class="modal-overlay">
-    <div class="modal-content">
-        <span class="close-modal" id="close-api-modal">&times;</span>
-        <h2>How to get a Gemini API Key</h2>
-        <ol class="api-steps">
-            <li>Go to <a href="https://aistudio.google.com/app/apikey" target="_blank">Google AI Studio</a> and sign in with your Google account.</li>
-            <li>Click the <strong>"Create API key"</strong> button.</li>
-            <!-- Using a clean placeholder image - you can replace the src later if you want a real screenshot -->
-            <img src="https://placehold.co/500x150/1e1e2f/a855f7?text=Click+'Create+API+Key'" alt="Create API Key Step" class="guide-img">
-            <li>Click "Create Key" option.</li>
-                 <li>Copy the long bit of weird numbers and letters, and paste it into the API key box here, and click save!</li>
+        <div class="modal-content">
+            <span class="close-modal" id="close-api-modal">&times;</span>
+            <h2>How to get a Gemini API Key</h2>
+            <ol class="api-steps">
+                <li>Go to <a href="https://aistudio.google.com/app/apikey" target="_blank">Google AI Studio</a>.</li>
+                <li>Click the <strong>"Create API key"</strong> button.</li>
+                <img src="https://placehold.co/500x150/1e1e2f/a855f7?text=Click+'Create+API+Key'" alt="Create API Key Step" class="guide-img">
+                <li>Copy the key and paste it into the Settings page.</li>
             </ol>
         </div>
+    </div>
 
+    <!-- Auth Modal -->
     <div id="auth-modal" class="modal-overlay">
         <div class="modal-content">
             <h2>Welcome Back</h2>
@@ -138,7 +139,6 @@
             <button id="signup-btn" style="background: none; border: none; color: #a855f7; cursor: pointer;">Create Account</button>
         </div>
     </div>
-
 
     <script type="module" src="app.js"></script>
 </body>

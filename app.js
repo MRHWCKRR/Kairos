@@ -404,6 +404,6 @@ ${assignmentText}
 
 
 // First startup stuff login
-document.addEventListener('DOMContentLoaded', () => {
-    document.getElementById('auth-modal').classList.add('active');
+    document.addEventListener('DOMContentLoaded', () => {
+        document.getElementById('auth-modal').classList.add('active');
 });
