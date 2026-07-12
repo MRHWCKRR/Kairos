@@ -2,6 +2,8 @@ console.log("APP.js is loaded and running")
 import { auth, db } from './firebase.js';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { auth } from './firebase.js';
+import { singInWithEmailAndPassword, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
 document.addEventListener("DOMContentLoaded", () => {
     
@@ -368,4 +370,41 @@ ${assignmentText}
         }
     });
 
+    // Login Stuff
+
+    document.getElementById('login-btn').addEventListener('click', async () => {
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+        try {
+            await signInWithEmailAndPassword(auth, email, password);
+            document.getElementById('auth-modal').classList.remove('active');
+            console.log("Logged In");
+        } catch (error) {
+            alert("Login failed: " + error.message);
+        }
+    })
+
+    // Signup Stuff
+
+    document.getElementById('signup-btn').addEventListener('click', async () => {
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+        try {
+            await createUserWithEmailAndPassword(auth, email, password);
+            document.getElementById('auth-modal').classList.remove('active');
+            console.log("Account created!");
+        } catch (error) {
+            alert("Sign up failed: " + error.message);
+        }
+    });   
+});
+
+
+
+
+
+
+// First startup stuff login
+document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('auth-modal').classList.add('active');
 });
