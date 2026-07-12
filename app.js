@@ -16,14 +16,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
     navItems.forEach(button => {
         button.addEventListener("click", () => {
-            // Wipe active classes from everything first
             navItems.forEach(item => item.classList.remove("active"));
             pageViews.forEach(page => page.classList.remove("active"));
             
-            // Add active class to clicked button
             button.classList.add("active");
 
-            // Find and activate the matching page
             const targetPageId = button.getAttribute("data-target");
             const targetPage = document.getElementById(targetPageId);
             
@@ -51,8 +48,37 @@ document.addEventListener("DOMContentLoaded", () => {
     updateClock();
     setInterval(updateClock, 60000);
 
-    // --- 4. Checklist Interaction Logic ---
+
+    // --- 4. Checklist & Progress Bar Logic ---
     const taskCheckboxes = document.querySelectorAll(".task-item input[type='checkbox']");
+    
+    // NEW: Function to calculate and update the visual progress bar
+    function updateRoutineStats() {
+        // 1. Get total number of checkboxes
+        const totalTasks = taskCheckboxes.length;
+        
+        // 2. Filter down to only the ones that are currently checked
+        const completedTasks = Array.from(taskCheckboxes).filter(cb => cb.checked).length;
+        
+        // 3. Do the math to get the percentage (Handle 0 tasks to avoid dividing by zero)
+        const percentage = totalTasks === 0 ? 0 : Math.round((completedTasks / totalTasks) * 100);
+
+        // 4. Find the HTML elements we need to update
+        const percentageText = document.getElementById("stats-percentage");
+        const fractionText = document.getElementById("stats-fraction");
+        const fillBar = document.getElementById("progress-bar-fill");
+
+        // 5. Inject the new values into the HTML
+        if (percentageText && fractionText && fillBar) {
+            percentageText.textContent = `${percentage}%`;
+            fractionText.textContent = `${completedTasks} / ${totalTasks} tasks completed`;
+            fillBar.style.width = `${percentage}%`; // Changes the CSS width dynamically
+        }
+    }
+
+    // Run it once immediately when the page loads to set the initial 0% state
+    updateRoutineStats();
+
     taskCheckboxes.forEach(checkbox => {
         checkbox.addEventListener("change", (e) => {
             const taskItem = e.target.closest(".task-item");
@@ -61,6 +87,9 @@ document.addEventListener("DOMContentLoaded", () => {
             } else {
                 taskItem.classList.remove("completed");
             }
+            
+            // NEW: Every time a checkbox is clicked, recalculate the stats
+            updateRoutineStats();
         });
     });
 

@@ -18,7 +18,6 @@
             </div>
 
             <nav class="sidebar-nav">
-                <!-- ONLY Dashboard is active by default -->
                 <button class="nav-item active" data-target="home-page">Dashboard</button>
                 <button class="nav-item" data-target="ai-page">AI Helper</button>
                 <button class="nav-item" data-target="calendar-page">Calendar</button>
@@ -55,7 +54,6 @@
                     <!-- PLANIFY STYLE CHECKLIST -->
                     <div class="dash-card checklist-card">
                         <div class="checklist-header">
-                            <!-- contenteditable allows you to click and type -->
                             <h3 contenteditable="true" class="editable-title" spellcheck="false">Morning Routine</h3>
                         </div>
                         <ul class="task-list">
@@ -73,9 +71,10 @@
                                 </label>
                                 <input type="text" class="task-text" value="Draft English essay" readonly>
                             </li>
-                            <li class="task-item completed">
+                            <!-- I removed the "completed" class and checked status here so it starts at 0% -->
+                            <li class="task-item">
                                 <label class="custom-checkbox">
-                                    <input type="checkbox" checked>
+                                    <input type="checkbox">
                                     <span class="checkmark"></span>
                                 </label>
                                 <input type="text" class="task-text" value="Drink water" readonly>
@@ -83,9 +82,19 @@
                         </ul>
                     </div>
 
+                    <!-- NEW: Updated Routine Stats Card to include dynamic elements -->
                     <div class="dash-card">
-                        <h3>Routine Stats</h3>
-                        <p class="text-muted">33% completed today.</p>
+                        <div class="stats-header">
+                            <h3>Routine Stats</h3>
+                            <span id="stats-percentage" class="stats-percentage">0%</span>
+                        </div>
+                        <!-- We will inject text like "1 / 3 tasks completed" here -->
+                        <p id="stats-fraction" class="text-muted" style="margin-bottom: 16px;">0 / 0 tasks completed</p>
+                        
+                        <!-- The visual bar itself -->
+                        <div class="progress-bar-container">
+                            <div id="progress-bar-fill" class="progress-bar-fill"></div>
+                        </div>
                     </div>
                 </div>
             </div>

@@ -73,7 +73,7 @@ body {
     cursor: pointer;
     padding: 4px;
     border-radius: 4px;
-    user-select: none; /* FIX: Stops double-click text highlighting */
+    user-select: none;
     -webkit-user-select: none;
 }
 .toggle-btn:hover { color: var(--text-primary); }
@@ -152,3 +152,35 @@ body {
 .ai-box textarea:focus, .settings-box input:focus { outline: none; border-color: var(--accent-glow); }
 .action-btn { background-color: var(--accent-glow); color: #ffffff; border: none; padding: 12px 24px; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: opacity 0.2s; }
 .action-btn:hover { opacity: 0.9; }
+
+/* NEW: Routine Stats Component */
+.stats-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px; /* Keeps it close to the fraction text */
+}
+
+.stats-percentage {
+    font-size: 1.4rem;
+    font-weight: 900;
+    color: var(--accent-glow);
+}
+
+.progress-bar-container {
+    width: 100%;
+    height: 12px;
+    background-color: var(--bg-main); /* Deep background color */
+    border-radius: 6px;
+    border: 1px solid var(--border-subtle);
+    overflow: hidden; /* Keeps the inner fill inside the rounded corners */
+}
+
+.progress-bar-fill {
+    height: 100%;
+    width: 0%; /* Starts at 0, JS will change this */
+    background-color: var(--accent-glow);
+    border-radius: 6px;
+    /* This transition is what makes the bar slide smoothly instead of snapping */
+    transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1); 
+}
