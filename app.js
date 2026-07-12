@@ -304,7 +304,7 @@ ${assignmentText}
                 const newSections = JSON.parse(aiResponseText);
 
                 const uniqueId = Date.now();
-                NewSections.forEach((sec, sIndex) => {
+                newSections.forEach((sec, sIndex) => {
                     sec.id = `ai-sec-${uniqueId}-${sIndex}`;
                     sec.tasks.forEach((task, tIndex) => {
                         task.id = `ai-task-${uniqueId}-${sIndex}-${tIndex}`;
