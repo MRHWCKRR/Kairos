@@ -285,9 +285,9 @@ ${assignmentText}
             `;
 
             try {
-                // 4. Connect to Gemini's API (updated to 1.5 flash to test)
-                const cleanApiKey = apiKey.trim();
-                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${cleanApiKey}`;
+                // 4. Connect to Gemini's API (updated to 2.5 flash to test)
+                const cleanApiKey = apiKey.trim(); 
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${cleanApiKey}`;
                 
                 const response = await fetch(apiUrl, {
                     method: "POST",
