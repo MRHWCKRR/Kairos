@@ -285,8 +285,11 @@ ${assignmentText}
             `;
 
             try {
-                // 4. Make the call to the Gemini API
-                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+                // 4. Connect to Gemini's API (updated to 1.5 flash to test)
+                const cleanApiKey = apiKey.trim();
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${cleanApiKey}`;
+                
+                const response = await fetch(apiUrl, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
@@ -294,7 +297,12 @@ ${assignmentText}
                     })
                 });
 
-                if (!response.ok) throw new Error("Failed to reach Gemini API. Check your API Key.");
+                // Debug stuff cuz i cant seem to figure it out
+                if (!response.ok) {
+                    const errorDetails = await response.text(); 
+                    console.error("Google API Rejected the Request:", errorDetails);
+                    throw new Error(`API Error ${response.status}. See console for details.`);
+                }
 
                 const data = await response.json();
                 let aiResponseText = data.candidates[0].content.parts[0].text;
