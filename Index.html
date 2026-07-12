@@ -1,27 +1,24 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kairos | Opportune Routine Planner</title>
-    <link rel="stylesheet" href="style.css?">
+    <link rel="stylesheet" href="style.css">
 </head>
-
-
 <body>
     <div class="app-layout">
 
-        <!--Left Sidebar. Non negos and Routine stats-->
-
+        <!-- Left Sidebar -->
         <aside id="sidebar" class="sidebar">
             <div class="sidebar-header">
                 <div class="logo-mark">K</div>
                 <h1 class="logo-text">Kairos</h1>
-                <button id="sidebar-toggle" class="toggle-btn"></button>☰</button>
+                <button id="sidebar-toggle" class="toggle-btn" title="Toggle Sidebar">☰</button>
             </div>
 
             <nav class="sidebar-nav">
+                <!-- ONLY Dashboard is active by default -->
                 <button class="nav-item active" data-target="home-page">Dashboard</button>
                 <button class="nav-item" data-target="ai-page">AI Helper</button>
                 <button class="nav-item" data-target="calendar-page">Calendar</button>
@@ -30,16 +27,14 @@
 
             <div class="whats-next-widget">
                 <span class="widget-label">What's Next</span>
-                <p id="next-task-title" class="due-tag">Due Tomorrow</p>
+                <p id="next-task-title" class="due-tag">Read Ch. 4</p>
             </div>
         </aside>
 
-
-        <!--Main Canvas-->
-
+        <!-- Main Canvas -->
         <main class="main-content">
-
-            <!--Util Bar-->
+            
+            <!-- Top Utility Bar -->
             <header class="top-bar">
                 <div class="spacer"></div>
                 <div class="top-bar-actions">
@@ -48,58 +43,76 @@
                 </div>
             </header>
 
-            <!--Dashboard-->
+            <!-- Dashboard / Home Page -->
             <div id="home-page" class="page-view active">
                 <div class="hero-header">
                     <h2 id="live-time">00:00</h2>
                     <p id="live-date">Loading date...</p>
                 </div>
-
+                
                 <div class="dashboard-grid">
-                    <div class="dash-card">
-                        <h3>Up Next</h3>
-                        <p class="text-muted">No immediate tasks.</p>
-                    <div>
-                    <div class ="dash-card">
-                        <h3>Routine Stats</h3>
-                        <p class="text-muted">0% completed today.</p>
+                    
+                    <!-- PLANIFY STYLE CHECKLIST -->
+                    <div class="dash-card checklist-card">
+                        <div class="checklist-header">
+                            <!-- contenteditable allows you to click and type -->
+                            <h3 contenteditable="true" class="editable-title" spellcheck="false">Morning Routine</h3>
+                        </div>
+                        <ul class="task-list">
+                            <li class="task-item">
+                                <label class="custom-checkbox">
+                                    <input type="checkbox">
+                                    <span class="checkmark"></span>
+                                </label>
+                                <input type="text" class="task-text" value="Review AI flashcards" readonly>
+                            </li>
+                            <li class="task-item">
+                                <label class="custom-checkbox">
+                                    <input type="checkbox">
+                                    <span class="checkmark"></span>
+                                </label>
+                                <input type="text" class="task-text" value="Draft English essay" readonly>
+                            </li>
+                            <li class="task-item completed">
+                                <label class="custom-checkbox">
+                                    <input type="checkbox" checked>
+                                    <span class="checkmark"></span>
+                                </label>
+                                <input type="text" class="task-text" value="Drink water" readonly>
+                            </li>
+                        </ul>
                     </div>
-                    <div class="dash-card mini-cal-card"></div>
-                        <h3>Mini Calender</h3>
-                        <p class="text-muted">Calender view coming soon.</p>
+
+                    <div class="dash-card">
+                        <h3>Routine Stats</h3>
+                        <p class="text-muted">33% completed today.</p>
                     </div>
                 </div>
             </div>
 
-            <!--A I Helper-->
-            <div id="ai-page" class="page-view active">
+            <!-- AI Helper -->
+            <div id="ai-page" class="page-view">
                 <h2>AI Study Coach</h2>
-                <p> Paste your syllabus or assignment guidelines below.</p>
+                <p>Paste your syllabus or assignment guidelines below.</p>
                 <div class="ai-box">
                     <textarea placeholder="Paste assignment details here..."></textarea>
                     <button class="action-btn">Create Plan</button>
                 </div>
             </div>
 
-
-             <!--Calendar and Routines-->
+             <!-- Calendar and Routines -->
             <div id="calendar-page" class="page-view">
                 <h2>My Timeline</h2>
                 <p>View and manage your routines and assignment dates live here.</p>
-                <!-- Dynamic calendar loops or tables will render here -->
-                 <div class="calendar-container">
-
-                </div>
             </div>
 
-
-            <!--Settings-->
+            <!-- Settings -->
             <div id="settings-page" class="page-view">
                 <h2>Configuration</h2>
                 <p>Customize your experience and manage your account settings.</p>
                 <div class="settings-box">
                     <label>Gemini API Key:</label>
-                    <input type="password" placeholder="Key is secured locally in your browser.">
+                    <input type="password" id="api-key-input" placeholder="Key is secured locally in your browser.">
                     <button id="save-settings-btn" class="action-btn">Save Keys</button>
                 </div>
             </div>
@@ -108,6 +121,5 @@
     </div>
 
     <script src="app.js"></script>
-
 </body>
-</html>    
+</html>
