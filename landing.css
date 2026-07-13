@@ -70,12 +70,19 @@ body {
     gap: 40px;
 }
 
-.hero-content { flex: 1; }
+.hero-content {
+    flex: 1;
+}
+
 .hero-content h1 { font-size: 4rem; line-height: 1.1; margin-bottom: 20px; }
 .hero-content p {font-size: 1.2rem; color: #aaa; margin-bottom: 40px; max-width: 500px; }
-.hero-content { display: flex; gap: 15px; }
 
-.hero-image { flex: 1 }
+.hero-buttons {
+    display: flex;
+    gap: 15px;
+}
+
+.hero-image { flex: 1; text-align: right; }
 .hero-image img { max-width: 100%; border-radius: 12px; box-shadow: 0 10px 30px rgba(168, 85, 247, 0.2); }
 
 /* features (or how I call it the 'extra fetus' */
@@ -84,3 +91,22 @@ body {
 .feature-grid { display: flex; gap: 30px; justify-content: center; }
 .feature-card { background: #1e1e2f; padding: 30px; border-radius: 10px; width: 300px; text-align: left; border: 1px solid #333; }
 .feature-card h3 { color: #a855f7; margin-bottom: 15px; }
+
+@media (max-width: 600px) {
+    .hero-buttons {
+        flex-direction: column;
+        width: 100%;
+        gap: 10px;
+    }
+
+    .hero-buttons a {
+        width: 100%;
+        text-align: center;
+    }
+
+    .hero-content h1 {
+        font-size: 2.5rem;
+    }
+
+    .feature-grid {flex-direction: column; align-items: center; }
+}
