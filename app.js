@@ -6,7 +6,23 @@ console.log("APP.js is loaded and running");
 
 document.addEventListener("DOMContentLoaded", () => {
     
-    // --- 1. UI Navigation & Clock (Kept Intact) ---
+    // ---  Firebase auth stuff ---
+    auth.onAuthStateChanged((user) => {
+        const authContainer = document.getElementById('user-auth-container');
+        if (authContainer) {
+            if (user) {
+                // User is signed in
+                const userName = user.displayName || "User";
+                const userPhoto = user.photoURL || `https://ui-avatars.com/api/?name=${userName}&background=a855f7&color=fff`;
+                authContainer.innerHTML = `<div class="user-profile"><img src="${userPhoto}" style="width:32px; border-radius:50%;"><span>${userName}</span></div>`;
+            } else {
+                // User is signed out
+                authContainer.innerHTML = `<a href="login.html" class="profile-btn" style="text-decoration: none;">Sign In</a>`;
+            }
+        }
+    });
+
+    // --- 1 UI Nav & Clock ---
     const sidebar = document.getElementById("sidebar");
     const sidebarToggle = document.getElementById("sidebar-toggle");
     if (sidebarToggle && sidebar) sidebarToggle.addEventListener("click", () => sidebar.classList.toggle("collapsed"));
@@ -36,9 +52,7 @@ document.addEventListener("DOMContentLoaded", () => {
     updateClock();
     setInterval(updateClock, 60000);
 
-    // --- 2. THE DATA ENGINE (The "Brain") ---
-    // NEW: Instead of hardcoded HTML, we store your routines here. 
-    // Later, the AI will just push new sections into this array!
+    // --- 2 Data Engine ---
     let routinesData = [
         {
             id: 'sec-1',
@@ -59,11 +73,10 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     ];
 
-    // --- 3. RENDERING ENGINE ---
+    // --- 3 Rendering engine ---
     const focusContainer = document.getElementById("dashboard-focus-container");
     const managerContainer = document.getElementById("tasks-manager-container");
 
-    // NEW: Generates the HTML for a single task
     function createTaskHTML(task, sectionId) {
         return `
             <li class="task-item ${task.completed ? 'completed' : ''}">
@@ -76,22 +89,17 @@ document.addEventListener("DOMContentLoaded", () => {
         `;
     }
 
-    // NEW: Paints the entire app based on the Data Engine
     function renderApp() {
         renderFocusMode();
         renderManagerMode();
         updateRoutineStats();
     }
 
-    // NEW: Dashboard sync - Finds the FIRST section that isn't 100% complete
     function renderFocusMode() {
         if (!focusContainer) return;
-
         const activeSection = routinesData.find(section => section.tasks.some(task => !task.completed));
-
         if (activeSection) {
             let tasksHTML = activeSection.tasks.map(task => createTaskHTML(task, activeSection.id)).join('');
-            
             focusContainer.innerHTML = `
                 <div class="fade-in-section">
                     <div class="checklist-header">
@@ -103,7 +111,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 </div>
             `;
         } else {
-            // All Done State!
             focusContainer.innerHTML = `
                 <div class="fade-in-section all-done-state">
                     <span class="all-done-icon">🎉</span>
@@ -114,10 +121,8 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    // NEW: Manager sync - Renders EVERYTHING for the Tasks tab
     function renderManagerMode() {
         if (!managerContainer) return;
-
         let managerHTML = routinesData.map(section => {
             let tasksHTML = section.tasks.map(task => createTaskHTML(task, section.id)).join('');
             return `
@@ -131,28 +136,20 @@ document.addEventListener("DOMContentLoaded", () => {
                 </div>
             `;
         }).join('');
-
         managerContainer.innerHTML = managerHTML || `<p class="text-muted">No routines created yet.</p>`;
     }
 
-    // --- 4. INTERACTION & STATS ---
-
-    // --- 4. INTERACTION & STATS ---
-
-    // Uses Event Delegation to listen for clicks on any checkbox
+    // --- 4 stats and stuff ---
     document.body.addEventListener('change', (e) => {
         if (e.target.matches("input[type='checkbox'][data-task]")) {
             const sectionId = e.target.getAttribute('data-section');
             const taskId = e.target.getAttribute('data-task');
             const isChecked = e.target.checked;
 
-            // 1. Update the Data Engine
             const section = routinesData.find(s => s.id === sectionId);
             const task = section.tasks.find(t => t.id === taskId);
             task.completed = isChecked;
 
-            // 2. BUG FIX: Find ALL instances of this task on the screen (Dashboard & Manager) 
-            // and sync them instantly so the smooth CSS animations still play.
             const identicalCheckboxes = document.querySelectorAll(`input[data-task='${taskId}']`);
             identicalCheckboxes.forEach(cb => {
                 cb.checked = isChecked;
@@ -164,29 +161,17 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
             });
 
-            // 3. Update global stats
             updateRoutineStats();
 
-            // 4. Handle section completion and Dashboard sliding
             const isSectionFinished = section.tasks.every(t => t.completed);
             
             if (isSectionFinished && isChecked) {
-                // Trigger Dopamine Hit (Confetti)
                 if (window.confetti) {
                     confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 }, colors: ['#a855f7', '#ffffff'] });
                 }
-                
-                // Wait for the animation, then advance the Dashboard
-                setTimeout(() => {
-                    renderApp(); 
-                }, 600);
+                setTimeout(() => { renderApp(); }, 600);
             } else {
-                // BUG FIX: If you uncheck a past task, the Dashboard needs to evaluate if it 
-                // should slide backwards to show the now-incomplete section!
-                // We add a tiny delay so you can see your click animate before the UI calculates.
-                setTimeout(() => {
-                    renderFocusMode();
-                }, 400);
+                setTimeout(() => { renderFocusMode(); }, 400);
             }
         }
     });
@@ -194,18 +179,14 @@ document.addEventListener("DOMContentLoaded", () => {
     function updateRoutineStats() {
         let totalTasks = 0;
         let completedTasks = 0;
-
         routinesData.forEach(section => {
             totalTasks += section.tasks.length;
             completedTasks += section.tasks.filter(t => t.completed).length;
         });
-
         const percentage = totalTasks === 0 ? 0 : Math.round((completedTasks / totalTasks) * 100);
-
         const percentageText = document.getElementById("stats-percentage");
         const fractionText = document.getElementById("stats-fraction");
         const fillBar = document.getElementById("progress-bar-fill");
-
         if (percentageText && fractionText && fillBar) {
             percentageText.textContent = `${percentage}%`;
             fractionText.textContent = `${completedTasks} / ${totalTasks} tasks completed`;
@@ -213,7 +194,6 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    // --- 5. INITIALIZE ---
     renderApp();
 
     // --- 6. Local Storage (API Key) ---
@@ -223,7 +203,6 @@ document.addEventListener("DOMContentLoaded", () => {
     if (apiKeyInput && saveSettingsBtn) {
         const savedKey = localStorage.getItem("kairos_api_key");
         if (savedKey) { apiKeyInput.value = savedKey; }
-
         saveSettingsBtn.addEventListener("click", () => {
             const key = apiKeyInput.value.trim();
             if (key !== "") {
@@ -239,7 +218,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // AI Stuff
-
     const aiInput = document.getElementById("ai-input");
     const aiGenerateBtn = document.getElementById("ai-generate-btn");
 
@@ -248,7 +226,6 @@ document.addEventListener("DOMContentLoaded", () => {
             const assignmentText = aiInput.value.trim();
             const apiKey = localStorage.getItem("kairos_api_key");
 
-            // checking if the keys there cuz like some people are...forgetful (cant relate mhmhm)
             if (!apiKey) {
                 alert("Please go to Settings and save your Gemini API Key first!");
                 return;
@@ -258,40 +235,33 @@ document.addEventListener("DOMContentLoaded", () => {
                 return;
             }
 
-
             const originalBtnText = aiGenerateBtn.innerText;
             aiGenerateBtn.innerText = "Generating Plan...";
             aiGenerateBtn.disabled = true;
             aiGenerateBtn.style.opacity = "0.7";
 
-            // Prompt:
             const systemPrompt = `
             You are an expert AI Study Coach. The user will provide a syllabus, assignment, or goal. 
-You are an expert AI Study Coach. The user will provide a syllabus, assignment, or goal. 
-Break it down into logical, actionable study sections and tasks.
-
-CRITICAL INSTRUCTION: You MUST respond with ONLY a valid, raw JSON array. 
-Do NOT include markdown formatting, backticks, or the word 'json'. 
-Just the raw array.
-
-Use this exact structure:
-[
-  {
-    "id": "gen-sec-1",
-    "title": "Phase 1: Research",
-    "tasks": [
-      { "id": "gen-task-1", "title": "Find 3 academic sources", "completed": false },
-      { "id": "gen-task-2", "title": "Read and highlight sources", "completed": false }
-    ]
-  }
-]
-
-User's Request:
-${assignmentText}
+            Break it down into logical, actionable study sections and tasks.
+            CRITICAL INSTRUCTION: You MUST respond with ONLY a valid, raw JSON array. 
+            Do NOT include markdown formatting, backticks, or the word 'json'. 
+            Just the raw array.
+            Use this exact structure:
+            [
+              {
+                "id": "gen-sec-1",
+                "title": "Phase 1: Research",
+                "tasks": [
+                  { "id": "gen-task-1", "title": "Find 3 academic sources", "completed": false },
+                  { "id": "gen-task-2", "title": "Read and highlight sources", "completed": false }
+                ]
+              }
+            ]
+            User's Request:
+            ${assignmentText}
             `;
 
             try {
-                // 4. Connect to Gemini's API (updated to 2.5 flash to test)
                 const cleanApiKey = apiKey.trim(); 
                 const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${cleanApiKey}`;
                 
@@ -303,7 +273,6 @@ ${assignmentText}
                     })
                 });
 
-                // Debug stuff cuz i cant seem to figure it out
                 if (!response.ok) {
                     const errorDetails = await response.text(); 
                     console.error("Google API Rejected the Request:", errorDetails);
@@ -312,9 +281,7 @@ ${assignmentText}
 
                 const data = await response.json();
                 let aiResponseText = data.candidates[0].content.parts[0].text;
-
                 aiResponseText = aiResponseText.replace(/```json/gi, "").replace(/```/gi, "").trim();
-
                 const newSections = JSON.parse(aiResponseText);
 
                 const uniqueId = Date.now();
@@ -322,14 +289,12 @@ ${assignmentText}
                     sec.id = `ai-sec-${uniqueId}-${sIndex}`;
                     sec.tasks.forEach((task, tIndex) => {
                         task.id = `ai-task-${uniqueId}-${sIndex}-${tIndex}`;
-                        task.completed = false; // ensure they start unchecked
+                        task.completed = false; 
                     });
                 });
 
                 routinesData = newSections;
-
                 renderApp();
-
                 aiInput.value = "";
                 document.querySelector('[data-target="tasks-page"]').click();
 
@@ -344,66 +309,21 @@ ${assignmentText}
         });
     }
 
-    // --- 8. MODAL LOGIC (Robust Delegation) ---
+    // --- 8. modal for help ---
     document.body.addEventListener("click", (e) => {
-        // Find the closest element that matches our IDs
         const openBtn = e.target.closest("#open-api-modal");
         const closeBtn = e.target.closest("#close-api-modal");
         const modal = document.getElementById("api-guide-modal");
 
-        // 1. Open
         if (openBtn) {
             e.preventDefault();
-            console.log("Open button clicked/found via closest()");
             if (modal) modal.classList.add("active");
         }
-
-        // 2. Close
         if (closeBtn) {
             if (modal) modal.classList.remove("active");
         }
-
-        // 3. Close on background click
         if (e.target.classList.contains("modal-overlay")) {
             if (modal) modal.classList.remove("active");
         }
     });
-
-    // Login Stuff
-
-    document.getElementById('login-btn').addEventListener('click', async () => {
-        const email = document.getElementById('email').value;
-        const password = document.getElementById('password').value;
-        try {
-            await signInWithEmailAndPassword(auth, email, password);
-            document.getElementById('auth-modal').classList.remove('active');
-            console.log("Logged In");
-        } catch (error) {
-            alert("Login failed: " + error.message);
-        }
-    })
-
-    // Signup Stuff
-
-    document.getElementById('signup-btn').addEventListener('click', async () => {
-        const email = document.getElementById('email').value;
-        const password = document.getElementById('password').value;
-        try {
-            await createUserWithEmailAndPassword(auth, email, password);
-            document.getElementById('auth-modal').classList.remove('active');
-            console.log("Account created!");
-        } catch (error) {
-            alert("Sign up failed: " + error.message);
-        }
-    });   
-});
-
-
-
-
-
-
-// First startup stuff login
-    document.addEventListener('DOMContentLoaded', () => {
-        document.getElementById('auth-modal').classList.add('active');
 });

@@ -4,8 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kairos | Opportune Routine Planner</title>
-    <link rel="stylesheet" href="style.css">
-    <!-- NEW: Lightweight confetti library for the dopamine hit -->
+    <link rel="stylesheet" href="app.css">
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 </head>
 <body>
@@ -22,7 +21,6 @@
             <nav class="sidebar-nav">
                 <button class="nav-item active" data-target="home-page">Dashboard</button>
                 <button class="nav-item" data-target="ai-page">AI Helper</button>
-                <!-- NEW: Tasks & Routines Tab added right under AI Helper -->
                 <button class="nav-item" data-target="tasks-page">Routines & Tasks</button>
                 <button class="nav-item" data-target="calendar-page">Calendar</button>
                 <button class="nav-item" data-target="settings-page">Settings</button>
@@ -39,13 +37,13 @@
             
             <header class="top-bar">
                 <div class="spacer"></div>
-                <div class="top-bar-actions">
+                <div id="user-auth-container" class="top-bar-actions">
                     <button class="icon-btn" title="Reminders">🔔</button>
-                    <button class="profile-btn">Sign In</button>
+                    <a href="login.html" class="profile-btn" style="text-decoration: none; display: flex; align-items: center; justify-content: center;">Sign In</a>
                 </div>
             </header>
 
-            <!-- Dashboard / Home Page -->
+            <!-- Dashboard -->
             <div id="home-page" class="page-view active">
                 <div class="hero-header">
                     <h2 id="live-time">00:00</h2>
@@ -54,7 +52,7 @@
                 
                 <div class="dashboard-grid">
                     
-                    <!-- NEW: Empty container for the Dashboard Focus Mode. JS will fill this. -->
+                    <!-- Empty container for the Dashboard Focus Mode -->
                     <div id="dashboard-focus-container" class="dash-card checklist-card">
                         <!-- Content injected by JavaScript -->
                     </div>
@@ -83,7 +81,7 @@
                 </div>
             </div>
 
-            <!-- NEW: Tasks & Routines Page (Manager Mode) -->
+            <!-- Tasks & Routines Page -->
             <div id="tasks-page" class="page-view">
                 <h2>Routines & Tasks</h2>
                 <p>Manage your master list. AI plans will populate here.</p>
@@ -126,17 +124,6 @@
                 <img src="https://placehold.co/500x150/1e1e2f/a855f7?text=Click+'Create+API+Key'" alt="Create API Key Step" class="guide-img">
                 <li>Copy the key and paste it into the Settings page.</li>
             </ol>
-        </div>
-    </div>
-
-    <!-- Auth Modal -->
-    <div id="auth-modal" class="modal-overlay">
-        <div class="modal-content">
-            <h2>Welcome Back</h2>
-            <input type="email" id="email" placeholder="Email">
-            <input type="password" id="password" placeholder="Password">
-            <button id="login-btn">Log In</button>
-            <button id="signup-btn" style="background: none; border: none; color: #a855f7; cursor: pointer;">Create Account</button>
         </div>
     </div>
 

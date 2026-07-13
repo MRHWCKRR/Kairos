@@ -122,7 +122,7 @@ body {
 .dash-card h3 { font-size: 1rem; margin-bottom: 12px; }
 .text-muted { color: var(--text-muted); font-size: 0.9rem; }
 
-/* PLANIFY-STYLE CHECKLIST */
+/* Checklist */
 .checklist-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .editable-title { outline: none; padding: 4px 8px; margin-left: -8px; border-radius: 6px; border: 1px solid transparent; transition: all 0.2s; cursor: text; }
 .editable-title:focus { border-color: var(--border-subtle); background-color: var(--bg-main); }
@@ -130,7 +130,7 @@ body {
 .task-item { display: flex; align-items: center; gap: 12px; padding: 10px 8px; border-radius: 8px; transition: background 0.2s; }
 .task-item:hover { background-color: rgba(255,255,255,0.03); }
 
-/* Custom Checkbox Design */
+/* Checkbox Design */
 .custom-checkbox { position: relative; width: 22px; height: 22px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
 .custom-checkbox input { position: absolute; opacity: 0; cursor: pointer; height: 0; width: 0; }
 .checkmark { position: absolute; top: 0; left: 0; height: 22px; width: 22px; background-color: transparent; border: 2px solid var(--border-subtle); border-radius: 50%; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
@@ -153,187 +153,33 @@ body {
 .action-btn { background-color: var(--accent-glow); color: #ffffff; border: none; padding: 12px 24px; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: opacity 0.2s; }
 .action-btn:hover { opacity: 0.9; }
 
-/* NEW: Routine Stats Component */
-.stats-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 4px; /* Keeps it close to the fraction text */
-}
+/* Routine Stats Component */
+.stats-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+.stats-percentage { font-size: 1.4rem; font-weight: 900; color: var(--accent-glow); }
+.progress-bar-container { width: 100%; height: 12px; background-color: var(--bg-main); border-radius: 6px; border: 1px solid var(--border-subtle); overflow: hidden; }
+.progress-bar-fill { height: 100%; width: 0%; background-color: var(--accent-glow); border-radius: 6px; transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
 
-.stats-percentage {
-    font-size: 1.4rem;
-    font-weight: 900;
-    color: var(--accent-glow);
-}
+.fade-in-section { animation: fadeInSlide 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+@keyframes fadeInSlide { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-.progress-bar-container {
-    width: 100%;
-    height: 12px;
-    background-color: var(--bg-main); /* Deep background color */
-    border-radius: 6px;
-    border: 1px solid var(--border-subtle);
-    overflow: hidden; /* Keeps the inner fill inside the rounded corners */
-}
-
-.progress-bar-fill {
-    height: 100%;
-    width: 0%; /* Starts at 0, JS will change this */
-    background-color: var(--accent-glow);
-    border-radius: 6px;
-    /* This transition is what makes the bar slide smoothly instead of snapping */
-    transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1); 
-}
-
-.fade-in-section {
-    animation: fadeInSlide 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-@keyframes fadeinSlide {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0);}
-}
-
-.tasks-manager {
-    display: flex;
-    flex-direction: column;
-    gap: 24px;
-    margin-top: 24px;
-}
-
-.margin-selection {
-    background-color: var(--bg-card);
-    border: 1px solid var(--border-subtle);
-    border-radius: 12px;
-    padding: 24px;
-}
-
-.all-done-state {
-    text-align: center;
-    padding: 40px 20px;
-    color: var(--text-muted);
-}
-
-.all-done-state h3 {
-    font-size: 1.5rem;
-    color: var(--text-primary);
-    margin-bottom: 8px;
-}
-
-.all-done-icon {
-    font-size: 3rem;
-    margin-bottom: 16px;
-    display: inline-block;
-    animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-}
+.tasks-manager { display: flex; flex-direction: column; gap: 24px; margin-top: 24px; }
+.margin-selection { background-color: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: 12px; padding: 24px; }
+.all-done-state { text-align: center; padding: 40px 20px; color: var(--text-muted); }
+.all-done-state h3 { font-size: 1.5rem; color: var(--text-primary); margin-bottom: 8px; }
+.all-done-icon { font-size: 3rem; margin-bottom: 16px; display: inline-block; animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
 
 /* --- API HELPER TEXT --- */
-.api-helper-text {
-    font-size: 0.85rem;
-    color: #9ca3af;
-    margin-top: 15px;
-}
+.api-helper-text { font-size: 0.85rem; color: #9ca3af; margin-top: 15px; }
+.api-helper-text a { color: #a855f7; text-decoration: none; transition: 0.2s; }
+.api-helper-text a:hover { text-decoration: underline; color: #c084fc; }
 
-.api-helper-text a {
-    color: #a855f7;
-    text-decoration: none;
-    transition: 0.2s;
-}
-
-.api-helper-text a:hover {
-    text-decoration: underline;
-    color: #c084fc;
-}
-
-/* --- MODAL (POPUP) STYLES --- */
-.modal-overlay {
-    display: none; /* Hidden until clicked */
-    position: fixed;
-    top: 0; left: 0; width: 100%; height: 100%;
-    background-color: rgba(0, 0, 0, 0.7);
-    backdrop-filter: blur(4px);
-    z-index: 9999;
-    justify-content: center;
-    align-items: center;
-}
-
-/* We add this class via JavaScript to make it visible */
-.modal-overlay.active {
-    display: flex;
-    animation: popIn 0.2s ease-out;
-}
-
-.modal-content {
-    background-color: #1e1e2f;
-    padding: 30px;
-    border-radius: 12px;
-    max-width: 550px;
-    width: 90%;
-    position: relative;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-}
-
-.close-modal {
-    position: absolute;
-    top: 15px; right: 20px;
-    font-size: 28px;
-    color: #9ca3af;
-    cursor: pointer;
-    line-height: 1;
-}
-
-.close-modal:hover {
-    color: #ffffff;
-}
-
-.api-steps {
-    margin-top: 20px;
-    padding-left: 20px;
-    color: #e2e8f0;
-    line-height: 1.6;
-}
-
-.api-steps li {
-    margin-bottom: 15px;
-}
-
-.api-steps a {
-    color: #a855f7;
-}
-
-.guide-img {
-    width: 100%;
-    border-radius: 8px;
-    margin-top: 10px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-@keyframes popIn {
-    from { opacity: 0; transform: scale(0.95); }
-    to { opacity: 1; transform: scale(1); }
-}
-
-/* Signin/login stuff */
-
-
-#auth-modal input {
-    display: block;
-    width: 100%;
-    padding: 10px;
-    margin: 10px 0;
-    border-radius: 6px;
-    border: 1px solid #444;
-    background: #1e1e2f;
-    color: white;
-}
-
-#auth-modal button {
-    width: 100%;
-    padding: 10px;
-    background: #a855f7;
-    border: none;
-    border-radius: 6px;
-    color: white;
-    cursor: pointer;
-}
+/* --- (POPUP) STYLES --- */
+.modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.7); backdrop-filter: blur(4px); z-index: 9999; justify-content: center; align-items: center; }
+.modal-overlay.active { display: flex; animation: popIn 0.2s ease-out; }
+.modal-content { background-color: #1e1e2f; padding: 30px; border-radius: 12px; max-width: 550px; width: 90%; position: relative; border: 1px solid rgba(255, 255, 255, 0.1); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5); }
+.close-modal { position: absolute; top: 15px; right: 20px; font-size: 28px; color: #9ca3af; cursor: pointer; line-height: 1; }
+.close-modal:hover { color: #ffffff; }
+.api-steps { margin-top: 20px; padding-left: 20px; color: #e2e8f0; line-height: 1.6; }
+.api-steps li { margin-bottom: 15px; }
+.api-steps a { color: #a855f7; }
+.guide-img { width: 100%; border-radius: 8px; margin-top: 10px; border: 1px solid rgba(255, 255, 255, 0.1); }
