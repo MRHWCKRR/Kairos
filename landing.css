@@ -23,7 +23,7 @@ body {
     border-bottom: 1px solid #333;
 }
 
-.logo. {
+.logo {
     font-size: 1.5rem;
     font-weight: bold;
     color: #a855f7;
@@ -57,3 +57,30 @@ body {
     transition: background 0.3s;
 }
 
+.btn-primary:hover { background-color: #9333ea; }
+.btn-secondary { background: transparent; border: 1px solid #ccc; color: #fff; padding: 10px 20px; border-radius: 6px; text-decoration: none; }
+.large { padding: 15px 30px; font-size: 1.1rem; }
+
+.hero {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 80px 5%;
+    min-height: 80vh;
+    gap: 40px;
+}
+
+.hero-content { flex: 1; }
+.hero-content h1 { font-size: 4rem; line-height: 1.1; margin-bottom: 20px; }
+.hero-content p {font-size: 1.2rem; color: #aaa; margin-bottom: 40px; max-width: 500px; }
+.hero-content { display: flex; gap: 15px; }
+
+.hero-image { flex: 1 }
+.hero-image img { max-width: 100%; border-radius: 12px; box-shadow: 0 10px 30px rgba(168, 85, 247, 0.2); }
+
+/* features (or how I call it the 'extra fetus' */
+.features { padding: 80px 5%; text-align: center; }
+.features h2 { font-size: 2.5rem; margin-bottom: 40px; }
+.feature-grid { display: flex; gap: 30px; justify-content: center; }
+.feature-card { background: #1e1e2f; padding: 30px; border-radius: 10px; width: 300px; text-align: left; border: 1px solid #333; }
+.feature-card h3 { color: #a855f7; margin-bottom: 15px; }
