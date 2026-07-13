@@ -129,3 +129,13 @@ body {
 }
 
 .footer-links { display: flex; flex-direction: column; gap:10px; }
+.footer-links h4 { color: #a855f7; margin-bottom: 5px; }
+.footer-links a { color: #ccc; text-decoration: none; }
+.footer-links a:hover { color: #fff; }
+
+.footer-bottom {
+    text-align: center;
+    margin-top: 40px;
+    color: #666;
+    font-size: 0.9rem;
+}
