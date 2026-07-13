@@ -3,9 +3,50 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Documentation</title>
+    <title>Kairos Documentation</title>
+    <link rel="stylesheet" href="landing.css">
+    <link rel="stylesheet" href="docs.css">
 </head>
 <body>
-    
+    <nav class="navbar">
+        <div class="logo">Kairos</div>
+        <div class="nav-links">
+            <a href="index.html">Home</a>
+            <a href="app.html" class="btn-primary"> Try Now</a>
+        </div>
+    </nav>
+
+    <div class="docs-container">
+        <aside class="docs-sidebar">
+            <h3>Getting Started</h3>
+            <ul>
+                <li><a href="#intro">Introduction</a></li>
+                <li><a href="#installation">Installation</a></li>
+                <li><a href="#api">API Setup</a></li>
+            </ul>
+            <h3>Configuration</h3>
+            <ul>
+                <li><a href="#settings">Settings</a></li>
+                <li><a href="#customization">Customization</a></li>
+            </ul>
+        <aside>
+        
+        <article class="docs-content">
+            <section id="intro">
+                <h1>Introduction</h1>
+                <p>Kairos is an AI powered schedule planner that takes your available time into consideration using the most advanced AI models.</p>
+            </section>
+
+            <section id="installation">
+                <h2>Installation</h2>
+                <p>Kairos is currently a web application. Visit <a href="app.html">app.kairos.com</a></p>
+            </section>
+
+            <section id="api">
+                <h2>API Setup</h2>
+                <p>To enable AI features, you will need to obtain a Gemini API key from Google AI Studio. Paste your key into the area in the Settings menu. Obtaining the API key can be found on the settings page.</p>
+            </section>
+        </article>
+    </div>
 </body>
 </html>
