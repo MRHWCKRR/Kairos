@@ -1,32 +1,19 @@
- import { auth } from './firebase.js';
- import { signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { auth } from './firebase.js';
+import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
- const loginForm = document.getElementById('email-login-form');
+// ... (Keep your existing email/password form logic here)
 
- loginForm.addEventListener('submit', async (e) => {
-    e.preventDefult();
+// Implementation for Google Sign In
+const googleProvider = new GoogleAuthProvider();
+const googleBtn = document.getElementById('btn-google');
 
-    const email = document.getElementById('email').value;
-    const password = document.getElementById('password').value;
-    const btn = loginForm.querySelector('.login-btn');
-
-    btn.textContent = "Signing in...";
-    btn.disabled = true;
-
+googleBtn.addEventListener('click', async () => {
     try {
-        await signInWithEmailAndPassword(auth, email, password);
-        // Successful login, redirect to the main app
-        window.location.href = "index.html"; 
+        const result = await signInWithPopup(auth, googleProvider);
+        // Successful login
+        window.location.href = "index.html";
     } catch (error) {
-        console.error("Authentication error:", error.message);
-        alert("Login failed: " + error.message);
-        btn.textContent = "Sign In";
-        btn.disabled = false;
+        console.error("Google Auth Error:", error.message);
+        alert("Google sign-in failed: " + error.message);
     }
-});
-
-document.querySelectorAll('.social-btn').forEach(button => {
-    button.addEventListener('click', () => {
-        alert("This provider is coming soon!");
-    });
 });
