@@ -3,143 +3,51 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kairos | Opportune Routine Planner</title>
-    <link rel="stylesheet" href="style.css">
-    <!-- NEW: Lightweight confetti library for the dopamine hit -->
-    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <title>Kairos | Master Your Time</title>
+    <link rel=""stylesheet" href="landing.css">
 </head>
 <body>
-    <div class="app-layout">
+    
+    <nav class="navbar">
+        <div class="logo">Kairos</div>
+        <div class="nav-links">
+            <a href="#features">Features</a>
+        <a href="#docs">Docs</a>
 
-        <!-- Left Sidebar -->
-        <aside id="sidebar" class="sidebar">
-            <div class="sidebar-header">
-                <div class="logo-mark">K</div>
-                <h1 class="logo-text">Kairos</h1>
-                <button id="sidebar-toggle" class="toggle-btn" title="Toggle Sidebar">☰</button>
-            </div>
-
-            <nav class="sidebar-nav">
-                <button class="nav-item active" data-target="home-page">Dashboard</button>
-                <button class="nav-item" data-target="ai-page">AI Helper</button>
-                <!-- NEW: Tasks & Routines Tab added right under AI Helper -->
-                <button class="nav-item" data-target="tasks-page">Routines & Tasks</button>
-                <button class="nav-item" data-target="calendar-page">Calendar</button>
-                <button class="nav-item" data-target="settings-page">Settings</button>
-            </nav>
-
-            <div class="whats-next-widget">
-                <span class="widget-label">What's Next</span>
-                <p id="next-task-title" class="due-tag">Read Ch. 4</p>
-            </div>
-        </aside>
-
-        <!-- Main Canvas -->
-        <main class="main-content">
-            
-            <header class="top-bar">
-                <div class="spacer"></div>
-                <div class="top-bar-actions">
-                    <button class="icon-btn" title="Reminders">🔔</button>
-                    <button class="profile-btn">Sign In</button>
-                </div>
-            </header>
-
-            <!-- Dashboard / Home Page -->
-            <div id="home-page" class="page-view active">
-                <div class="hero-header">
-                    <h2 id="live-time">00:00</h2>
-                    <p id="live-date">Loading date...</p>
-                </div>
-                
-                <div class="dashboard-grid">
-                    
-                    <!-- NEW: Empty container for the Dashboard Focus Mode. JS will fill this. -->
-                    <div id="dashboard-focus-container" class="dash-card checklist-card">
-                        <!-- Content injected by JavaScript -->
-                    </div>
-
-                    <div class="dash-card">
-                        <div class="stats-header">
-                            <h3>Routine Stats</h3>
-                            <span id="stats-percentage" class="stats-percentage">0%</span>
-                        </div>
-                        <p id="stats-fraction" class="text-muted" style="margin-bottom: 16px;">0 / 0 tasks completed</p>
-                        
-                        <div class="progress-bar-container">
-                            <div id="progress-bar-fill" class="progress-bar-fill"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- AI Helper -->
-            <div id="ai-page" class="page-view">
-                <h2>AI Study Coach</h2>
-                <p>Paste your syllabus or assignment guidelines below.</p>
-                <div class="ai-box">
-                    <textarea id="ai-input" placeholder="Paste assignment details here..."></textarea>
-                    <button id="ai-generate-btn" class="action-btn">Create Plan</button>
-                </div>
-            </div>
-
-            <!-- NEW: Tasks & Routines Page (Manager Mode) -->
-            <div id="tasks-page" class="page-view">
-                <h2>Routines & Tasks</h2>
-                <p>Manage your master list. AI plans will populate here.</p>
-                
-                <!-- Container where all sections will render -->
-                <div id="tasks-manager-container" class="tasks-manager">
-                    <!-- Content injected by JavaScript -->
-                </div>
-            </div>
-
-             <!-- Calendar and Routines -->
-            <div id="calendar-page" class="page-view">
-                <h2>My Timeline</h2>
-                <p>View and manage your routines and assignment dates live here.</p>
-            </div>
-
-            <!-- Settings -->
-            <div id="settings-page" class="page-view">
-                <h2>Configuration</h2>
-                <p>Customize your experience and manage your account settings.</p>
-                <div class="settings-box">
-                    <label>Gemini API Key:</label>
-                    <input type="password" id="api-key-input" placeholder="Key is secured locally in your browser.">
-                    <button id="save-settings-btn" class="action-btn">Save Keys</button>
-                    <p class="api-helper-text">Don't have one? <a href="#" id="open-api-modal">Click here!</a></p>
-                </div>
-            </div>
-
-        </main>
-    </div>
-
-<!-- API Modal -->
-    <div id="api-guide-modal" class="modal-overlay">
-        <div class="modal-content">
-            <span class="close-modal" id="close-api-modal">&times;</span>
-            <h2>How to get a Gemini API Key</h2>
-            <ol class="api-steps">
-                <li>Go to <a href="https://aistudio.google.com/app/apikey" target="_blank">Google AI Studio</a>.</li>
-                <li>Click the <strong>"Create API key"</strong> button.</li>
-                <img src="https://placehold.co/500x150/1e1e2f/a855f7?text=Click+'Create+API+Key'" alt="Create API Key Step" class="guide-img">
-                <li>Copy the key and paste it into the Settings page.</li>
-            </ol>
+        <!-- Web App Redirect Button-->
+         <a href="app.html" class="btn-primary">Try Now</a>
         </div>
-    </div>
+    </nav>
 
-    <!-- Auth Modal -->
-    <div id="auth-modal" class="modal-overlay">
-        <div class="modal-content">
-            <h2>Welcome Back</h2>
-            <input type="email" id="email" placeholder="Email">
-            <input type="password" id="password" placeholder="Password">
-            <button id="login-btn">Log In</button>
-            <button id="signup-btn" style="background: none; border: none; color: #a855f7; cursor: pointer;">Create Account</button>
+    <header class="hero">
+        <div class="hero-content">
+            <h1>Stop planning.<br>Start doing.</h1>
+            <p>Meet Kairos. an AI powered open source routine planner that adapts your tasks to your daily routine for you, taking into consideration your habits, interests and your health. Experience the future of productivity now.</p>
+            <div class="hero-buttons">
+                <a href="app.html" class="btn-primary large">Open Kairos</a>
+                <a href="#features" class="btn-secondary large">Learn More</a>
+            </div>
         </div>
-    </div>
+        <div class="hero-image">
+            <!--I better remember to replace this with the current one-->
+            <img src="https://placehold.co/600x400/1e1e2f/a855f7?text=App+Screenshot+Here" alt="Kairos Dashboard Preview">
+        </div>
+    </header>
 
-    <script type="module" src="app.js"></script>
+
+    <!-- Features -->
+     <section id="features" class="features">
+        <h2>Built For Students and Professionals</h2>
+        <div class="feature-grid">
+            <div class="feature-card">
+                <h3>Gemini AI Integration</h3>
+                <p>Generate your daily schedule instantly using the latest and most advanced AI.</p>
+            </div>
+            <div class="feature-card">
+                <h3>Smart Time Visualising</h3>
+                <p>Visual Calendar and Checklist with smooth animations that adjust to your daily availibility.</p>
+            </div>
+        </div>
+     </section>
 </body>
 </html>
