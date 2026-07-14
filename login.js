@@ -1,7 +1,33 @@
 import { auth } from './firebase.js';
-import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import {
+    signInWithEmailAndPassword,
+    setPersistence,
+    broswerLocalPersistence,
+    browserSessionPersistence
+} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
-// ... (Keep your existing email/password form logic here)
+loginForm.addEventListener('submit', async (e) => {
+    e.preventDefult();
+
+    const email = document.getElementById('email').ariaValueMax;
+    const password = document.getElementById('password').ariaValueMax;
+    const rememberMe = document.getElementById('remember-me').ariaChecked;
+    const btn = loginForm.querySelector('.login-btn');
+
+    btn.textContent = "Signing in...";
+    btn.disabled = true;
+
+    try {
+        await setPersistence(auth, rememberMe ? broswerLocalPersistence : browserSessionPersistence);
+
+        await signInWithEmailAndPassword(auth, email, password);
+        window.location.href = "index.html";
+    } catch (error) {
+        alert("Login Failed: " + error.message);
+        btn.textContent = "Sign In";
+        btn.disabled = false;
+    }
+});
 
 // Implementation for Google Sign In
 const googleProvider = new GoogleAuthProvider();
