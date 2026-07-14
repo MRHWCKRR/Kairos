@@ -262,23 +262,17 @@ document.addEventListener("DOMContentLoaded", () => {
                     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
                     width: 100%; 
                     box-sizing: border-box;
+                    overflow: hidden;
                 ">
-                    <div style="
-                        font-size: 0.65rem; 
-                        color: #a855f7; 
-                        font-weight: 700; 
-                        text-transform: uppercase; 
-                        letter-spacing: 0.8px;
-                        margin-bottom: 8px;
-                    ">
-                        Up Next: ${activeSectionTitle}
-                    </div>
                     <h4 style="
                         margin: 0 0 16px 0; 
                         font-size: 1.05rem; 
                         color: #ffffff; 
                         line-height: 1.4;
                         font-weight: 500;
+                        white-space: normal;
+                        word-wrap: break-word;
+                        overflow-wrap: break-word;
                     ">${nextTask.title}</h4>
                     <button class="complete-next-btn" data-task-id="${nextTask.id}" data-section-id="${routinesData.find(s => s.title === activeSectionTitle).id}"
                         style="
@@ -314,6 +308,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     border: 1px dashed #313145;
                     border-radius: 12px;
                     color: #71717a;
+                    word-wrap: break-word;
                 ">
                     <div style="font-size: 1.5rem; margin-bottom: 8px;">✨</div>
                     <p style="margin: 0; font-size: 0.9rem; color: #4ade80; font-weight: 600;">All caught up!</p>
@@ -546,5 +541,36 @@ document.addEventListener("DOMContentLoaded", () => {
             if (modal) modal.classList.remove("active");
         }
     });
+
+    function createTaskHTML(task, sectionId) {
+        return `
+            <li class="task-item ${task.completed ? 'completed' : ''}">
+                <label class="custom-checkbox">
+                    <input type="checkbox" data-section="${sectionId}" data-task="${task.id}" ${task.completed ? 'checked' : ''}>
+                    <span class="checkmark"></span>
+                </label>
+                <input type="text" class="task-text" data-section="${sectionId}" data-task="${task.id}" value="${task.title}">
+            </li>
+        `;
+    }
+
+    document.body.addEventListener('blur', (e) => {
+    if (e.target.classList.contains('task-text')) {
+        const sectionId = e.target.getAttribute('data-section');
+        const taskId = e.target.getAttribute('data-task');
+        const newTitle = e.target.value.trim();
+
+        const section = routinesData.find(s => s.id === sectionId);
+        const task = section ? section.tasks.find(t => t.id === taskId) : null;
+
+        if (task && task.title !== newTitle) {
+            task.title = newTitle;
+
+            updatePlanInFirestore();
+            
+            updateWhatsNextWidget();
+        }
+    }
+}, true);
 
 });

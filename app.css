@@ -235,3 +235,20 @@ body {
     background-color: rgba(168, 85, 247, 0.1);
     color: #a855f7;
 }
+
+.task-text {
+    background: transparent;
+    border: 1px solid transparent;
+    color: inherit;
+    font-size: 1rem;
+    width: 100%;
+    padding: 4px;
+    border-radius: 4px;
+    transition: border 0.2s;
+}
+
+.task-text:focus {
+    background: #2a2a3c;
+    border: 1px solid #a855f7;
+    outline: none;
+}
