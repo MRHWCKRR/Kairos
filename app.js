@@ -281,27 +281,32 @@ document.addEventListener("DOMContentLoaded", () => {
 
     async function loadLatestPlanFromFirestore(user) {
         try {
-            const.plansColRef = collection(db, "study-plans");
-
+            const plansColRef = collection(db, "study_plans");
+        
             const q = query(
                 plansColRef,
-                where("userID", "==", user.uid),
-                orderBy("createdAt", "desc"),
-                limit(1)
+                where("userID", "==", user.uid)
             );
 
             const querySnapshot = await getDocs(q);
-
+            
             if (!querySnapshot.empty) {
-                const latestDoc = querySnapshot.docs[0];
-                const planData = latestDoc.data();
-
-                routinesData = planData.sections;
-                console.log("Successfully loaded latest plans from Firestore.");
-
+                const plans = querySnapshot.docs.map(doc => doc.data());
+                
+                plans.sort((a, b) => {
+                    const timeA = a.createdAt?.seconds || 0;
+                    const timeB = b.createdAt?.seconds || 0;
+                    return timeB - timeA;
+                });
+                
+                const latestPlan = plans[0];
+                
+                routinesData = latestPlan.sections;
+                console.log("Successfully loaded latest study plan from Firestore!");
+                
                 renderApp();
             } else {
-                console.log("No saved plans found. Using Default Placeholders.")
+                console.log("No saved study plans found in Firestore. Using default placeholder routines.");
             }
         } catch (error) {
             console.error("Error loading plans from Firestore:", error);
