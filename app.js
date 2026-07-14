@@ -21,9 +21,48 @@ document.addEventListener("DOMContentLoaded", () => {
         if (authContainer) {
             const userName = user.displayName || "User";
             const userPhoto = user.photoURL || `https://ui-avatars.com/api/?name=${userName}&background=a855f7&color=fff`;
-            authContainer.innerHTML = `<div class="user-profile"><img src="${userPhoto}" style="width:32px; border-radius:50%;"><span>${userName}</span></div>`;
+            
+            authContainer.innerHTML = `
+                <div class="user-profile-wrapper" id="profile-dropdown-toggle">
+                    <div class="user-profile" style="display: flex; align-items: center; gap: 8px;">
+                        <img src="${userPhoto}" style="width:32px; height: 32px; border-radius:50%;">
+                        <span>${userName}</span>
+                        <span style="font-size: 0.7em; opacity: 0.7;">▼</span>
+                    </div>
+                    
+                    <div id="profile-dropdown-menu" class="profile-dropdown-menu">
+                        <button id="dropdown-logout-btn">Sign Out</button>
+                    </div>
+                </div>
+            `;
+
+            
+            const toggleWrapper = document.getElementById("profile-dropdown-toggle");
+            const dropdownMenu = document.getElementById("profile-dropdown-menu");
+            const logoutBtn = document.getElementById("dropdown-logout-btn");
+            toggleWrapper.addEventListener("click", (e) => {
+                e.stopPropagation();
+                dropdownMenu.classList.toggle("active");
+            });
+
+            document.addEventListener("click", (e) => {
+                if (!toggleWrapper.contains(e.target)) {
+                    dropdownMenu.classList.remove("active");
+                }
+            });
+
+
+            logoutBtn.addEventListener("click", async () => {
+                try {
+                    await signOut(auth);
+
+                } catch (error) {
+                    console.error("Logout Failed", error);
+                }
+            });
         }
     });
+    
 
     // --- 1 UI Nav & Clock ---
     const sidebar = document.getElementById("sidebar");
