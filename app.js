@@ -3,29 +3,24 @@ import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from "http
 import { doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
-onAuthStateChanged(auth, (user) => {
-    if (!user) {
-        window.location.href = "login.html";
-    }
-});
-
 console.log("APP.js is loaded and running");
 
 document.addEventListener("DOMContentLoaded", () => {
-    
-    // ---  Firebase auth stuff ---
-    auth.onAuthStateChanged((user) => {
+
+    onAuthStateChanged(auth, (user) => {
+        if (!user) {
+            console.log("No user detected. Redirecting to login...");
+            window.location.replace("login.html");
+            return; 
+        }
+
+        console.log("User is logged in:", user.email);
+        
         const authContainer = document.getElementById('user-auth-container');
         if (authContainer) {
-            if (user) {
-                // User is signed in
-                const userName = user.displayName || "User";
-                const userPhoto = user.photoURL || `https://ui-avatars.com/api/?name=${userName}&background=a855f7&color=fff`;
-                authContainer.innerHTML = `<div class="user-profile"><img src="${userPhoto}" style="width:32px; border-radius:50%;"><span>${userName}</span></div>`;
-            } else {
-                // User is signed out
-                authContainer.innerHTML = `<a href="login.html" class="profile-btn" style="text-decoration: none;">Sign In</a>`;
-            }
+            const userName = user.displayName || "User";
+            const userPhoto = user.photoURL || `https://ui-avatars.com/api/?name=${userName}&background=a855f7&color=fff`;
+            authContainer.innerHTML = `<div class="user-profile"><img src="${userPhoto}" style="width:32px; border-radius:50%;"><span>${userName}</span></div>`;
         }
     });
 
