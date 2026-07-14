@@ -135,6 +135,8 @@ document.addEventListener("DOMContentLoaded", () => {
         renderFocusMode();
         renderManagerMode();
         updateRoutineStats();
+
+        updateWhatsNextWidget();
     }
 
     function renderFocusMode() {
@@ -239,6 +241,67 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     renderApp();
+
+    // Whats Next Widget
+    function updateWhatsNextWidget() {
+        const container = document.getElementById('whats-next-content');
+        if (!container) return;
+
+        let nextTask = null;
+        let activeSectionTitle = "";
+
+        for (const section of routinesData) {
+            const incompleteTask = section.tasks.find(t => !t.completed);
+            if (incompleteTask) {
+                nextTask = incompleteTask;
+                activeSectionTitle = section.title;
+                break;
+            }
+        }
+
+        if (nextTask) {
+            container.innerHTML = `
+                <div class="whats-next-card" style="padding: 10px 0;">
+                    <span class="widget-tag" style="font-size: 0.75rem; color: #a855f7; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px;">
+                        Current Focus: ${activeSectionTitle}
+                    </span>
+                    <h4 style="margin: 5px 0 10px 0; font-size: 1.1rem; color: #fff;">${nextTask.title}</h4>
+                    <button class="action-btn complete-next-btn" data-task-id="${nextTask.id}" data-section-id="${routinesData.find(s => s.title === activeSectionTitle).id}"
+                        style="background: #a855f7; border: none; color: white; padding: 8px 14px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 0.85rem; transition: 0.2s;">
+                        Mark as Done
+                    </button>
+                </div>
+            `;
+
+            container.querySelector('.complete-next-btn').addEventListener('click', (e) => {
+                const taskId = e.target.getAttribute('data-task-id');
+                const sectionId = e.target.getAttribute('data-section-id');
+
+                triggerTaskCompletion(sectionId, taskId);
+            });
+        } else {
+            container.innerHTML = `
+                <div class="whats-next-empty" style="text-align: center; padding: 15px 0; color: #aaa;">
+                    <p style="margin: 0 0 5px 0; font-size: 1.1rem; color: #4ade80;">🎉 All caught up!</p>
+                    <p style="margin: 0; font-size: 0.85rem;">Your schedule is completely clear right now.</p>
+                </div>
+            `;
+        }
+    }
+
+    function triggerTaskCompletion(sectionId, taskId) {
+        const section = routinesData.find(s => s.id === sectionId);
+        if (section) {
+            const task = section.tasks.find(t => t.id === taskId);
+            if (task) {
+                task.completed = true;
+
+                renderApp();
+                updateRoutineStats();
+                updatePlanInFirestore();
+            }
+        }
+    }
 
     // --- 6. Local Storage (API Key) ---
     const apiKeyInput = document.getElementById("api-key-input");
