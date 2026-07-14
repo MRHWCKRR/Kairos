@@ -3,6 +3,8 @@ import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from "http
 import { doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { db, auth } from "./firebase.js";
+import { collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
 console.log("APP.js is loaded and running");
 
@@ -259,6 +261,27 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
+    async function savePlanToFirestore(planData) {
+        const user = auth.currentUser;
+        if (!user) {
+            console.error("Cannot save plan: no user signed in.");
+            return;
+        }
+
+        try {
+            const plansColRef = collection(db, "study_plans");
+            const docRef = await addDoc(plansColRef, {
+                sections: planData,
+                userID: user.uid,
+                createdAt: serverTimestamp()
+            });
+            console.log("Study plan successfully saved. ID:", docRef.id);
+        } catch (error) {
+            console.error("Error saving plan to Firestore:", error);
+        }
+    }
+
+
     // AI Stuff
     const aiInput = document.getElementById("ai-input");
     const aiGenerateBtn = document.getElementById("ai-generate-btn");
@@ -336,6 +359,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 });
 
                 routinesData = newSections;
+
+                savePlanToFirestore(newSections);
+
                 renderApp();
                 aiInput.value = "";
                 document.querySelector('[data-target="tasks-page"]').click();
@@ -368,4 +394,5 @@ document.addEventListener("DOMContentLoaded", () => {
             if (modal) modal.classList.remove("active");
         }
     });
+
 });
