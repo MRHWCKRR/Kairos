@@ -1,6 +1,6 @@
 import { auth, db } from './firebase.js';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-import { doc, setDoc, getDoc, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { doc, setDoc, getDoc, collection, addDoc, serverTimestamp, query, where, orderBy, limit, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
 console.log("APP.js is loaded and running");
 
@@ -14,6 +14,8 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         console.log("User is logged in:", user.email);
+
+        loadLatestPlanFromFirestore(user);
         
         const authContainer = document.getElementById('user-auth-container');
         if (authContainer) {
@@ -274,6 +276,35 @@ document.addEventListener("DOMContentLoaded", () => {
             console.log("Study plan successfully saved. ID:", docRef.id);
         } catch (error) {
             console.error("Error saving plan to Firestore:", error);
+        }
+    }
+
+    async function loadLatestPlanFromFirestore(user) {
+        try {
+            const.plansColRef = collection(db, "study-plans");
+
+            const q = query(
+                plansColRef,
+                where("userID", "==", user.uid),
+                orderBy("createdAt", "desc"),
+                limit(1)
+            );
+
+            const querySnapshot = await getDocs(q);
+
+            if (!querySnapshot.empty) {
+                const latestDoc = querySnapshot.docs[0];
+                const planData = latestDoc.data();
+
+                routinesData = planData.sections;
+                console.log("Successfully loaded latest plans from Firestore.");
+
+                renderApp();
+            } else {
+                console.log("No saved plans found. Using Default Placeholders.")
+            }
+        } catch (error) {
+            console.error("Error loading plans from Firestore:", error);
         }
     }
 
