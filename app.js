@@ -255,48 +255,46 @@ document.addEventListener("DOMContentLoaded", () => {
         if (nextTask) {
             container.innerHTML = `
                 <div class="whats-next-card" style="
-                    padding: 12px; 
-                    box-sizing: border-box; 
+                    background: #1e1e2d;
+                    border: 1px solid #313145;
+                    padding: 16px; 
+                    border-radius: 12px;
+                    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
                     width: 100%; 
-                    max-width: 100%;
-                    overflow: hidden;
+                    box-sizing: border-box;
                 ">
-                    <span class="widget-tag" style="
-                        display: block;
-                        font-size: 0.7rem; 
+                    <div style="
+                        font-size: 0.65rem; 
                         color: #a855f7; 
-                        font-weight: bold; 
+                        font-weight: 700; 
                         text-transform: uppercase; 
-                        letter-spacing: 0.5px;
-                        margin-bottom: 4px;
-                        white-space: normal;
-                        word-break: break-word;
+                        letter-spacing: 0.8px;
+                        margin-bottom: 8px;
                     ">
-                        Current Focus: ${activeSectionTitle}
-                    </span>
+                        Up Next: ${activeSectionTitle}
+                    </div>
                     <h4 style="
-                        margin: 0 0 12px 0; 
-                        font-size: 1rem; 
-                        color: #fff; 
+                        margin: 0 0 16px 0; 
+                        font-size: 1.05rem; 
+                        color: #ffffff; 
                         line-height: 1.4;
-                        white-space: normal;
-                        word-break: break-word;
+                        font-weight: 500;
                     ">${nextTask.title}</h4>
-                    <button class="action-btn complete-next-btn" data-task-id="${nextTask.id}" data-section-id="${routinesData.find(s => s.title === activeSectionTitle).id}"
+                    <button class="complete-next-btn" data-task-id="${nextTask.id}" data-section-id="${routinesData.find(s => s.title === activeSectionTitle).id}"
                         style="
                             background: #a855f7; 
                             border: none; 
                             color: white; 
-                            padding: 8px 12px; 
-                            border-radius: 4px; 
-                            font-weight: bold; 
-                            cursor: pointer; 
-                            font-size: 0.8rem; 
+                            padding: 10px 0; 
                             width: 100%;
-                            box-sizing: border-box;
-                            text-align: center;
-                            transition: background 0.2s;
-                        ">
+                            border-radius: 6px; 
+                            font-weight: 600; 
+                            cursor: pointer; 
+                            font-size: 0.85rem; 
+                            transition: background 0.2s ease;
+                        "
+                        onmouseover="this.style.background='#9333ea'"
+                        onmouseout="this.style.background='#a855f7'">
                         Mark as Done
                     </button>
                 </div>
@@ -311,13 +309,14 @@ document.addEventListener("DOMContentLoaded", () => {
             container.innerHTML = `
                 <div class="whats-next-empty" style="
                     text-align: center; 
-                    padding: 15px 10px; 
-                    color: #aaa;
-                    box-sizing: border-box;
-                    width: 100%;
+                    padding: 24px 16px; 
+                    background: #1e1e2d;
+                    border: 1px dashed #313145;
+                    border-radius: 12px;
+                    color: #71717a;
                 ">
-                    <p style="margin: 0 0 5px 0; font-size: 1rem; color: #4ade80; font-weight: bold;">🎉 All caught up!</p>
-                    <p style="margin: 0; font-size: 0.8rem; line-height: 1.3; white-space: normal;">Your schedule is completely clear right now.</p>
+                    <div style="font-size: 1.5rem; margin-bottom: 8px;">✨</div>
+                    <p style="margin: 0; font-size: 0.9rem; color: #4ade80; font-weight: 600;">All caught up!</p>
                 </div>
             `;
         }
