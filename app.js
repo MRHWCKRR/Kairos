@@ -34,7 +34,6 @@ document.addEventListener("DOMContentLoaded", () => {
                     </div>
                 </div>
             `;
-
             
             const toggleWrapper = document.getElementById("profile-dropdown-toggle");
             const dropdownMenu = document.getElementById("profile-dropdown-menu");
@@ -50,11 +49,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
             });
 
-
             logoutBtn.addEventListener("click", async () => {
                 try {
                     await signOut(auth);
-
                 } catch (error) {
                     console.error("Logout Failed", error);
                 }
@@ -62,7 +59,6 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
     
-
     // --- 1 UI Nav & Clock ---
     const sidebar = document.getElementById("sidebar");
     const sidebarToggle = document.getElementById("sidebar-toggle");
@@ -135,7 +131,6 @@ document.addEventListener("DOMContentLoaded", () => {
         renderFocusMode();
         renderManagerMode();
         updateRoutineStats();
-
         updateWhatsNextWidget();
     }
 
@@ -198,26 +193,24 @@ document.addEventListener("DOMContentLoaded", () => {
             identicalCheckboxes.forEach(cb => {
                 cb.checked = isChecked;
                 const taskItem = cb.closest('.task-item');
-                if (isChecked) {
-                    taskItem.classList.add('completed');
-                } else {
-                    taskItem.classList.remove('completed');
+                if (taskItem) {
+                    if (isChecked) {
+                        taskItem.classList.add('completed');
+                    } else {
+                        taskItem.classList.remove('completed');
+                    }
                 }
             });
 
             updateRoutineStats();
-
             updatePlanInFirestore();
+            renderApp();
 
             const isSectionFinished = section.tasks.every(t => t.completed);
-            
             if (isSectionFinished && isChecked) {
                 if (window.confetti) {
                     confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 }, colors: ['#a855f7', '#ffffff'] });
                 }
-                setTimeout(() => { renderApp(); }, 600);
-            } else {
-                setTimeout(() => { renderFocusMode(); }, 400);
             }
         }
     });
@@ -250,7 +243,7 @@ document.addEventListener("DOMContentLoaded", () => {
         let nextTask = null;
         let activeSectionTitle = "";
 
-        for (const section of routinesData) {
+        for (const section of routinesData) { 
             const incompleteTask = section.tasks.find(t => !t.completed);
             if (incompleteTask) {
                 nextTask = incompleteTask;
@@ -261,13 +254,49 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (nextTask) {
             container.innerHTML = `
-                <div class="whats-next-card" style="padding: 10px 0;">
-                    <span class="widget-tag" style="font-size: 0.75rem; color: #a855f7; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px;">
+                <div class="whats-next-card" style="
+                    padding: 12px; 
+                    box-sizing: border-box; 
+                    width: 100%; 
+                    max-width: 100%;
+                    overflow: hidden;
+                ">
+                    <span class="widget-tag" style="
+                        display: block;
+                        font-size: 0.7rem; 
+                        color: #a855f7; 
+                        font-weight: bold; 
+                        text-transform: uppercase; 
+                        letter-spacing: 0.5px;
+                        margin-bottom: 4px;
+                        white-space: normal;
+                        word-break: break-word;
+                    ">
                         Current Focus: ${activeSectionTitle}
                     </span>
-                    <h4 style="margin: 5px 0 10px 0; font-size: 1.1rem; color: #fff;">${nextTask.title}</h4>
+                    <h4 style="
+                        margin: 0 0 12px 0; 
+                        font-size: 1rem; 
+                        color: #fff; 
+                        line-height: 1.4;
+                        white-space: normal;
+                        word-break: break-word;
+                    ">${nextTask.title}</h4>
                     <button class="action-btn complete-next-btn" data-task-id="${nextTask.id}" data-section-id="${routinesData.find(s => s.title === activeSectionTitle).id}"
-                        style="background: #a855f7; border: none; color: white; padding: 8px 14px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 0.85rem; transition: 0.2s;">
+                        style="
+                            background: #a855f7; 
+                            border: none; 
+                            color: white; 
+                            padding: 8px 12px; 
+                            border-radius: 4px; 
+                            font-weight: bold; 
+                            cursor: pointer; 
+                            font-size: 0.8rem; 
+                            width: 100%;
+                            box-sizing: border-box;
+                            text-align: center;
+                            transition: background 0.2s;
+                        ">
                         Mark as Done
                     </button>
                 </div>
@@ -276,14 +305,19 @@ document.addEventListener("DOMContentLoaded", () => {
             container.querySelector('.complete-next-btn').addEventListener('click', (e) => {
                 const taskId = e.target.getAttribute('data-task-id');
                 const sectionId = e.target.getAttribute('data-section-id');
-
-                triggerTaskCompletion(sectionId, taskId);
+                triggerTaskCompletion(sectionId, taskId); 
             });
         } else {
             container.innerHTML = `
-                <div class="whats-next-empty" style="text-align: center; padding: 15px 0; color: #aaa;">
-                    <p style="margin: 0 0 5px 0; font-size: 1.1rem; color: #4ade80;">🎉 All caught up!</p>
-                    <p style="margin: 0; font-size: 0.85rem;">Your schedule is completely clear right now.</p>
+                <div class="whats-next-empty" style="
+                    text-align: center; 
+                    padding: 15px 10px; 
+                    color: #aaa;
+                    box-sizing: border-box;
+                    width: 100%;
+                ">
+                    <p style="margin: 0 0 5px 0; font-size: 1rem; color: #4ade80; font-weight: bold;">🎉 All caught up!</p>
+                    <p style="margin: 0; font-size: 0.8rem; line-height: 1.3; white-space: normal;">Your schedule is completely clear right now.</p>
                 </div>
             `;
         }
@@ -299,6 +333,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 renderApp();
                 updateRoutineStats();
                 updatePlanInFirestore();
+                updateWhatsNextWidget();
             }
         }
     }
@@ -340,7 +375,6 @@ document.addEventListener("DOMContentLoaded", () => {
             });
 
             currentPlanDocId = docRef.id;
-
             console.log("Study plan successfully saved. ID:", docRef.id);
         } catch (error) {
             console.error("Error saving plan to Firestore:", error);
