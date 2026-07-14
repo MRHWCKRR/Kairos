@@ -1,7 +1,6 @@
 import { auth, db } from './firebase.js';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-import { doc, setDoc, getDoc, collection, addDoc, serverTimestamp, query, where, orderBy, limit, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-
+import { doc, setDoc, getDoc, collection, addDoc, serverTimestamp, query, where, orderBy, limit, getDocs, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 console.log("APP.js is loaded and running");
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -95,12 +94,13 @@ document.addEventListener("DOMContentLoaded", () => {
     setInterval(updateClock, 60000);
 
     // --- 2 Data Engine ---
+    let currentPlanDocId = null;
     let routinesData = [
         {
             id: 'sec-1',
             title: 'Morning Setup',
             tasks: [
-                { id: 't-1', title: 'Review AI flashcards', completed: false },
+                { id: 't-1', title: 'Review Study flashcards', completed: false },
                 { id: 't-2', title: 'Draft English essay outline', completed: false }
             ]
         },
@@ -205,6 +205,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
             updateRoutineStats();
 
+            updatePlanInFirestore();
+
             const isSectionFinished = section.tasks.every(t => t.completed);
             
             if (isSectionFinished && isChecked) {
@@ -273,26 +275,47 @@ document.addEventListener("DOMContentLoaded", () => {
                 userID: user.uid,
                 createdAt: serverTimestamp()
             });
+
+            currentPlanDocId = docRef.id;
+
             console.log("Study plan successfully saved. ID:", docRef.id);
         } catch (error) {
             console.error("Error saving plan to Firestore:", error);
         }
     }
 
+    async function updatePlanInFirestore() {
+        if(!currentPlanDocId) {
+            console.warn("No active plan doc ID found. Cannot sync progress.");
+            return;
+        }
+        try {
+            const planDocRef = doc(db, "study_plans", currentPlanDocId);
+            await updateDoc(planDocRef, {
+                sections: routinesData
+            });
+            console.log("Task progress successfully synced to Firestore.");
+        } catch (error) {
+            console.error("Error syncing task progress:", error);
+        }
+    }
+
+
     async function loadLatestPlanFromFirestore(user) {
         try {
             const plansColRef = collection(db, "study_plans");
-        
             const q = query(
                 plansColRef,
                 where("userID", "==", user.uid)
             );
-
             const querySnapshot = await getDocs(q);
             
             if (!querySnapshot.empty) {
-                const plans = querySnapshot.docs.map(doc => doc.data());
-                
+                const plans = querySnapshot.docs.map(doc => ({
+                    docId: doc.id,
+                    ...doc.data()
+                }));
+
                 plans.sort((a, b) => {
                     const timeA = a.createdAt?.seconds || 0;
                     const timeB = b.createdAt?.seconds || 0;
@@ -300,8 +323,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 });
                 
                 const latestPlan = plans[0];
-                
+                currentPlanDocId = latestPlan.docId;
                 routinesData = latestPlan.sections;
+
                 console.log("Successfully loaded latest study plan from Firestore!");
                 
                 renderApp();
