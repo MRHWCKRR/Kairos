@@ -207,15 +207,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
             })
 
-            const taskItem = e.target.closest('.task-item');
-            if (taskItem) {
-                if (isNowChecked) {
-                    taskItem.classList.add('completed');
-                } else {
-                    taskItem.classList.remove('completed');
-                }
-            }
-
             updateRoutineStats();
             updatePlanInFirestore();
             updateWhatsNextWidget();
@@ -347,9 +338,27 @@ document.addEventListener("DOMContentLoaded", () => {
             const task = section.tasks.find(t => t.id === taskId);
             if (task) {
                 task.completed = true;
-                renderApp();
+
+                const matchingCheckboxes = document.querySelectorAll(`input[type='checkbox'][data-task='$taskId]`);
+                matchingCheckboxes.forEach(checkbox => {
+                    checkbox.checked = true;
+                    const item = checkbox.closest('.task-item');
+                    if (item) item.classList.add('completed');
+                });
+
                 updateRoutineStats();
                 updatePlanInFirestore();
+                updateWhatsNextWidget();
+
+                const isSectionFinished = section.tasks.every(t => t.completed);
+                if (isSectionFinished) {
+                    setTimeout(() => {
+                        renderFocusMode();
+                        if (window.confetti) {
+                            confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 }, colors: ['#a855f7', '#ffffff'] });
+                        }
+                    }, 300);
+                }
             }
         }
     }
@@ -571,6 +580,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
             if (task && task.title !== newTitle) {
                 task.title = newTitle;
+
+                const matchingImputs = document.querySelectorAll(`input.task-text[data-task='${taskId}']`);
+                matchingImputs.forEach(imput => {
+                    input.value = newTitle;
+                });
+
                 updatePlanInFirestore();
                 updateWhatsNextWidget();
             }
