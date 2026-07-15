@@ -95,6 +95,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     navItems.forEach(button => {
         button.addEventListener("click", () => {
+            if (button.id === 'settings-hook-btn') return;
+
             navItems.forEach(item => item.classList.remove("active"));
             pageViews.forEach(page => page.classList.remove("active"));
             button.classList.add("active");
