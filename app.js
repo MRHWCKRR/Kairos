@@ -126,7 +126,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     <input type="checkbox" data-section="${sectionId}" data-task="${task.id}" ${task.completed ? 'checked' : ''}>
                     <span class="checkmark"></span>
                 </label>
-                <input type="text" class="task-text" data-section="${sectionId}" data-task="${task.id}" value="${task.title}">
+                <input type="text" class="task-text" data-section="${sectionId}" data-task="${task.id}" value="${task.title}" style="text-decoration: ${task.completed ? 'line-through' : 'none'};">
             </li>
         `;
     }
@@ -198,14 +198,21 @@ document.addEventListener("DOMContentLoaded", () => {
 
             const matchingCheckboxes = document.querySelectorAll(`input[type='checkbox'][data-task='${taskId}']`);
             matchingCheckboxes.forEach(checkbox => {
-                checkbox.checked =isNowChecked;
+                checkbox.checked = isNowChecked;
                 const item = checkbox.closest('.task-item');
                 if (item) {
                     if (isNowChecked) {
                         item.classList.add('completed');
+                    } else {
+                        item.classList.remove('completed');
+                    }
+                    
+                    const textInput = item.querySelector('.task-text');
+                    if (textInput) {
+                        textInput.style.textDecoration = isNowChecked ? 'line-through' : 'none';
                     }
                 }
-            })
+            });
 
             updateRoutineStats();
             updatePlanInFirestore();
@@ -216,7 +223,6 @@ document.addEventListener("DOMContentLoaded", () => {
             clearTimeout(checklistRenderTimeout);
             checklistRenderTimeout = setTimeout(() => {
                 const focusHasEmptyState = document.querySelector('.all-done-state') !== null;
-
                 if (isSectionFinished || focusHasEmptyState || !isNowChecked) {
                     renderFocusMode();
                 }
@@ -231,6 +237,7 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         }
     });
+
 
     function updateRoutineStats() {
         let totalTasks = 0;
@@ -338,14 +345,18 @@ document.addEventListener("DOMContentLoaded", () => {
             const task = section.tasks.find(t => t.id === taskId);
             if (task) {
                 task.completed = true;
-
-                const matchingCheckboxes = document.querySelectorAll(`input[type='checkbox'][data-task='$taskId]`);
+                
+                const matchingCheckboxes = document.querySelectorAll(`input[type='checkbox'][data-task='${taskId}']`);
                 matchingCheckboxes.forEach(checkbox => {
                     checkbox.checked = true;
                     const item = checkbox.closest('.task-item');
-                    if (item) item.classList.add('completed');
+                    if (item) {
+                        item.classList.add('completed');
+                        const textInput = item.querySelector('.task-text');
+                        if (textInput) textInput.style.textDecoration = 'line-through';
+                    }
                 });
-
+                
                 updateRoutineStats();
                 updatePlanInFirestore();
                 updateWhatsNextWidget();
