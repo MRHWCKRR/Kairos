@@ -196,6 +196,17 @@ document.addEventListener("DOMContentLoaded", () => {
 
             task.completed = isNowChecked;
 
+            const matchingCheckboxes = document.querySelectorAll(`input[type='checkbox'][data-task='${taskId}']`);
+            matchingCheckboxes.forEach(checkbox => {
+                checkbox.checked =isNowChecked;
+                const item = checkbox.closest('.task-item');
+                if (item) {
+                    if (isNowChecked) {
+                        item.classList.add('completed');
+                    }
+                }
+            })
+
             const taskItem = e.target.closest('.task-item');
             if (taskItem) {
                 if (isNowChecked) {
