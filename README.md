@@ -9,19 +9,18 @@ A smart, personalised and practical solution to school/work stress and last minu
 
 ##  Planned Key Features
 
-*   **Boundary Enforcer:** Hard-locks non-negotiable blocks in your day (School, work, non negotiable tasks no questions asked) and strictly safeguards a sleep lockout at a set time, helping maintain a healthy sleep schedual and preventing overburden and burnout.
+*   **AI Powered automatic scheduling:** Saves you time and will maximise your time management.
   
-*   **AI-Powered Scheduling:** Integrates with the Gemini 1.5 Flash API to maximise free time and give you the best and most optimised workflow.
+*   **Latest Gemini 3.5 Flash AI:** Latest generation AI for the accurate answers and less malfunctions. 
   
-*   **True Client-Side Persistence:** Zero heavy databases or account setups. All schedules, assignments, and structural states are entirely managed inside your browser via localStorage.
-
+*   **Completely open source** Zero paywalls and full privacy. All source code is hosted here on GitHub, and all data can be requested at the click of a button.
 ---
 
 ## 🛠️ What its Made Of
 
-*   **Structure:** Semantic HTML5
-*   **Styling:** Modern CSS3 (featuring custom CSS variables for effortless themes, fluid Flexbox/Grid layouts, and a clean minimalist aesthetic)
-*   **Logic Engine:** Vanilla JavaScript (ES6+, framework-free to maximize performance and deep-dive into browser API architecture)
+*   **Structure:** HTML5
+*   **Styling:** CSS3
+*   **Logic Engine:** Javascript
 *   **AI Coordination:** Google AI Studio SDK / Fetch API API integration
 
 ---
