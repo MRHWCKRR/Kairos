@@ -592,8 +592,8 @@ document.addEventListener("DOMContentLoaded", () => {
             if (task && task.title !== newTitle) {
                 task.title = newTitle;
 
-                const matchingImputs = document.querySelectorAll(`input.task-text[data-task='${taskId}']`);
-                matchingImputs.forEach(imput => {
+                const matchingInputs = document.querySelectorAll(`input.task-text[data-task='${taskId}']`);
+                matchingInputs.forEach(input => {
                     input.value = newTitle;
                 });
 
