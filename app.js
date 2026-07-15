@@ -5,6 +5,8 @@ console.log("APP.js is loaded and running");
 
 document.addEventListener("DOMContentLoaded", () => {
 
+    let checklistRenderTimeout;
+
     onAuthStateChanged(auth, (user) => {
         if (!user) {
             console.log("No user detected. Redirecting to login...");
@@ -214,7 +216,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const isSectionFinished = section.tasks.every(t => t.conpleted);
             if (isSectionFinished && isChecked) {
                 if (window.confetti) {
-                    etTimeout(() => {
+                    setTimeout(() => {
                         confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 }, colors: ['#a855f7', '#ffffff'] });
                     }, 300);
                 }
