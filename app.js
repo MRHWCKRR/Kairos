@@ -220,7 +220,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
             }, 300);
 
-            const isSectionFinished = section.tasks.every(t => t.completed);
             if (isSectionFinished && isNowChecked) {
                 if (window.confetti) {
                     setTimeout(() => {
