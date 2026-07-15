@@ -174,10 +174,46 @@ body {
 .api-helper-text a:hover { text-decoration: underline; color: #c084fc; }
 
 /* --- (POPUP) STYLES --- */
-.modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.7); backdrop-filter: blur(4px); z-index: 9999; justify-content: center; align-items: center; }
-.modal-overlay.active { display: flex; animation: popIn 0.2s ease-out; }
-.modal-content { background-color: #1e1e2f; padding: 30px; border-radius: 12px; max-width: 550px; width: 90%; position: relative; border: 1px solid rgba(255, 255, 255, 0.1); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5); }
-.close-modal { position: absolute; top: 15px; right: 20px; font-size: 28px; color: #9ca3af; cursor: pointer; line-height: 1; }
+.modal-overlay { 
+    position: fixed; 
+    top: 0; 
+    left: 0; 
+    width: 100vw; 
+    height: 100vh; 
+    background-color: rgba(0, 0, 0, 0.7); 
+    backdrop-filter: blur(4px); 
+    z-index: 9999; 
+    display: flex;
+    justify-content: center; 
+    align-items: center; 
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+}
+
+.modal-overlay.active { 
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.modal-content { 
+    background-color: #1e1e2f; 
+    padding: 30px; 
+    border-radius: 12px; 
+    max-width: 550px; 
+    width: 90%; 
+    position: relative; 
+    border: 1px solid rgba(255, 255, 255, 0.1); 
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5); 
+    transform: scale(0.95) translateY(10px);
+    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.modal-overlay.active .modal-content {
+    transform: scale(1) translateY(0);
+}
+
+.close-modal { position: absolute; top: 15px; right: 20px; font-size: 28px; color: #9ca3af; cursor: pointer; line-height: 1; transition: color 0.2s; }
 .close-modal:hover { color: #ffffff; }
 .api-steps { margin-top: 20px; padding-left: 20px; color: #e2e8f0; line-height: 1.6; }
 .api-steps li { margin-bottom: 15px; }
@@ -186,7 +222,6 @@ body {
 
 
 /* profile dropdown menu */
-
 .user-profile-wrapper {
     position: relative;
     cursor: pointer;
@@ -206,7 +241,6 @@ body {
     z-index: 1000;
     display: flex;
     flex-direction: column;
-
     opacity: 0;
     visibility: hidden;
     transform: translateY(-10px);
@@ -234,21 +268,4 @@ body {
 .profile-dropdown-menu button:hover {
     background-color: rgba(168, 85, 247, 0.1);
     color: #a855f7;
-}
-
-.task-text {
-    background: transparent;
-    border: 1px solid transparent;
-    color: inherit;
-    font-size: 1rem;
-    width: 100%;
-    padding: 4px;
-    border-radius: 4px;
-    transition: border 0.2s;
-}
-
-.task-text:focus {
-    background: #2a2a3c;
-    border: 1px solid #a855f7;
-    outline: none;
 }
