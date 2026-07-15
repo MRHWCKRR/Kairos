@@ -209,10 +209,15 @@ document.addEventListener("DOMContentLoaded", () => {
             updatePlanInFirestore();
             updateWhatsNextWidget();
 
+            const isSectionFinished = section.tasks.every(t => t.completed);
+
             clearTimeout(checklistRenderTimeout);
             checklistRenderTimeout = setTimeout(() => {
-                renderFocusMode();
-                renderManagerMode();
+                const focusHasEmptyState = document.querySelector('.all-done-state') !== null;
+
+                if (isSectionFinished || focusHasEmptyState || !isNowChecked) {
+                    renderFocusMode();
+                }
             }, 300);
 
             const isSectionFinished = section.tasks.every(t => t.completed);
