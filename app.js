@@ -1,12 +1,36 @@
 import { auth, db } from './firebase.js';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { doc, setDoc, getDoc, collection, addDoc, serverTimestamp, query, where, orderBy, limit, getDocs, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
 console.log("APP.js is loaded and running");
 
 document.addEventListener("DOMContentLoaded", () => {
 
     let checklistRenderTimeout;
+    let currentPlanDocId = null;
 
+    // --- Data Engine ---
+    let routinesData = [
+        {
+            id: 'sec-1',
+            title: 'Morning Setup',
+            tasks: [
+                { id: 't-1', title: 'Review Study flashcards', completed: false },
+                { id: 't-2', title: 'Draft English essay outline', completed: false }
+            ]
+        },
+        {
+            id: 'sec-2',
+            title: 'Afternoon Deep Work',
+            tasks: [
+                { id: 't-3', title: 'Read Chapter 4', completed: false },
+                { id: 't-4', title: 'Complete Math worksheet', completed: false },
+                { id: 't-5', title: 'Upload assignment', completed: false }
+            ]
+        }
+    ];
+
+    // --- Auth Management ---
     onAuthStateChanged(auth, (user) => {
         if (!user) {
             console.log("No user detected. Redirecting to login...");
@@ -15,7 +39,6 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         console.log("User is logged in:", user.email);
-
         loadLatestPlanFromFirestore(user);
         
         const authContainer = document.getElementById('user-auth-container');
@@ -40,6 +63,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const toggleWrapper = document.getElementById("profile-dropdown-toggle");
             const dropdownMenu = document.getElementById("profile-dropdown-menu");
             const logoutBtn = document.getElementById("dropdown-logout-btn");
+
             toggleWrapper.addEventListener("click", (e) => {
                 e.stopPropagation();
                 dropdownMenu.classList.toggle("active");
@@ -91,29 +115,7 @@ document.addEventListener("DOMContentLoaded", () => {
     updateClock();
     setInterval(updateClock, 60000);
 
-    // --- 2 Data Engine ---
-    let currentPlanDocId = null;
-    let routinesData = [
-        {
-            id: 'sec-1',
-            title: 'Morning Setup',
-            tasks: [
-                { id: 't-1', title: 'Review Study flashcards', completed: false },
-                { id: 't-2', title: 'Draft English essay outline', completed: false }
-            ]
-        },
-        {
-            id: 'sec-2',
-            title: 'Afternoon Deep Work',
-            tasks: [
-                { id: 't-3', title: 'Read Chapter 4', completed: false },
-                { id: 't-4', title: 'Complete Math worksheet', completed: false },
-                { id: 't-5', title: 'Upload assignment', completed: false }
-            ]
-        }
-    ];
-
-    // --- 3 Rendering engine ---
+    // --- 2 Rendering Engine ---
     const focusContainer = document.getElementById("dashboard-focus-container");
     const managerContainer = document.getElementById("tasks-manager-container");
 
@@ -124,7 +126,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     <input type="checkbox" data-section="${sectionId}" data-task="${task.id}" ${task.completed ? 'checked' : ''}>
                     <span class="checkmark"></span>
                 </label>
-                <input type="text" class="task-text" value="${task.title}" readonly>
+                <input type="text" class="task-text" data-section="${sectionId}" data-task="${task.id}" value="${task.title}">
             </li>
         `;
     }
@@ -180,26 +182,28 @@ document.addEventListener("DOMContentLoaded", () => {
         managerContainer.innerHTML = managerHTML || `<p class="text-muted">No routines created yet.</p>`;
     }
 
-    // --- 4 stats and stuff ---
+    // --- 3 Interactive State Updates ---
     document.body.addEventListener('change', (e) => {
         if (e.target.matches("input[type='checkbox'][data-task]")) {
             const sectionId = e.target.getAttribute('data-section');
-            const taskId = e.target.getAttribute('data-section');
+            const taskId = e.target.getAttribute('data-task');
             const isNowChecked = e.target.checked;
 
             const section = routinesData.find(s => s.id === sectionId);
             if (!section) return;
             const task = section.tasks.find(t => t.id === taskId);
+            if (!task) return;
+
             task.completed = isNowChecked;
 
-                const taskItem = cb.closest('.task-item');
-                if (taskItem) {
-                    if (isChecked) {
-                        taskItem.classList.add('completed');
-                    } else {
-                        taskItem.classList.remove('completed');
-                    }
+            const taskItem = e.target.closest('.task-item');
+            if (taskItem) {
+                if (isNowChecked) {
+                    taskItem.classList.add('completed');
+                } else {
+                    taskItem.classList.remove('completed');
                 }
+            }
 
             updateRoutineStats();
             updatePlanInFirestore();
@@ -211,7 +215,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 renderManagerMode();
             }, 300);
 
-            const isSectionFinished = section.tasks.every(t => t.conpleted);
+            const isSectionFinished = section.tasks.every(t => t.completed);
             if (isSectionFinished && isNowChecked) {
                 if (window.confetti) {
                     setTimeout(() => {
@@ -240,26 +244,24 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    renderApp();
-
-    // Whats Next Widget
+    // --- 4 What's Next Widget Engine ---
     function updateWhatsNextWidget() {
         const container = document.getElementById('whats-next-content');
         if (!container) return;
 
         let nextTask = null;
-        let activeSectionTitle = "";
+        let activeSection = null;
 
         for (const section of routinesData) { 
             const incompleteTask = section.tasks.find(t => !t.completed);
             if (incompleteTask) {
                 nextTask = incompleteTask;
-                activeSectionTitle = section.title;
+                activeSection = section;
                 break;
             }
         }
 
-        if (nextTask) {
+        if (nextTask && activeSection) {
             container.innerHTML = `
                 <div class="whats-next-card" style="
                     background: #1e1e2d;
@@ -281,7 +283,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         word-wrap: break-word;
                         overflow-wrap: break-word;
                     ">${nextTask.title}</h4>
-                    <button class="complete-next-btn" data-task-id="${nextTask.id}" data-section-id="${routinesData.find(s => s.title === activeSectionTitle).id}"
+                    <button class="complete-next-btn" data-task-id="${nextTask.id}" data-section-id="${activeSection.id}"
                         style="
                             background: #a855f7; 
                             border: none; 
@@ -330,16 +332,14 @@ document.addEventListener("DOMContentLoaded", () => {
             const task = section.tasks.find(t => t.id === taskId);
             if (task) {
                 task.completed = true;
-
                 renderApp();
                 updateRoutineStats();
                 updatePlanInFirestore();
-                updateWhatsNextWidget();
             }
         }
     }
 
-    // --- 6. Local Storage (API Key) ---
+    // --- 5 Local Storage Settings ---
     const apiKeyInput = document.getElementById("api-key-input");
     const saveSettingsBtn = document.getElementById("save-settings-btn");
 
@@ -360,13 +360,13 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
+    // --- 6 Cloud Sync Data Actions ---
     async function savePlanToFirestore(planData) {
         const user = auth.currentUser;
         if (!user) {
             console.error("Cannot save plan: no user signed in.");
             return;
         }
-
         try {
             const plansColRef = collection(db, "study_plans");
             const docRef = await addDoc(plansColRef, {
@@ -374,7 +374,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 userID: user.uid,
                 createdAt: serverTimestamp()
             });
-
             currentPlanDocId = docRef.id;
             console.log("Study plan successfully saved. ID:", docRef.id);
         } catch (error) {
@@ -383,7 +382,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     async function updatePlanInFirestore() {
-        if(!currentPlanDocId) {
+        if (!currentPlanDocId) {
             console.warn("No active plan doc ID found. Cannot sync progress.");
             return;
         }
@@ -398,14 +397,10 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-
     async function loadLatestPlanFromFirestore(user) {
         try {
             const plansColRef = collection(db, "study_plans");
-            const q = query(
-                plansColRef,
-                where("userID", "==", user.uid)
-            );
+            const q = query(plansColRef, where("userID", "==", user.uid));
             const querySnapshot = await getDocs(q);
             
             if (!querySnapshot.empty) {
@@ -425,18 +420,18 @@ document.addEventListener("DOMContentLoaded", () => {
                 routinesData = latestPlan.sections;
 
                 console.log("Successfully loaded latest study plan from Firestore!");
-                
                 renderApp();
             } else {
                 console.log("No saved study plans found in Firestore. Using default placeholder routines.");
+                renderApp();
             }
         } catch (error) {
             console.error("Error loading plans from Firestore:", error);
+            renderApp();
         }
     }
 
-
-    // AI Stuff
+    // --- 7 AI Plan Generator ---
     const aiInput = document.getElementById("ai-input");
     const aiGenerateBtn = document.getElementById("ai-generate-btn");
 
@@ -513,12 +508,12 @@ document.addEventListener("DOMContentLoaded", () => {
                 });
 
                 routinesData = newSections;
-
-                savePlanToFirestore(newSections);
-
+                await savePlanToFirestore(newSections);
                 renderApp();
+                
                 aiInput.value = "";
-                document.querySelector('[data-target="tasks-page"]').click();
+                const targetTab = document.querySelector('[data-target="tasks-page"]');
+                if (targetTab) targetTab.click();
 
             } catch (error) {
                 console.error(error);
@@ -531,7 +526,7 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // --- 8. modal for help ---
+    // --- 8 Modal Help HUD ---
     document.body.addEventListener("click", (e) => {
         const openBtn = e.target.closest("#open-api-modal");
         const closeBtn = e.target.closest("#close-api-modal");
@@ -549,35 +544,23 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
-    function createTaskHTML(task, sectionId) {
-        return `
-            <li class="task-item ${task.completed ? 'completed' : ''}">
-                <label class="custom-checkbox">
-                    <input type="checkbox" data-section="${sectionId}" data-task="${task.id}" ${task.completed ? 'checked' : ''}>
-                    <span class="checkmark"></span>
-                </label>
-                <input type="text" class="task-text" data-section="${sectionId}" data-task="${task.id}" value="${task.title}">
-            </li>
-        `;
-    }
-
+    // --- 9 Inline Modification Blurs ---
     document.body.addEventListener('blur', (e) => {
-    if (e.target.classList.contains('task-text')) {
-        const sectionId = e.target.getAttribute('data-section');
-        const taskId = e.target.getAttribute('data-task');
-        const newTitle = e.target.value.trim();
+        if (e.target.classList.contains('task-text')) {
+            const sectionId = e.target.getAttribute('data-section');
+            const taskId = e.target.getAttribute('data-task');
+            const newTitle = e.target.value.trim();
 
-        const section = routinesData.find(s => s.id === sectionId);
-        const task = section ? section.tasks.find(t => t.id === taskId) : null;
+            const section = routinesData.find(s => s.id === sectionId);
+            const task = section ? section.tasks.find(t => t.id === taskId) : null;
 
-        if (task && task.title !== newTitle) {
-            task.title = newTitle;
-
-            updatePlanInFirestore();
-            
-            updateWhatsNextWidget();
+            if (task && task.title !== newTitle) {
+                task.title = newTitle;
+                updatePlanInFirestore();
+                updateWhatsNextWidget();
+            }
         }
-    }
-}, true);
+    }, true);
 
+    renderApp();
 });
