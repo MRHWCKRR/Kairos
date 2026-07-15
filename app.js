@@ -185,15 +185,13 @@ document.addEventListener("DOMContentLoaded", () => {
         if (e.target.matches("input[type='checkbox'][data-task]")) {
             const sectionId = e.target.getAttribute('data-section');
             const taskId = e.target.getAttribute('data-section');
-            const isChecked = e.target.checked;
+            const isNowChecked = e.target.checked;
 
             const section = routinesData.find(s => s.id === sectionId);
+            if (!section) return;
             const task = section.tasks.find(t => t.id === taskId);
-            task.completed = isChecked;
+            task.completed = isNowChecked;
 
-            const identicalCheckboxes = document.querySelectorAll(`input[data-task='${taskId}']`);
-            identicalCheckboxes.forEach(cb => {
-                cb.checked = isChecked;
                 const taskItem = cb.closest('.task-item');
                 if (taskItem) {
                     if (isChecked) {
@@ -202,19 +200,19 @@ document.addEventListener("DOMContentLoaded", () => {
                         taskItem.classList.remove('completed');
                     }
                 }
-            });
 
             updateRoutineStats();
             updatePlanInFirestore();
             updateWhatsNextWidget();
 
-            setTimeout(() => {
+            clearTimeout(checklistRenderTimeout);
+            checklistRenderTimeout = setTimeout(() => {
                 renderFocusMode();
                 renderManagerMode();
             }, 300);
 
             const isSectionFinished = section.tasks.every(t => t.conpleted);
-            if (isSectionFinished && isChecked) {
+            if (isSectionFinished && isNowChecked) {
                 if (window.confetti) {
                     setTimeout(() => {
                         confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 }, colors: ['#a855f7', '#ffffff'] });
