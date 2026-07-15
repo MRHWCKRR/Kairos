@@ -182,7 +182,7 @@ document.addEventListener("DOMContentLoaded", () => {
     document.body.addEventListener('change', (e) => {
         if (e.target.matches("input[type='checkbox'][data-task]")) {
             const sectionId = e.target.getAttribute('data-section');
-            const taskId = e.target.getAttribute('data-task');
+            const taskId = e.target.getAttribute('data-section');
             const isChecked = e.target.checked;
 
             const section = routinesData.find(s => s.id === sectionId);
@@ -204,12 +204,19 @@ document.addEventListener("DOMContentLoaded", () => {
 
             updateRoutineStats();
             updatePlanInFirestore();
-            renderApp();
+            updateWhatsNextWidget();
 
-            const isSectionFinished = section.tasks.every(t => t.completed);
+            setTimeout(() => {
+                renderFocusMode();
+                renderManagerMode();
+            }, 300);
+
+            const isSectionFinished = section.tasks.every(t => t.conpleted);
             if (isSectionFinished && isChecked) {
                 if (window.confetti) {
-                    confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 }, colors: ['#a855f7', '#ffffff'] });
+                    etTimeout(() => {
+                        confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 }, colors: ['#a855f7', '#ffffff'] });
+                    }, 300);
                 }
             }
         }
