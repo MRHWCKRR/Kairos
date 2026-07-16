@@ -23,7 +23,8 @@
                 <button class="nav-item" data-target="ai-page">AI Helper</button>
                 <button class="nav-item" data-target="tasks-page">Routines & Tasks</button>
                 <button class="nav-item" data-target="calendar-page">Calendar</button>
-                <button class="nav-item" data-target="settings-page">Settings</button>
+                <!-- Hook applied here: removed data-target and added id -->
+                <button class="nav-item" id="settings-hook-btn">Settings</button>
             </nav>
 
             <div class="widget" id="whats-next-widget">
@@ -54,6 +55,7 @@
                 
                 <div class="dashboard-grid">
                     
+                    <!-- Empty container for the Dashboard Focus Mode -->
                     <div id="dashboard-focus-container" class="dash-card checklist-card">
                         <!-- Content injected by JavaScript -->
                     </div>
@@ -86,39 +88,21 @@
             <div id="tasks-page" class="page-view">
                 <h2>Routines & Tasks</h2>
                 <p>Manage your master list. AI plans will populate here.</p>
-
+                
+                <!-- Container where all sections will render -->
                 <div id="tasks-manager-container" class="tasks-manager">
                     <!-- Content injected by JavaScript -->
                 </div>
             </div>
 
-            <!-- Calendar and Routines -->
+             <!-- Calendar and Routines -->
             <div id="calendar-page" class="page-view">
-                <h2>My Calendar</h2>
-                <p style="margin-bottom: 20px;">View and manage your routines and assignment dates live here.</p>
-
-                <!-- Interactive Calendar Widget -->
-                <div id="calendar-section" class="calendar-wrapper">
-                    <div class="calendar-header">
-                        <button id="prevMonth" class="calendar-btn">&lt;</button>
-                        <h2 id="monthYearDisplay">Month Year</h2>
-                        <button id="nextMonth" class="calendar-btn">&gt;</button>
-                    </div>
-                    <!-- Calendar Grid Header (Days of the week) -->
-                    <div class="calendar-weekdays-header" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; text-align: center; font-weight: bold; margin-bottom: 10px; color: #a855f7;">
-                        <div>Sun</div>
-                        <div>Mon</div>
-                        <div>Tue</div>
-                        <div>Wed</div>
-                        <div>Thu</div>
-                        <div>Fri</div>
-                        <div>Sat</div>
-                    </div>
-                    <div id="calendarGrid" class="calendar-grid"></div>
-                </div>
+                <h2>My Timeline</h2>
+                <p>View and manage your routines and assignment dates live here.</p>
             </div>
 
-            <!-- Settings -->
+            <!-- Old Settings View (Commented out as it's replaced by the new overlay) -->
+            <!-- 
             <div id="settings-page" class="page-view">
                 <h2>Configuration</h2>
                 <p>Customize your experience and manage your account settings.</p>
@@ -128,7 +112,8 @@
                     <button id="save-settings-btn" class="action-btn">Save Keys</button>
                     <p class="api-helper-text">Don't have one? <a href="#" id="open-api-modal">Click here!</a></p>
                 </div>
-            </div>
+            </div> 
+            -->
 
         </main>
     </div>
@@ -147,17 +132,295 @@
         </div>
     </div>
 
-    <!-- Day Details Expandable Modal -->
-    <div id="dayDetailModal" class="modal-overlay">
-        <div class="modal-content day-modal-content">
-            <span class="close-modal" id="close-calendar-modal">&times;</span>
-            <h2 id="modalDateTitle" style="color: #a855f7; margin-bottom: 5px;">Date</h2>
-            <p id="modalTaskStats" style="color: #aaa; font-size: 0.95rem; margin-bottom: 20px;">0 / 0 tasks completed</p>
-            <div id="modalTasksContainer" style="max-height: 300px; overflow-y: auto; padding-right: 5px;">
-                <!-- Tasks for the day will be injected here -->
+    <div id="settings-overlay" class="settings-overlay" style="display: none;">
+        <div class="settings-container">
+ 
+            <aside class="settings-sidebar">
+                <div class="sidebar-menu">
+                    <div class="sidebar-category">User Settings</div>
+                    <button class="settings-tab-btn active" data-panel="account">My Account</button>
+                    
+                    <div class="sidebar-category">App Customization</div>
+                    <button class="settings-tab-btn" data-panel="appearance">Appearance</button>
+                    <button class="settings-tab-btn" data-panel="preferences">App Preferences</button>
+                    <button class="settings-tab-btn" data-panel="ai-engine">AI Engine</button>
+                    
+                    <div class="sidebar-category">Security & Data</div>
+                    <button class="settings-tab-btn" data-panel="privacy">Privacy & Data</button>
+                </div>
+                
+                <div class="settings-sidebar-footer">
+                    <button id="settings-logout-btn" class="sidebar-action-btn logout">Log Out</button>
+                    <div class="sidebar-footer-meta">
+                        <span class="app-version-tag">Beta 0.8.7</span>
+                        <a href="https://github.com" target="_blank" class="github-link" aria-label="GitHub Repository">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+                        </a>
+                    </div>
+                </div>
+            </aside>
+            
+            <div class="settings-main-wrapper">
+                <div class="settings-content-viewport">
+                    
+                    <section class="settings-panel active" id="panel-account">
+                        <h2>My Account</h2>
+                        <div class="settings-group profile-upload-zone">
+                            <div class="avatar-edit-container">
+                                <div class="avatar-preview-wrapper">
+                                    <img id="settings-avatar-preview" src="https://ui-avatars.com/api/?name=User&background=a855f7&color=fff" alt="Profile Picture">
+                                    <div class="avatar-overlay-label">Change Photo</div>
+                                </div>
+                                <div class="avatar-upload-hints">
+                                    <p class="primary-hint">Click to upload or drag image file here</p>
+                                    <p class="secondary-hint">PNG, JPG up to 2MB</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="settings-group">
+                            <label class="field-label">Display Name</label>
+                            <input type="text" id="settings-name-input" class="settings-text-input" placeholder="Enter your name...">
+                        </div>
+                        
+                        <div class="settings-grid-row">
+                            <div class="settings-group">
+                                <label class="field-label">Birthday</label>
+                                <input type="date" id="settings-birthday-input" class="settings-text-input">
+                                <span class="field-help-text">Used by the AI engine to adjust sleep, velocity target metrics, and mental fatigue breaks.</span>
+                            </div>
+                            <div class="settings-group">
+                                <label class="field-label">Education Level</label>
+                                <select id="settings-edu-input" class="settings-select-input">
+                                    <option value="highschool">High School Student</option>
+                                    <option value="undergrad">Undergraduate Degree</option>
+                                    <option value="masters">Postgraduate / Masters</option>
+                                    <option value="selftaught">Self-Taught / Professional</option>
+                                </select>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="settings-panel" id="panel-appearance" style="display: none;">
+                        <h2>Appearance</h2>
+                        
+                        <div class="settings-group">
+                            <label class="field-label">App Theme Mode</label>
+                            <div class="theme-mode-options">
+                                <button class="mode-btn active" data-theme="dark">Dark Theme</button>
+                                <button class="mode-btn" data-theme="light">Light Theme</button>
+                            </div>
+                        </div>
+
+                        <div class="settings-group">
+                            <label class="field-label">System Accent Color</label>
+                            <div class="color-swatch-row">
+                                <button class="swatch-btn active" data-accent="purple" style="background: #a855f7;"></button>
+                                <button class="swatch-btn" data-accent="mint" style="background: #22c55e;"></button>
+                                <button class="swatch-btn" data-accent="ocean" style="background: #0ea5e9;"></button>
+                                <button class="swatch-btn" data-accent="sunset" style="background: #f97316;"></button>
+                            </div>
+                        </div>
+
+                        <div class="settings-group">
+                            <label class="field-label">Typography Theme Pack</label>
+                            <select id="settings-font-input" class="settings-select-input">
+                                <option value="font-modern">Modern Sans (Clean & Sharp)</option>
+                                <option value="font-academic">Academic Serif (Traditional Booksmith)</option>
+                                <option value="font-dyslexia">Dyslexia-Friendly (High Readability)</option>
+                            </select>
+                        </div>
+
+                        <div class="settings-group">
+                            <label class="field-label">Layout Density Spacing</label>
+                            <div class="toggle-control-row">
+                                <span>Enable Compact Density Layout</span>
+                                <label class="settings-switch">
+                                    <input type="checkbox" id="settings-density-toggle">
+                                    <span class="switch-slider"></span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="settings-group">
+                            <label class="field-label">App Wallpaper Background</label>
+                            <div class="wallpaper-selection-grid">
+                                <div class="wallpaper-tile active" data-wallpaper="default-dark"><span class="tile-label">Solid Velvet</span></div>
+                                <div class="wallpaper-tile" data-wallpaper="midnight-mesh"><span class="tile-label">Midnight Mesh</span></div>
+                                <div class="wallpaper-tile" data-wallpaper="abstract-gradient"><span class="tile-label">Aurora Shift</span></div>
+                                <div class="wallpaper-tile" data-wallpaper="lofi-study"><span class="tile-label">Lofi Study</span></div>
+                                <div class="wallpaper-tile upload-custom-tile" id="wallpaper-custom-trigger">
+                                    <div class="upload-icon-box">+</div>
+                                    <span class="tile-label">Upload Custom</span>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="settings-panel" id="panel-preferences" style="display: none;">
+                        <h2>App Preferences</h2>
+                        <div class="settings-group toggle-control-row">
+                            <div>
+                                <span class="toggle-main-label">24-Hour Time Format</span>
+                                <p class="field-help-text">Displays clocks and execution history targets using European standard 24-hour layout.</p>
+                            </div>
+                            <label class="settings-switch">
+                                <input type="checkbox" id="settings-timeformat-toggle">
+                                <span class="switch-slider"></span>
+                            </label>
+                        </div>
+
+                        <div class="settings-group toggle-control-row">
+                            <div>
+                                <span class="toggle-main-label">Task Blast Confetti Animations</span>
+                                <p class="field-help-text">Triggers burst particles upon milestone and focus checklist completions.</p>
+                            </div>
+                            <label class="settings-switch">
+                                <input type="checkbox" id="settings-confetti-toggle" checked>
+                                <span class="switch-slider"></span>
+                            </label>
+                        </div>
+
+                        <div class="settings-group toggle-control-row">
+                            <div>
+                                <span class="toggle-main-label">Focus Mode Audio Elements</span>
+                                <p class="field-help-text">Enables low-frequency environmental noise or lo-fi streams directly within focus workspace loops.</p>
+                            </div>
+                            <label class="settings-switch">
+                                <input type="checkbox" id="settings-sounds-toggle">
+                                <span class="switch-slider"></span>
+                            </label>
+                        </div>
+                    </section>
+
+                    <section class="settings-panel" id="panel-ai-engine" style="display: none;">
+                        <h2>AI Engine Settings</h2>
+                        <div class="settings-group">
+                            <label class="field-label">Gemini API Access Key</label>
+                            <div class="masked-input-container">
+                                <input type="password" id="settings-api-key" class="settings-text-input" placeholder="Enter Gemini API Key (AI Coach Operations)...">
+                                <button type="button" id="toggle-api-visibility" class="visibility-eye-btn">👁️</button>
+                            </div>
+                            <span class="field-help-text">This key controls local query processing and target roadmap parsing structures securely.</span>
+                        </div>
+                    </section>
+
+                    <section class="settings-panel" id="panel-privacy" style="display: none;">
+                        <h2>Privacy &amp; Data Archiving</h2>
+                        
+                        <div class="settings-group data-action-row">
+                            <div>
+                                <span class="toggle-main-label">Export User Workspace Records</span>
+                                <p class="field-help-text">Compile and download all existing routines, complete history, and parameter metrics to a portable JSON backup container.</p>
+                            </div>
+                            <button id="settings-export-btn" class="data-utility-btn">Export Data</button>
+                        </div>
+
+                        <hr class="settings-divider">
+
+                        <div class="settings-group danger-zone-box">
+                            <h3>Danger Zone</h3>
+                            <p class="danger-warning-text">Executing these actions drops structural logs permanently. Deletion requests issue database wiping scripts instantly.</p>
+                            
+                            <div class="danger-action-flex">
+                                <button id="settings-delete-data-btn" class="danger-action-btn">Delete Data &amp; Log Out</button>
+                            </div>
+                        </div>
+                    </section>
+
+                </div>
+
+                <footer class="settings-action-sticky-bar" style="display: none;">
+                    <span class="unsaved-notice-txt">Unsaved structural parameters exist</span>
+                    <div class="footer-btn-cluster">
+                        <button id="settings-cancel-bar-btn" class="bar-btn-cancel">Cancel</button>
+                        <button id="settings-save-bar-btn" class="bar-btn-save">Save Changes</button>
+                    </div>
+                </footer>
+
             </div>
         </div>
     </div>
+
+    <!-- Settings -->
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+
+            const settingsTriggerBtn = document.getElementById('settings-hook-btn');
+            const settingsOverlay = document.getElementById('settings-overlay');
+            const cancelBtn = document.getElementById('settings-cancel-bar-btn');
+            const saveBtn = document.getElementById('settings-save-bar-btn');
+            const stickyFooter = document.querySelector('.settings-action-sticky-bar');
+
+            const openSettings = () => {
+                settingsOverlay.style.display = 'flex';
+                settingsOverlay.classList.add('active');
+            };
+
+            const closeSettings = () => {
+                settingsOverlay.style.display = 'none';
+                settingsOverlay.classList.remove('active');
+                stickyFooter.style.display = 'none';
+            };
+
+            if(settingsTriggerBtn) settingsTriggerBtn.addEventListener('click', openSettings);
+            if(cancelBtn) cancelBtn.addEventListener('click', closeSettings);
+
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && settingsOverlay.style.display === 'flex') {
+                    closeSettings();
+                }
+            });
+
+            const tabBtns = document.querySelectorAll('.settings-tab-btn');
+            const panels = document.querySelectorAll('.settings-panel');
+
+            tabBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    tabBtns.forEach(b => b.classList.remove('active'));
+                    panels.forEach(p => {
+                        p.classList.remove('active');
+                        p.style.display = 'none';
+                    });
+
+                    btn.classList.add('active');
+                    const targetPanelId = `panel-${btn.getAttribute('data-panel')}`;
+                    const activePanel = document.getElementById(targetPanelId);
+                    
+                    if (activePanel) {
+                        activePanel.classList.add('active');
+                        activePanel.style.display = 'block';
+                    }
+                });
+            });
+
+            const allInputs = settingsOverlay.querySelectorAll('input, select, .wallpaper-tile');
+            
+            allInputs.forEach(input => {
+                input.addEventListener('change', () => {
+                    stickyFooter.style.display = 'flex';
+                });
+                if(input.tagName === 'INPUT' && (input.type === 'text' || input.type === 'password' || input.type === 'date')) {
+                    input.addEventListener('input', () => {
+                        stickyFooter.style.display = 'flex';
+                    });
+                }
+                if(input.classList.contains('wallpaper-tile') || input.classList.contains('swatch-btn') || input.classList.contains('mode-btn')) {
+                    input.addEventListener('click', () => {
+                        stickyFooter.style.display = 'flex';
+                    });
+                }
+            });
+
+            if(saveBtn) {
+                saveBtn.addEventListener('click', () => {
+                    
+                    stickyFooter.style.display = 'none';
+                    closeSettings();
+                });
+            }
+        });
+    </script>
 
     <script type="module" src="app.js"></script>
 </body>
