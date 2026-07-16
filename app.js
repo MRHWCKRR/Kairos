@@ -593,7 +593,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 task.title = newTitle;
 
                 const matchingImputs = document.querySelectorAll(`input.task-text[data-task='${taskId}']`);
-                matchingImputs.forEach(imput => {
+                matchingImputs.forEach(input => {
                     input.value = newTitle;
                 });
 
