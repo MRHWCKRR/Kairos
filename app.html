@@ -54,7 +54,6 @@
                 
                 <div class="dashboard-grid">
                     
-                    <!-- Empty container for the Dashboard Focus Mode -->
                     <div id="dashboard-focus-container" class="dash-card checklist-card">
                         <!-- Content injected by JavaScript -->
                     </div>
@@ -87,17 +86,36 @@
             <div id="tasks-page" class="page-view">
                 <h2>Routines & Tasks</h2>
                 <p>Manage your master list. AI plans will populate here.</p>
-                
-                <!-- Container where all sections will render -->
+
                 <div id="tasks-manager-container" class="tasks-manager">
                     <!-- Content injected by JavaScript -->
                 </div>
             </div>
 
-             <!-- Calendar and Routines -->
+            <!-- Calendar and Routines -->
             <div id="calendar-page" class="page-view">
-                <h2>My Timeline</h2>
-                <p>View and manage your routines and assignment dates live here.</p>
+                <h2>My Calendar</h2>
+                <p style="margin-bottom: 20px;">View and manage your routines and assignment dates live here.</p>
+
+                <!-- Interactive Calendar Widget -->
+                <div id="calendar-section" class="calendar-wrapper">
+                    <div class="calendar-header">
+                        <button id="prevMonth" class="calendar-btn">&lt;</button>
+                        <h2 id="monthYearDisplay">Month Year</h2>
+                        <button id="nextMonth" class="calendar-btn">&gt;</button>
+                    </div>
+                    <!-- Calendar Grid Header (Days of the week) -->
+                    <div class="calendar-weekdays-header" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; text-align: center; font-weight: bold; margin-bottom: 10px; color: #a855f7;">
+                        <div>Sun</div>
+                        <div>Mon</div>
+                        <div>Tue</div>
+                        <div>Wed</div>
+                        <div>Thu</div>
+                        <div>Fri</div>
+                        <div>Sat</div>
+                    </div>
+                    <div id="calendarGrid" class="calendar-grid"></div>
+                </div>
             </div>
 
             <!-- Settings -->
@@ -115,7 +133,7 @@
         </main>
     </div>
 
-<!-- API Modal -->
+    <!-- API Modal -->
     <div id="api-guide-modal" class="modal-overlay">
         <div class="modal-content">
             <span class="close-modal" id="close-api-modal">&times;</span>
@@ -126,6 +144,18 @@
                 <img src="images/Helper-modal.png" alt="Create API Key Step" class="guide-img">
                 <li>Copy the key and paste it into the Settings page.</li>
             </ol>
+        </div>
+    </div>
+
+    <!-- Day Details Expandable Modal -->
+    <div id="dayDetailModal" class="modal-overlay">
+        <div class="modal-content day-modal-content">
+            <span class="close-modal" id="close-calendar-modal">&times;</span>
+            <h2 id="modalDateTitle" style="color: #a855f7; margin-bottom: 5px;">Date</h2>
+            <p id="modalTaskStats" style="color: #aaa; font-size: 0.95rem; margin-bottom: 20px;">0 / 0 tasks completed</p>
+            <div id="modalTasksContainer" style="max-height: 300px; overflow-y: auto; padding-right: 5px;">
+                <!-- Tasks for the day will be injected here -->
+            </div>
         </div>
     </div>
 

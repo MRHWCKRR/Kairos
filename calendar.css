@@ -1,0 +1,9 @@
+.calendar-wrapper { padding: 20px; background: var(--bg-card); border-radius: 12px; border: 1px solid var(--border-subtle); margin-top: 20px; }
+.calendar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; color: var(--text-primary); }
+.calender-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; }
+.day-box {
+    padding: 20px; background: var(--bg-main); border-radius: 8px;
+    cursor: pointer; transition: 0.3s; text-align: center; border: 1px solid; color: var(--border-subtle);
+}
+.day-box:hover { border-color: var(--accent-glow); background: rgba(168, 85, 247, 0.1); }
+.calender-btn { background: none; border: 1px solid var(--border-subtle); color: var(--text-primary); padding: 5px 15px; cursor: pointer; border-radius: 4px; }
