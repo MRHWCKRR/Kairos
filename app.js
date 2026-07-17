@@ -15,20 +15,26 @@ document.addEventListener("DOMContentLoaded", () => {
             id: 'sec-1',
             title: 'Morning Setup',
             tasks: [
-                { id: 't-1', title: 'Review Study flashcards', completed: false },
-                { id: 't-2', title: 'Draft English essay outline', completed: false }
+                { id: 't-1', title: 'Review Study flashcards', completed: false, date: null },
+                { id: 't-2', title: 'Draft English essay outline', completed: false, date: null }
             ]
         },
         {
             id: 'sec-2',
             title: 'Afternoon Deep Work',
             tasks: [
-                { id: 't-3', title: 'Read Chapter 4', completed: false },
-                { id: 't-4', title: 'Complete Math worksheet', completed: false },
-                { id: 't-5', title: 'Upload assignment', completed: false }
+                { id: 't-3', title: 'Read Chapter 4', completed: false, date: null },
+                { id: 't-4', title: 'Complete Math worksheet', completed: false, date: null },
+                { id: 't-5', title: 'Upload assignment', completed: false, date: null }
             ]
         }
     ];
+
+    // --- Calendar Data ---
+    let dayInsights = {};
+    let calendarViewDate = new Date();
+    calendarViewDate.setDate(1);
+    let selectedCalendarDate = null;
 
     // --- Auth Management ---
     onAuthStateChanged(auth, (user) => {
@@ -119,7 +125,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const focusContainer = document.getElementById("dashboard-focus-container");
     const managerContainer = document.getElementById("tasks-manager-container");
 
-    function createTaskHTML(task, sectionId) {
+    function createTaskHTML(task, sectionId, showDatePicker = false) {
         return `
             <li class="task-item ${task.completed ? 'completed' : ''}">
                 <label class="custom-checkbox">
@@ -127,6 +133,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     <span class="checkmark"></span>
                 </label>
                 <input type="text" class="task-text" data-section="${sectionId}" data-task="${task.id}" value="${task.title}" style="text-decoration: ${task.completed ? 'line-through' : 'none'};">
+                ${showDatePicker ? `<input type="date" class="task-date-input" data-section="${sectionId}" data-task="${task.id}" value="${task.date || ''}" title="Schedule this task on the calendar">` : ''}
             </li>
         `;
     }
@@ -136,6 +143,7 @@ document.addEventListener("DOMContentLoaded", () => {
         renderManagerMode();
         updateRoutineStats();
         updateWhatsNextWidget();
+        renderCalendar();
     }
 
     function renderFocusMode() {
@@ -167,7 +175,7 @@ document.addEventListener("DOMContentLoaded", () => {
     function renderManagerMode() {
         if (!managerContainer) return;
         let managerHTML = routinesData.map(section => {
-            let tasksHTML = section.tasks.map(task => createTaskHTML(task, section.id)).join('');
+            let tasksHTML = section.tasks.map(task => createTaskHTML(task, section.id, true)).join('');
             return `
                 <div class="manager-section fade-in-section">
                     <div class="checklist-header">
@@ -217,6 +225,7 @@ document.addEventListener("DOMContentLoaded", () => {
             updateRoutineStats();
             updatePlanInFirestore();
             updateWhatsNextWidget();
+            if (selectedCalendarDate) renderDayPanel();
 
             const isSectionFinished = section.tasks.every(t => t.completed);
 
@@ -234,6 +243,18 @@ document.addEventListener("DOMContentLoaded", () => {
                         confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 }, colors: ['#a855f7', '#ffffff'] });
                     }, 300);
                 }
+            }
+        } else if (e.target.matches('input.task-date-input')) {
+            const sectionId = e.target.getAttribute('data-section');
+            const taskId = e.target.getAttribute('data-task');
+            const newDate = e.target.value;
+
+            const section = routinesData.find(s => s.id === sectionId);
+            const task = section ? section.tasks.find(t => t.id === taskId) : null;
+            if (task) {
+                task.date = newDate || null;
+                updatePlanInFirestore();
+                renderCalendar();
             }
         }
     });
@@ -360,6 +381,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 updateRoutineStats();
                 updatePlanInFirestore();
                 updateWhatsNextWidget();
+                if (selectedCalendarDate) renderDayPanel();
 
                 const isSectionFinished = section.tasks.every(t => t.completed);
                 if (isSectionFinished) {
@@ -406,6 +428,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const plansColRef = collection(db, "study_plans");
             const docRef = await addDoc(plansColRef, {
                 sections: planData,
+                dayInsights: dayInsights,
                 userID: user.uid,
                 createdAt: serverTimestamp()
             });
@@ -424,7 +447,8 @@ document.addEventListener("DOMContentLoaded", () => {
         try {
             const planDocRef = doc(db, "study_plans", currentPlanDocId);
             await updateDoc(planDocRef, {
-                sections: routinesData
+                sections: routinesData,
+                dayInsights: dayInsights
             });
             console.log("Task progress successfully synced to Firestore.");
         } catch (error) {
@@ -453,6 +477,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 const latestPlan = plans[0];
                 currentPlanDocId = latestPlan.docId;
                 routinesData = latestPlan.sections;
+                dayInsights = latestPlan.dayInsights || {};
 
                 console.log("Successfully loaded latest study plan from Firestore!");
                 renderApp();
@@ -499,7 +524,7 @@ document.addEventListener("DOMContentLoaded", () => {
             [
               {
                 "id": "gen-sec-1",
-                "title": "Phase 1: Research",
+                "title": "Section 1: Research",
                 "tasks": [
                   { "id": "gen-task-1", "title": "Find 3 academic sources", "completed": false },
                   { "id": "gen-task-2", "title": "Read and highlight sources", "completed": false }
@@ -538,7 +563,8 @@ document.addEventListener("DOMContentLoaded", () => {
                     sec.id = `ai-sec-${uniqueId}-${sIndex}`;
                     sec.tasks.forEach((task, tIndex) => {
                         task.id = `ai-task-${uniqueId}-${sIndex}-${tIndex}`;
-                        task.completed = false; 
+                        task.completed = false;
+                        task.date = task.date || null;
                     });
                 });
 
@@ -592,8 +618,8 @@ document.addEventListener("DOMContentLoaded", () => {
             if (task && task.title !== newTitle) {
                 task.title = newTitle;
 
-                const matchingImputs = document.querySelectorAll(`input.task-text[data-task='${taskId}']`);
-                matchingImputs.forEach(imput => {
+                const matchingInputs = document.querySelectorAll(`input.task-text[data-task='${taskId}']`);
+                matchingInputs.forEach(input => {
                     input.value = newTitle;
                 });
 
@@ -602,6 +628,222 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         }
     }, true);
+
+    // --- 10 Calendar Engine ---
+    const calendarGrid = document.getElementById('calendar-grid');
+    const calendarMonthYear = document.getElementById('calendar-month-year');
+    const calendarPrevBtn = document.getElementById('calendar-prev-btn');
+    const calendarNextBtn = document.getElementById('calendar-next-btn');
+
+    const dayDetailOverlay = document.getElementById('day-detail-overlay');
+    const dayDetailCloseBtn = document.getElementById('day-detail-close-btn');
+    const dayDetailDateTitle = document.getElementById('day-detail-date-title');
+    const dayDetailTotal = document.getElementById('day-detail-total');
+    const dayDetailCompleted = document.getElementById('day-detail-completed');
+    const dayDetailTaskList = document.getElementById('day-detail-task-list');
+    const dayDetailAiContent = document.getElementById('day-detail-ai-content');
+    const dayDetailAiBtn = document.getElementById('day-detail-ai-btn');
+
+    function toDateKey(date) {
+        const y = date.getFullYear();
+        const m = String(date.getMonth() + 1).padStart(2, '0');
+        const d = String(date.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+    }
+
+    function getTasksForDate(dateKey) {
+        const results = [];
+        routinesData.forEach(section => {
+            section.tasks.forEach(task => {
+                if (task.date === dateKey) {
+                    results.push({ ...task, sectionId: section.id });
+                }
+            });
+        });
+        return results;
+    }
+
+    function renderCalendar() {
+        if (!calendarGrid || !calendarMonthYear) return;
+
+        const year = calendarViewDate.getFullYear();
+        const month = calendarViewDate.getMonth();
+
+        const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+        calendarMonthYear.textContent = `${monthNames[month]} ${year}`;
+
+        const firstDayIndex = new Date(year, month, 1).getDay();
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        const daysInPrevMonth = new Date(year, month, 0).getDate();
+        const todayKey = toDateKey(new Date());
+
+        const weekdayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        let html = weekdayLabels.map(label => `<div class="calendar-weekday">${label}</div>`).join('');
+
+        for (let i = firstDayIndex - 1; i >= 0; i--) {
+            const dayNum = daysInPrevMonth - i;
+            html += `<div class="calendar-day outside-month"><span class="day-number">${dayNum}</span></div>`;
+        }
+
+        for (let day = 1; day <= daysInMonth; day++) {
+            const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            const taskCount = getTasksForDate(dateKey).length;
+            const isToday = dateKey === todayKey;
+
+            html += `
+                <div class="calendar-day${isToday ? ' is-today' : ''}" data-date="${dateKey}">
+                    <span class="day-number">${day}</span>
+                    ${taskCount > 0 ? `<span class="day-task-badge">${taskCount}</span>` : ''}
+                </div>
+            `;
+        }
+
+        const filledCells = firstDayIndex + daysInMonth;
+        const trailingCells = (7 - (filledCells % 7)) % 7;
+        for (let day = 1; day <= trailingCells; day++) {
+            html += `<div class="calendar-day outside-month"><span class="day-number">${day}</span></div>`;
+        }
+
+        calendarGrid.innerHTML = html;
+    }
+
+    if (calendarPrevBtn) {
+        calendarPrevBtn.addEventListener('click', () => {
+            calendarViewDate.setMonth(calendarViewDate.getMonth() - 1);
+            renderCalendar();
+        });
+    }
+    if (calendarNextBtn) {
+        calendarNextBtn.addEventListener('click', () => {
+            calendarViewDate.setMonth(calendarViewDate.getMonth() + 1);
+            renderCalendar();
+        });
+    }
+    if (calendarGrid) {
+        calendarGrid.addEventListener('click', (e) => {
+            const dayCell = e.target.closest('.calendar-day:not(.outside-month)');
+            if (!dayCell) return;
+            openDayPanel(dayCell.getAttribute('data-date'));
+        });
+    }
+
+    function openDayPanel(dateKey) {
+        selectedCalendarDate = dateKey;
+        renderDayPanel();
+        if (dayDetailOverlay) dayDetailOverlay.classList.add('active');
+    }
+
+    function closeDayPanel() {
+        selectedCalendarDate = null;
+        if (dayDetailOverlay) dayDetailOverlay.classList.remove('active');
+    }
+
+    function renderDayPanel() {
+        if (!selectedCalendarDate || !dayDetailOverlay) return;
+
+        const [y, m, d] = selectedCalendarDate.split('-').map(Number);
+        const displayDate = new Date(y, m - 1, d);
+        if (dayDetailDateTitle) {
+            dayDetailDateTitle.textContent = displayDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+        }
+
+        const tasksForDay = getTasksForDate(selectedCalendarDate);
+        const completedCount = tasksForDay.filter(t => t.completed).length;
+
+        if (dayDetailTotal) dayDetailTotal.textContent = `${tasksForDay.length} task${tasksForDay.length === 1 ? '' : 's'}`;
+        if (dayDetailCompleted) dayDetailCompleted.textContent = `${completedCount} finished`;
+
+        if (dayDetailTaskList) {
+            dayDetailTaskList.innerHTML = tasksForDay.length
+                ? tasksForDay.map(task => createTaskHTML(task, task.sectionId)).join('')
+                : `<p class="text-muted">No tasks scheduled for this day.</p>`;
+        }
+
+        const cachedInsight = dayInsights[selectedCalendarDate];
+        if (dayDetailAiContent) {
+            if (cachedInsight) {
+                dayDetailAiContent.innerHTML = `<p>${cachedInsight}</p>`;
+            } else {
+                dayDetailAiContent.innerHTML = `<p class="text-muted">No insight yet.</p>`;
+                generateDayInsight(selectedCalendarDate);
+            }
+        }
+    }
+
+    if (dayDetailCloseBtn) dayDetailCloseBtn.addEventListener('click', closeDayPanel);
+    if (dayDetailOverlay) {
+        dayDetailOverlay.addEventListener('click', (e) => {
+            if (e.target === dayDetailOverlay) closeDayPanel();
+        });
+    }
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && selectedCalendarDate) closeDayPanel();
+    });
+
+    async function generateDayInsight(dateKey) {
+        const apiKey = localStorage.getItem('kairos_api_key');
+        if (!apiKey) {
+            if (selectedCalendarDate === dateKey && dayDetailAiContent) {
+                dayDetailAiContent.innerHTML = `<p class="text-muted">Add a Gemini API key in Settings to unlock AI insights.</p>`;
+            }
+            return;
+        }
+
+        const tasksForDay = getTasksForDate(dateKey);
+        if (tasksForDay.length === 0) {
+            if (selectedCalendarDate === dateKey && dayDetailAiContent) {
+                dayDetailAiContent.innerHTML = `<p class="text-muted">No tasks scheduled — nothing to comment on.</p>`;
+            }
+            return;
+        }
+
+        if (selectedCalendarDate === dateKey && dayDetailAiContent) {
+            dayDetailAiContent.innerHTML = `<p class="text-muted">Generating insight...</p>`;
+        }
+        if (dayDetailAiBtn) dayDetailAiBtn.disabled = true;
+
+        const taskSummary = tasksForDay.map(t => `- ${t.title} [${t.completed ? 'done' : 'pending'}]`).join('\n');
+        const prompt = `You are a supportive productivity coach. Here is a user's task list for ${dateKey}:\n${taskSummary}\n\nWrite a short, encouraging 1-2 sentence comment about their day. Be specific about what they've completed or still need to do. Do not use markdown formatting.`;
+
+        try {
+            const cleanApiKey = apiKey.trim();
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${cleanApiKey}`;
+            const response = await fetch(apiUrl, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+            });
+
+            if (!response.ok) {
+                const errText = await response.text();
+                console.error("Gemini insight error:", errText);
+                throw new Error(`API Error ${response.status}`);
+            }
+
+            const data = await response.json();
+            const commentText = data.candidates[0].content.parts[0].text.trim();
+
+            dayInsights[dateKey] = commentText;
+            if (selectedCalendarDate === dateKey && dayDetailAiContent) {
+                dayDetailAiContent.innerHTML = `<p>${commentText}</p>`;
+            }
+            await updatePlanInFirestore();
+
+        } catch (error) {
+            console.error(error);
+            if (selectedCalendarDate === dateKey && dayDetailAiContent) {
+                dayDetailAiContent.innerHTML = `<p class="text-muted">Couldn't generate an insight right now. Try the button below to retry.</p>`;
+            }
+        } finally {
+            if (dayDetailAiBtn) dayDetailAiBtn.disabled = false;
+        }
+    }
+
+    if (dayDetailAiBtn) {
+        dayDetailAiBtn.addEventListener('click', () => {
+            if (selectedCalendarDate) generateDayInsight(selectedCalendarDate);
+        });
+    }
 
     renderApp();
 });

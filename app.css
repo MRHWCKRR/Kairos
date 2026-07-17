@@ -269,3 +269,15 @@ body {
     background-color: rgba(168, 85, 247, 0.1);
     color: #a855f7;
 }
+
+
+/* Calender */
+
+.calender-header-bar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+    margin-bottom: 24px;
+}
+
