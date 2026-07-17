@@ -271,9 +271,9 @@ body {
 }                   
 
 
-/* Calender */
+/* Calendar */
 
-.calender-header-bar {
+.calendar-header-bar {
     display: flex;
     align-items: center;
     justify-content: center;
