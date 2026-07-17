@@ -133,7 +133,26 @@
         </div>
     </div>
 
-    
+    <div id="day-detail-overlay" class="day-detail-overlay">
+        <div class="day-detail-panel">
+            <button class="day-details-close id=day-details-close-btn">&times;</button>
+            <div class="day-detail-header">
+                <h2 id="day-detail-date-title">Loading...</h2>
+                <div class="day-detail-stats">
+                    <span id="day-detail-total">0 tasks</span>
+                    <span id="day-detail-completed">0 finished</span>
+                </div>
+            </div>
+            <ul class="task-list" id="day-detail-task-list"></ul>
+            <div class="day-detail-ai-section">
+                <h3>AI Insight</h3>
+                <div id="day-detail-ai-content" class="day-detail-ai-content">
+                    <p class="text-muted">No insight yet.</p>
+                </div>
+                <button id="day-detail-ai-btn" class="action-btn">🔄 Regenerate Insight</button>
+            </div>
+        </div>
+    </div>
 
     <script type="module" src="app.js"></script>
 </body>
