@@ -95,8 +95,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     navItems.forEach(button => {
         button.addEventListener("click", () => {
-            if (button.id === 'settings-hook-btn') return;
-
             navItems.forEach(item => item.classList.remove("active"));
             pageViews.forEach(page => page.classList.remove("active"));
             button.classList.add("active");
@@ -594,8 +592,8 @@ document.addEventListener("DOMContentLoaded", () => {
             if (task && task.title !== newTitle) {
                 task.title = newTitle;
 
-                const matchingInputs = document.querySelectorAll(`input.task-text[data-task='${taskId}']`);
-                matchingInputs.forEach(input => {
+                const matchingImputs = document.querySelectorAll(`input.task-text[data-task='${taskId}']`);
+                matchingImputs.forEach(imput => {
                     input.value = newTitle;
                 });
 
