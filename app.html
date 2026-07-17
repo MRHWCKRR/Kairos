@@ -96,8 +96,12 @@
 
              <!-- Calendar and Routines -->
             <div id="calendar-page" class="page-view">
-                <h2>My Timeline</h2>
-                <p>View and manage your routines and assignment dates live here.</p>
+                <div class="calender-header-bar">
+                    <button id="calendar-prev-btn" class="calendar-nav-btn" title="Previous Month">‹</button>
+                    <h2 id="calendar-month-year">Loading...</h2>
+                    <button id="calendar-next-btn" class="calendar-nav-btn" title="Next Month">›</button>
+                </div>
+                <div id="calendar-grid" class="calendar-grid"></div>
             </div>
 
             <!-- Settings -->
@@ -128,6 +132,8 @@
             </ol>
         </div>
     </div>
+
+    
 
     <script type="module" src="app.js"></script>
 </body>

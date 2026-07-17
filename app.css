@@ -268,7 +268,7 @@ body {
 .profile-dropdown-menu button:hover {
     background-color: rgba(168, 85, 247, 0.1);
     color: #a855f7;
-}
+}                   
 
 
 /* Calender */
@@ -281,3 +281,115 @@ body {
     margin-bottom: 24px;
 }
 
+.calendar-nav-btn {
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    color: var(--text-primary);
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    font-size: 1.1rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.calendar-nav-btn:hover { border-color: var(--accent-glow); color: var(--accent-glow); }
+#calendar-month-year { font-size: 1.5rem; font-weight: 800; min-width: 220px; text-align: center; }
+
+.calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 8px;
+}
+.calendar-weekday {
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    padding-bottom: 8px;
+}
+.calendar-day {
+    position: relative;
+    aspect-ratio: 1 / 1;
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: 10px;
+    padding: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.calendar-day:hover { border-color: var(--accent-glow); transform: translateY(-2px); }
+.calendar-day.outside-month { opacity: 0.3; cursor: default; pointer-events: none; }
+.calendar-day.is-today { border-color: var(--accent-glow); box-shadow: 0 0 0 1px var(--accent-glow); }
+.day-number { font-size: 0.9rem; font-weight: 600; }
+.day-task-badge {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    background: var(--accent-glow);
+    color: white;
+    font-size: 0.7rem;
+    font-weight: 700;
+    min-width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 4px;
+}
+
+.day-detail-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(4px);
+    z-index: 9998;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+}
+.day-detail-overlay.active { opacity: 1; pointer-events: auto; }
+.day-detail-panel {
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: 16px;
+    width: 90vw;
+    height: 85vh;
+    max-width: 900px;
+    padding: 32px;
+    position: relative;
+    overflow-y: auto;
+    transform: scale(0.96) translateY(10px);
+    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.day-detail-overlay.active .day-detail-panel { transform: scale(1) translateY(0); }
+.day-detail-close {
+    position: absolute;
+    top: 20px;
+    right: 24px;
+    font-size: 28px;
+    color: var(--text-muted);
+    cursor: pointer;
+    background: none;
+    border: none;
+}
+.day-detail-close:hover { color: var(--text-primary); }
+.day-detail-header { margin-bottom: 24px; padding-right: 40px; }
+.day-detail-header h2 { font-size: 1.6rem; margin-bottom: 8px; }
+.day-detail-stats { display: flex; gap: 16px; color: var(--text-muted); font-size: 0.9rem; }
+.day-detail-ai-section { margin-top: 32px; padding-top: 24px; border-top: 1px solid var(--border-subtle); }
+.day-detail-ai-content { margin: 12px 0 16px 0; color: var(--text-primary); line-height: 1.6; }
+
+.task-date-input {
+    background: var(--bg-main);
+    border: 1px solid var(--border-subtle);
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    border-radius: 6px;
+    padding: 4px 8px;
+    flex-shrink: 0;
+}
