@@ -191,7 +191,7 @@ body.has-custom-bg { background-color: transparent; }
 #live-time { font-size: 3.5rem; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 4px; }
 #live-date { font-size: 1.1rem; color: var(--text-muted); }
 .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; }
-.dash-card { background-color: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: 12px; padding: var(--card-padding); }
+.dash-card { background-color: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: 12px; padding: var(--card-padding); transition: padding 0.2s ease; }
 .dash-card h3 { font-size: 1rem; margin-bottom: 12px; }
 .text-muted { color: var(--text-muted); font-size: 0.9rem; }
 
@@ -199,9 +199,18 @@ body.has-custom-bg { background-color: transparent; }
 .checklist-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .editable-title { outline: none; padding: 4px 8px; margin-left: -8px; border-radius: 6px; border: 1px solid transparent; transition: all 0.2s; cursor: text; }
 .editable-title:focus { border-color: var(--border-subtle); background-color: var(--bg-main); }
-.task-list { list-style: none; display: flex; flex-direction: column; gap: var(--task-gap); }
-.task-item { display: flex; align-items: center; gap: 12px; padding: var(--task-padding); border-radius: 8px; transition: background 0.2s; }
+.task-list { list-style: none; display: flex; flex-direction: column; gap: var(--task-gap); transition: gap 0.2s ease; }
+.task-item { display: flex; align-items: center; gap: 12px; padding: var(--task-padding); border-radius: 8px; transition: background 0.2s, padding 0.2s ease; }
 .task-item:hover { background-color: rgba(255,255,255,0.03); }
+
+/* manager-section cards (Routines & Tasks page) also respect density spacing */
+.manager-section {
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+    padding: var(--card-padding);
+    transition: padding 0.2s ease;
+}
 
 /* Checkbox Design */
 .custom-checkbox { position: relative; width: 22px; height: 22px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
@@ -227,6 +236,18 @@ body.has-custom-bg { background-color: transparent; }
 .action-btn:hover { opacity: 0.9; }
 .action-btn.small-btn { padding: 10px 18px; font-size: 0.9rem; display: inline-block; text-decoration: none; }
 
+/* Ghost / destructive-lite buttons (Remove avatar, Remove background) */
+.action-btn.ghost-btn {
+    background-color: transparent;
+    border: 1px solid var(--border-subtle);
+    color: var(--text-muted);
+}
+.action-btn.ghost-btn:hover {
+    border-color: #ef4444;
+    color: #ef4444;
+    opacity: 1;
+}
+
 /* Routine Stats Component */
 .stats-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
 .stats-percentage { font-size: 1.4rem; font-weight: 900; color: var(--accent-glow); }
@@ -237,7 +258,6 @@ body.has-custom-bg { background-color: transparent; }
 @keyframes fadeInSlide { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
 .tasks-manager { display: flex; flex-direction: column; gap: 24px; margin-top: 24px; }
-.margin-selection { background-color: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: 12px; padding: 24px; }
 .all-done-state { text-align: center; padding: 40px 20px; color: var(--text-muted); }
 .all-done-state h3 { font-size: 1.5rem; color: var(--text-primary); margin-bottom: 8px; }
 .all-done-icon { font-size: 3rem; margin-bottom: 16px; display: inline-block; animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
@@ -586,6 +606,42 @@ body.has-custom-bg { background-color: transparent; }
 }
 .settings-toggle-row input[type="checkbox"] { width: 20px; height: 20px; accent-color: var(--accent-glow); cursor: pointer; }
 
+/* Avatar upload */
+.avatar-upload-row {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+}
+.avatar-preview {
+    width: 88px;
+    height: 88px;
+    min-width: 88px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--border-subtle);
+    background-color: var(--bg-main);
+    flex-shrink: 0;
+}
+.avatar-upload-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex-grow: 1;
+    min-width: 220px;
+}
+.avatar-btn-row { display: flex; gap: 10px; flex-wrap: wrap; }
+
+/* Background upload row */
+.bg-upload-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 14px;
+}
+
 /* Option tiles (density, time format, mode, font, ambient) */
 .option-tile-row { display: flex; flex-wrap: wrap; gap: 10px; }
 .option-tile {
@@ -638,7 +694,7 @@ body.has-custom-bg { background-color: transparent; }
 .bg-swatch-custom { justify-content: center; }
 .cursor-swatch { justify-content: center; min-height: 72px; }
 
-.upload-bg-label { margin-top: 14px; }
+.upload-bg-label { margin-top: 0; }
 
 .danger-zone { border-color: rgba(239, 68, 68, 0.3); }
 .danger-btn { background-color: #ef4444; }
@@ -686,9 +742,16 @@ body.has-custom-bg { background-color: transparent; }
     .settings-github-btn, .settings-logout-btn, .settings-version { display: none; }
 }
 
-body.density-compact { --task-padding: 6px 8px; --task-gap: 2px; --card-padding: 16px; }
-body.density-default { --task-padding: 10px 8px; --task-gap: 4px; --card-padding: 24px; }
-body.density-spacious { --task-padding: 16px 12px; --task-gap: 10px; --card-padding: 32px; }
+/*
+   Layout Density
+   Values are deliberately spread far apart (not just a few px) so the
+   effect is unmistakable — this also makes it trivial to sanity-check
+   in DevTools: inspect a .task-item and confirm --task-padding actually
+   changes when the density-* class on <body> changes.
+*/
+body.density-compact  { --task-padding: 4px 8px;   --task-gap: 0px;  --card-padding: 12px; }
+body.density-default  { --task-padding: 10px 8px;  --task-gap: 4px;  --card-padding: 24px; }
+body.density-spacious { --task-padding: 20px 14px; --task-gap: 14px; --card-padding: 40px; }
 
 body.reduce-motion *,
 body.reduce-motion *::before,

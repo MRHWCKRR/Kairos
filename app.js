@@ -971,13 +971,25 @@ document.addEventListener("DOMContentLoaded", () => {
 
     async function saveUserSettingsToFirestore() {
         const user = auth.currentUser;
-        if (!user) return;
+        if (!user) return true;
         try {
             const ref = doc(db, 'users', user.uid);
             await setDoc(ref, { settings: userSettings }, { merge: true });
+            return true;
         } catch (error) {
             console.error('Error saving user settings:', error);
-            alert('Could not sync your settings to the cloud, but they are saved locally on this device.');
+
+            // Give a more specific hint depending on the actual Firebase error code,
+            // instead of a generic message every time — makes this much faster to debug.
+            const code = error?.code || '';
+            let hint = 'Could not sync your settings to the cloud, but they are saved locally on this device.';
+            if (code.includes('permission-denied')) {
+                hint = 'Could not sync to the cloud: permission denied. Your Firestore security rules likely don\'t allow writes to the "users" collection yet. Your settings are saved locally on this device for now.';
+            } else if (code.includes('invalid-argument') || code.includes('resource-exhausted') || /longer than/i.test(error?.message || '')) {
+                hint = 'Could not sync to the cloud: your profile picture or background image is too large for cloud storage. Try removing/re-uploading a smaller image. Your settings are saved locally on this device for now.';
+            }
+            alert(hint);
+            return false;
         }
     }
 
@@ -1209,7 +1221,10 @@ document.addEventListener("DOMContentLoaded", () => {
                     pendingSettings.appearance.background = btn.dataset.value;
                     setActiveSwatch('background-options', btn.dataset.value);
                     if (btn.dataset.value !== 'custom') {
-                        applyBackground(btn.dataset.value, pendingSettings.appearance.customBackground);
+                        // Switching to a preset (or "None") means we should stop
+                        // carrying the old uploaded image along in every future save.
+                        pendingSettings.appearance.customBackground = null;
+                        applyBackground(btn.dataset.value, null);
                     } else if (pendingSettings.appearance.customBackground) {
                         applyBackground('custom', pendingSettings.appearance.customBackground);
                     }
@@ -1323,6 +1338,26 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
+    // Remove avatar
+    const avatarRemoveBtn = document.getElementById('settings-avatar-remove-btn');
+    if (avatarRemoveBtn) {
+        avatarRemoveBtn.addEventListener('click', () => {
+            pendingSettings.profile.avatarURL = '';
+
+            const user = auth.currentUser;
+            const fallbackName = pendingSettings.profile.displayName || user?.displayName || 'User';
+            const preview = document.getElementById('settings-avatar-preview');
+            if (preview) preview.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(fallbackName)}&background=a855f7&color=fff`;
+
+            const avatarUrlInput = document.getElementById('settings-avatar-url');
+            if (avatarUrlInput) avatarUrlInput.value = '';
+
+            if (avatarFileInput) avatarFileInput.value = '';
+
+            checkDirty();
+        });
+    }
+
     const bgUploadInput = document.getElementById('settings-bg-upload');
     if (bgUploadInput) {
         bgUploadInput.addEventListener('change', (e) => {
@@ -1341,6 +1376,19 @@ document.addEventListener("DOMContentLoaded", () => {
                 checkDirty();
             };
             reader.readAsDataURL(file);
+        });
+    }
+
+    // Remove custom background
+    const bgRemoveBtn = document.getElementById('settings-bg-remove-btn');
+    if (bgRemoveBtn) {
+        bgRemoveBtn.addEventListener('click', () => {
+            pendingSettings.appearance.customBackground = null;
+            pendingSettings.appearance.background = 'none';
+            setActiveSwatch('background-options', 'none');
+            applyBackground('none', null);
+            if (bgUploadInput) bgUploadInput.value = '';
+            checkDirty();
         });
     }
 
