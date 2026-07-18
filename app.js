@@ -1,8 +1,96 @@
 import { auth, db } from './firebase.js';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-import { doc, setDoc, getDoc, collection, addDoc, serverTimestamp, query, where, orderBy, limit, getDocs, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import {
+    signInWithEmailAndPassword,
+    createUserWithEmailAndPassword,
+    onAuthStateChanged,
+    signOut,
+    updateEmail,
+    updatePassword,
+    reauthenticateWithCredential,
+    EmailAuthProvider,
+    deleteUser
+} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import {
+    doc, setDoc, getDoc, collection, addDoc, serverTimestamp,
+    query, where, orderBy, limit, getDocs, updateDoc, deleteDoc
+} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
 console.log("APP.js is loaded and running");
+
+const THEMES = [
+    { id: 'default', name: 'Default Purple', swatch: '#a855f7' },
+    { id: 'fairyfloss', name: 'Fairy Floss', swatch: '#ff8fc9' },
+    { id: 'poseidon', name: 'Poseidon', swatch: '#38bdf8' },
+    { id: 'peacefulplains', name: 'Peaceful Plains', swatch: '#4ade80' }
+];
+
+const FONT_PACKS = [
+    { id: 'sans', name: 'Inter' },
+    { id: 'round', name: 'Quicksand' },
+    { id: 'mono', name: 'JetBrains Mono' }
+];
+
+const CURSORS = [
+    { id: 'default', name: 'Default' },
+    { id: 'bunny', name: '🐰 Bunny' },
+    { id: 'spaceship', name: '🚀 Spaceship' }
+];
+
+const BACKGROUNDS = [
+    { id: 'none', name: 'None', type: 'none' },
+    { id: 'bg1', name: 'Nebula', type: 'image', file: 'backgrounds/bg1.jpg' },
+    { id: 'bg2', name: 'Forest', type: 'image', file: 'backgrounds/bg2.jpg' },
+    { id: 'bg3', name: 'Waves', type: 'image', file: 'backgrounds/bg3.jpg' },
+    { id: 'anim1', name: 'Particles', type: 'video', file: 'backgrounds/anim1.mp4' },
+    { id: 'anim2', name: 'Rain', type: 'video', file: 'backgrounds/anim2.mp4' },
+    { id: 'custom', name: 'Custom', type: 'custom' }
+];
+
+const AMBIENT_SOUNDS = [
+    { id: 'none', name: 'None' },
+    { id: 'rain', name: '🌧️ Rain', file: 'ambient/rain.mp3' },
+    { id: 'lofi', name: '🎧 Lo-fi', file: 'ambient/lofi.mp3' },
+    { id: 'cafe', name: '☕ Cafe', file: 'ambient/cafe.mp3' }
+];
+
+function cloneDeep(obj) {
+    return typeof structuredClone === 'function' ? structuredClone(obj) : JSON.parse(JSON.stringify(obj));
+}
+
+function deepMerge(base, override) {
+    if (typeof base !== 'object' || base === null) return override !== undefined ? override : base;
+    const result = Array.isArray(base) ? [...base] : { ...base };
+    if (override && typeof override === 'object') {
+        for (const key of Object.keys(override)) {
+            if (typeof base[key] === 'object' && base[key] !== null && !Array.isArray(base[key])) {
+                result[key] = deepMerge(base[key], override[key]);
+            } else {
+                result[key] = override[key];
+            }
+        }
+    }
+    return result;
+}
+
+function defaultSettings() {
+    let tz = 'UTC';
+    try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'; } catch (e) {}
+    return {
+        profile: { displayName: '', avatarURL: '', birthday: '', timezone: tz },
+        accessibility: { density: 'default', timeFormat: '12', reduceMotion: false },
+        appearance: {
+            mode: 'dark',
+            theme: 'default',
+            font: 'sans',
+            background: 'none',
+            customBackground: null,
+            cursor: 'default',
+            ambientSound: 'none',
+            ambientVolume: 35,
+            confetti: true
+        }
+    };
+}
 
 document.addEventListener("DOMContentLoaded", () => {
 
@@ -36,6 +124,17 @@ document.addEventListener("DOMContentLoaded", () => {
     calendarViewDate.setDate(1);
     let selectedCalendarDate = null;
 
+    // --- Settings State ---
+    let userSettings = defaultSettings();
+    try {
+        const cached = JSON.parse(localStorage.getItem('kairos_settings_cache') || 'null');
+        if (cached) userSettings = deepMerge(defaultSettings(), cached);
+    } catch (e) { /* ignore malformed cache */ }
+    let pendingSettings = cloneDeep(userSettings);
+    let confettiEnabled = userSettings.appearance.confetti;
+
+    applyAllSettings();
+
     // --- Auth Management ---
     onAuthStateChanged(auth, (user) => {
         if (!user) {
@@ -46,49 +145,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         console.log("User is logged in:", user.email);
         loadLatestPlanFromFirestore(user);
-        
-        const authContainer = document.getElementById('user-auth-container');
-        if (authContainer) {
-            const userName = user.displayName || "User";
-            const userPhoto = user.photoURL || `https://ui-avatars.com/api/?name=${userName}&background=a855f7&color=fff`;
-            
-            authContainer.innerHTML = `
-                <div class="user-profile-wrapper" id="profile-dropdown-toggle">
-                    <div class="user-profile" style="display: flex; align-items: center; gap: 8px;">
-                        <img src="${userPhoto}" style="width:32px; height: 32px; border-radius:50%;">
-                        <span>${userName}</span>
-                        <span style="font-size: 0.7em; opacity: 0.7;">▼</span>
-                    </div>
-                    
-                    <div id="profile-dropdown-menu" class="profile-dropdown-menu">
-                        <button id="dropdown-logout-btn">Sign Out</button>
-                    </div>
-                </div>
-            `;
-            
-            const toggleWrapper = document.getElementById("profile-dropdown-toggle");
-            const dropdownMenu = document.getElementById("profile-dropdown-menu");
-            const logoutBtn = document.getElementById("dropdown-logout-btn");
-
-            toggleWrapper.addEventListener("click", (e) => {
-                e.stopPropagation();
-                dropdownMenu.classList.toggle("active");
-            });
-
-            document.addEventListener("click", (e) => {
-                if (!toggleWrapper.contains(e.target)) {
-                    dropdownMenu.classList.remove("active");
-                }
-            });
-
-            logoutBtn.addEventListener("click", async () => {
-                try {
-                    await signOut(auth);
-                } catch (error) {
-                    console.error("Logout Failed", error);
-                }
-            });
-        }
+        loadUserSettingsFromFirestore(user);
     });
     
     // --- 1 UI Nav & Clock ---
@@ -106,6 +163,10 @@ document.addEventListener("DOMContentLoaded", () => {
             button.classList.add("active");
             const targetPage = document.getElementById(button.getAttribute("data-target"));
             if (targetPage) targetPage.classList.add("active");
+
+            if (button.getAttribute("data-target") === "settings-page") {
+                enterSettingsPage();
+            }
         });
     });
 
@@ -114,7 +175,8 @@ document.addEventListener("DOMContentLoaded", () => {
         const dateElement = document.getElementById("live-date");
         if (timeElement && dateElement) {
             const now = new Date();
-            timeElement.textContent = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+            const hour12 = userSettings.accessibility.timeFormat !== '24';
+            timeElement.textContent = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12 });
             dateElement.textContent = now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
         }
     }
@@ -238,9 +300,9 @@ document.addEventListener("DOMContentLoaded", () => {
             }, 300);
 
             if (isSectionFinished && isNowChecked) {
-                if (window.confetti) {
+                if (window.confetti && confettiEnabled) {
                     setTimeout(() => {
-                        confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 }, colors: ['#a855f7', '#ffffff'] });
+                        confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 }, colors: [getAccentColor(), '#ffffff'] });
                     }, 300);
                 }
             }
@@ -297,41 +359,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (nextTask && activeSection) {
             container.innerHTML = `
-                <div class="whats-next-card" style="
-                    background: #1e1e2d;
-                    border: 1px solid #313145;
-                    padding: 16px; 
-                    border-radius: 12px;
-                    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
-                    width: 100%; 
-                    box-sizing: border-box;
-                    overflow: hidden;
-                ">
-                    <h4 style="
-                        margin: 0 0 16px 0; 
-                        font-size: 1.05rem; 
-                        color: #ffffff; 
-                        line-height: 1.4;
-                        font-weight: 500;
-                        white-space: normal;
-                        word-wrap: break-word;
-                        overflow-wrap: break-word;
-                    ">${nextTask.title}</h4>
-                    <button class="complete-next-btn" data-task-id="${nextTask.id}" data-section-id="${activeSection.id}"
-                        style="
-                            background: #a855f7; 
-                            border: none; 
-                            color: white; 
-                            padding: 10px 0; 
-                            width: 100%;
-                            border-radius: 6px; 
-                            font-weight: 600; 
-                            cursor: pointer; 
-                            font-size: 0.85rem; 
-                            transition: background 0.2s ease;
-                        "
-                        onmouseover="this.style.background='#9333ea'"
-                        onmouseout="this.style.background='#a855f7'">
+                <div class="whats-next-card">
+                    <h4 class="whats-next-title">${nextTask.title}</h4>
+                    <button class="complete-next-btn" data-task-id="${nextTask.id}" data-section-id="${activeSection.id}">
                         Mark as Done
                     </button>
                 </div>
@@ -344,17 +374,9 @@ document.addEventListener("DOMContentLoaded", () => {
             });
         } else {
             container.innerHTML = `
-                <div class="whats-next-empty" style="
-                    text-align: center; 
-                    padding: 24px 16px; 
-                    background: #1e1e2d;
-                    border: 1px dashed #313145;
-                    border-radius: 12px;
-                    color: #71717a;
-                    word-wrap: break-word;
-                ">
-                    <div style="font-size: 1.5rem; margin-bottom: 8px;">✨</div>
-                    <p style="margin: 0; font-size: 0.9rem; color: #4ade80; font-weight: 600;">All caught up!</p>
+                <div class="whats-next-empty">
+                    <div class="whats-next-empty-icon">✨</div>
+                    <p class="whats-next-empty-text">All caught up!</p>
                 </div>
             `;
         }
@@ -387,8 +409,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (isSectionFinished) {
                     setTimeout(() => {
                         renderFocusMode();
-                        if (window.confetti) {
-                            confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 }, colors: ['#a855f7', '#ffffff'] });
+                        if (window.confetti && confettiEnabled) {
+                            confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 }, colors: [getAccentColor(), '#ffffff'] });
                         }
                     }, 300);
                 }
@@ -396,7 +418,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    // --- 5 Local Storage Settings ---
+    // --- 5 Local Storage Settings (Gemini key) ---
     const apiKeyInput = document.getElementById("api-key-input");
     const saveSettingsBtn = document.getElementById("save-settings-btn");
 
@@ -410,7 +432,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 saveSettingsBtn.innerText = "Key Saved! ✓";
                 saveSettingsBtn.style.backgroundColor = "#22c55e";
                 setTimeout(() => {
-                    saveSettingsBtn.innerText = "Save Keys";
+                    saveSettingsBtn.innerText = "Save Key";
                     saveSettingsBtn.style.backgroundColor = "var(--accent-glow)";
                 }, 2000);
             }
@@ -844,6 +866,652 @@ document.addEventListener("DOMContentLoaded", () => {
             if (selectedCalendarDate) generateDayInsight(selectedCalendarDate);
         });
     }
+
+    //  11 Settings  
+
+    function getAccentColor() {
+        return getComputedStyle(document.body).getPropertyValue('--accent-glow').trim() || '#a855f7';
+    }
+
+    function applyAllSettings() {
+        const s = userSettings;
+        [...document.body.classList].forEach(cls => {
+            if (cls.startsWith('theme-') || cls.startsWith('font-') || cls.startsWith('density-') || cls.startsWith('cursor-')) {
+                document.body.classList.remove(cls);
+            }
+        });
+        document.body.classList.toggle('mode-light', s.appearance.mode === 'light');
+        document.body.classList.add(`theme-${s.appearance.theme}`);
+        document.body.classList.add(`font-${s.appearance.font}`);
+        document.body.classList.add(`density-${s.accessibility.density}`);
+        document.body.classList.add(`cursor-${s.appearance.cursor}`);
+        document.body.classList.toggle('reduce-motion', !!s.accessibility.reduceMotion);
+
+        applyBackground(s.appearance.background, s.appearance.customBackground);
+        applyAmbientSound(s.appearance.ambientSound, s.appearance.ambientVolume);
+
+        confettiEnabled = s.appearance.confetti;
+        updateClock();
+    }
+
+    function applyBackground(bgId, customDataUrl) {
+        const layer = document.getElementById('app-bg-layer');
+        if (!layer) return;
+        layer.innerHTML = '';
+        layer.style.backgroundImage = '';
+        document.body.classList.toggle('has-custom-bg', !!bgId && bgId !== 'none');
+
+        if (!bgId || bgId === 'none') return;
+
+        if (bgId === 'custom') {
+            if (customDataUrl) layer.style.backgroundImage = `url(${customDataUrl})`;
+            return;
+        }
+
+        const bg = BACKGROUNDS.find(b => b.id === bgId);
+        if (!bg) return;
+
+        if (bg.type === 'image') {
+            layer.style.backgroundImage = `url(${bg.file})`;
+        } else if (bg.type === 'video') {
+            const vid = document.createElement('video');
+            vid.src = bg.file;
+            vid.autoplay = true;
+            vid.loop = true;
+            vid.muted = true;
+            vid.playsInline = true;
+            vid.className = 'app-bg-video';
+            layer.appendChild(vid);
+        }
+    }
+
+    function applyAmbientSound(soundId, volume) {
+        const audio = document.getElementById('ambient-audio');
+        if (!audio) return;
+        audio.loop = true;
+
+        if (!soundId || soundId === 'none') {
+            audio.pause();
+            audio.removeAttribute('src');
+            audio.removeAttribute('data-current');
+            return;
+        }
+
+        const sound = AMBIENT_SOUNDS.find(a => a.id === soundId);
+        if (!sound || !sound.file) return;
+
+        if (audio.getAttribute('data-current') !== soundId) {
+            audio.src = sound.file;
+            audio.setAttribute('data-current', soundId);
+        }
+
+        audio.volume = Math.min(1, Math.max(0, (volume ?? 35) / 100));
+        audio.play().catch(() => {
+            const resume = () => { audio.play().catch(() => {}); document.removeEventListener('click', resume); };
+            document.addEventListener('click', resume, { once: true });
+        });
+    }
+
+    async function loadUserSettingsFromFirestore(user) {
+        try {
+            const ref = doc(db, 'users', user.uid);
+            const snap = await getDoc(ref);
+            if (snap.exists() && snap.data().settings) {
+                userSettings = deepMerge(defaultSettings(), snap.data().settings);
+            }
+        } catch (error) {
+            console.error('Error loading user settings:', error);
+        }
+        pendingSettings = cloneDeep(userSettings);
+        localStorage.setItem('kairos_settings_cache', JSON.stringify(userSettings));
+        applyAllSettings();
+        populateSettingsForm();
+        renderUserProfileMenu(user);
+    }
+
+    async function saveUserSettingsToFirestore() {
+        const user = auth.currentUser;
+        if (!user) return;
+        try {
+            const ref = doc(db, 'users', user.uid);
+            await setDoc(ref, { settings: userSettings }, { merge: true });
+        } catch (error) {
+            console.error('Error saving user settings:', error);
+            alert('Could not sync your settings to the cloud, but they are saved locally on this device.');
+        }
+    }
+
+    function renderUserProfileMenu(user) {
+        const authContainer = document.getElementById('user-auth-container');
+        if (!authContainer) return;
+
+        const userName = userSettings.profile.displayName || user.displayName || 'User';
+        const userPhoto = userSettings.profile.avatarURL || user.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(userName)}&background=a855f7&color=fff`;
+
+        authContainer.innerHTML = `
+            <button class="icon-btn" title="Reminders">🔔</button>
+            <div class="user-profile-wrapper" id="profile-dropdown-toggle">
+                <div class="user-profile" style="display: flex; align-items: center; gap: 8px;">
+                    <img src="${userPhoto}" style="width:32px; height: 32px; border-radius:50%; object-fit: cover;">
+                    <span>${userName}</span>
+                    <span style="font-size: 0.7em; opacity: 0.7;">▼</span>
+                </div>
+                <div id="profile-dropdown-menu" class="profile-dropdown-menu">
+                    <button id="dropdown-settings-btn">⚙️ Settings</button>
+                    <button id="dropdown-logout-btn">Sign Out</button>
+                </div>
+            </div>
+        `;
+
+        const toggleWrapper = document.getElementById("profile-dropdown-toggle");
+        const dropdownMenu = document.getElementById("profile-dropdown-menu");
+        const settingsBtn = document.getElementById("dropdown-settings-btn");
+        const logoutBtn = document.getElementById("dropdown-logout-btn");
+
+        toggleWrapper.addEventListener("click", (e) => {
+            e.stopPropagation();
+            dropdownMenu.classList.toggle("active");
+        });
+
+        document.addEventListener("click", (e) => {
+            if (!toggleWrapper.contains(e.target)) {
+                dropdownMenu.classList.remove("active");
+            }
+        });
+
+        settingsBtn.addEventListener("click", () => {
+            dropdownMenu.classList.remove("active");
+            const settingsNavItem = document.querySelector('.nav-item[data-target="settings-page"]');
+            if (settingsNavItem) settingsNavItem.click();
+        });
+
+        logoutBtn.addEventListener("click", async () => {
+            try {
+                await signOut(auth);
+            } catch (error) {
+                console.error("Logout Failed", error);
+            }
+        });
+    }
+
+    function enterSettingsPage() {
+        pendingSettings = cloneDeep(userSettings);
+        populateSettingsForm();
+        updateSaveBarVisibility(false);
+    }
+
+    function setActiveTile(containerId, value) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        container.querySelectorAll('.option-tile').forEach(el => {
+            el.classList.toggle('active', el.dataset.value === String(value));
+        });
+    }
+
+    function setActiveSwatch(containerId, value) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        container.querySelectorAll('.swatch').forEach(el => {
+            el.classList.toggle('active', el.dataset.value === String(value));
+        });
+    }
+
+    function populateTimezoneSelect() {
+        const select = document.getElementById('settings-timezone');
+        if (!select) return;
+        if (!select.dataset.populated) {
+            let zones = [];
+            try { zones = Intl.supportedValuesOf('timeZone'); } catch (e) {
+                zones = ['UTC','America/New_York','America/Chicago','America/Denver','America/Los_Angeles','Europe/London','Europe/Berlin','Europe/Paris','Asia/Tokyo','Asia/Shanghai','Asia/Kolkata','Australia/Sydney','Australia/Brisbane','Pacific/Auckland'];
+            }
+            select.innerHTML = zones.map(z => `<option value="${z}">${z.replace(/_/g, ' ')}</option>`).join('');
+            select.dataset.populated = 'true';
+        }
+        select.value = pendingSettings.profile.timezone;
+    }
+
+    function populateSettingsForm() {
+        const user = auth.currentUser;
+
+        const emailEl = document.getElementById('settings-current-email');
+        if (emailEl) emailEl.textContent = user ? user.email : '—';
+
+        const signinMethodEl = document.getElementById('settings-signin-method');
+        if (signinMethodEl && user) {
+            const providerId = user.providerData[0]?.providerId || 'password';
+            const labels = { 'password': 'Email & Password', 'google.com': 'Google', 'github.com': 'GitHub', 'microsoft.com': 'Microsoft' };
+            signinMethodEl.textContent = labels[providerId] || providerId;
+        }
+
+        const lastSigninEl = document.getElementById('security-last-signin');
+        if (lastSigninEl && user?.metadata?.lastSignInTime) {
+            lastSigninEl.textContent = `Last sign-in: ${new Date(user.metadata.lastSignInTime).toLocaleString()}`;
+        }
+
+        const displayNameEl = document.getElementById('settings-display-name');
+        if (displayNameEl) displayNameEl.value = pendingSettings.profile.displayName || '';
+
+        const birthdayEl = document.getElementById('settings-birthday');
+        if (birthdayEl) birthdayEl.value = pendingSettings.profile.birthday || '';
+
+        const avatarPreview = document.getElementById('settings-avatar-preview');
+        if (avatarPreview) {
+            avatarPreview.src = pendingSettings.profile.avatarURL || user?.photoURL || `https://ui-avatars.com/api/?name=User&background=a855f7&color=fff`;
+        }
+        const avatarUrlEl = document.getElementById('settings-avatar-url');
+        if (avatarUrlEl) {
+            avatarUrlEl.value = (pendingSettings.profile.avatarURL && !pendingSettings.profile.avatarURL.startsWith('data:')) ? pendingSettings.profile.avatarURL : '';
+        }
+
+        populateTimezoneSelect();
+
+        setActiveTile('density-options', pendingSettings.accessibility.density);
+        setActiveTile('time-format-options', pendingSettings.accessibility.timeFormat);
+        const reduceMotionEl = document.getElementById('settings-reduce-motion');
+        if (reduceMotionEl) reduceMotionEl.checked = !!pendingSettings.accessibility.reduceMotion;
+
+        setActiveTile('mode-options', pendingSettings.appearance.mode);
+        setActiveSwatch('theme-options', pendingSettings.appearance.theme);
+        setActiveTile('font-options', pendingSettings.appearance.font);
+        setActiveSwatch('background-options', pendingSettings.appearance.background);
+        setActiveSwatch('cursor-options', pendingSettings.appearance.cursor);
+        setActiveTile('ambient-options', pendingSettings.appearance.ambientSound);
+
+        const confettiEl = document.getElementById('settings-confetti-toggle');
+        if (confettiEl) confettiEl.checked = !!pendingSettings.appearance.confetti;
+
+        const volumeEl = document.getElementById('ambient-volume');
+        if (volumeEl) volumeEl.value = pendingSettings.appearance.ambientVolume ?? 35;
+    }
+
+    function previewLive() {
+        [...document.body.classList].forEach(cls => {
+            if (cls.startsWith('theme-') || cls.startsWith('font-') || cls.startsWith('cursor-')) {
+                document.body.classList.remove(cls);
+            }
+        });
+        document.body.classList.add(`theme-${pendingSettings.appearance.theme}`);
+        document.body.classList.add(`font-${pendingSettings.appearance.font}`);
+        document.body.classList.add(`cursor-${pendingSettings.appearance.cursor}`);
+        document.body.classList.toggle('mode-light', pendingSettings.appearance.mode === 'light');
+    }
+
+    function checkDirty() {
+        updateSaveBarVisibility();
+    }
+
+    function updateSaveBarVisibility(forceState) {
+        const bar = document.getElementById('settings-save-bar');
+        if (!bar) return;
+        const dirty = forceState !== undefined ? forceState : (JSON.stringify(pendingSettings) !== JSON.stringify(userSettings));
+        bar.classList.toggle('active', dirty);
+    }
+
+    function renderConfigOptions() {
+        const themeContainer = document.getElementById('theme-options');
+        if (themeContainer) {
+            themeContainer.innerHTML = THEMES.map(t => `
+                <button class="swatch" data-value="${t.id}" title="${t.name}">
+                    <span class="swatch-color" style="background:${t.swatch}"></span>
+                    <span class="swatch-label">${t.name}</span>
+                </button>
+            `).join('');
+            themeContainer.querySelectorAll('.swatch').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    pendingSettings.appearance.theme = btn.dataset.value;
+                    setActiveSwatch('theme-options', btn.dataset.value);
+                    previewLive();
+                    checkDirty();
+                });
+            });
+        }
+
+        const fontContainer = document.getElementById('font-options');
+        if (fontContainer) {
+            fontContainer.innerHTML = FONT_PACKS.map(f => `<button class="option-tile font-preview-${f.id}" data-value="${f.id}">${f.name}</button>`).join('');
+            fontContainer.querySelectorAll('.option-tile').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    pendingSettings.appearance.font = btn.dataset.value;
+                    setActiveTile('font-options', btn.dataset.value);
+                    previewLive();
+                    checkDirty();
+                });
+            });
+        }
+
+        const cursorContainer = document.getElementById('cursor-options');
+        if (cursorContainer) {
+            cursorContainer.innerHTML = CURSORS.map(c => `<button class="swatch cursor-swatch" data-value="${c.id}"><span class="swatch-label">${c.name}</span></button>`).join('');
+            cursorContainer.querySelectorAll('.swatch').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    pendingSettings.appearance.cursor = btn.dataset.value;
+                    setActiveSwatch('cursor-options', btn.dataset.value);
+                    previewLive();
+                    checkDirty();
+                });
+            });
+        }
+
+        const bgContainer = document.getElementById('background-options');
+        if (bgContainer) {
+            bgContainer.innerHTML = BACKGROUNDS.map(b => {
+                if (b.type === 'custom') {
+                    return `<button class="swatch bg-swatch bg-swatch-custom" data-value="custom"><span class="swatch-color" style="background:var(--bg-main);">📤</span><span class="swatch-label">${b.name}</span></button>`;
+                }
+                const preview = b.type === 'none' ? 'none' : `url(${b.file})`;
+                return `<button class="swatch bg-swatch" data-value="${b.id}" title="${b.name}">
+                    <span class="swatch-color" style="background-image:${preview}; background-color: var(--bg-main);">${b.type === 'video' ? '▶' : ''}</span>
+                    <span class="swatch-label">${b.name}</span>
+                </button>`;
+            }).join('');
+            bgContainer.querySelectorAll('.swatch').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    pendingSettings.appearance.background = btn.dataset.value;
+                    setActiveSwatch('background-options', btn.dataset.value);
+                    if (btn.dataset.value !== 'custom') {
+                        applyBackground(btn.dataset.value, pendingSettings.appearance.customBackground);
+                    } else if (pendingSettings.appearance.customBackground) {
+                        applyBackground('custom', pendingSettings.appearance.customBackground);
+                    }
+                    checkDirty();
+                });
+            });
+        }
+
+        const ambientContainer = document.getElementById('ambient-options');
+        if (ambientContainer) {
+            ambientContainer.innerHTML = AMBIENT_SOUNDS.map(a => `<button class="option-tile" data-value="${a.id}">${a.name}</button>`).join('');
+            ambientContainer.querySelectorAll('.option-tile').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    pendingSettings.appearance.ambientSound = btn.dataset.value;
+                    setActiveTile('ambient-options', btn.dataset.value);
+                    applyAmbientSound(btn.dataset.value, pendingSettings.appearance.ambientVolume); // live preview, loops immediately
+                    checkDirty();
+                });
+            });
+        }
+    }
+
+    // Static option-tile groups
+    document.querySelectorAll('#density-options .option-tile').forEach(btn => {
+        btn.addEventListener('click', () => {
+            pendingSettings.accessibility.density = btn.dataset.value;
+            setActiveTile('density-options', btn.dataset.value);
+            [...document.body.classList].forEach(cls => { if (cls.startsWith('density-')) document.body.classList.remove(cls); });
+            document.body.classList.add(`density-${btn.dataset.value}`);
+            checkDirty();
+        });
+    });
+
+    document.querySelectorAll('#time-format-options .option-tile').forEach(btn => {
+        btn.addEventListener('click', () => {
+            pendingSettings.accessibility.timeFormat = btn.dataset.value;
+            setActiveTile('time-format-options', btn.dataset.value);
+            checkDirty();
+        });
+    });
+
+    document.querySelectorAll('#mode-options .option-tile').forEach(btn => {
+        btn.addEventListener('click', () => {
+            pendingSettings.appearance.mode = btn.dataset.value;
+            setActiveTile('mode-options', btn.dataset.value);
+            previewLive();
+            checkDirty();
+        });
+    });
+
+    const reduceMotionInput = document.getElementById('settings-reduce-motion');
+    if (reduceMotionInput) {
+        reduceMotionInput.addEventListener('change', (e) => {
+            pendingSettings.accessibility.reduceMotion = e.target.checked;
+            checkDirty();
+        });
+    }
+
+    const confettiToggleInput = document.getElementById('settings-confetti-toggle');
+    if (confettiToggleInput) {
+        confettiToggleInput.addEventListener('change', (e) => {
+            pendingSettings.appearance.confetti = e.target.checked;
+            checkDirty();
+        });
+    }
+
+    const ambientVolumeInput = document.getElementById('ambient-volume');
+    if (ambientVolumeInput) {
+        ambientVolumeInput.addEventListener('input', (e) => {
+            pendingSettings.appearance.ambientVolume = parseInt(e.target.value, 10);
+            const audio = document.getElementById('ambient-audio');
+            if (audio) audio.volume = pendingSettings.appearance.ambientVolume / 100;
+            checkDirty();
+        });
+    }
+
+    // Profile text inputs
+    ['settings-display-name', 'settings-birthday', 'settings-timezone', 'settings-avatar-url'].forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.addEventListener('input', () => {
+            if (id === 'settings-display-name') pendingSettings.profile.displayName = el.value;
+            if (id === 'settings-birthday') pendingSettings.profile.birthday = el.value;
+            if (id === 'settings-timezone') pendingSettings.profile.timezone = el.value;
+            if (id === 'settings-avatar-url') {
+                pendingSettings.profile.avatarURL = el.value.trim();
+                const preview = document.getElementById('settings-avatar-preview');
+                if (preview && el.value.trim()) preview.src = el.value.trim();
+            }
+            checkDirty();
+        });
+    });
+
+    const avatarFileInput = document.getElementById('settings-avatar-file');
+    if (avatarFileInput) {
+        avatarFileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            if (file.size > 700 * 1024) {
+                alert("Please choose an image under ~700KB — larger avatars can't be synced to your account.");
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = () => {
+                pendingSettings.profile.avatarURL = reader.result;
+                document.getElementById('settings-avatar-preview').src = reader.result;
+                document.getElementById('settings-avatar-url').value = '';
+                checkDirty();
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+
+    const bgUploadInput = document.getElementById('settings-bg-upload');
+    if (bgUploadInput) {
+        bgUploadInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            if (file.size > 1.2 * 1024 * 1024) {
+                alert('Please choose an image under ~1.2MB for custom backgrounds.');
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = () => {
+                pendingSettings.appearance.customBackground = reader.result;
+                pendingSettings.appearance.background = 'custom';
+                setActiveSwatch('background-options', 'custom');
+                applyBackground('custom', reader.result);
+                checkDirty();
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+
+    // Save / Cancel bar
+    const settingsSaveBtn = document.getElementById('settings-save-btn');
+    if (settingsSaveBtn) {
+        settingsSaveBtn.addEventListener('click', async () => {
+            settingsSaveBtn.textContent = 'Saving...';
+            settingsSaveBtn.disabled = true;
+
+            userSettings = cloneDeep(pendingSettings);
+            localStorage.setItem('kairos_settings_cache', JSON.stringify(userSettings));
+            applyAllSettings();
+            await saveUserSettingsToFirestore();
+
+            const user = auth.currentUser;
+            if (user) renderUserProfileMenu(user);
+
+            updateSaveBarVisibility(false);
+            settingsSaveBtn.textContent = 'Save Changes';
+            settingsSaveBtn.disabled = false;
+        });
+    }
+
+    const settingsCancelBtn = document.getElementById('settings-cancel-btn');
+    if (settingsCancelBtn) {
+        settingsCancelBtn.addEventListener('click', () => {
+            pendingSettings = cloneDeep(userSettings);
+            applyAllSettings();
+            populateSettingsForm();
+            updateSaveBarVisibility(false);
+        });
+    }
+
+    // Settings tab switching
+    const settingsTabs = document.querySelectorAll('.settings-tab');
+    const settingsPanels = document.querySelectorAll('.settings-panel');
+    settingsTabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            settingsTabs.forEach(t => t.classList.remove('active'));
+            settingsPanels.forEach(p => p.classList.remove('active'));
+            tab.classList.add('active');
+            const panel = document.getElementById(`settings-${tab.dataset.settingsTab}`);
+            if (panel) panel.classList.add('active');
+        });
+    });
+
+    // Settings sidebar logout
+    const settingsLogoutBtn = document.getElementById('settings-logout-btn');
+    if (settingsLogoutBtn) {
+        settingsLogoutBtn.addEventListener('click', async () => {
+            try { await signOut(auth); } catch (error) { console.error('Logout failed', error); }
+        });
+    }
+
+    // Security: change email
+    const changeEmailBtn = document.getElementById('security-change-email-btn');
+    if (changeEmailBtn) {
+        changeEmailBtn.addEventListener('click', async () => {
+            const user = auth.currentUser;
+            if (!user) return;
+            const isPasswordAccount = user.providerData.some(p => p.providerId === 'password');
+            if (!isPasswordAccount) {
+                alert("Email changes aren't available for accounts signed in via Google, GitHub, or Microsoft.");
+                return;
+            }
+            const newEmail = document.getElementById('security-new-email').value.trim();
+            const currentPw = document.getElementById('security-email-current-pw').value;
+            if (!newEmail || !currentPw) { alert('Please fill in both fields.'); return; }
+
+            try {
+                const cred = EmailAuthProvider.credential(user.email, currentPw);
+                await reauthenticateWithCredential(user, cred);
+                await updateEmail(user, newEmail);
+                document.getElementById('settings-current-email').textContent = newEmail;
+                document.getElementById('security-new-email').value = '';
+                document.getElementById('security-email-current-pw').value = '';
+                alert('Email updated successfully!');
+            } catch (error) {
+                alert('Failed to update email: ' + error.message);
+            }
+        });
+    }
+
+    // Security: change password
+    const changePwBtn = document.getElementById('security-change-pw-btn');
+    if (changePwBtn) {
+        changePwBtn.addEventListener('click', async () => {
+            const user = auth.currentUser;
+            if (!user) return;
+            const isPasswordAccount = user.providerData.some(p => p.providerId === 'password');
+            if (!isPasswordAccount) {
+                alert("Password changes aren't available for accounts signed in via Google, GitHub, or Microsoft.");
+                return;
+            }
+            const currentPw = document.getElementById('security-current-pw').value;
+            const newPw = document.getElementById('security-new-pw').value;
+            const confirmPw = document.getElementById('security-new-pw-confirm').value;
+
+            if (!currentPw || !newPw || !confirmPw) { alert('Please fill in all password fields.'); return; }
+            if (newPw !== confirmPw) { alert('New passwords do not match.'); return; }
+            if (newPw.length < 6) { alert('New password must be at least 6 characters.'); return; }
+
+            try {
+                const cred = EmailAuthProvider.credential(user.email, currentPw);
+                await reauthenticateWithCredential(user, cred);
+                await updatePassword(user, newPw);
+                document.getElementById('security-current-pw').value = '';
+                document.getElementById('security-new-pw').value = '';
+                document.getElementById('security-new-pw-confirm').value = '';
+                alert('Password updated successfully!');
+            } catch (error) {
+                alert('Failed to update password: ' + error.message);
+            }
+        });
+    }
+
+    // Privacy: export data
+    const exportBtn = document.getElementById('privacy-export-btn');
+    if (exportBtn) {
+        exportBtn.addEventListener('click', () => {
+            const exportObj = {
+                exportedAt: new Date().toISOString(),
+                routines: routinesData,
+                dayInsights: dayInsights,
+                settings: userSettings
+            };
+            const blob = new Blob([JSON.stringify(exportObj, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `kairos-data-export-${toDateKey(new Date())}.json`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(url);
+        });
+    }
+
+    // Privacy: delete account
+    const deleteBtn = document.getElementById('privacy-delete-btn');
+    if (deleteBtn) {
+        deleteBtn.addEventListener('click', async () => {
+            const user = auth.currentUser;
+            if (!user) return;
+            if (!confirm('This will permanently delete your account and all of your data. This cannot be undone. Continue?')) return;
+            const typed = prompt('Type DELETE (in capitals) to confirm:');
+            if (typed !== 'DELETE') return;
+
+            try {
+                const plansColRef = collection(db, 'study_plans');
+                const q = query(plansColRef, where('userID', '==', user.uid));
+                const snap = await getDocs(q);
+                await Promise.all(snap.docs.map(d => deleteDoc(doc(db, 'study_plans', d.id))));
+                await deleteDoc(doc(db, 'users', user.uid)).catch(() => {});
+
+                await deleteUser(user);
+
+                localStorage.removeItem('kairos_settings_cache');
+                localStorage.removeItem('kairos_api_key');
+                alert('Your account and data have been deleted.');
+                window.location.href = 'login.html';
+            } catch (error) {
+                console.error(error);
+                alert('Could not delete your account: ' + error.message + '\n\nFor security, Firebase may require a recent sign-in before allowing account deletion. Try logging out, logging back in, then retrying.');
+            }
+        });
+    }
+
+    renderConfigOptions();
+    populateSettingsForm();
 
     renderApp();
 });
