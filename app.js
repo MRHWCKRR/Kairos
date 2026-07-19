@@ -39,7 +39,7 @@ const CURSORS = [
 
 const BACKGROUNDS = [
     { id: 'none', name: 'None', type: 'none' },
-    { id: 'bg1', name: 'Nebula', type: 'image', file: 'backgrounds/bg1.jpg' },
+    { id: 'bg1', name: 'Pink Cat', type: 'image', file: 'backgrounds/bg1.jpg' },
     { id: 'bg2', name: 'Forest', type: 'image', file: 'backgrounds/bg2.jpg' },
     { id: 'bg3', name: 'Waves', type: 'image', file: 'backgrounds/bg3.jpg' },
     { id: 'anim1', name: 'Particles', type: 'video', file: 'backgrounds/anim1.mp4' },
@@ -51,7 +51,7 @@ const AMBIENT_SOUNDS = [
     { id: 'none', name: 'None' },
     { id: 'rain', name: '🌧️ Rain', file: 'ambient/rain.mp3' },
     { id: 'lofi', name: '🎧 Lo-fi', file: 'ambient/lofi.mp3' },
-    { id: 'cafe', name: '☕ Cafe', file: 'ambient/cafe.mp3' }
+    { id: 'cafe', name: '🌊 Waves', file: 'ambient/waves.mp3' }
 ];
 
 function cloneDeep(obj) {
