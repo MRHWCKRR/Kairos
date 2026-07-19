@@ -25,6 +25,18 @@ export const LOCALE_MAP = {
 
 const RTL_LANGS = new Set(['ar']);
 
+// Plain English language names for instructing Gemini reliably
+// (the model follows "respond in Korean" more reliably than an
+// endonym or bare ISO code embedded in a prompt).
+export const GEMINI_LANGUAGE_NAMES = {
+    en: 'English', es: 'Spanish', fr: 'French', it: 'Italian',
+    ru: 'Russian', zh: 'Simplified Chinese', ko: 'Korean', ar: 'Arabic'
+};
+
+export function getGeminiLanguageName(lang) {
+    return GEMINI_LANGUAGE_NAMES[lang] || GEMINI_LANGUAGE_NAMES.en;
+}
+
 export function getLocale(lang) {
     return LOCALE_MAP[lang] || LOCALE_MAP.en;
 }
@@ -84,7 +96,21 @@ export const TRANSLATIONS = {
         youtube_option_label: '🔗 Custom YouTube',
         youtube_url_label: 'YouTube link (e.g. a 24/7 lofi stream)',
         youtube_url_placeholder: 'https://www.youtube.com/watch?v=...',
-        youtube_url_hint: 'Paste any YouTube video or livestream link — its audio will loop quietly in the background. Works great with 24/7 lofi/study streams.'
+        youtube_url_hint: 'Paste any YouTube video or livestream link — its audio will loop quietly in the background. Works great with 24/7 lofi/study streams.',
+
+        add_board: '+ Add Board', new_board_prompt: 'Name your new board:', rename_board_prompt: 'Rename board:',
+        confirm_delete_board: 'Delete this board and everything in it? This cannot be undone.',
+        no_boards_yet: 'No boards yet — create one to get started.',
+        add_section: '+ Add Section', new_section_prompt: 'Name this section:', rename_section_prompt: 'Rename section:',
+        confirm_delete_section: 'Delete this section and its tasks?',
+        add_task: '+ Add Task', new_task_prompt: 'Task name:',
+        delete_task: 'Delete task', delete_section: 'Delete section',
+        rename: 'Rename', delete: 'Delete', board_options: 'Board options', section_options: 'Section options',
+        ai_destination_title: 'Add these AI-generated tasks to:',
+        ai_destination_new: 'A new board', ai_destination_existing: 'An existing board',
+        ai_destination_new_name_placeholder: 'New board name',
+        ai_destination_select_board: 'Choose a board',
+        ai_destination_confirm: 'Add Tasks'
     },
     es: {
         nav_dashboard: 'Panel', nav_ai: 'Asistente de IA', nav_tasks: 'Rutinas y Tareas', nav_calendar: 'Calendario', nav_settings: 'Configuración',
@@ -136,7 +162,21 @@ export const TRANSLATIONS = {
         youtube_option_label: '🔗 YouTube Personalizado',
         youtube_url_label: 'Enlace de YouTube (p. ej. una transmisión lofi 24/7)',
         youtube_url_placeholder: 'https://www.youtube.com/watch?v=...',
-        youtube_url_hint: 'Pega cualquier enlace de video o transmisión en vivo de YouTube — su audio se reproducirá en bucle en segundo plano. Funciona muy bien con transmisiones lofi/estudio 24/7.'
+        youtube_url_hint: 'Pega cualquier enlace de video o transmisión en vivo de YouTube — su audio se reproducirá en bucle en segundo plano. Funciona muy bien con transmisiones lofi/estudio 24/7.',
+
+        add_board: '+ Añadir Tablero', new_board_prompt: 'Nombra tu nuevo tablero:', rename_board_prompt: 'Renombrar tablero:',
+        confirm_delete_board: '¿Eliminar este tablero y todo su contenido? Esto no se puede deshacer.',
+        no_boards_yet: 'Aún no hay tableros — crea uno para empezar.',
+        add_section: '+ Añadir Sección', new_section_prompt: 'Nombra esta sección:', rename_section_prompt: 'Renombrar sección:',
+        confirm_delete_section: '¿Eliminar esta sección y sus tareas?',
+        add_task: '+ Añadir Tarea', new_task_prompt: 'Nombre de la tarea:',
+        delete_task: 'Eliminar tarea', delete_section: 'Eliminar sección',
+        rename: 'Renombrar', delete: 'Eliminar', board_options: 'Opciones del tablero', section_options: 'Opciones de la sección',
+        ai_destination_title: 'Añadir estas tareas generadas por IA a:',
+        ai_destination_new: 'Un nuevo tablero', ai_destination_existing: 'Un tablero existente',
+        ai_destination_new_name_placeholder: 'Nombre del nuevo tablero',
+        ai_destination_select_board: 'Elige un tablero',
+        ai_destination_confirm: 'Añadir Tareas'
     },
     fr: {
         nav_dashboard: 'Tableau de bord', nav_ai: 'Assistant IA', nav_tasks: 'Routines et Tâches', nav_calendar: 'Calendrier', nav_settings: 'Paramètres',
@@ -188,7 +228,21 @@ export const TRANSLATIONS = {
         youtube_option_label: '🔗 YouTube Personnalisé',
         youtube_url_label: 'Lien YouTube (ex. un flux lofi 24 h/24)',
         youtube_url_placeholder: 'https://www.youtube.com/watch?v=...',
-        youtube_url_hint: "Collez le lien de n'importe quelle vidéo ou diffusion en direct YouTube — son audio sera lu en boucle en arrière-plan. Idéal avec les flux lofi/étude 24 h/24."
+        youtube_url_hint: "Collez le lien de n'importe quelle vidéo ou diffusion en direct YouTube — son audio sera lu en boucle en arrière-plan. Idéal avec les flux lofi/étude 24 h/24.",
+
+        add_board: '+ Ajouter un Tableau', new_board_prompt: 'Nommez votre nouveau tableau :', rename_board_prompt: 'Renommer le tableau :',
+        confirm_delete_board: 'Supprimer ce tableau et tout son contenu ? Cette action est irréversible.',
+        no_boards_yet: 'Aucun tableau pour le moment — créez-en un pour commencer.',
+        add_section: '+ Ajouter une Section', new_section_prompt: 'Nommez cette section :', rename_section_prompt: 'Renommer la section :',
+        confirm_delete_section: 'Supprimer cette section et ses tâches ?',
+        add_task: '+ Ajouter une Tâche', new_task_prompt: 'Nom de la tâche :',
+        delete_task: 'Supprimer la tâche', delete_section: 'Supprimer la section',
+        rename: 'Renommer', delete: 'Supprimer', board_options: 'Options du tableau', section_options: 'Options de la section',
+        ai_destination_title: 'Ajouter ces tâches générées par IA à :',
+        ai_destination_new: 'Un nouveau tableau', ai_destination_existing: 'Un tableau existant',
+        ai_destination_new_name_placeholder: 'Nom du nouveau tableau',
+        ai_destination_select_board: 'Choisissez un tableau',
+        ai_destination_confirm: 'Ajouter les Tâches'
     },
     it: {
         nav_dashboard: 'Dashboard', nav_ai: 'Assistente IA', nav_tasks: 'Routine e Attività', nav_calendar: 'Calendario', nav_settings: 'Impostazioni',
@@ -240,7 +294,21 @@ export const TRANSLATIONS = {
         youtube_option_label: '🔗 YouTube Personalizzato',
         youtube_url_label: 'Link YouTube (es. uno stream lofi 24/7)',
         youtube_url_placeholder: 'https://www.youtube.com/watch?v=...',
-        youtube_url_hint: "Incolla il link di qualsiasi video o live YouTube — il suo audio verrà riprodotto in loop in sottofondo. Funziona alla grande con gli stream lofi/studio 24/7."
+        youtube_url_hint: "Incolla il link di qualsiasi video o live YouTube — il suo audio verrà riprodotto in loop in sottofondo. Funziona alla grande con gli stream lofi/studio 24/7.",
+
+        add_board: '+ Aggiungi Bacheca', new_board_prompt: 'Assegna un nome alla nuova bacheca:', rename_board_prompt: 'Rinomina bacheca:',
+        confirm_delete_board: 'Eliminare questa bacheca e tutto il suo contenuto? Questa azione non può essere annullata.',
+        no_boards_yet: 'Nessuna bacheca ancora — creane una per iniziare.',
+        add_section: '+ Aggiungi Sezione', new_section_prompt: 'Assegna un nome a questa sezione:', rename_section_prompt: 'Rinomina sezione:',
+        confirm_delete_section: 'Eliminare questa sezione e le sue attività?',
+        add_task: '+ Aggiungi Attività', new_task_prompt: "Nome dell'attività:",
+        delete_task: "Elimina attività", delete_section: 'Elimina sezione',
+        rename: 'Rinomina', delete: 'Elimina', board_options: 'Opzioni bacheca', section_options: 'Opzioni sezione',
+        ai_destination_title: 'Aggiungi queste attività generate dall\'IA a:',
+        ai_destination_new: 'Una nuova bacheca', ai_destination_existing: 'Una bacheca esistente',
+        ai_destination_new_name_placeholder: 'Nome nuova bacheca',
+        ai_destination_select_board: 'Scegli una bacheca',
+        ai_destination_confirm: 'Aggiungi Attività'
     },
     ru: {
         nav_dashboard: 'Панель управления', nav_ai: 'ИИ-помощник', nav_tasks: 'Распорядок и задачи', nav_calendar: 'Календарь', nav_settings: 'Настройки',
@@ -292,7 +360,21 @@ export const TRANSLATIONS = {
         youtube_option_label: '🔗 Свой YouTube',
         youtube_url_label: 'Ссылка на YouTube (например, лофи-стрим 24/7)',
         youtube_url_placeholder: 'https://www.youtube.com/watch?v=...',
-        youtube_url_hint: 'Вставьте ссылку на любое видео или трансляцию YouTube — звук будет тихо звучать по кругу в фоне. Отлично подходит для лофи-стримов 24/7.'
+        youtube_url_hint: 'Вставьте ссылку на любое видео или трансляцию YouTube — звук будет тихо звучать по кругу в фоне. Отлично подходит для лофи-стримов 24/7.',
+
+        add_board: '+ Добавить доску', new_board_prompt: 'Название новой доски:', rename_board_prompt: 'Переименовать доску:',
+        confirm_delete_board: 'Удалить эту доску и всё её содержимое? Это действие необратимо.',
+        no_boards_yet: 'Пока нет ни одной доски — создайте первую.',
+        add_section: '+ Добавить раздел', new_section_prompt: 'Название раздела:', rename_section_prompt: 'Переименовать раздел:',
+        confirm_delete_section: 'Удалить этот раздел и его задачи?',
+        add_task: '+ Добавить задачу', new_task_prompt: 'Название задачи:',
+        delete_task: 'Удалить задачу', delete_section: 'Удалить раздел',
+        rename: 'Переименовать', delete: 'Удалить', board_options: 'Настройки доски', section_options: 'Настройки раздела',
+        ai_destination_title: 'Добавить эти задачи от ИИ в:',
+        ai_destination_new: 'Новую доску', ai_destination_existing: 'Существующую доску',
+        ai_destination_new_name_placeholder: 'Название новой доски',
+        ai_destination_select_board: 'Выберите доску',
+        ai_destination_confirm: 'Добавить задачи'
     },
     zh: {
         nav_dashboard: '仪表盘', nav_ai: 'AI 助手', nav_tasks: '日程与任务', nav_calendar: '日历', nav_settings: '设置',
@@ -344,7 +426,21 @@ export const TRANSLATIONS = {
         youtube_option_label: '🔗 自定义 YouTube',
         youtube_url_label: 'YouTube 链接(例如 24/7 lofi 直播)',
         youtube_url_placeholder: 'https://www.youtube.com/watch?v=...',
-        youtube_url_hint: '粘贴任意 YouTube 视频或直播链接 — 其音频将在后台循环播放,非常适合 24/7 lofi/学习直播。'
+        youtube_url_hint: '粘贴任意 YouTube 视频或直播链接 — 其音频将在后台循环播放,非常适合 24/7 lofi/学习直播。',
+
+        add_board: '+ 添加看板', new_board_prompt: '为你的新看板命名:', rename_board_prompt: '重命名看板:',
+        confirm_delete_board: '删除此看板及其所有内容?此操作无法撤销。',
+        no_boards_yet: '还没有看板 — 创建一个开始使用吧。',
+        add_section: '+ 添加分组', new_section_prompt: '为此分组命名:', rename_section_prompt: '重命名分组:',
+        confirm_delete_section: '删除此分组及其任务?',
+        add_task: '+ 添加任务', new_task_prompt: '任务名称:',
+        delete_task: '删除任务', delete_section: '删除分组',
+        rename: '重命名', delete: '删除', board_options: '看板选项', section_options: '分组选项',
+        ai_destination_title: '将这些 AI 生成的任务添加到:',
+        ai_destination_new: '新看板', ai_destination_existing: '已有看板',
+        ai_destination_new_name_placeholder: '新看板名称',
+        ai_destination_select_board: '选择一个看板',
+        ai_destination_confirm: '添加任务'
     },
     ko: {
         nav_dashboard: '대시보드', nav_ai: 'AI 도우미', nav_tasks: '루틴 및 작업', nav_calendar: '캘린더', nav_settings: '설정',
@@ -396,7 +492,21 @@ export const TRANSLATIONS = {
         youtube_option_label: '🔗 커스텀 YouTube',
         youtube_url_label: 'YouTube 링크(예: 24시간 로파이 스트림)',
         youtube_url_placeholder: 'https://www.youtube.com/watch?v=...',
-        youtube_url_hint: '어떤 YouTube 동영상이나 라이브 스트림 링크든 붙여넣으면 배경에서 오디오가 반복 재생됩니다. 24시간 로파이/스터디 스트림에 특히 잘 어울립니다.'
+        youtube_url_hint: '어떤 YouTube 동영상이나 라이브 스트림 링크든 붙여넣으면 배경에서 오디오가 반복 재생됩니다. 24시간 로파이/스터디 스트림에 특히 잘 어울립니다.',
+
+        add_board: '+ 보드 추가', new_board_prompt: '새 보드의 이름을 지어주세요:', rename_board_prompt: '보드 이름 변경:',
+        confirm_delete_board: '이 보드와 그 안의 모든 내용을 삭제하시겠습니까? 되돌릴 수 없습니다.',
+        no_boards_yet: '아직 보드가 없습니다 — 하나 만들어 시작해보세요.',
+        add_section: '+ 섹션 추가', new_section_prompt: '이 섹션의 이름을 지어주세요:', rename_section_prompt: '섹션 이름 변경:',
+        confirm_delete_section: '이 섹션과 작업을 삭제하시겠습니까?',
+        add_task: '+ 작업 추가', new_task_prompt: '작업 이름:',
+        delete_task: '작업 삭제', delete_section: '섹션 삭제',
+        rename: '이름 변경', delete: '삭제', board_options: '보드 옵션', section_options: '섹션 옵션',
+        ai_destination_title: '이 AI 생성 작업을 다음에 추가:',
+        ai_destination_new: '새 보드', ai_destination_existing: '기존 보드',
+        ai_destination_new_name_placeholder: '새 보드 이름',
+        ai_destination_select_board: '보드 선택',
+        ai_destination_confirm: '작업 추가'
     },
     ar: {
         nav_dashboard: 'لوحة التحكم', nav_ai: 'مساعد الذكاء الاصطناعي', nav_tasks: 'الروتين والمهام', nav_calendar: 'التقويم', nav_settings: 'الإعدادات',
@@ -448,7 +558,21 @@ export const TRANSLATIONS = {
         youtube_option_label: '🔗 يوتيوب مخصص',
         youtube_url_label: 'رابط يوتيوب (مثل بث لوفاي على مدار الساعة)',
         youtube_url_placeholder: 'https://www.youtube.com/watch?v=...',
-        youtube_url_hint: 'الصق رابط أي فيديو أو بث مباشر من يوتيوب — سيتم تشغيل صوته بشكل متكرر في الخلفية. يعمل بشكل رائع مع بثوث اللوفاي/الدراسة على مدار الساعة.'
+        youtube_url_hint: 'الصق رابط أي فيديو أو بث مباشر من يوتيوب — سيتم تشغيل صوته بشكل متكرر في الخلفية. يعمل بشكل رائع مع بثوث اللوفاي/الدراسة على مدار الساعة.',
+
+        add_board: '+ إضافة لوحة', new_board_prompt: 'سمِّ لوحتك الجديدة:', rename_board_prompt: 'إعادة تسمية اللوحة:',
+        confirm_delete_board: 'هل تريد حذف هذه اللوحة وكل ما بداخلها؟ لا يمكن التراجع عن هذا.',
+        no_boards_yet: 'لا توجد لوحات بعد — أنشئ واحدة للبدء.',
+        add_section: '+ إضافة قسم', new_section_prompt: 'سمِّ هذا القسم:', rename_section_prompt: 'إعادة تسمية القسم:',
+        confirm_delete_section: 'هل تريد حذف هذا القسم ومهامه؟',
+        add_task: '+ إضافة مهمة', new_task_prompt: 'اسم المهمة:',
+        delete_task: 'حذف المهمة', delete_section: 'حذف القسم',
+        rename: 'إعادة تسمية', delete: 'حذف', board_options: 'خيارات اللوحة', section_options: 'خيارات القسم',
+        ai_destination_title: 'إضافة هذه المهام المُنشأة بالذكاء الاصطناعي إلى:',
+        ai_destination_new: 'لوحة جديدة', ai_destination_existing: 'لوحة موجودة',
+        ai_destination_new_name_placeholder: 'اسم اللوحة الجديدة',
+        ai_destination_select_board: 'اختر لوحة',
+        ai_destination_confirm: 'إضافة المهام'
     }
 };
 

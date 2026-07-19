@@ -213,7 +213,7 @@ body.has-custom-bg { background-color: transparent; }
 }
 
 /* Checkbox Design */
-.custom-checkbox { position: relative; width: 22px; height: 22px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.custom-checkbox { position: relative; width: 22px; height: 22px; flex-shrink: 0; cursor: pointer; display: flex; align-items: center; justify-content: center; }
 .custom-checkbox input { position: absolute; opacity: 0; cursor: pointer; height: 0; width: 0; }
 .checkmark { position: absolute; top: 0; left: 0; height: 22px; width: 22px; background-color: transparent; border: 2px solid var(--border-subtle); border-radius: 50%; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
 .custom-checkbox:hover input ~ .checkmark { border-color: var(--accent-glow); }
@@ -223,7 +223,7 @@ body.has-custom-bg { background-color: transparent; }
 @keyframes popIn { 0% { transform: scale(0) rotate(45deg); } 100% { transform: scale(1) rotate(45deg); } }
 
 /* Task Text Strikethrough */
-.task-text { background: none; border: none; color: var(--text-primary); font-size: 0.95rem; flex-grow: 1; outline: none; transition: all 0.2s; cursor: pointer; }
+.task-text { background: none; border: none; color: var(--text-primary); font-size: 0.95rem; flex-grow: 1; min-width: 0; outline: none; transition: all 0.2s; cursor: pointer; text-overflow: ellipsis; }
 .task-item.completed .task-text { text-decoration: line-through; color: var(--text-muted); }
 
 /* Forms */
@@ -257,10 +257,134 @@ body.has-custom-bg { background-color: transparent; }
 .fade-in-section { animation: fadeInSlide 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
 @keyframes fadeInSlide { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-.tasks-manager { display: flex; flex-direction: column; gap: 24px; margin-top: 24px; }
+.boards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 24px; margin-top: 24px; }
+
+.add-board-btn {
+    margin-top: 20px;
+    background: transparent;
+    border: 1px dashed var(--border-subtle);
+    color: var(--text-muted);
+    padding: 12px 20px;
+    border-radius: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.add-board-btn:hover { border-color: var(--accent-glow); color: var(--accent-glow); }
+
+/* Board card (was .manager-section) */
+.board-card {
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+    padding: var(--card-padding);
+    transition: padding 0.2s ease;
+    position: relative;
+}
+.board-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.board-card-header .editable-title { font-size: 1.1rem; font-weight: 700; }
+
+.board-sections { display: flex; flex-direction: column; gap: 20px; }
+.board-section-block { border-top: 1px solid var(--border-subtle); padding-top: 16px; }
+.board-section-block:first-child { border-top: none; padding-top: 0; }
+
+.add-section-btn, .add-task-btn {
+    background: none;
+    border: 1px dashed var(--border-subtle);
+    color: var(--text-muted);
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: left;
+    width: 100%;
+}
+.add-section-btn:hover, .add-task-btn:hover { border-color: var(--accent-glow); color: var(--accent-glow); }
+.add-task-btn { margin-top: 4px; }
+
+/* Hover-revealed 3-dot menu, used for both boards and sections */
+.dots-menu-wrapper { position: relative; }
+.dots-menu-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 1.1rem;
+    cursor: pointer;
+    padding: 2px 8px;
+    border-radius: 6px;
+    opacity: 0;
+    transition: opacity 0.15s, background 0.15s;
+}
+.board-card:hover .dots-menu-btn,
+.board-section-block:hover .dots-menu-btn,
+.dots-menu-wrapper.active .dots-menu-btn { opacity: 1; }
+.dots-menu-btn:hover { background: var(--border-subtle); color: var(--text-primary); }
+
+.dots-menu {
+    position: absolute;
+    top: 110%;
+    right: 0;
+    background-color: var(--bg-main);
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    padding: 6px;
+    min-width: 140px;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
+    z-index: 50;
+    display: none;
+    flex-direction: column;
+    gap: 2px;
+}
+.dots-menu.active { display: flex; }
+.dots-menu button {
+    background: none;
+    border: none;
+    color: var(--text-primary);
+    text-align: left;
+    padding: 8px 10px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    cursor: pointer;
+}
+.dots-menu button:hover { background: var(--border-subtle); }
+.dots-menu button.danger-option { color: #ef4444; }
+
+.section-title-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+
+/* Delete (x) button next to each task */
+.task-delete-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 1rem;
+    line-height: 1;
+    cursor: pointer;
+    padding: 4px 6px;
+    border-radius: 6px;
+    opacity: 0;
+    transition: opacity 0.15s, color 0.15s, background 0.15s;
+    flex-shrink: 0;
+}
+.task-item:hover .task-delete-btn { opacity: 1; }
+.task-delete-btn:hover { color: #ef4444; background: rgba(239, 68, 68, 0.1); }
+
+.boards-empty-state { text-align: center; padding: 40px 20px; color: var(--text-muted); grid-column: 1 / -1; }
+
 .all-done-state { text-align: center; padding: 40px 20px; color: var(--text-muted); }
 .all-done-state h3 { font-size: 1.5rem; color: var(--text-primary); margin-bottom: 8px; }
 .all-done-icon { font-size: 3rem; margin-bottom: 16px; display: inline-block; animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+
+/* Custom YouTube ambient row */
+.youtube-ambient-row { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border-subtle); }
+
+/* AI destination modal */
+.ai-destination-options { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }
+.ai-destination-option { display: flex; align-items: center; gap: 10px; font-size: 0.95rem; cursor: pointer; padding: 4px 0; }
+.ai-destination-option input[type="radio"] { width: 18px; height: 18px; accent-color: var(--accent-glow); cursor: pointer; }
+#ai-destination-new-name { margin-left: 28px; width: calc(100% - 28px); }
+#ai-destination-existing-select { margin-left: 28px; width: calc(100% - 28px); }
 
 /* --- API HELPER TEXT --- */
 .api-helper-text { font-size: 0.85rem; color: var(--text-muted); margin-top: 15px; }
@@ -482,10 +606,15 @@ body.has-custom-bg { background-color: transparent; }
     background: var(--bg-main);
     border: 1px solid var(--border-subtle);
     color: var(--text-muted);
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     border-radius: 6px;
-    padding: 4px 8px;
+    padding: 4px 6px;
+    width: 120px;
     flex-shrink: 0;
+}
+
+@media (max-width: 480px) {
+    .task-date-input { display: none; } /* still editable via the day-detail panel on very narrow cards */
 }
 
 .settings-layout {

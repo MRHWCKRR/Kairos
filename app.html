@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kairos | Opportune Routine Planner</title>
-    <link rel="stylesheet" href="app.css?v=2">
+    <link rel="stylesheet" href="app.css?v=3">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Quicksand:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -98,10 +98,11 @@
                 <h2 data-i18n="tasks_title">Routines & Tasks</h2>
                 <p data-i18n="tasks_desc">Manage your master list. AI plans will populate here.</p>
                 
-                <!-- Container where all sections will render -->
-                <div id="tasks-manager-container" class="tasks-manager">
+                <!-- Container where all boards render as a grid -->
+                <div id="tasks-manager-container" class="boards-grid">
                     <!-- Content injected by JavaScript -->
                 </div>
+                <button id="add-board-btn" class="add-board-btn" data-i18n="add_board">+ Add Board</button>
             </div>
 
              <!-- Calendar and Routines -->
@@ -287,6 +288,13 @@
                             <div class="settings-group">
                                 <h3 data-i18n="ambient_sound">Ambient Sound</h3>
                                 <div class="option-tile-row" id="ambient-options"></div>
+
+                                <div class="youtube-ambient-row" id="youtube-ambient-row" style="display:none;">
+                                    <label class="settings-label" data-i18n="youtube_url_label">YouTube link (e.g. a 24/7 lofi stream)</label>
+                                    <input type="text" id="settings-ambient-youtube-url" class="settings-input" placeholder="https://www.youtube.com/watch?v=..." data-i18n="youtube_url_placeholder" data-i18n-placeholder>
+                                    <p class="settings-hint" data-i18n="youtube_url_hint">Paste any YouTube video or livestream link — its audio will loop quietly in the background. Works great with 24/7 lofi/study streams.</p>
+                                </div>
+
                                 <label class="settings-label" style="margin-top:16px;" data-i18n="volume">Volume</label>
                                 <input type="range" id="ambient-volume" min="0" max="100" value="35" class="settings-range">
                             </div>
@@ -372,15 +380,44 @@
             </div>
             <ul class="task-list" id="day-detail-task-list"></ul>
             <div class="day-detail-ai-section">
-                <h3>AI Insight</h3>
+                <h3 data-i18n="ai_engine_title">AI Insight</h3>
                 <div id="day-detail-ai-content" class="day-detail-ai-content">
-                    <p class="text-muted">No insight yet.</p>
+                    <p class="text-muted" data-i18n="no_insight_yet">No insight yet.</p>
                 </div>
-                <button id="day-detail-ai-btn" class="action-btn">🔄 Regenerate Insight</button>
+                <button id="day-detail-ai-btn" class="action-btn" data-i18n="regenerate_insight">🔄 Regenerate Insight</button>
             </div>
         </div>
     </div>
 
-    <script type="module" src="app.js?v=3"></script>
+    <!-- AI destination modal: choose where generated tasks go -->
+    <div id="ai-destination-modal" class="modal-overlay">
+        <div class="modal-content">
+            <span class="close-modal" id="close-ai-destination-modal">&times;</span>
+            <h2 data-i18n="ai_destination_title">Add these AI-generated tasks to:</h2>
+
+            <div class="ai-destination-options">
+                <label class="ai-destination-option">
+                    <input type="radio" name="ai-destination" value="new" checked>
+                    <span data-i18n="ai_destination_new">A new board</span>
+                </label>
+                <input type="text" id="ai-destination-new-name" class="settings-input" placeholder="New board name" data-i18n="ai_destination_new_name_placeholder" data-i18n-placeholder>
+
+                <label class="ai-destination-option">
+                    <input type="radio" name="ai-destination" value="existing">
+                    <span data-i18n="ai_destination_existing">An existing board</span>
+                </label>
+                <select id="ai-destination-existing-select" class="settings-input"></select>
+            </div>
+
+            <button id="ai-destination-confirm-btn" class="action-btn" data-i18n="ai_destination_confirm" style="margin-top: 16px; width: 100%;">Add Tasks</button>
+        </div>
+    </div>
+
+    <!-- Hidden YouTube player for custom ambient audio -->
+    <div id="youtube-ambient-player-container" style="position: fixed; width: 1px; height: 1px; overflow: hidden; opacity: 0; pointer-events: none; left: -9999px;">
+        <div id="youtube-ambient-player"></div>
+    </div>
+
+    <script type="module" src="app.js?v=4"></script>
 </body>
 </html>

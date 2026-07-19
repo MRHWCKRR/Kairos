@@ -14,7 +14,7 @@ import {
     doc, setDoc, getDoc, collection, addDoc, serverTimestamp,
     query, where, orderBy, limit, getDocs, updateDoc, deleteDoc
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { LANGUAGES, applyTranslations } from './i18n.js';
+import { LANGUAGES, applyTranslations, getLocale, getGeminiLanguageName, t } from './i18n.js';
 
 console.log("APP.js is loaded and running");
 
@@ -39,7 +39,7 @@ const CURSORS = [
 
 const BACKGROUNDS = [
     { id: 'none', name: 'None', type: 'none' },
-    { id: 'bg1', name: 'Pink Cat', type: 'image', file: 'backgrounds/bg1.jpg' },
+    { id: 'bg1', name: 'Nebula', type: 'image', file: 'backgrounds/bg1.jpg' },
     { id: 'bg2', name: 'Forest', type: 'image', file: 'backgrounds/bg2.jpg' },
     { id: 'bg3', name: 'Waves', type: 'image', file: 'backgrounds/bg3.jpg' },
     { id: 'anim1', name: 'Particles', type: 'video', file: 'backgrounds/anim1.mp4' },
@@ -51,7 +51,8 @@ const AMBIENT_SOUNDS = [
     { id: 'none', name: 'None' },
     { id: 'rain', name: '🌧️ Rain', file: 'ambient/rain.mp3' },
     { id: 'lofi', name: '🎧 Lo-fi', file: 'ambient/lofi.mp3' },
-    { id: 'cafe', name: '🌊 Waves', file: 'ambient/waves.mp3' }
+    { id: 'cafe', name: '☕ Cafe', file: 'ambient/cafe.mp3' },
+    { id: 'custom', name: '🔗 Custom YouTube', file: null }
 ];
 
 function cloneDeep(obj) {
@@ -88,6 +89,7 @@ function defaultSettings() {
             cursor: 'default',
             ambientSound: 'none',
             ambientVolume: 35,
+            customAmbientYoutubeUrl: '',
             confetti: true
         }
     };
@@ -99,25 +101,43 @@ document.addEventListener("DOMContentLoaded", () => {
     let currentPlanDocId = null;
 
     // --- Data Engine ---
-    let routinesData = [
+    // Structure: boardsData = [ { id, title, sections: [ { id, title, tasks: [...] } ] } ]
+    let boardsData = [
         {
-            id: 'sec-1',
-            title: 'Morning Setup',
-            tasks: [
-                { id: 't-1', title: 'Review Study flashcards', completed: false, date: null },
-                { id: 't-2', title: 'Draft English essay outline', completed: false, date: null }
-            ]
-        },
-        {
-            id: 'sec-2',
-            title: 'Afternoon Deep Work',
-            tasks: [
-                { id: 't-3', title: 'Read Chapter 4', completed: false, date: null },
-                { id: 't-4', title: 'Complete Math worksheet', completed: false, date: null },
-                { id: 't-5', title: 'Upload assignment', completed: false, date: null }
+            id: 'board-1',
+            title: 'My Routine',
+            sections: [
+                {
+                    id: 'sec-1',
+                    title: 'Morning Setup',
+                    tasks: [
+                        { id: 't-1', title: 'Review Study flashcards', completed: false, date: null },
+                        { id: 't-2', title: 'Draft English essay outline', completed: false, date: null }
+                    ]
+                },
+                {
+                    id: 'sec-2',
+                    title: 'Afternoon Deep Work',
+                    tasks: [
+                        { id: 't-3', title: 'Read Chapter 4', completed: false, date: null },
+                        { id: 't-4', title: 'Complete Math worksheet', completed: false, date: null },
+                        { id: 't-5', title: 'Upload assignment', completed: false, date: null }
+                    ]
+                }
             ]
         }
     ];
+
+    // Migrates data saved before boards existed: a plain array of
+    // sections (no nesting) gets wrapped into a single default board.
+    // Anything already in the new { boards: [...] } shape passes through.
+    function migrateToBoards(loadedDoc) {
+        if (Array.isArray(loadedDoc.boards) && loadedDoc.boards.length) return loadedDoc.boards;
+        if (Array.isArray(loadedDoc.sections)) {
+            return [{ id: 'board-' + Date.now(), title: 'My Routine', sections: loadedDoc.sections }];
+        }
+        return null;
+    }
 
     // --- Calendar Data ---
     let dayInsights = {};
@@ -133,6 +153,14 @@ document.addEventListener("DOMContentLoaded", () => {
     } catch (e) { /* ignore malformed cache */ }
     let pendingSettings = cloneDeep(userSettings);
     let confettiEnabled = userSettings.appearance.confetti;
+    let appReady = false; // guards against calling render functions before they're defined below
+    let ytPlayer = null; // YouTube ambient player state — declared early since applyAllSettings() (called just below) can reach it via applyAmbientSound()
+    let ytApiReadyPromise = null;
+
+    // Shorthand: translate a key using whichever language is currently active.
+    function tr(key) {
+        return t(key, userSettings.accessibility.language || 'en');
+    }
 
     applyAllSettings();
 
@@ -176,9 +204,10 @@ document.addEventListener("DOMContentLoaded", () => {
         const dateElement = document.getElementById("live-date");
         if (timeElement && dateElement) {
             const now = new Date();
+            const locale = getLocale(userSettings.accessibility.language || 'en');
             const hour12 = userSettings.accessibility.timeFormat !== '24';
-            timeElement.textContent = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12 });
-            dateElement.textContent = now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+            timeElement.textContent = now.toLocaleTimeString(locale, { hour: 'numeric', minute: '2-digit', hour12 });
+            dateElement.textContent = now.toLocaleDateString(locale, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
         }
     }
     updateClock();
@@ -197,21 +226,30 @@ document.addEventListener("DOMContentLoaded", () => {
                 </label>
                 <input type="text" class="task-text" data-section="${sectionId}" data-task="${task.id}" value="${task.title}" style="text-decoration: ${task.completed ? 'line-through' : 'none'};">
                 ${showDatePicker ? `<input type="date" class="task-date-input" data-section="${sectionId}" data-task="${task.id}" value="${task.date || ''}" title="Schedule this task on the calendar">` : ''}
+                ${showDatePicker ? `<button type="button" class="task-delete-btn" data-section="${sectionId}" data-task="${task.id}" title="${tr('delete_task')}">✕</button>` : ''}
             </li>
         `;
     }
 
     function renderApp() {
         renderFocusMode();
-        renderManagerMode();
+        renderBoardsGrid();
         updateRoutineStats();
         updateWhatsNextWidget();
         renderCalendar();
     }
 
+    function findFirstIncompleteSection() {
+        for (const board of boardsData) {
+            const section = board.sections.find(s => s.tasks.some(task => !task.completed));
+            if (section) return section;
+        }
+        return null;
+    }
+
     function renderFocusMode() {
         if (!focusContainer) return;
-        const activeSection = routinesData.find(section => section.tasks.some(task => !task.completed));
+        const activeSection = findFirstIncompleteSection();
         if (activeSection) {
             let tasksHTML = activeSection.tasks.map(task => createTaskHTML(task, activeSection.id)).join('');
             focusContainer.innerHTML = `
@@ -228,40 +266,84 @@ document.addEventListener("DOMContentLoaded", () => {
             focusContainer.innerHTML = `
                 <div class="fade-in-section all-done-state">
                     <span class="all-done-icon">🎉</span>
-                    <h3>You're all caught up!</h3>
-                    <p class="text-muted">Take a break or plan your next routine.</p>
+                    <h3>${tr('all_caught_up_title')}</h3>
+                    <p class="text-muted">${tr('all_caught_up_desc')}</p>
                 </div>
             `;
         }
     }
 
-    function renderManagerMode() {
-        if (!managerContainer) return;
-        let managerHTML = routinesData.map(section => {
-            let tasksHTML = section.tasks.map(task => createTaskHTML(task, section.id, true)).join('');
-            return `
-                <div class="manager-section fade-in-section">
-                    <div class="checklist-header">
-                        <h3 class="editable-title" spellcheck="false">${section.title}</h3>
+    function renderSectionBlockHTML(board, section) {
+        let tasksHTML = section.tasks.map(task => createTaskHTML(task, section.id, true)).join('');
+        return `
+            <div class="board-section-block fade-in-section" data-board-id="${board.id}" data-section-id="${section.id}">
+                <div class="section-title-row">
+                    <h4 class="editable-title" spellcheck="false">${section.title}</h4>
+                    <div class="dots-menu-wrapper">
+                        <button type="button" class="dots-menu-btn section-dots-btn" title="${tr('section_options')}">⋮</button>
+                        <div class="dots-menu section-dots-menu">
+                            <button type="button" class="section-rename-btn">${tr('rename')}</button>
+                            <button type="button" class="section-delete-btn danger-option">${tr('delete')}</button>
+                        </div>
                     </div>
-                    <ul class="task-list">
-                        ${tasksHTML}
-                    </ul>
                 </div>
-            `;
-        }).join('');
-        managerContainer.innerHTML = managerHTML || `<p class="text-muted">No routines created yet.</p>`;
+                <ul class="task-list">${tasksHTML}</ul>
+                <button type="button" class="add-task-btn" data-board-id="${board.id}" data-section-id="${section.id}">${tr('add_task')}</button>
+            </div>
+        `;
+    }
+
+    function renderBoardCardHTML(board) {
+        const sectionsHTML = board.sections.map(section => renderSectionBlockHTML(board, section)).join('');
+        return `
+            <div class="board-card fade-in-section" data-board-id="${board.id}">
+                <div class="board-card-header">
+                    <h3 class="editable-title" spellcheck="false">${board.title}</h3>
+                    <div class="dots-menu-wrapper">
+                        <button type="button" class="dots-menu-btn board-dots-btn" title="${tr('board_options')}">⋮</button>
+                        <div class="dots-menu board-dots-menu">
+                            <button type="button" class="board-rename-btn">${tr('rename')}</button>
+                            <button type="button" class="board-delete-btn danger-option">${tr('delete')}</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="board-sections">${sectionsHTML}</div>
+                <button type="button" class="add-section-btn" data-board-id="${board.id}" style="margin-top: 12px;">${tr('add_section')}</button>
+            </div>
+        `;
+    }
+
+    function renderBoardsGrid() {
+        if (!managerContainer) return;
+        if (!boardsData.length) {
+            managerContainer.innerHTML = `<p class="boards-empty-state text-muted">${tr('no_boards_yet')}</p>`;
+            return;
+        }
+        managerContainer.innerHTML = boardsData.map(renderBoardCardHTML).join('');
     }
 
     // --- 3 Interactive State Updates ---
+
+    function findBoard(boardId) {
+        return boardsData.find(b => b.id === boardId);
+    }
+    function findSection(sectionId) {
+        for (const board of boardsData) {
+            const section = board.sections.find(s => s.id === sectionId);
+            if (section) return { board, section };
+        }
+        return null;
+    }
+
     document.body.addEventListener('change', (e) => {
         if (e.target.matches("input[type='checkbox'][data-task]")) {
             const sectionId = e.target.getAttribute('data-section');
             const taskId = e.target.getAttribute('data-task');
             const isNowChecked = e.target.checked;
 
-            const section = routinesData.find(s => s.id === sectionId);
-            if (!section) return;
+            const found = findSection(sectionId);
+            if (!found) return;
+            const section = found.section;
             const task = section.tasks.find(t => t.id === taskId);
             if (!task) return;
 
@@ -312,8 +394,8 @@ document.addEventListener("DOMContentLoaded", () => {
             const taskId = e.target.getAttribute('data-task');
             const newDate = e.target.value;
 
-            const section = routinesData.find(s => s.id === sectionId);
-            const task = section ? section.tasks.find(t => t.id === taskId) : null;
+            const found = findSection(sectionId);
+            const task = found ? found.section.tasks.find(t => t.id === taskId) : null;
             if (task) {
                 task.date = newDate || null;
                 updatePlanInFirestore();
@@ -322,14 +404,148 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
+    // Boards page: delete task, delete/rename section, delete/rename board,
+    // add task/section/board, and the hover dots-menus that trigger them.
+    document.body.addEventListener('click', (e) => {
+
+        // Close any open dots-menu when clicking elsewhere
+        const openMenu = document.querySelector('.dots-menu.active');
+        if (openMenu && !e.target.closest('.dots-menu-wrapper')) {
+            openMenu.classList.remove('active');
+            openMenu.closest('.dots-menu-wrapper')?.classList.remove('active');
+        }
+
+        const dotsBtn = e.target.closest('.dots-menu-btn');
+        if (dotsBtn) {
+            const wrapper = dotsBtn.closest('.dots-menu-wrapper');
+            const menu = wrapper.querySelector('.dots-menu');
+            const wasActive = menu.classList.contains('active');
+            document.querySelectorAll('.dots-menu.active').forEach(m => { m.classList.remove('active'); m.closest('.dots-menu-wrapper')?.classList.remove('active'); });
+            if (!wasActive) { menu.classList.add('active'); wrapper.classList.add('active'); }
+            return;
+        }
+
+        const taskDeleteBtn = e.target.closest('.task-delete-btn');
+        if (taskDeleteBtn) {
+            const sectionId = taskDeleteBtn.getAttribute('data-section');
+            const taskId = taskDeleteBtn.getAttribute('data-task');
+            const found = findSection(sectionId);
+            if (found) {
+                found.section.tasks = found.section.tasks.filter(t => t.id !== taskId);
+                updatePlanInFirestore();
+                renderApp();
+            }
+            return;
+        }
+
+        const addTaskBtn = e.target.closest('.add-task-btn');
+        if (addTaskBtn) {
+            const sectionId = addTaskBtn.getAttribute('data-section-id');
+            const found = findSection(sectionId);
+            if (found) {
+                const title = prompt(tr('new_task_prompt'));
+                if (title && title.trim()) {
+                    found.section.tasks.push({ id: 'task-' + Date.now(), title: title.trim(), completed: false, date: null });
+                    updatePlanInFirestore();
+                    renderApp();
+                }
+            }
+            return;
+        }
+
+        const addSectionBtn = e.target.closest('.add-section-btn');
+        if (addSectionBtn) {
+            const boardId = addSectionBtn.getAttribute('data-board-id');
+            const board = findBoard(boardId);
+            if (board) {
+                const title = prompt(tr('new_section_prompt'));
+                if (title && title.trim()) {
+                    board.sections.push({ id: 'sec-' + Date.now(), title: title.trim(), tasks: [] });
+                    updatePlanInFirestore();
+                    renderApp();
+                }
+            }
+            return;
+        }
+
+        const sectionRenameBtn = e.target.closest('.section-rename-btn');
+        if (sectionRenameBtn) {
+            const block = sectionRenameBtn.closest('.board-section-block');
+            const found = findSection(block.getAttribute('data-section-id'));
+            if (found) {
+                const title = prompt(tr('rename_section_prompt'), found.section.title);
+                if (title && title.trim()) {
+                    found.section.title = title.trim();
+                    updatePlanInFirestore();
+                    renderApp();
+                }
+            }
+            return;
+        }
+
+        const sectionDeleteBtn = e.target.closest('.section-delete-btn');
+        if (sectionDeleteBtn) {
+            const block = sectionDeleteBtn.closest('.board-section-block');
+            const boardId = block.getAttribute('data-board-id');
+            const sectionId = block.getAttribute('data-section-id');
+            if (confirm(tr('confirm_delete_section'))) {
+                const board = findBoard(boardId);
+                if (board) {
+                    board.sections = board.sections.filter(s => s.id !== sectionId);
+                    updatePlanInFirestore();
+                    renderApp();
+                }
+            }
+            return;
+        }
+
+        const boardRenameBtn = e.target.closest('.board-rename-btn');
+        if (boardRenameBtn) {
+            const card = boardRenameBtn.closest('.board-card');
+            const board = findBoard(card.getAttribute('data-board-id'));
+            if (board) {
+                const title = prompt(tr('rename_board_prompt'), board.title);
+                if (title && title.trim()) {
+                    board.title = title.trim();
+                    updatePlanInFirestore();
+                    renderApp();
+                }
+            }
+            return;
+        }
+
+        const boardDeleteBtn = e.target.closest('.board-delete-btn');
+        if (boardDeleteBtn) {
+            const card = boardDeleteBtn.closest('.board-card');
+            const boardId = card.getAttribute('data-board-id');
+            if (confirm(tr('confirm_delete_board'))) {
+                boardsData = boardsData.filter(b => b.id !== boardId);
+                updatePlanInFirestore();
+                renderApp();
+            }
+            return;
+        }
+
+        const addBoardBtn = e.target.closest('#add-board-btn');
+        if (addBoardBtn) {
+            const title = prompt(tr('new_board_prompt'));
+            if (title && title.trim()) {
+                boardsData.push({ id: 'board-' + Date.now(), title: title.trim(), sections: [] });
+                if (!currentPlanDocId) { savePlanToFirestore(boardsData); } else { updatePlanInFirestore(); }
+                renderApp();
+            }
+            return;
+        }
+    });
+
 
     function updateRoutineStats() {
         let totalTasks = 0;
         let completedTasks = 0;
-        routinesData.forEach(section => {
+        boardsData.forEach(board => board.sections.forEach(section => {
             totalTasks += section.tasks.length;
             completedTasks += section.tasks.filter(t => t.completed).length;
-        });
+        }));
         const percentage = totalTasks === 0 ? 0 : Math.round((completedTasks / totalTasks) * 100);
         const percentageText = document.getElementById("stats-percentage");
         const fractionText = document.getElementById("stats-fraction");
@@ -349,12 +565,15 @@ document.addEventListener("DOMContentLoaded", () => {
         let nextTask = null;
         let activeSection = null;
 
-        for (const section of routinesData) { 
-            const incompleteTask = section.tasks.find(t => !t.completed);
-            if (incompleteTask) {
-                nextTask = incompleteTask;
-                activeSection = section;
-                break;
+        outer:
+        for (const board of boardsData) {
+            for (const section of board.sections) {
+                const incompleteTask = section.tasks.find(t => !t.completed);
+                if (incompleteTask) {
+                    nextTask = incompleteTask;
+                    activeSection = section;
+                    break outer;
+                }
             }
         }
 
@@ -363,7 +582,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 <div class="whats-next-card">
                     <h4 class="whats-next-title">${nextTask.title}</h4>
                     <button class="complete-next-btn" data-task-id="${nextTask.id}" data-section-id="${activeSection.id}">
-                        Mark as Done
+                        ${tr('mark_as_done')}
                     </button>
                 </div>
             `;
@@ -377,15 +596,16 @@ document.addEventListener("DOMContentLoaded", () => {
             container.innerHTML = `
                 <div class="whats-next-empty">
                     <div class="whats-next-empty-icon">✨</div>
-                    <p class="whats-next-empty-text">All caught up!</p>
+                    <p class="whats-next-empty-text">${tr('caught_up_short')}</p>
                 </div>
             `;
         }
     }
 
     function triggerTaskCompletion(sectionId, taskId) {
-        const section = routinesData.find(s => s.id === sectionId);
-        if (section) {
+        const found = findSection(sectionId);
+        if (found) {
+            const section = found.section;
             const task = section.tasks.find(t => t.id === taskId);
             if (task) {
                 task.completed = true;
@@ -430,10 +650,10 @@ document.addEventListener("DOMContentLoaded", () => {
             const key = apiKeyInput.value.trim();
             if (key !== "") {
                 localStorage.setItem("kairos_api_key", key);
-                saveSettingsBtn.innerText = "Key Saved! ✓";
+                saveSettingsBtn.innerText = tr("key_saved");
                 saveSettingsBtn.style.backgroundColor = "#22c55e";
                 setTimeout(() => {
-                    saveSettingsBtn.innerText = "Save Key";
+                    saveSettingsBtn.innerText = tr("save_key");
                     saveSettingsBtn.style.backgroundColor = "var(--accent-glow)";
                 }, 2000);
             }
@@ -450,7 +670,7 @@ document.addEventListener("DOMContentLoaded", () => {
         try {
             const plansColRef = collection(db, "study_plans");
             const docRef = await addDoc(plansColRef, {
-                sections: planData,
+                boards: planData,
                 dayInsights: dayInsights,
                 userID: user.uid,
                 createdAt: serverTimestamp()
@@ -470,7 +690,7 @@ document.addEventListener("DOMContentLoaded", () => {
         try {
             const planDocRef = doc(db, "study_plans", currentPlanDocId);
             await updateDoc(planDocRef, {
-                sections: routinesData,
+                boards: boardsData,
                 dayInsights: dayInsights
             });
             console.log("Task progress successfully synced to Firestore.");
@@ -499,7 +719,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 
                 const latestPlan = plans[0];
                 currentPlanDocId = latestPlan.docId;
-                routinesData = latestPlan.sections;
+                const migrated = migrateToBoards(latestPlan);
+                boardsData = migrated || boardsData;
                 dayInsights = latestPlan.dayInsights || {};
 
                 console.log("Successfully loaded latest study plan from Firestore!");
@@ -517,6 +738,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // --- 7 AI Plan Generator ---
     const aiInput = document.getElementById("ai-input");
     const aiGenerateBtn = document.getElementById("ai-generate-btn");
+    let pendingAiSections = null;
 
     if (aiInput && aiGenerateBtn) {
         aiGenerateBtn.addEventListener("click", async () => {
@@ -524,22 +746,24 @@ document.addEventListener("DOMContentLoaded", () => {
             const apiKey = localStorage.getItem("kairos_api_key");
 
             if (!apiKey) {
-                alert("Please go to Settings and save your Gemini API Key first!");
+                alert(tr('alert_no_api_key'));
                 return;
             }
             if (!assignmentText) {
-                alert("Empty input, please put your assignment details or a syllabus in first!");
+                alert(tr('alert_empty_input'));
                 return;
             }
 
             const originalBtnText = aiGenerateBtn.innerText;
-            aiGenerateBtn.innerText = "Generating Plan...";
+            aiGenerateBtn.innerText = tr('generating_plan_ellipsis');
             aiGenerateBtn.disabled = true;
             aiGenerateBtn.style.opacity = "0.7";
 
+            const languageName = getGeminiLanguageName(userSettings.accessibility.language || 'en');
             const systemPrompt = `
             You are an expert AI Study Coach. The user will provide a syllabus, assignment, or goal. 
             Break it down into logical, actionable study sections and tasks.
+            IMPORTANT: Write all section titles and task titles in ${languageName}, since that is the user's chosen app language.
             CRITICAL INSTRUCTION: You MUST respond with ONLY a valid, raw JSON array. 
             Do NOT include markdown formatting, backticks, or the word 'json'. 
             Just the raw array.
@@ -591,22 +815,95 @@ document.addEventListener("DOMContentLoaded", () => {
                     });
                 });
 
-                routinesData = newSections;
-                await savePlanToFirestore(newSections);
-                renderApp();
-                
+                // Never overwrite existing boards — ask where these new
+                // sections should go (a new board, or appended to one
+                // that already exists).
+                pendingAiSections = newSections;
+                openAiDestinationModal();
                 aiInput.value = "";
-                const targetTab = document.querySelector('[data-target="tasks-page"]');
-                if (targetTab) targetTab.click();
 
             } catch (error) {
                 console.error(error);
-                alert("Whoops! Something went terribly wrong generating the plan. Make sure your API key is correct. Check console for more details.");
+                alert(tr('alert_ai_generation_error'));
             } finally {
                 aiGenerateBtn.innerText = originalBtnText;
                 aiGenerateBtn.disabled = false;
                 aiGenerateBtn.style.opacity = "1";
             }
+        });
+    }
+
+    // --- AI destination modal ---
+    const aiDestinationModal = document.getElementById('ai-destination-modal');
+    const aiDestinationNewName = document.getElementById('ai-destination-new-name');
+    const aiDestinationExistingSelect = document.getElementById('ai-destination-existing-select');
+    const aiDestinationConfirmBtn = document.getElementById('ai-destination-confirm-btn');
+    const closeAiDestinationModalBtn = document.getElementById('close-ai-destination-modal');
+
+    function openAiDestinationModal() {
+        if (!aiDestinationModal) return;
+        if (aiDestinationExistingSelect) {
+            aiDestinationExistingSelect.innerHTML = boardsData.map(b => `<option value="${b.id}">${b.title}</option>`).join('');
+        }
+        const hasExisting = boardsData.length > 0;
+        const newRadio = aiDestinationModal.querySelector('input[name="ai-destination"][value="new"]');
+        const existingRadio = aiDestinationModal.querySelector('input[name="ai-destination"][value="existing"]');
+        if (newRadio) newRadio.checked = true;
+        if (existingRadio) existingRadio.disabled = !hasExisting;
+        if (aiDestinationNewName) aiDestinationNewName.value = '';
+        updateAiDestinationFieldStates();
+        aiDestinationModal.classList.add('active');
+    }
+
+    function closeAiDestinationModal() {
+        if (aiDestinationModal) aiDestinationModal.classList.remove('active');
+        pendingAiSections = null;
+    }
+
+    function updateAiDestinationFieldStates() {
+        const mode = aiDestinationModal.querySelector('input[name="ai-destination"]:checked')?.value;
+        if (aiDestinationNewName) aiDestinationNewName.style.display = mode === 'new' ? 'block' : 'none';
+        if (aiDestinationExistingSelect) aiDestinationExistingSelect.style.display = mode === 'existing' ? 'block' : 'none';
+    }
+
+    if (aiDestinationModal) {
+        aiDestinationModal.querySelectorAll('input[name="ai-destination"]').forEach(radio => {
+            radio.addEventListener('change', updateAiDestinationFieldStates);
+        });
+    }
+    if (closeAiDestinationModalBtn) closeAiDestinationModalBtn.addEventListener('click', closeAiDestinationModal);
+    if (aiDestinationModal) {
+        aiDestinationModal.addEventListener('click', (e) => {
+            if (e.target === aiDestinationModal) closeAiDestinationModal();
+        });
+    }
+
+    if (aiDestinationConfirmBtn) {
+        aiDestinationConfirmBtn.addEventListener('click', () => {
+            if (!pendingAiSections) { closeAiDestinationModal(); return; }
+            const mode = aiDestinationModal.querySelector('input[name="ai-destination"]:checked')?.value;
+
+            if (mode === 'existing') {
+                const boardId = aiDestinationExistingSelect.value;
+                const board = findBoard(boardId);
+                if (board) {
+                    board.sections.push(...pendingAiSections);
+                }
+            } else {
+                const name = (aiDestinationNewName.value || '').trim() || 'AI Plan';
+                boardsData.push({ id: 'board-' + Date.now(), title: name, sections: pendingAiSections });
+            }
+
+            if (!currentPlanDocId) {
+                savePlanToFirestore(boardsData);
+            } else {
+                updatePlanInFirestore();
+            }
+            renderApp();
+
+            closeAiDestinationModal();
+            const targetTab = document.querySelector('[data-target="tasks-page"]');
+            if (targetTab) targetTab.click();
         });
     }
 
@@ -635,8 +932,8 @@ document.addEventListener("DOMContentLoaded", () => {
             const taskId = e.target.getAttribute('data-task');
             const newTitle = e.target.value.trim();
 
-            const section = routinesData.find(s => s.id === sectionId);
-            const task = section ? section.tasks.find(t => t.id === taskId) : null;
+            const found = findSection(sectionId);
+            const task = found ? found.section.tasks.find(t => t.id === taskId) : null;
 
             if (task && task.title !== newTitle) {
                 task.title = newTitle;
@@ -676,13 +973,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function getTasksForDate(dateKey) {
         const results = [];
-        routinesData.forEach(section => {
+        boardsData.forEach(board => board.sections.forEach(section => {
             section.tasks.forEach(task => {
                 if (task.date === dateKey) {
                     results.push({ ...task, sectionId: section.id });
                 }
             });
-        });
+        }));
         return results;
     }
 
@@ -691,16 +988,20 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const year = calendarViewDate.getFullYear();
         const month = calendarViewDate.getMonth();
+        const locale = getLocale(userSettings.accessibility.language || 'en');
 
-        const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-        calendarMonthYear.textContent = `${monthNames[month]} ${year}`;
+        const monthLabel = new Intl.DateTimeFormat(locale, { month: 'long' }).format(new Date(year, month, 1));
+        calendarMonthYear.textContent = `${monthLabel} ${year}`;
 
         const firstDayIndex = new Date(year, month, 1).getDay();
         const daysInMonth = new Date(year, month + 1, 0).getDate();
         const daysInPrevMonth = new Date(year, month, 0).getDate();
         const todayKey = toDateKey(new Date());
 
-        const weekdayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        // Sun (index 0) as the base reference date, then walk one weekday
+        // at a time so labels come from the browser's own locale data.
+        const weekdayFormatter = new Intl.DateTimeFormat(locale, { weekday: 'short' });
+        const weekdayLabels = [0, 1, 2, 3, 4, 5, 6].map(i => weekdayFormatter.format(new Date(2023, 0, 1 + i)));
         let html = weekdayLabels.map(label => `<div class="calendar-weekday">${label}</div>`).join('');
 
         for (let i = firstDayIndex - 1; i >= 0; i--) {
@@ -767,7 +1068,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const [y, m, d] = selectedCalendarDate.split('-').map(Number);
         const displayDate = new Date(y, m - 1, d);
         if (dayDetailDateTitle) {
-            dayDetailDateTitle.textContent = displayDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+            dayDetailDateTitle.textContent = displayDate.toLocaleDateString(getLocale(userSettings.accessibility.language || 'en'), { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
         }
 
         const tasksForDay = getTasksForDate(selectedCalendarDate);
@@ -779,7 +1080,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (dayDetailTaskList) {
             dayDetailTaskList.innerHTML = tasksForDay.length
                 ? tasksForDay.map(task => createTaskHTML(task, task.sectionId)).join('')
-                : `<p class="text-muted">No tasks scheduled for this day.</p>`;
+                : `<p class="text-muted">${tr('no_tasks_for_day')}</p>`;
         }
 
         const cachedInsight = dayInsights[selectedCalendarDate];
@@ -787,7 +1088,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (cachedInsight) {
                 dayDetailAiContent.innerHTML = `<p>${cachedInsight}</p>`;
             } else {
-                dayDetailAiContent.innerHTML = `<p class="text-muted">No insight yet.</p>`;
+                dayDetailAiContent.innerHTML = `<p class="text-muted">${tr('no_insight_yet')}</p>`;
                 generateDayInsight(selectedCalendarDate);
             }
         }
@@ -807,7 +1108,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const apiKey = localStorage.getItem('kairos_api_key');
         if (!apiKey) {
             if (selectedCalendarDate === dateKey && dayDetailAiContent) {
-                dayDetailAiContent.innerHTML = `<p class="text-muted">Add a Gemini API key in Settings to unlock AI insights.</p>`;
+                dayDetailAiContent.innerHTML = `<p class="text-muted">${tr('add_api_key_hint')}</p>`;
             }
             return;
         }
@@ -815,18 +1116,19 @@ document.addEventListener("DOMContentLoaded", () => {
         const tasksForDay = getTasksForDate(dateKey);
         if (tasksForDay.length === 0) {
             if (selectedCalendarDate === dateKey && dayDetailAiContent) {
-                dayDetailAiContent.innerHTML = `<p class="text-muted">No tasks scheduled — nothing to comment on.</p>`;
+                dayDetailAiContent.innerHTML = `<p class="text-muted">${tr('no_tasks_nothing_to_comment')}</p>`;
             }
             return;
         }
 
         if (selectedCalendarDate === dateKey && dayDetailAiContent) {
-            dayDetailAiContent.innerHTML = `<p class="text-muted">Generating insight...</p>`;
+            dayDetailAiContent.innerHTML = `<p class="text-muted">${tr('generating_insight')}</p>`;
         }
         if (dayDetailAiBtn) dayDetailAiBtn.disabled = true;
 
+        const languageName = getGeminiLanguageName(userSettings.accessibility.language || 'en');
         const taskSummary = tasksForDay.map(t => `- ${t.title} [${t.completed ? 'done' : 'pending'}]`).join('\n');
-        const prompt = `You are a supportive productivity coach. Here is a user's task list for ${dateKey}:\n${taskSummary}\n\nWrite a short, encouraging 1-2 sentence comment about their day. Be specific about what they've completed or still need to do. Do not use markdown formatting.`;
+        const prompt = `You are a supportive productivity coach. Here is a user's task list for ${dateKey}:\n${taskSummary}\n\nWrite a short, encouraging 1-2 sentence comment about their day in ${languageName}, since that is the user's chosen app language. Be specific about what they've completed or still need to do. Do not use markdown formatting.`;
 
         try {
             const cleanApiKey = apiKey.trim();
@@ -855,7 +1157,7 @@ document.addEventListener("DOMContentLoaded", () => {
         } catch (error) {
             console.error(error);
             if (selectedCalendarDate === dateKey && dayDetailAiContent) {
-                dayDetailAiContent.innerHTML = `<p class="text-muted">Couldn't generate an insight right now. Try the button below to retry.</p>`;
+                dayDetailAiContent.innerHTML = `<p class="text-muted">${tr('insight_error')}</p>`;
             }
         } finally {
             if (dayDetailAiBtn) dayDetailAiBtn.disabled = false;
@@ -889,11 +1191,15 @@ document.addEventListener("DOMContentLoaded", () => {
         document.body.classList.toggle('reduce-motion', !!s.accessibility.reduceMotion);
 
         applyBackground(s.appearance.background, s.appearance.customBackground);
-        applyAmbientSound(s.appearance.ambientSound, s.appearance.ambientVolume);
+        applyAmbientSound(s.appearance.ambientSound, s.appearance.ambientVolume, s.appearance.customAmbientYoutubeUrl);
         applyTranslations(s.accessibility.language || 'en');
 
         confettiEnabled = s.appearance.confetti;
         updateClock();
+
+        // Re-render anything with dynamically-generated (non data-i18n) text
+        // so a language switch is reflected immediately, not just on reload.
+        if (appReady) renderApp();
     }
 
     function applyBackground(bgId, customDataUrl) {
@@ -927,10 +1233,94 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    function applyAmbientSound(soundId, volume) {
+    // --- YouTube ambient player (for custom lofi/study stream links) ---
+    // (ytPlayer / ytApiReadyPromise are declared near the top of this scope,
+    // before applyAllSettings() runs — see comment there.)
+
+    function extractYouTubeVideoId(input) {
+        if (!input) return null;
+        const trimmed = input.trim();
+        if (/^[a-zA-Z0-9_-]{11}$/.test(trimmed)) return trimmed; // bare video ID
+        const patterns = [
+            /(?:youtube\.com\/watch\?v=)([a-zA-Z0-9_-]{11})/,
+            /(?:youtube\.com\/live\/)([a-zA-Z0-9_-]{11})/,
+            /(?:youtu\.be\/)([a-zA-Z0-9_-]{11})/,
+            /(?:youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/
+        ];
+        for (const re of patterns) {
+            const match = trimmed.match(re);
+            if (match) return match[1];
+        }
+        return null;
+    }
+
+    function loadYouTubeIframeAPI() {
+        if (ytApiReadyPromise) return ytApiReadyPromise;
+        ytApiReadyPromise = new Promise((resolve) => {
+            if (window.YT && window.YT.Player) { resolve(); return; }
+            const tag = document.createElement('script');
+            tag.src = 'https://www.youtube.com/iframe_api';
+            document.head.appendChild(tag);
+            window.onYouTubeIframeAPIReady = () => resolve();
+        });
+        return ytApiReadyPromise;
+    }
+
+    async function ensureYouTubePlayer() {
+        await loadYouTubeIframeAPI();
+        if (ytPlayer) return ytPlayer;
+        return new Promise((resolve) => {
+            ytPlayer = new YT.Player('youtube-ambient-player', {
+                height: '1', width: '1',
+                playerVars: { autoplay: 0, controls: 0, disablekb: 1 },
+                events: { onReady: () => resolve(ytPlayer) }
+            });
+        });
+    }
+
+    async function playCustomYoutubeAmbient(videoId, volume) {
+        if (!videoId) return;
+        try {
+            const player = await ensureYouTubePlayer();
+            const start = () => {
+                player.loadVideoById(videoId);
+                player.setVolume(Math.min(100, Math.max(0, volume ?? 35)));
+                player.playVideo();
+            };
+            start();
+            // Browsers block audio autoplay without a prior user gesture —
+            // if playback doesn't stick, retry on the next click.
+            setTimeout(() => {
+                if (player.getPlayerState && player.getPlayerState() !== 1) {
+                    const resume = () => { start(); document.removeEventListener('click', resume); };
+                    document.addEventListener('click', resume, { once: true });
+                }
+            }, 800);
+        } catch (e) {
+            console.error('YouTube ambient player error:', e);
+        }
+    }
+
+    function stopCustomYoutubeAmbient() {
+        if (ytPlayer && ytPlayer.pauseVideo) {
+            try { ytPlayer.pauseVideo(); } catch (e) {}
+        }
+    }
+
+    function applyAmbientSound(soundId, volume, customYoutubeUrl) {
         const audio = document.getElementById('ambient-audio');
         if (!audio) return;
         audio.loop = true;
+
+        if (soundId === 'custom') {
+            audio.pause();
+            audio.removeAttribute('src');
+            audio.removeAttribute('data-current');
+            const videoId = extractYouTubeVideoId(customYoutubeUrl);
+            if (videoId) playCustomYoutubeAmbient(videoId, volume);
+            return;
+        }
+        stopCustomYoutubeAmbient();
 
         if (!soundId || soundId === 'none') {
             audio.pause();
@@ -1070,6 +1460,11 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
+    function updateYoutubeRowVisibility() {
+        const row = document.getElementById('youtube-ambient-row');
+        if (row) row.style.display = pendingSettings.appearance.ambientSound === 'custom' ? 'block' : 'none';
+    }
+
     function populateTimezoneSelect() {
         const select = document.getElementById('settings-timezone');
         if (!select) return;
@@ -1099,7 +1494,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const lastSigninEl = document.getElementById('security-last-signin');
         if (lastSigninEl && user?.metadata?.lastSignInTime) {
-            lastSigninEl.textContent = `Last sign-in: ${new Date(user.metadata.lastSignInTime).toLocaleString()}`;
+            const locale = getLocale(userSettings.accessibility.language || 'en');
+            lastSigninEl.textContent = `${tr('last_signin')}: ${new Date(user.metadata.lastSignInTime).toLocaleString(locale)}`;
         }
 
         const displayNameEl = document.getElementById('settings-display-name');
@@ -1137,6 +1533,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const volumeEl = document.getElementById('ambient-volume');
         if (volumeEl) volumeEl.value = pendingSettings.appearance.ambientVolume ?? 35;
+
+        const youtubeUrlEl = document.getElementById('settings-ambient-youtube-url');
+        if (youtubeUrlEl) youtubeUrlEl.value = pendingSettings.appearance.customAmbientYoutubeUrl || '';
+        updateYoutubeRowVisibility();
     }
 
     function previewLive() {
@@ -1243,7 +1643,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 btn.addEventListener('click', () => {
                     pendingSettings.appearance.ambientSound = btn.dataset.value;
                     setActiveTile('ambient-options', btn.dataset.value);
-                    applyAmbientSound(btn.dataset.value, pendingSettings.appearance.ambientVolume); // live preview, loops immediately
+                    updateYoutubeRowVisibility();
+                    applyAmbientSound(btn.dataset.value, pendingSettings.appearance.ambientVolume, pendingSettings.appearance.customAmbientYoutubeUrl); // live preview
                     checkDirty();
                 });
             });
@@ -1313,7 +1714,28 @@ document.addEventListener("DOMContentLoaded", () => {
             pendingSettings.appearance.ambientVolume = parseInt(e.target.value, 10);
             const audio = document.getElementById('ambient-audio');
             if (audio) audio.volume = pendingSettings.appearance.ambientVolume / 100;
+            if (pendingSettings.appearance.ambientSound === 'custom' && ytPlayer && ytPlayer.setVolume) {
+                try { ytPlayer.setVolume(pendingSettings.appearance.ambientVolume); } catch (err) {}
+            }
             checkDirty();
+        });
+    }
+
+    let youtubeUrlPreviewTimeout;
+    const ambientYoutubeUrlInput = document.getElementById('settings-ambient-youtube-url');
+    if (ambientYoutubeUrlInput) {
+        ambientYoutubeUrlInput.addEventListener('input', (e) => {
+            pendingSettings.appearance.customAmbientYoutubeUrl = e.target.value;
+            const isValid = !e.target.value.trim() || extractYouTubeVideoId(e.target.value);
+            ambientYoutubeUrlInput.style.borderColor = isValid ? '' : '#ef4444';
+            checkDirty();
+
+            clearTimeout(youtubeUrlPreviewTimeout);
+            youtubeUrlPreviewTimeout = setTimeout(() => {
+                if (pendingSettings.appearance.ambientSound === 'custom') {
+                    applyAmbientSound('custom', pendingSettings.appearance.ambientVolume, e.target.value);
+                }
+            }, 700);
         });
     }
 
@@ -1340,7 +1762,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const file = e.target.files[0];
             if (!file) return;
             if (file.size > 700 * 1024) {
-                alert("Please choose an image under ~700KB — larger avatars can't be synced to your account.");
+                alert(tr("alert_avatar_too_large"));
                 return;
             }
             const reader = new FileReader();
@@ -1380,7 +1802,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const file = e.target.files[0];
             if (!file) return;
             if (file.size > 1.2 * 1024 * 1024) {
-                alert('Please choose an image under ~1.2MB for custom backgrounds.');
+                alert(tr("alert_bg_too_large"));
                 return;
             }
             const reader = new FileReader();
@@ -1412,7 +1834,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const settingsSaveBtn = document.getElementById('settings-save-btn');
     if (settingsSaveBtn) {
         settingsSaveBtn.addEventListener('click', async () => {
-            settingsSaveBtn.textContent = 'Saving...';
+            settingsSaveBtn.textContent = tr('saving_ellipsis');
             settingsSaveBtn.disabled = true;
 
             userSettings = cloneDeep(pendingSettings);
@@ -1424,7 +1846,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (user) renderUserProfileMenu(user);
 
             updateSaveBarVisibility(false);
-            settingsSaveBtn.textContent = 'Save Changes';
+            settingsSaveBtn.textContent = tr('save_changes');
             settingsSaveBtn.disabled = false;
         });
     }
@@ -1528,7 +1950,7 @@ document.addEventListener("DOMContentLoaded", () => {
         exportBtn.addEventListener('click', () => {
             const exportObj = {
                 exportedAt: new Date().toISOString(),
-                routines: routinesData,
+                boards: boardsData,
                 dayInsights: dayInsights,
                 settings: userSettings
             };
@@ -1550,8 +1972,8 @@ document.addEventListener("DOMContentLoaded", () => {
         deleteBtn.addEventListener('click', async () => {
             const user = auth.currentUser;
             if (!user) return;
-            if (!confirm('This will permanently delete your account and all of your data. This cannot be undone. Continue?')) return;
-            const typed = prompt('Type DELETE (in capitals) to confirm:');
+            if (!confirm(tr('confirm_delete_account'))) return;
+            const typed = prompt(tr('prompt_type_delete'));
             if (typed !== 'DELETE') return;
 
             try {
@@ -1565,7 +1987,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 localStorage.removeItem('kairos_settings_cache');
                 localStorage.removeItem('kairos_api_key');
-                alert('Your account and data have been deleted.');
+                alert(tr('alert_account_deleted'));
                 window.location.href = 'login.html';
             } catch (error) {
                 console.error(error);
@@ -1577,5 +1999,6 @@ document.addEventListener("DOMContentLoaded", () => {
     renderConfigOptions();
     populateSettingsForm();
 
+    appReady = true;
     renderApp();
 });
