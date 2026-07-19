@@ -3,7 +3,7 @@
 *Everyone has 24 hours a day. The elite are the elite because time is utilised properly.*
 
 A smart, personalised and practical solution to school/work stress and last minute tasks.
-**Kairos** is an Ai assisted smart schedual, allowing you to fit your tasks into an organised and packed day.
+**Kairos** is an Ai assisted smart schedule, allowing you to fit your tasks into an organised and packed day.
 
 ---
 
