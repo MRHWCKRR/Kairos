@@ -14,6 +14,7 @@ import {
     doc, setDoc, getDoc, collection, addDoc, serverTimestamp,
     query, where, orderBy, limit, getDocs, updateDoc, deleteDoc
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { LANGUAGES, applyTranslations } from './i18n.js';
 
 console.log("APP.js is loaded and running");
 
@@ -77,7 +78,7 @@ function defaultSettings() {
     try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'; } catch (e) {}
     return {
         profile: { displayName: '', avatarURL: '', birthday: '', timezone: tz },
-        accessibility: { density: 'default', timeFormat: '12', reduceMotion: false },
+        accessibility: { density: 'default', timeFormat: '12', reduceMotion: false, language: 'en' },
         appearance: {
             mode: 'dark',
             theme: 'default',
@@ -889,6 +890,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         applyBackground(s.appearance.background, s.appearance.customBackground);
         applyAmbientSound(s.appearance.ambientSound, s.appearance.ambientVolume);
+        applyTranslations(s.accessibility.language || 'en');
 
         confettiEnabled = s.appearance.confetti;
         updateClock();
@@ -1119,6 +1121,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         setActiveTile('density-options', pendingSettings.accessibility.density);
         setActiveTile('time-format-options', pendingSettings.accessibility.timeFormat);
+        setActiveTile('language-options', pendingSettings.accessibility.language || 'en');
         const reduceMotionEl = document.getElementById('settings-reduce-motion');
         if (reduceMotionEl) reduceMotionEl.checked = !!pendingSettings.accessibility.reduceMotion;
 
@@ -1241,6 +1244,19 @@ document.addEventListener("DOMContentLoaded", () => {
                     pendingSettings.appearance.ambientSound = btn.dataset.value;
                     setActiveTile('ambient-options', btn.dataset.value);
                     applyAmbientSound(btn.dataset.value, pendingSettings.appearance.ambientVolume); // live preview, loops immediately
+                    checkDirty();
+                });
+            });
+        }
+
+        const languageContainer = document.getElementById('language-options');
+        if (languageContainer) {
+            languageContainer.innerHTML = LANGUAGES.map(l => `<button class="option-tile" data-value="${l.id}">${l.flag} ${l.name}</button>`).join('');
+            languageContainer.querySelectorAll('.option-tile').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    pendingSettings.accessibility.language = btn.dataset.value;
+                    setActiveTile('language-options', btn.dataset.value);
+                    applyTranslations(btn.dataset.value); // live preview, instant
                     checkDirty();
                 });
             });
