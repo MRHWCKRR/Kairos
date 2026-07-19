@@ -200,7 +200,7 @@ body.has-custom-bg { background-color: transparent; }
 .editable-title { outline: none; padding: 4px 8px; margin-left: -8px; border-radius: 6px; border: 1px solid transparent; transition: all 0.2s; cursor: text; }
 .editable-title:focus { border-color: var(--border-subtle); background-color: var(--bg-main); }
 .task-list { list-style: none; display: flex; flex-direction: column; gap: var(--task-gap); transition: gap 0.2s ease; }
-.task-item { display: flex; align-items: center; gap: 12px; padding: var(--task-padding); border-radius: 8px; transition: background 0.2s, padding 0.2s ease; }
+.task-item { display: flex; align-items: center; gap: 14px; padding: var(--task-padding); border-radius: 8px; transition: background 0.2s, padding 0.2s ease; }
 .task-item:hover { background-color: rgba(255,255,255,0.03); }
 
 /* manager-section cards (Routines & Tasks page) also respect density spacing */
@@ -213,12 +213,12 @@ body.has-custom-bg { background-color: transparent; }
 }
 
 /* Checkbox Design */
-.custom-checkbox { position: relative; width: 22px; height: 22px; flex-shrink: 0; cursor: pointer; display: flex; align-items: center; justify-content: center; }
-.custom-checkbox input { position: absolute; opacity: 0; cursor: pointer; height: 0; width: 0; }
-.checkmark { position: absolute; top: 0; left: 0; height: 22px; width: 22px; background-color: transparent; border: 2px solid var(--border-subtle); border-radius: 50%; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
+.custom-checkbox { position: relative; width: 26px; height: 26px; flex-shrink: 0; cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 1; }
+.custom-checkbox input { position: absolute; opacity: 0; cursor: pointer; height: 100%; width: 100%; margin: 0; z-index: 2; }
+.checkmark { position: absolute; top: 0; left: 0; height: 26px; width: 26px; background-color: transparent; border: 2px solid var(--border-subtle); border-radius: 50%; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); pointer-events: none; }
 .custom-checkbox:hover input ~ .checkmark { border-color: var(--accent-glow); }
 .custom-checkbox input:checked ~ .checkmark { background-color: var(--accent-glow); border-color: var(--accent-glow); }
-.checkmark:after { content: ""; position: absolute; display: none; left: 7px; top: 3px; width: 4px; height: 10px; border: solid white; border-width: 0 2px 2px 0; transform: rotate(45deg); }
+.checkmark:after { content: ""; position: absolute; display: none; left: 9px; top: 4px; width: 5px; height: 12px; border: solid white; border-width: 0 2px 2px 0; transform: rotate(45deg); }
 .custom-checkbox input:checked ~ .checkmark:after { display: block; animation: popIn 0.2s ease-out; }
 @keyframes popIn { 0% { transform: scale(0) rotate(45deg); } 100% { transform: scale(1) rotate(45deg); } }
 
