@@ -1,4 +1,4 @@
-# Kairos 📅🏫
+# Kairos
 
 *Everyone has 24 hours a day. The elite are the elite because time is utilised properly.*
 
@@ -16,7 +16,7 @@ A smart, personalised and practical solution to school/work stress and last minu
 *   **Completely open source** Zero paywalls and full privacy. All source code is hosted here on GitHub, and all data can be requested at the click of a button.
 ---
 
-## 🛠️ What its Made Of
+## What its Made Of
 
 *   **Structure:** HTML5
 *   **Styling:** CSS3
@@ -25,9 +25,8 @@ A smart, personalised and practical solution to school/work stress and last minu
 
 ---
 
-## 📦 Local Setup Instructions
+## Try Kairos
 
-Get your local copy of **Kairos** up and running in less than two minutes.
 
 ### 1. Clone the Repository
 ```bash
@@ -35,7 +34,7 @@ Coming Soon!
 ```
 ### 2. Use the Website
 
-Coming Soon!
+https://kairos-xi-two.vercel.app/app.html
 
 ---
 
