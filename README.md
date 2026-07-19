@@ -39,3 +39,6 @@ https://kairos-xi-two.vercel.app/app.html
 ---
 
 ## Notes:
+
+- Currently Youtube URL Ambient Sounds are Turned off.
+- Bugs will likely exist, please create and issue to let me know :)
