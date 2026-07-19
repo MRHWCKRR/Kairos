@@ -25,6 +25,20 @@ const THEMES = [
     { id: 'peacefulplains', name: 'Peaceful Plains', swatch: '#4ade80' }
 ];
 
+// Text color presets. "default" means "don't override" — leave whichever
+// color the current Mode (dark/light) already provides for --text-primary.
+const TEXT_COLORS = [
+    { id: 'default', nameKey: 'color_default', hex: null },
+    { id: 'white', nameKey: 'color_white', hex: '#ffffff' },
+    { id: 'skyblue', nameKey: 'color_skyblue', hex: '#38bdf8' },
+    { id: 'navy', nameKey: 'color_navy', hex: '#1e3a8a' },
+    { id: 'turquoise', nameKey: 'color_turquoise', hex: '#2dd4bf' },
+    { id: 'mint', nameKey: 'color_mint', hex: '#6ee7b7' },
+    { id: 'rose', nameKey: 'color_rose', hex: '#fda4af' },
+    { id: 'amber', nameKey: 'color_amber', hex: '#fbbf24' },
+    { id: 'lavender', nameKey: 'color_lavender', hex: '#c4b5fd' }
+];
+
 const FONT_PACKS = [
     { id: 'sans', name: 'Inter' },
     { id: 'round', name: 'Quicksand' },
@@ -83,6 +97,7 @@ function defaultSettings() {
         appearance: {
             mode: 'dark',
             theme: 'default',
+            textColor: 'default',
             font: 'sans',
             background: 'none',
             customBackground: null,
@@ -1179,12 +1194,13 @@ document.addEventListener("DOMContentLoaded", () => {
     function applyAllSettings() {
         const s = userSettings;
         [...document.body.classList].forEach(cls => {
-            if (cls.startsWith('theme-') || cls.startsWith('font-') || cls.startsWith('density-') || cls.startsWith('cursor-')) {
+            if (cls.startsWith('theme-') || cls.startsWith('textcolor-') || cls.startsWith('font-') || cls.startsWith('density-') || cls.startsWith('cursor-')) {
                 document.body.classList.remove(cls);
             }
         });
         document.body.classList.toggle('mode-light', s.appearance.mode === 'light');
         document.body.classList.add(`theme-${s.appearance.theme}`);
+        document.body.classList.add(`textcolor-${s.appearance.textColor || 'default'}`);
         document.body.classList.add(`font-${s.appearance.font}`);
         document.body.classList.add(`density-${s.accessibility.density}`);
         document.body.classList.add(`cursor-${s.appearance.cursor}`);
@@ -1523,6 +1539,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         setActiveTile('mode-options', pendingSettings.appearance.mode);
         setActiveSwatch('theme-options', pendingSettings.appearance.theme);
+        setActiveSwatch('text-color-options', pendingSettings.appearance.textColor || 'default');
         setActiveTile('font-options', pendingSettings.appearance.font);
         setActiveSwatch('background-options', pendingSettings.appearance.background);
         setActiveSwatch('cursor-options', pendingSettings.appearance.cursor);
@@ -1541,11 +1558,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function previewLive() {
         [...document.body.classList].forEach(cls => {
-            if (cls.startsWith('theme-') || cls.startsWith('font-') || cls.startsWith('cursor-')) {
+            if (cls.startsWith('theme-') || cls.startsWith('textcolor-') || cls.startsWith('font-') || cls.startsWith('cursor-')) {
                 document.body.classList.remove(cls);
             }
         });
         document.body.classList.add(`theme-${pendingSettings.appearance.theme}`);
+        document.body.classList.add(`textcolor-${pendingSettings.appearance.textColor || 'default'}`);
         document.body.classList.add(`font-${pendingSettings.appearance.font}`);
         document.body.classList.add(`cursor-${pendingSettings.appearance.cursor}`);
         document.body.classList.toggle('mode-light', pendingSettings.appearance.mode === 'light');
@@ -1575,6 +1593,30 @@ document.addEventListener("DOMContentLoaded", () => {
                 btn.addEventListener('click', () => {
                     pendingSettings.appearance.theme = btn.dataset.value;
                     setActiveSwatch('theme-options', btn.dataset.value);
+                    previewLive();
+                    checkDirty();
+                });
+            });
+        }
+
+        const textColorContainer = document.getElementById('text-color-options');
+        if (textColorContainer) {
+            textColorContainer.innerHTML = TEXT_COLORS.map(c => {
+                // "default" has no fixed hex — show it as a swatch that
+                // reflects whatever the current Mode already provides.
+                const swatchBg = c.hex || 'var(--text-primary)';
+                const label = tr(c.nameKey);
+                return `
+                    <button class="swatch" data-value="${c.id}" title="${label}">
+                        <span class="swatch-color" style="background:${swatchBg}; border: 1px solid var(--border-subtle);"></span>
+                        <span class="swatch-label">${label}</span>
+                    </button>
+                `;
+            }).join('');
+            textColorContainer.querySelectorAll('.swatch').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    pendingSettings.appearance.textColor = btn.dataset.value;
+                    setActiveSwatch('text-color-options', btn.dataset.value);
                     previewLive();
                     checkDirty();
                 });

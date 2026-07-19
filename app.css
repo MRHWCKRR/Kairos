@@ -915,6 +915,21 @@ body.theme-peacefulplains {
     --accent-glow-soft: rgba(74, 222, 128, 0.12);
 }
 
+/*
+   Text Color overrides --text-primary (the main body/task text color).
+   body.textcolor-default deliberately has no rule here — with no override,
+   the element just inherits whatever --text-primary Mode (dark/light) set,
+   which is exactly "leave it alone".
+*/
+body.textcolor-white     { --text-primary: #ffffff; }
+body.textcolor-skyblue   { --text-primary: #38bdf8; }
+body.textcolor-navy      { --text-primary: #1e3a8a; }
+body.textcolor-turquoise { --text-primary: #2dd4bf; }
+body.textcolor-mint      { --text-primary: #6ee7b7; }
+body.textcolor-rose      { --text-primary: #fda4af; }
+body.textcolor-amber     { --text-primary: #fbbf24; }
+body.textcolor-lavender  { --text-primary: #c4b5fd; }
+
 body.font-sans { --font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
 body.font-round { --font-family: 'Quicksand', -apple-system, sans-serif; }
 body.font-mono { --font-family: 'JetBrains Mono', 'Courier New', monospace; }

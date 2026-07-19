@@ -110,7 +110,11 @@ export const TRANSLATIONS = {
         ai_destination_new: 'A new board', ai_destination_existing: 'An existing board',
         ai_destination_new_name_placeholder: 'New board name',
         ai_destination_select_board: 'Choose a board',
-        ai_destination_confirm: 'Add Tasks'
+        ai_destination_confirm: 'Add Tasks',
+
+        text_color: 'Text Color',
+        color_default: 'Default', color_white: 'White', color_skyblue: 'Sky Blue', color_navy: 'Navy',
+        color_turquoise: 'Turquoise', color_mint: 'Mint', color_rose: 'Rose', color_amber: 'Amber', color_lavender: 'Lavender'
     },
     es: {
         nav_dashboard: 'Panel', nav_ai: 'Asistente de IA', nav_tasks: 'Rutinas y Tareas', nav_calendar: 'Calendario', nav_settings: 'Configuración',
@@ -176,7 +180,11 @@ export const TRANSLATIONS = {
         ai_destination_new: 'Un nuevo tablero', ai_destination_existing: 'Un tablero existente',
         ai_destination_new_name_placeholder: 'Nombre del nuevo tablero',
         ai_destination_select_board: 'Elige un tablero',
-        ai_destination_confirm: 'Añadir Tareas'
+        ai_destination_confirm: 'Añadir Tareas',
+
+        text_color: 'Color del Texto',
+        color_default: 'Predeterminado', color_white: 'Blanco', color_skyblue: 'Azul Cielo', color_navy: 'Azul Marino',
+        color_turquoise: 'Turquesa', color_mint: 'Menta', color_rose: 'Rosa', color_amber: 'Ámbar', color_lavender: 'Lavanda'
     },
     fr: {
         nav_dashboard: 'Tableau de bord', nav_ai: 'Assistant IA', nav_tasks: 'Routines et Tâches', nav_calendar: 'Calendrier', nav_settings: 'Paramètres',
@@ -242,7 +250,11 @@ export const TRANSLATIONS = {
         ai_destination_new: 'Un nouveau tableau', ai_destination_existing: 'Un tableau existant',
         ai_destination_new_name_placeholder: 'Nom du nouveau tableau',
         ai_destination_select_board: 'Choisissez un tableau',
-        ai_destination_confirm: 'Ajouter les Tâches'
+        ai_destination_confirm: 'Ajouter les Tâches',
+
+        text_color: 'Couleur du Texte',
+        color_default: 'Par défaut', color_white: 'Blanc', color_skyblue: 'Bleu Ciel', color_navy: 'Bleu Marine',
+        color_turquoise: 'Turquoise', color_mint: 'Menthe', color_rose: 'Rose', color_amber: 'Ambre', color_lavender: 'Lavande'
     },
     it: {
         nav_dashboard: 'Dashboard', nav_ai: 'Assistente IA', nav_tasks: 'Routine e Attività', nav_calendar: 'Calendario', nav_settings: 'Impostazioni',
@@ -308,7 +320,11 @@ export const TRANSLATIONS = {
         ai_destination_new: 'Una nuova bacheca', ai_destination_existing: 'Una bacheca esistente',
         ai_destination_new_name_placeholder: 'Nome nuova bacheca',
         ai_destination_select_board: 'Scegli una bacheca',
-        ai_destination_confirm: 'Aggiungi Attività'
+        ai_destination_confirm: 'Aggiungi Attività',
+
+        text_color: 'Colore del Testo',
+        color_default: 'Predefinito', color_white: 'Bianco', color_skyblue: 'Azzurro', color_navy: 'Blu Navy',
+        color_turquoise: 'Turchese', color_mint: 'Menta', color_rose: 'Rosa', color_amber: 'Ambra', color_lavender: 'Lavanda'
     },
     ru: {
         nav_dashboard: 'Панель управления', nav_ai: 'ИИ-помощник', nav_tasks: 'Распорядок и задачи', nav_calendar: 'Календарь', nav_settings: 'Настройки',
@@ -374,7 +390,11 @@ export const TRANSLATIONS = {
         ai_destination_new: 'Новую доску', ai_destination_existing: 'Существующую доску',
         ai_destination_new_name_placeholder: 'Название новой доски',
         ai_destination_select_board: 'Выберите доску',
-        ai_destination_confirm: 'Добавить задачи'
+        ai_destination_confirm: 'Добавить задачи',
+
+        text_color: 'Цвет текста',
+        color_default: 'По умолчанию', color_white: 'Белый', color_skyblue: 'Голубой', color_navy: 'Тёмно-синий',
+        color_turquoise: 'Бирюзовый', color_mint: 'Мятный', color_rose: 'Розовый', color_amber: 'Янтарный', color_lavender: 'Лавандовый'
     },
     zh: {
         nav_dashboard: '仪表盘', nav_ai: 'AI 助手', nav_tasks: '日程与任务', nav_calendar: '日历', nav_settings: '设置',
@@ -440,7 +460,11 @@ export const TRANSLATIONS = {
         ai_destination_new: '新看板', ai_destination_existing: '已有看板',
         ai_destination_new_name_placeholder: '新看板名称',
         ai_destination_select_board: '选择一个看板',
-        ai_destination_confirm: '添加任务'
+        ai_destination_confirm: '添加任务',
+
+        text_color: '文字颜色',
+        color_default: '默认', color_white: '白色', color_skyblue: '天蓝色', color_navy: '深蓝色',
+        color_turquoise: '青绿色', color_mint: '薄荷绿', color_rose: '玫瑰色', color_amber: '琥珀色', color_lavender: '薰衣草紫'
     },
     ko: {
         nav_dashboard: '대시보드', nav_ai: 'AI 도우미', nav_tasks: '루틴 및 작업', nav_calendar: '캘린더', nav_settings: '설정',
@@ -506,7 +530,11 @@ export const TRANSLATIONS = {
         ai_destination_new: '새 보드', ai_destination_existing: '기존 보드',
         ai_destination_new_name_placeholder: '새 보드 이름',
         ai_destination_select_board: '보드 선택',
-        ai_destination_confirm: '작업 추가'
+        ai_destination_confirm: '작업 추가',
+
+        text_color: '텍스트 색상',
+        color_default: '기본값', color_white: '흰색', color_skyblue: '하늘색', color_navy: '남색',
+        color_turquoise: '터쿼이즈', color_mint: '민트', color_rose: '로즈', color_amber: '앰버', color_lavender: '라벤더'
     },
     ar: {
         nav_dashboard: 'لوحة التحكم', nav_ai: 'مساعد الذكاء الاصطناعي', nav_tasks: 'الروتين والمهام', nav_calendar: 'التقويم', nav_settings: 'الإعدادات',
@@ -572,7 +600,11 @@ export const TRANSLATIONS = {
         ai_destination_new: 'لوحة جديدة', ai_destination_existing: 'لوحة موجودة',
         ai_destination_new_name_placeholder: 'اسم اللوحة الجديدة',
         ai_destination_select_board: 'اختر لوحة',
-        ai_destination_confirm: 'إضافة المهام'
+        ai_destination_confirm: 'إضافة المهام',
+
+        text_color: 'لون النص',
+        color_default: 'افتراضي', color_white: 'أبيض', color_skyblue: 'أزرق سماوي', color_navy: 'كحلي',
+        color_turquoise: 'فيروزي', color_mint: 'نعناعي', color_rose: 'وردي', color_amber: 'كهرماني', color_lavender: 'خزامى'
     }
 };
 
