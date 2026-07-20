@@ -169,6 +169,7 @@ document.addEventListener("DOMContentLoaded", () => {
     let pendingSettings = cloneDeep(userSettings);
     let confettiEnabled = userSettings.appearance.confetti;
     let notificationsData = [];
+    let unsubscribeNotifications = null;
     let appReady = false; // guards against calling render functions before they're defined below
     let ytPlayer = null; // YouTube ambient player state — declared early since applyAllSettings() (called just below) can reach it via applyAmbientSound()
     let ytApiReadyPromise = null;
@@ -185,6 +186,7 @@ document.addEventListener("DOMContentLoaded", () => {
     onAuthStateChanged(auth, (user) => {
         if (!user) {
             console.log("No user detected. Redirecting to login...");
+            if (unsubscribeNotifications) { unsubscribeNotifications(); unsubscribeNotifications = null; }
             window.location.replace("login.html");
             return; 
         }
@@ -192,6 +194,7 @@ document.addEventListener("DOMContentLoaded", () => {
         console.log("User is logged in:", user.email);
         loadLatestPlanFromFirestore(user);
         loadUserSettingsFromFirestore(user);
+        setupNotificationsSync(user);
     });
     
     // --- 1 UI Nav & Clock ---
@@ -405,6 +408,9 @@ document.addEventListener("DOMContentLoaded", () => {
                         confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 }, colors: [getAccentColor(), '#ffffff'] });
                     }, 300);
                 }
+                if (userSettings.notifications.enabled && userSettings.notifications.boardCompletion) {
+                    pushNotification('Routine complete! 🎉', `You finished "${section.title}".`);
+                }
             }
         } else if (e.target.matches('input.task-date-input')) {
             const sectionId = e.target.getAttribute('data-section');
@@ -439,6 +445,16 @@ document.addEventListener("DOMContentLoaded", () => {
             const wasActive = menu.classList.contains('active');
             document.querySelectorAll('.dots-menu.active').forEach(m => { m.classList.remove('active'); m.closest('.dots-menu-wrapper')?.classList.remove('active'); });
             if (!wasActive) { menu.classList.add('active'); wrapper.classList.add('active'); }
+            return;
+        }
+
+        const notifDeleteBtn = e.target.closest('.notif-delete-btn');
+        if (notifDeleteBtn) {
+            const notifId = notifDeleteBtn.getAttribute('data-notif-id');
+            notificationsData = notificationsData.filter(n => n.id !== notifId);
+            saveNotificationsToFirestore();
+            renderNotifPanel();
+            updateNotifBadge();
             return;
         }
 
@@ -641,8 +657,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 updateRoutineStats();
                 updatePlanInFirestore();
                 updateWhatsNextWidget();
-                if (selectedCalendarDate) renderDayPanel();
-
                 const isSectionFinished = section.tasks.every(t => t.completed);
                 if (isSectionFinished) {
                     setTimeout(() => {
@@ -651,6 +665,9 @@ document.addEventListener("DOMContentLoaded", () => {
                             confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 }, colors: [getAccentColor(), '#ffffff'] });
                         }
                     }, 300);
+                    if (userSettings.notifications.enabled && userSettings.notifications.boardCompletion) {
+                        pushNotification('Routine complete! 🎉', `You finished "${section.title}".`);
+                    }
                 }
             }
         }
@@ -1463,6 +1480,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 console.error("Logout Failed", error);
             }
         });
+
+        setupNotificationBell();
     }
 
     function enterSettingsPage() {
@@ -1558,6 +1577,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const confettiEl = document.getElementById('settings-confetti-toggle');
         if (confettiEl) confettiEl.checked = !!pendingSettings.appearance.confetti;
+
+        const notifEnabledEl = document.getElementById('settings-notif-enabled');
+        if (notifEnabledEl) notifEnabledEl.checked = !!pendingSettings.notifications.enabled;
+
+        const notifBoardCompletionEl = document.getElementById('settings-notif-board-completion');
+        if (notifBoardCompletionEl) notifBoardCompletionEl.checked = !!pendingSettings.notifications.boardCompletion;
 
         const volumeEl = document.getElementById('ambient-volume');
         if (volumeEl) volumeEl.value = pendingSettings.appearance.ambientVolume ?? 35;
@@ -2048,6 +2073,8 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         });
     }
+
+    // add the other stuff here im tireddddddd
 
     renderConfigOptions();
     populateSettingsForm();
