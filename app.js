@@ -2074,7 +2074,169 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // add the other stuff here im tireddddddd
+    // --- 12 Notifications Engine (Firestore-synced) ---
+
+    function setupNotificationsSync(user) {
+        if (unsubscribeNotifications) unsubscribeNotifications();
+
+        const ref = doc(db, 'users', user.uid);
+        unsubscribeNotifications = onSnapshot(ref, (snap) => {
+            const data = snap.exists() ? snap.data() : null;
+
+            if (data && Array.isArray(data.notifications)) {
+                notificationsData = data.notifications;
+            } else if (!data || data.notifications === undefined) {
+                // Brand new user doc, or one that predates notifications —
+                // seed a welcome notification once, then stop touching it.
+                if (notificationsData.length === 0) {
+                    notificationsData = [{
+                        id: 'notif-welcome',
+                        title: 'Welcome to Kairos! 👋',
+                        message: 'Set up your first routine or paste a syllabus into AI Helper to get going.',
+                        time: Date.now(),
+                        read: false
+                    }];
+                    saveNotificationsToFirestore();
+                }
+            }
+
+            updateNotifBadge();
+            renderNotifPanel();
+        }, (error) => {
+            console.error('Notifications sync error:', error);
+        });
+    }
+
+    async function saveNotificationsToFirestore() {
+        const user = auth.currentUser;
+        if (!user) return;
+        try {
+            const ref = doc(db, 'users', user.uid);
+            await setDoc(ref, { notifications: notificationsData }, { merge: true });
+        } catch (error) {
+            console.error('Error saving notifications:', error);
+        }
+    }
+
+    function pushNotification(title, message) {
+        notificationsData = [
+            {
+                id: 'notif-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7),
+                title, message,
+                time: Date.now(),
+                read: false
+            },
+            ...notificationsData
+        ].slice(0, 50);
+
+        saveNotificationsToFirestore(); // onSnapshot listener re-renders once this round-trips
+    }
+
+    function unreadNotifCount() {
+        return notificationsData.filter(n => !n.read).length;
+    }
+
+    function updateNotifBadge() {
+        const badge = document.getElementById('notif-badge');
+        if (!badge) return;
+        const count = unreadNotifCount();
+        if (count > 0) {
+            badge.textContent = count > 9 ? '9+' : String(count);
+            badge.style.display = 'flex';
+        } else {
+            badge.style.display = 'none';
+        }
+    }
+
+    function notifTimeAgo(ts) {
+        const diffMs = Math.max(0, Date.now() - ts);
+        const mins = Math.floor(diffMs / 60000);
+        if (mins < 1) return 'Just now';
+        if (mins < 60) return `${mins}m ago`;
+        const hrs = Math.floor(mins / 60);
+        if (hrs < 24) return `${hrs}h ago`;
+        const days = Math.floor(hrs / 24);
+        return `${days}d ago`;
+    }
+
+    function renderNotifPanel() {
+        const list = document.getElementById('notif-panel-list');
+        if (!list) return;
+
+        if (!notificationsData.length) {
+            list.innerHTML = `<p class="notif-empty text-muted">No notifications yet.</p>`;
+            return;
+        }
+
+        list.innerHTML = notificationsData.map(n => `
+            <div class="notif-item ${n.read ? '' : 'unread'}" data-notif-id="${n.id}">
+                <div class="notif-item-dot"></div>
+                <div class="notif-item-body">
+                    <p class="notif-item-title">${n.title}</p>
+                    <p class="notif-item-message">${n.message}</p>
+                    <p class="notif-item-time">${notifTimeAgo(n.time)}</p>
+                </div>
+                <div class="dots-menu-wrapper notif-dots-wrapper">
+                    <button type="button" class="dots-menu-btn notif-dots-btn" title="Options">⋮</button>
+                    <div class="dots-menu notif-dots-menu">
+                        <button type="button" class="notif-delete-btn danger-option" data-notif-id="${n.id}">Delete</button>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    function setupNotificationBell() {
+        const bellBtn = document.getElementById('notif-bell-btn');
+        const wrapper = document.getElementById('notif-wrapper');
+        const panel = document.getElementById('notif-panel');
+        if (!bellBtn || !wrapper || !panel || bellBtn.dataset.bound) return;
+        bellBtn.dataset.bound = 'true';
+
+        renderNotifPanel();
+        updateNotifBadge();
+
+        bellBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const willOpen = !panel.classList.contains('active');
+
+            document.querySelectorAll('.notif-panel.active').forEach(p => p.classList.remove('active'));
+
+            if (willOpen) {
+                panel.classList.add('active');
+                if (unreadNotifCount() > 0) {
+                    setTimeout(() => {
+                        notificationsData = notificationsData.map(n => ({ ...n, read: true }));
+                        saveNotificationsToFirestore();
+                    }, 700);
+                }
+            } else {
+                panel.classList.remove('active');
+            }
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!wrapper.contains(e.target)) {
+                panel.classList.remove('active');
+            }
+        });
+    }
+
+    // Notification settings toggles
+    const notifEnabledInput = document.getElementById('settings-notif-enabled');
+    if (notifEnabledInput) {
+        notifEnabledInput.addEventListener('change', (e) => {
+            pendingSettings.notifications.enabled = e.target.checked;
+            checkDirty();
+        });
+    }
+    const notifBoardCompletionInput = document.getElementById('settings-notif-board-completion');
+    if (notifBoardCompletionInput) {
+        notifBoardCompletionInput.addEventListener('change', (e) => {
+            pendingSettings.notifications.boardCompletion = e.target.checked;
+            checkDirty();
+        });
+    }
 
     renderConfigOptions();
     populateSettingsForm();
