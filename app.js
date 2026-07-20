@@ -164,6 +164,7 @@ document.addEventListener("DOMContentLoaded", () => {
     let pendingSettings = cloneDeep(userSettings);
     let confettiEnabled = userSettings.appearance.confetti;
     let notificationsData = [];
+    let editingScheduleEventId = null;
     let unsubscribeNotifications = null;
     let appReady = false;
     let ytPlayer = null;
@@ -210,6 +211,9 @@ document.addEventListener("DOMContentLoaded", () => {
             if (button.getAttribute("data-target") === "settings-page") {
                 enterSettingsPage();
             }
+            if (button.getAttribute("data-target") === "schedule-page") {
+                scrollScheduleToDefault();
+            }
         });
     });
 
@@ -251,6 +255,7 @@ document.addEventListener("DOMContentLoaded", () => {
         updateRoutineStats();
         updateWhatsNextWidget();
         renderCalendar();
+        renderScheduleWeek();
     }
 
     function findFirstIncompleteSection() {
@@ -446,6 +451,12 @@ document.addEventListener("DOMContentLoaded", () => {
             saveNotificationsToFirestore();
             renderNotifPanel();
             updateNotifBadge();
+            return;
+        }
+
+        const scheduleEventBlock = e.target.closest('.schedule-event');
+        if (scheduleEventBlock) {
+            openScheduleModal(scheduleEventBlock.getAttribute('data-event-id'));
             return;
         }
 
@@ -697,6 +708,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const docRef = await addDoc(plansColRef, {
                 boards: planData,
                 dayInsights: dayInsights,
+                scheduleEvents: scheduleData,
                 userID: user.uid,
                 createdAt: serverTimestamp()
             });
@@ -716,6 +728,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const planDocRef = doc(db, "study_plans", currentPlanDocId);
             await updateDoc(planDocRef, {
                 boards: boardsData,
+                dayInsights: dayInsights,
                 dayInsights: dayInsights
             });
             console.log("Task progress successfully synced to Firestore.");
@@ -747,6 +760,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 const migrated = migrateToBoards(latestPlan);
                 boardsData = migrated || boardsData;
                 dayInsights = latestPlan.dayInsights || {};
+                scheduleData = Array.isArray(latestPlan.scheduleEvents) ? latestPlan.scheduleEvents : [];
 
                 console.log("Successfully loaded latest study plan from Firestore!");
                 renderApp();
