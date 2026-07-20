@@ -1,0 +1,27 @@
+{
+  "name": "kairos",
+  "version": "1.0.0",
+  "description": "*Everyone has 24 hours a day. The elite are the elite because time is utilised properly.*",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MRHWCKRR/Kairos.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/MRHWCKRR/Kairos/issues"
+  },
+  "homepage": "https://github.com/MRHWCKRR/Kairos#readme",
+  "dependencies": {
+    "@capacitor/core": "^8.4.2"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.4.2"
+  }
+}
