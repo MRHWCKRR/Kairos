@@ -25,8 +25,6 @@ const THEMES = [
     { id: 'peacefulplains', name: 'Peaceful Plains', swatch: '#4ade80' }
 ];
 
-// Text color presets. "default" means "don't override" — leave whichever
-// color the current Mode (dark/light) already provides for --text-primary.
 const TEXT_COLORS = [
     { id: 'default', nameKey: 'color_default', hex: null },
     { id: 'white', nameKey: 'color_white', hex: '#ffffff' },
@@ -117,7 +115,6 @@ document.addEventListener("DOMContentLoaded", () => {
     let currentPlanDocId = null;
 
     // --- Data Engine ---
-    // Structure: boardsData = [ { id, title, sections: [ { id, title, tasks: [...] } ] } ]
     let boardsData = [
         {
             id: 'board-1',
@@ -144,9 +141,6 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     ];
 
-    // Migrates data saved before boards existed: a plain array of
-    // sections (no nesting) gets wrapped into a single default board.
-    // Anything already in the new { boards: [...] } shape passes through.
     function migrateToBoards(loadedDoc) {
         if (Array.isArray(loadedDoc.boards) && loadedDoc.boards.length) return loadedDoc.boards;
         if (Array.isArray(loadedDoc.sections)) {
@@ -171,11 +165,11 @@ document.addEventListener("DOMContentLoaded", () => {
     let confettiEnabled = userSettings.appearance.confetti;
     let notificationsData = [];
     let unsubscribeNotifications = null;
-    let appReady = false; // guards against calling render functions before they're defined below
-    let ytPlayer = null; // YouTube ambient player state — declared early since applyAllSettings() (called just below) can reach it via applyAmbientSound()
+    let appReady = false;
+    let ytPlayer = null;
     let ytApiReadyPromise = null;
 
-    // Shorthand: translate a key using whichever language is currently active.
+   
     function tr(key) {
         return t(key, userSettings.accessibility.language || 'en');
     }
@@ -427,11 +421,8 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
-    // Boards page: delete task, delete/rename section, delete/rename board,
-    // add task/section/board, and the hover dots-menus that trigger them.
     document.body.addEventListener('click', (e) => {
 
-        // Close any open dots-menu when clicking elsewhere
         const openMenu = document.querySelector('.dots-menu.active');
         if (openMenu && !e.target.closest('.dots-menu-wrapper')) {
             openMenu.classList.remove('active');
@@ -849,9 +840,6 @@ document.addEventListener("DOMContentLoaded", () => {
                     });
                 });
 
-                // Never overwrite existing boards — ask where these new
-                // sections should go (a new board, or appended to one
-                // that already exists).
                 pendingAiSections = newSections;
                 openAiDestinationModal();
                 aiInput.value = "";
@@ -1032,8 +1020,6 @@ document.addEventListener("DOMContentLoaded", () => {
         const daysInPrevMonth = new Date(year, month, 0).getDate();
         const todayKey = toDateKey(new Date());
 
-        // Sun (index 0) as the base reference date, then walk one weekday
-        // at a time so labels come from the browser's own locale data.
         const weekdayFormatter = new Intl.DateTimeFormat(locale, { weekday: 'short' });
         const weekdayLabels = [0, 1, 2, 3, 4, 5, 6].map(i => weekdayFormatter.format(new Date(2023, 0, 1 + i)));
         let html = weekdayLabels.map(label => `<div class="calendar-weekday">${label}</div>`).join('');
@@ -1232,8 +1218,6 @@ document.addEventListener("DOMContentLoaded", () => {
         confettiEnabled = s.appearance.confetti;
         updateClock();
 
-        // Re-render anything with dynamically-generated (non data-i18n) text
-        // so a language switch is reflected immediately, not just on reload.
         if (appReady) renderApp();
     }
 
@@ -1269,13 +1253,11 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // --- YouTube ambient player (for custom lofi/study stream links) ---
-    // (ytPlayer / ytApiReadyPromise are declared near the top of this scope,
-    // before applyAllSettings() runs — see comment there.)
 
     function extractYouTubeVideoId(input) {
         if (!input) return null;
         const trimmed = input.trim();
-        if (/^[a-zA-Z0-9_-]{11}$/.test(trimmed)) return trimmed; // bare video ID
+        if (/^[a-zA-Z0-9_-]{11}$/.test(trimmed)) return trimmed;
         const patterns = [
             /(?:youtube\.com\/watch\?v=)([a-zA-Z0-9_-]{11})/,
             /(?:youtube\.com\/live\/)([a-zA-Z0-9_-]{11})/,
@@ -1323,8 +1305,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 player.playVideo();
             };
             start();
-            // Browsers block audio autoplay without a prior user gesture —
-            // if playback doesn't stick, retry on the next click.
+            
             setTimeout(() => {
                 if (player.getPlayerState && player.getPlayerState() !== 1) {
                     const resume = () => { start(); document.removeEventListener('click', resume); };
@@ -1407,8 +1388,6 @@ document.addEventListener("DOMContentLoaded", () => {
         } catch (error) {
             console.error('Error saving user settings:', error);
 
-            // Give a more specific hint depending on the actual Firebase error code,
-            // instead of a generic message every time — makes this much faster to debug.
             const code = error?.code || '';
             let hint = 'Could not sync your settings to the cloud, but they are saved locally on this device.';
             if (code.includes('permission-denied')) {
@@ -1638,8 +1617,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const textColorContainer = document.getElementById('text-color-options');
         if (textColorContainer) {
             textColorContainer.innerHTML = TEXT_COLORS.map(c => {
-                // "default" has no fixed hex — show it as a swatch that
-                // reflects whatever the current Mode already provides.
+            
                 const swatchBg = c.hex || 'var(--text-primary)';
                 const label = tr(c.nameKey);
                 return `
@@ -1702,8 +1680,6 @@ document.addEventListener("DOMContentLoaded", () => {
                     pendingSettings.appearance.background = btn.dataset.value;
                     setActiveSwatch('background-options', btn.dataset.value);
                     if (btn.dataset.value !== 'custom') {
-                        // Switching to a preset (or "None") means we should stop
-                        // carrying the old uploaded image along in every future save.
                         pendingSettings.appearance.customBackground = null;
                         applyBackground(btn.dataset.value, null);
                     } else if (pendingSettings.appearance.customBackground) {
@@ -1735,7 +1711,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 btn.addEventListener('click', () => {
                     pendingSettings.accessibility.language = btn.dataset.value;
                     setActiveTile('language-options', btn.dataset.value);
-                    applyTranslations(btn.dataset.value); // live preview, instant
+                    applyTranslations(btn.dataset.value);
                     checkDirty();
                 });
             });
@@ -2086,8 +2062,6 @@ document.addEventListener("DOMContentLoaded", () => {
             if (data && Array.isArray(data.notifications)) {
                 notificationsData = data.notifications;
             } else if (!data || data.notifications === undefined) {
-                // Brand new user doc, or one that predates notifications —
-                // seed a welcome notification once, then stop touching it.
                 if (notificationsData.length === 0) {
                     notificationsData = [{
                         id: 'notif-welcome',
@@ -2129,7 +2103,7 @@ document.addEventListener("DOMContentLoaded", () => {
             ...notificationsData
         ].slice(0, 50);
 
-        saveNotificationsToFirestore(); // onSnapshot listener re-renders once this round-trips
+        saveNotificationsToFirestore();
     }
 
     function unreadNotifCount() {

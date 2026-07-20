@@ -298,7 +298,7 @@ body.has-custom-bg { background-color: transparent; }
 .add-section-btn:hover, .add-task-btn:hover { border-color: var(--accent-glow); color: var(--accent-glow); }
 .add-task-btn { margin-top: 4px; }
 
-/* Hover-revealed 3-dot menu, used for both boards and sections */
+/* Hover-revealed 3-dot menu, used for boards, sections, and notifications */
 .dots-menu-wrapper { position: relative; }
 .dots-menu-btn {
     background: none;
@@ -313,6 +313,7 @@ body.has-custom-bg { background-color: transparent; }
 }
 .board-card:hover .dots-menu-btn,
 .board-section-block:hover .dots-menu-btn,
+.notif-item:hover .dots-menu-btn,
 .dots-menu-wrapper.active .dots-menu-btn { opacity: 1; }
 .dots-menu-btn:hover { background: var(--border-subtle); color: var(--text-primary); }
 
@@ -1049,24 +1050,22 @@ body.cursor-spaceship, body.cursor-spaceship * { cursor: url('cursors/spaceship.
 .notif-item-message { font-size: 0.8rem; color: var(--text-muted); line-height: 1.4; margin-bottom: 4px; word-wrap: break-word; }
 .notif-item-time { font-size: 0.7rem; color: var(--text-muted); opacity: 0.7; }
 
+/*
+   NOTE: this wrapper used to carry its own separate opacity:0 / hover
+   rule, stacked on top of .dots-menu-btn's own opacity:0 default. Since
+   opacity multiplies through nested elements, the button stayed
+   invisible even once the wrapper faded in — it only ever appeared
+   after being clicked (which adds .dots-menu-wrapper.active, one of the
+   few selectors that *did* un-hide the button). Fixed by dropping the
+   wrapper's own opacity toggle entirely and letting the shared
+   .dots-menu-btn visibility rule above (which now includes
+   .notif-item:hover) be the single source of truth, exactly like the
+   board/section dots menus already work.
+*/
 .notif-dots-wrapper {
-    opacity: 0;
-    transition: opacity 0.15s ease;
     flex-shrink: 0;
 }
-.notif-item:hover .notif-dots-wrapper,
-.notif-dots-wrapper.active { opacity: 1; }
 
-.notif-dots-btn {
-    background: none;
-    border: none;
-    color: var(--text-muted);
-    font-size: 1.1rem;
-    cursor: pointer;
-    padding: 2px 6px;
-    border-radius: 6px;
-    line-height: 1;
-}
 .notif-dots-btn:hover { background-color: var(--border-subtle); color: var(--text-primary); }
 
 .notif-dots-menu.dots-menu {
