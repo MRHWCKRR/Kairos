@@ -164,6 +164,7 @@ document.addEventListener("DOMContentLoaded", () => {
     let pendingSettings = cloneDeep(userSettings);
     let confettiEnabled = userSettings.appearance.confetti;
     let notificationsData = [];
+    let scheduleData = [];
     let editingScheduleEventId = null;
     let unsubscribeNotifications = null;
     let appReady = false;
@@ -729,7 +730,7 @@ document.addEventListener("DOMContentLoaded", () => {
             await updateDoc(planDocRef, {
                 boards: boardsData,
                 dayInsights: dayInsights,
-                dayInsights: dayInsights
+                scheduleEvents: scheduleData
             });
             console.log("Task progress successfully synced to Firestore.");
         } catch (error) {
@@ -2223,6 +2224,218 @@ document.addEventListener("DOMContentLoaded", () => {
         notifBoardCompletionInput.addEventListener('change', (e) => {
             pendingSettings.notifications.boardCompletion = e.target.checked;
             checkDirty();
+        });
+    }
+
+    // --- 13 Schedule Engine (recurring weekly events) ---
+
+    const SCHEDULE_CATEGORIES = {
+        sleep:     { label: 'Sleep',     color: '#6366f1' },
+        class:     { label: 'Class',     color: '#a855f7' },
+        tutoring:  { label: 'Tutoring',  color: '#14b8a6' },
+        training:  { label: 'Training',  color: '#f97316' },
+        other:     { label: 'Other',     color: '#64748b' }
+    };
+    const SCHEDULE_HOUR_HEIGHT = 48; // px per hour on the grid
+    const SCHEDULE_DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+    function scheduleTimeToMinutes(t) {
+        if (!t) return 0;
+        const [h, m] = t.split(':').map(Number);
+        return (h * 60) + (m || 0);
+    }
+
+    function scheduleMinutesToLabel(mins) {
+        const h = Math.floor(mins / 60) % 24;
+        const m = mins % 60;
+        const period = h >= 12 ? 'PM' : 'AM';
+        let h12 = h % 12; if (h12 === 0) h12 = 12;
+        return `${h12}:${String(m).padStart(2, '0')} ${period}`;
+    }
+
+    function renderScheduleEventBlock(ev) {
+        const startMin = scheduleTimeToMinutes(ev.start);
+        const endMinRaw = scheduleTimeToMinutes(ev.end);
+        const wraps = endMinRaw <= startMin; // e.g. sleep 22:00 -> 06:00
+        const endMin = wraps ? 24 * 60 : endMinRaw;
+        const top = (startMin / 60) * SCHEDULE_HOUR_HEIGHT;
+        const height = Math.max(20, ((endMin - startMin) / 60) * SCHEDULE_HOUR_HEIGHT);
+        const cat = SCHEDULE_CATEGORIES[ev.category] || SCHEDULE_CATEGORIES.other;
+        return `
+            <div class="schedule-event" style="top:${top}px; height:${height}px; --event-color:${cat.color};" data-event-id="${ev.id}" title="${ev.title}">
+                <span class="schedule-event-title">${ev.title}</span>
+                <span class="schedule-event-time">${scheduleMinutesToLabel(startMin)} – ${scheduleMinutesToLabel(endMinRaw)}</span>
+            </div>
+        `;
+    }
+
+    function renderScheduleOverflowBlock(ev) {
+        // The tail of an overnight event (e.g. sleep), shown at the top of the next day.
+        const endMin = scheduleTimeToMinutes(ev.end);
+        if (endMin <= 0) return '';
+        const height = Math.max(16, (endMin / 60) * SCHEDULE_HOUR_HEIGHT);
+        const cat = SCHEDULE_CATEGORIES[ev.category] || SCHEDULE_CATEGORIES.other;
+        return `
+            <div class="schedule-event schedule-event-overflow" style="top:0px; height:${height}px; --event-color:${cat.color};" data-event-id="${ev.id}" title="${ev.title} (continued from previous night)">
+                <span class="schedule-event-title">${ev.title} ⤴</span>
+            </div>
+        `;
+    }
+
+    function renderScheduleWeek() {
+        const container = document.getElementById('schedule-week-container');
+        if (!container) return;
+
+        const legendHTML = `
+            <div class="schedule-legend">
+                ${Object.values(SCHEDULE_CATEGORIES).map(cat => `
+                    <span class="schedule-legend-item">
+                        <span class="schedule-legend-dot" style="background:${cat.color}"></span>${cat.label}
+                    </span>
+                `).join('')}
+            </div>
+        `;
+
+        let hourRowsHTML = '';
+        for (let h = 0; h < 24; h++) {
+            hourRowsHTML += `<div class="schedule-hour-row" style="height:${SCHEDULE_HOUR_HEIGHT}px;"><span class="schedule-hour-label">${scheduleMinutesToLabel(h * 60)}</span></div>`;
+        }
+
+        const daysHTML = SCHEDULE_DAY_LABELS.map((label, dayIndex) => {
+            const eventsForDay = scheduleData.filter(ev => ev.day === dayIndex);
+            let eventsHTML = eventsForDay.map(renderScheduleEventBlock).join('');
+
+            // Pull in overnight events that started the day before
+            const prevDay = (dayIndex + 6) % 7;
+            const overflowEvents = scheduleData.filter(ev => ev.day === prevDay && scheduleTimeToMinutes(ev.end) <= scheduleTimeToMinutes(ev.start));
+            eventsHTML += overflowEvents.map(renderScheduleOverflowBlock).join('');
+
+            return `
+                <div class="schedule-day-col">
+                    <div class="schedule-day-header">${label}</div>
+                    <div class="schedule-day-body" style="height:${24 * SCHEDULE_HOUR_HEIGHT}px;">
+                        ${eventsHTML}
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        container.innerHTML = `
+            ${legendHTML}
+            <div class="schedule-week-grid">
+                <div class="schedule-time-col">
+                    <div class="schedule-day-header"></div>
+                    <div class="schedule-time-rows" style="height:${24 * SCHEDULE_HOUR_HEIGHT}px;">${hourRowsHTML}</div>
+                </div>
+                ${daysHTML}
+            </div>
+        `;
+    }
+
+    function scrollScheduleToDefault() {
+        const grid = document.querySelector('#schedule-week-container .schedule-week-grid');
+        if (grid && !grid.dataset.scrolled) {
+            grid.scrollTop = 6 * SCHEDULE_HOUR_HEIGHT; // open the view around 6 AM
+            grid.dataset.scrolled = 'true';
+        }
+    }
+
+    function saveScheduleToFirestore() {
+        if (!currentPlanDocId) {
+            savePlanToFirestore(boardsData);
+        } else {
+            updatePlanInFirestore();
+        }
+    }
+
+    // --- Schedule event modal ---
+    const scheduleModal = document.getElementById('schedule-event-modal');
+    const scheduleModalTitle = document.getElementById('schedule-event-modal-title');
+    const scheduleTitleInput = document.getElementById('schedule-event-title');
+    const scheduleCategoryInput = document.getElementById('schedule-event-category');
+    const scheduleDayInput = document.getElementById('schedule-event-day');
+    const scheduleStartInput = document.getElementById('schedule-event-start');
+    const scheduleEndInput = document.getElementById('schedule-event-end');
+    const scheduleSaveBtn = document.getElementById('schedule-event-save-btn');
+    const scheduleDeleteBtn = document.getElementById('schedule-event-delete-btn');
+    const closeScheduleModalBtn = document.getElementById('close-schedule-event-modal');
+    const addScheduleEventBtn = document.getElementById('add-schedule-event-btn');
+
+    function openScheduleModal(eventId = null) {
+        editingScheduleEventId = eventId;
+        if (eventId) {
+            const ev = scheduleData.find(e => e.id === eventId);
+            if (!ev) return;
+            if (scheduleModalTitle) scheduleModalTitle.textContent = 'Edit Recurring Event';
+            scheduleTitleInput.value = ev.title;
+            scheduleCategoryInput.value = ev.category;
+            scheduleDayInput.value = String(ev.day);
+            scheduleStartInput.value = ev.start;
+            scheduleEndInput.value = ev.end;
+            if (scheduleDeleteBtn) scheduleDeleteBtn.style.display = 'block';
+        } else {
+            if (scheduleModalTitle) scheduleModalTitle.textContent = 'Add Recurring Event';
+            scheduleTitleInput.value = '';
+            scheduleCategoryInput.value = 'class';
+            scheduleDayInput.value = '1';
+            scheduleStartInput.value = '';
+            scheduleEndInput.value = '';
+            if (scheduleDeleteBtn) scheduleDeleteBtn.style.display = 'none';
+        }
+        if (scheduleModal) scheduleModal.classList.add('active');
+    }
+
+    function closeScheduleModal() {
+        if (scheduleModal) scheduleModal.classList.remove('active');
+        editingScheduleEventId = null;
+    }
+
+    if (addScheduleEventBtn) addScheduleEventBtn.addEventListener('click', () => openScheduleModal());
+    if (closeScheduleModalBtn) closeScheduleModalBtn.addEventListener('click', closeScheduleModal);
+    if (scheduleModal) {
+        scheduleModal.addEventListener('click', (e) => {
+            if (e.target === scheduleModal) closeScheduleModal();
+        });
+    }
+
+    if (scheduleSaveBtn) {
+        scheduleSaveBtn.addEventListener('click', () => {
+            const title = scheduleTitleInput.value.trim();
+            const category = scheduleCategoryInput.value;
+            const day = parseInt(scheduleDayInput.value, 10);
+            const start = scheduleStartInput.value;
+            const end = scheduleEndInput.value;
+
+            if (!title || !start || !end) {
+                alert('Please fill in the title, start time, and end time.');
+                return;
+            }
+            if (start === end) {
+                alert("Start and end time can't be the same.");
+                return;
+            }
+
+            if (editingScheduleEventId) {
+                const ev = scheduleData.find(e => e.id === editingScheduleEventId);
+                if (ev) { ev.title = title; ev.category = category; ev.day = day; ev.start = start; ev.end = end; }
+            } else {
+                scheduleData.push({ id: 'sched-' + Date.now(), title, category, day, start, end });
+            }
+
+            saveScheduleToFirestore();
+            renderScheduleWeek();
+            closeScheduleModal();
+        });
+    }
+
+    if (scheduleDeleteBtn) {
+        scheduleDeleteBtn.addEventListener('click', () => {
+            if (!editingScheduleEventId) return;
+            if (!confirm('Delete this recurring event?')) return;
+            scheduleData = scheduleData.filter(e => e.id !== editingScheduleEventId);
+            saveScheduleToFirestore();
+            renderScheduleWeek();
+            closeScheduleModal();
         });
     }
 
