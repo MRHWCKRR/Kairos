@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kairos | Opportune Routine Planner</title>
-    <link rel="stylesheet" href="app.css?v=5">
+    <link rel="stylesheet" href="app.css?v=6">
     <link rel="icon" type="image/png" sizes="32x32" href="images/favicon-32.png">
     <link rel="apple-touch-icon" sizes="180x180" href="images/favicon-180.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -34,6 +34,7 @@
                 <button class="nav-item active" data-target="home-page" data-i18n="nav_dashboard">Dashboard</button>
                 <button class="nav-item" data-target="ai-page" data-i18n="nav_ai">AI Helper</button>
                 <button class="nav-item" data-target="tasks-page" data-i18n="nav_tasks">Routines & Tasks</button>
+                <button class="nav-item" data-target="schedule-page">Schedule</button>
                 <button class="nav-item" data-target="calendar-page" data-i18n="nav_calendar">Calendar</button>
                 <button class="nav-item" data-target="settings-page" data-i18n="nav_settings">Settings</button>
             </nav>
@@ -113,6 +114,17 @@
                     <!-- Content injected by JavaScript -->
                 </div>
                 <button id="add-board-btn" class="add-board-btn" data-i18n="add_board">+ Add Board</button>
+            </div>
+
+            <!-- Schedule Page: recurring weekly commitments (sleep, classes, tutoring, training, etc.) -->
+            <div id="schedule-page" class="page-view">
+                <h2>Schedule</h2>
+                <p>Recurring weekly commitments — sleep, classes, tutoring, training, and anything else that repeats every week.</p>
+
+                <div id="schedule-week-container" class="schedule-week">
+                    <!-- Content injected by JavaScript -->
+                </div>
+                <button id="add-schedule-event-btn" class="add-board-btn">+ Add Recurring Event</button>
             </div>
 
              <!-- Calendar and Routines -->
@@ -440,11 +452,55 @@
         </div>
     </div>
 
+    <!-- Recurring schedule events -->
+    <div id="schedule-event-modal" class="modal-overlay">
+        <div class="modal-content">
+            <span class="close-modal" id="close-schedule-event-modal">&times;</span>
+            <h2 id="schedule-event-modal-title">Add Recurring Event</h2>
+
+            <label class="settings-label">Title</label>
+            <input type="text" id="schedule-event-title" class="settings-input" placeholder="e.g. Sleep, Math Tutoring, Football Training">
+
+            <label class="settings-label">Category</label>
+            <select id="schedule-event-category" class="settings-input">
+                <option value="sleep">Sleep</option>
+                <option value="class">Class</option>
+                <option value="tutoring">Tutoring</option>
+                <option value="training">Training</option>
+                <option value="other">Other</option>
+            </select>
+
+            <label class="settings-label">Day of Week</label>
+            <select id="schedule-event-day" class="settings-input">
+                <option value="0">Sunday</option>
+                <option value="1">Monday</option>
+                <option value="2">Tuesday</option>
+                <option value="3">Wednesday</option>
+                <option value="4">Thursday</option>
+                <option value="5">Friday</option>
+                <option value="6">Saturday</option>
+            </select>
+
+            <div style="display:flex; gap:12px;">
+                <div style="flex:1;">
+                    <label class="settings-label">Start Time</label>
+                    <input type="time" id="schedule-event-start" class="settings-input">
+                </div>
+                <div style="flex:1;">
+                    <label class="settings-label">End Time</label>
+                    <input type="time" id="schedule-event-end" class="settings-input">
+                </div>
+            </div>
+
+            <button id="schedule-event-save-btn" class="action-btn" style="margin-top: 16px; width: 100%;">Save Event</button>
+        </div>
+    </div>
+
     <!-- Hidden YouTube player for custom ambient audio -->
     <div id="youtube-ambient-player-container" style="position: fixed; width: 1px; height: 1px; overflow: hidden; opacity: 0; pointer-events: none; left: -9999px;">
         <div id="youtube-ambient-player"></div>
     </div>
 
-    <script type="module" src="app.js?v=5"></script>
+    <script type="module" src="app.js?v=6"></script>
 </body>
 </html>
