@@ -180,7 +180,6 @@ document.addEventListener("DOMContentLoaded", () => {
         return t(key, userSettings.accessibility.language || 'en');
     }
 
-    loadNotifications();
     applyAllSettings();
 
     // --- Auth Management ---
