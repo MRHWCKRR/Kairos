@@ -60,16 +60,10 @@ body.has-custom-bg { background-color: transparent; }
 }
 
 .logo-mark {
-    min-width: 32px;
-    height: 32px;
-    background-color: var(--accent-glow);
-    color: white;
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: bold;
-    font-size: 1.2rem;
+    width: 26px;
+    height: auto;
+    flex-shrink: 0;
+    object-fit: contain;
 }
 
 .logo-text { font-size: 1.2rem; font-weight: 800; flex-grow: 1; transition: opacity 0.2s; }

@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login | Kairos</title>
     <link rel="stylesheet" href="landing.css">
+    <link rel="icon" type="image/png" sizes="32x32" href="images/favicon-32.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="images/favicon-180.png">
     <style>
         .login-page {
             display: flex;
@@ -15,7 +17,7 @@
         .login-container {
             flex: 2; 
             display: flex;
-            flex-direction: column; 
+            flex-direction: column;
             justify-content: center;
             align-items: center;
             padding: 40px;
@@ -26,6 +28,15 @@
             width: 100%;
             max-width: 400px;
         }
+
+        .login-logo {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 24px;
+        }
+        .login-logo img { height: 32px; width: auto; }
+        .login-logo span { font-size: 1.3rem; font-weight: bold; color: #a855f7; letter-spacing: 1px; }
 
         .login-box h2 {
             font-size: 2rem;
@@ -94,6 +105,11 @@
         <!-- Login form -->
         <div class="login-container">
             <div class="login-box">
+                <div class="login-logo">
+                    <img src="images/kairos-logo.png" alt="Kairos">
+                    <span>Kairos</span>
+                </div>
+
                 <h2>Welcome back</h2>
                 <p>Log in to access your intelligent schedule.</p>
 
