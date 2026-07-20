@@ -52,7 +52,15 @@
             <header class="top-bar">
                 <div class="spacer"></div>
                 <div id="user-auth-container" class="top-bar-actions">
-                    <button class="icon-btn" title="Reminders">🔔</button>
+                    <div class="notif-wrapper" id="notif-wrapper">
+                         <button class="icon-btn notif-bell-btn" id="notif-bell-btn" title="Notifications">
+                            🔔<span class="notif-badge" id="notif-badge" style="display:none;">0</span>
+                        </button>
+                        <div class="notif-panel" id="notif-panel">
+                            <div class="notif-panel-header">Notifications</div>
+                            <div class="notif-panel-list" id="notif-panel-list"></div>
+                        </div>
+                    </div>
                     <a href="login.html" class="profile-btn" style="text-decoration: none; display: flex; align-items: center; justify-content: center;" data-i18n="sign_in">Sign In</a>
                 </div>
             </header>

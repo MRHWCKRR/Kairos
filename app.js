@@ -11,7 +11,7 @@ import {
     deleteUser
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import {
-    doc, setDoc, getDoc, collection, addDoc, serverTimestamp,
+    doc, setDoc, getDoc, onSnapshot, collection, addDoc, serverTimestamp,
     query, where, orderBy, limit, getDocs, updateDoc, deleteDoc
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { LANGUAGES, applyTranslations, getLocale, getGeminiLanguageName, t } from './i18n.js';
@@ -168,6 +168,7 @@ document.addEventListener("DOMContentLoaded", () => {
     } catch (e) { /* ignore malformed cache */ }
     let pendingSettings = cloneDeep(userSettings);
     let confettiEnabled = userSettings.appearance.confetti;
+    let notificationsData = [];
     let appReady = false; // guards against calling render functions before they're defined below
     let ytPlayer = null; // YouTube ambient player state — declared early since applyAllSettings() (called just below) can reach it via applyAmbientSound()
     let ytApiReadyPromise = null;
@@ -177,6 +178,7 @@ document.addEventListener("DOMContentLoaded", () => {
         return t(key, userSettings.accessibility.language || 'en');
     }
 
+    loadNotifications();
     applyAllSettings();
 
     // --- Auth Management ---
@@ -1375,6 +1377,7 @@ document.addEventListener("DOMContentLoaded", () => {
         applyAllSettings();
         populateSettingsForm();
         renderUserProfileMenu(user);
+        setupNotificationBell();
     }
 
     async function saveUserSettingsToFirestore() {
@@ -1409,7 +1412,15 @@ document.addEventListener("DOMContentLoaded", () => {
         const userPhoto = userSettings.profile.avatarURL || user.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(userName)}&background=a855f7&color=fff`;
 
         authContainer.innerHTML = `
-            <button class="icon-btn" title="Reminders">🔔</button>
+            <div class="notif-wrapper" id="notif-wrapper">
+                <button class="icon-btn notif-bell-btn" id="notif-bell-btn" title="Notifications">
+                    🔔<span class="notif-badge" id="notif-badge" style="display:none;">0</span>
+                </button>
+                <div class="notif-panel" id="notif-panel">
+                    <div class="notif-panel-header">Notifications</div>
+                    <div class="notif-panel-list" id="notif-panel-list"></div>
+                </div>
+            </div>
             <div class="user-profile-wrapper" id="profile-dropdown-toggle">
                 <div class="user-profile" style="display: flex; align-items: center; gap: 8px;">
                     <img src="${userPhoto}" style="width:32px; height: 32px; border-radius:50%; object-fit: cover;">
