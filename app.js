@@ -106,7 +106,8 @@ function defaultSettings() {
             ambientVolume: 35,
             customAmbientYoutubeUrl: '',
             confetti: true
-        }
+        },
+        notifications: { enabled: true, boardCompletion: true }
     };
 }
 
