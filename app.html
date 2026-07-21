@@ -153,7 +153,7 @@
 
                         <a href="https://github.com/MRHWCKRR/Kairos" target="_blank" class="settings-github-btn" data-i18n="github_repo">⭐ GitHub Repo</a>
                         <button id="settings-logout-btn" class="settings-logout-btn" data-i18n="log_out">Log Out</button>
-                        <p class="settings-version">Kairos v0.3.0-beta</p>
+                        <p class="settings-version">Kairos v0.3.2-beta</p>
                     </nav>
 
                     <div class="settings-panels">
@@ -344,6 +344,15 @@
                                     <span data-i18n="notif_board_completion_label">✅ Notify when a routine is fully completed</span>
                                     <input type="checkbox" id="settings-notif-board-completion" checked>
                                 </label>
+                                <label class="settings-toggle-row" style="margin-top:12px;">
+                                    <span data-i18n="notif_bedtime_label">🛌 Bedtime reminders (15 min before Sleep events)</span>
+                                    <input type="checkbox" id="settings-notif-bedtime" checked>
+                                </label>
+                                <label class="settings-toggle-row" style="margin-top:12px;">
+                                    <span data-i18n="notif_browser_push_label">📱 Browser push notifications</span>
+                                    <input type="checkbox" id="settings-notif-browser-push">
+                                </label>
+                                <p class="settings-hint" id="browser-push-hint" style="display:none;">Your browser is blocking notifications for this site. Check your browser's site settings to allow them.</p>
                             </div>
                         </section>
 
