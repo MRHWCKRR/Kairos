@@ -36,6 +36,8 @@
                 <button class="nav-item" data-target="tasks-page" data-i18n="nav_tasks">Routines & Tasks</button>
                 <button class="nav-item" data-target="schedule-page">Schedule</button>
                 <button class="nav-item" data-target="calendar-page" data-i18n="nav_calendar">Calendar</button>
+                <button class="nav-item" data-target="achievements-page">Achievements</button>
+                <button class="nav-item" data-target="statistics-page">Statistics</button>
                 <button class="nav-item" data-target="settings-page" data-i18n="nav_settings">Settings</button>
             </nav>
 
@@ -90,6 +92,9 @@
                         <div class="progress-bar-container">
                             <div id="progress-bar-fill" class="progress-bar-fill"></div>
                         </div>
+
+                        <div id="focus-timer-container" class="dash-card"></div>
+                        <div id="mini-achievements-container" class="dash-card"></div>
                     </div>
                 </div>
             </div>
@@ -135,6 +140,35 @@
                     <button id="calendar-next-btn" class="calendar-nav-btn" title="Next Month">></button>
                 </div>
                 <div id="calendar-grid" class="calendar-grid"></div>
+            </div>
+
+            <!-- Achievements -->
+            <div id="achievements-page" class="page-view">
+                <h2>Achievements</h2>
+                <p>Track your progress and unlock badges as you build your routine.</p>
+
+                <div class="settings-group" id="achievement-goals-editor">
+                    <h3>Dashboard Goals</h3>
+                    <p class="text-muted">Pick up to 3 achievements to track with progress bars on your dashboard.</p>
+                    <div id="achievement-goal-selects"></div>
+                </div>
+
+                <div id="achievements-grid-container"></div>
+            </div>
+
+            <!-- Statistics -->
+            <div id="statistics-page" class="page-view">
+                <h2>Statistics</h2>
+                <p>Your focus time and task trends over time.</p>
+
+                <div class="option-tile-row" id="stats-range-toggle" style="margin-bottom: 20px;">
+                    <button class="option-tile active" data-stats-range="week">Week</button>
+                    <button class="option-tile" data-stats-range="month">Month</button>
+                    <button class="option-tile" data-stats-range="year">Year</button>
+                </div>
+
+                <div id="stats-charts-container" class="dashboard-grid"></div>
+                <div id="stats-totals-container" class="dashboard-grid" style="margin-top: 20px;"></div>
             </div>
 
             <!-- Settings -->
@@ -520,6 +554,9 @@
         <div id="youtube-ambient-player"></div>
     </div>
 
+
+    <div id="achievement-toast-container" class="achievement-toast-container"></div>
+    
     <script type="module" src="app.js?v=6"></script>
 </body>
 </html>
