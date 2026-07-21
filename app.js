@@ -2283,6 +2283,33 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
+    const notifBedtimeInput = document.getElementById('settings-notif-bedtime');
+    if (notifBedtimeInput) {
+        notifBedtimeInput.addEventListener('change', (e) => {
+            pendingSettings.notifications.bedtimeReminders = e.target.checked;
+            checkDirty();
+        });
+    }
+
+    const notifBrowserPushInput = document.getElementById('settings-notif-browser-push');
+    if (notifBrowserPushInput) {
+        notifBrowserPushInput.addEventListener('change', async (e) => {
+            if (e.target.checked) {
+                const granted = await requestBrowserPushPermission();
+                if (!granted) {
+                    e.target.checked = false;
+                    pendingSettings.notifications.browserPush = false;
+                    updateBrowserPushHint();
+                    checkDirty();
+                    return;
+                }
+            }
+            pendingSettings.notifications.browserPush = e.target.checked;
+            updateBrowserPushHint();
+            checkDirty();
+        });
+    }
+
     // --- 13 Schedule Engine (recurring weekly events) ---
 
     const SCHEDULE_CATEGORIES = {
