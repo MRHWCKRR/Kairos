@@ -874,10 +874,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 openAiDestinationModal();
                 aiInput.value = "";
 
-                pendingAiSections = newSections;
-                openAiDestinationModal();
-                aiInput.value = "";
-
             } catch (error) {
                 console.error(error);
                 alert(tr('alert_ai_generation_error'));
@@ -897,19 +893,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const closeAiDestinationModalBtn = document.getElementById('close-ai-destination-modal');
 
     function openAiDestinationModal() {
-        if (!aiDestinationModal) return;
-        if (aiDestinationExistingSelect) {
-            aiDestinationExistingSelect.innerHTML = boardsData.map(b => `<option value="${b.id}">${b.title}</option>`).join('');
-        }
-        const hasExisting = boardsData.length > 0;
-        const newRadio = aiDestinationModal.querySelector('input[name="ai-destination"][value="new"]');
-        const existingRadio = aiDestinationModal.querySelector('input[name="ai-destination"][value="existing"]');
-        if (newRadio) newRadio.checked = true;
-        if (existingRadio) existingRadio.disabled = !hasExisting;
-        if (aiDestinationNewName) aiDestinationNewName.value = '';
-        updateAiDestinationFieldStates();
-
-        function openAiDestinationModal() {
         if (!aiDestinationModal) return;
         if (aiDestinationExistingSelect) {
             aiDestinationExistingSelect.innerHTML = boardsData.map(b => `<option value="${b.id}">${b.title}</option>`).join('');
