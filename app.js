@@ -2175,6 +2175,7 @@ document.addEventListener("DOMContentLoaded", () => {
         ].slice(0, 50);
 
         saveNotificationsToFirestore();
+        showBrowserNotification(title, message);
     }
 
     function unreadNotifCount() {
@@ -2634,4 +2635,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     appReady = true;
     renderApp();
+
+    checkBedtimeReminders();
+    setInterval(checkBedtimeReminders, 60000);
 });
