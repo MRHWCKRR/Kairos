@@ -105,7 +105,7 @@ function defaultSettings() {
             customAmbientYoutubeUrl: '',
             confetti: true
         },
-        notifications: { enabled: true, boardCompletion: true }
+        notifications: { enabled: true, boardCompletion: true, bedtimeReminders: true, browserPush: false }
     };
 }
 
@@ -166,6 +166,7 @@ document.addEventListener("DOMContentLoaded", () => {
     let notificationsData = [];
     let scheduleData = [];
     let editingScheduleEventId = null;
+    const BEDTIME_REMINDER_LEAD_MINUTES = 15;
     let unsubscribeNotifications = null;
     let appReady = false;
     let ytPlayer = null;
@@ -1625,6 +1626,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const notifBoardCompletionEl = document.getElementById('settings-notif-board-completion');
         if (notifBoardCompletionEl) notifBoardCompletionEl.checked = !!pendingSettings.notifications.boardCompletion;
+
+        const notifBedtimeEl = document.getElementById('settings-notif-bedtime');
+        if (notifBedtimeEl) notifBedtimeEl.checked = !!pendingSettings.notifications.bedtimeReminders;
+
+        const notifBrowserPushEl = document.getElementById('settings-notif-browser-push');
+        if (notifBrowserPushEl) notifBrowserPushEl.checked = !!pendingSettings.notifications.browserPush;
+        updateBrowserPushHint();
 
         const volumeEl = document.getElementById('ambient-volume');
         if (volumeEl) volumeEl.value = pendingSettings.appearance.ambientVolume ?? 35;
