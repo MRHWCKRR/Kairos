@@ -801,7 +801,7 @@ document.addEventListener("DOMContentLoaded", () => {
             aiGenerateBtn.disabled = true;
             aiGenerateBtn.style.opacity = "0.7";
 
-           const languageName = getGeminiLanguageName(userSettings.accessibility.language || 'en');
+            const languageName = getGeminiLanguageName(userSettings.accessibility.language || 'en');
             const scheduleSummary = buildScheduleSummaryForAI();
             const userContext = buildUserContextForAI();
             const systemPrompt = `
