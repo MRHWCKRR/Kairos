@@ -2432,6 +2432,23 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
+    function buildScheduleSummaryForAI() {
+        if (!scheduleData.length) return '';
+
+        const byDay = SCHEDULE_DAY_LABELS.map((label, dayIndex) => {
+            const events = scheduleData
+                .filter(ev => ev.day === dayIndex)
+                .map(ev => {
+                    const cat = SCHEDULE_CATEGORIES[ev.category] || SCHEDULE_CATEGORIES.other;
+                    return `${ev.title} (${cat.label}, ${scheduleMinutesToLabel(scheduleTimeToMinutes(ev.start))}–${scheduleMinutesToLabel(scheduleTimeToMinutes(ev.end))})`;
+                });
+            return events.length ? `${label}: ${events.join('; ')}` : null;
+        }).filter(Boolean);
+
+        if (!byDay.length) return '';
+        return `\n\nThe user has these recurring weekly commitments — do NOT schedule study tasks during these times, and take sleep hours into account when suggesting a healthy pace:\n${byDay.join('\n')}`;
+    }
+
     function calculateAge(birthdateStr) {
         if (!birthdateStr) return null;
         const birthDate = new Date(birthdateStr);
