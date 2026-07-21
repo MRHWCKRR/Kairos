@@ -2543,6 +2543,92 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
+    // --- 14 Bedtime Reminder Engine ---
+
+    async function requestBrowserPushPermission() {
+        if (typeof Notification === 'undefined') {
+            alert("This browser doesn't support notifications.");
+            return false;
+        }
+        if (Notification.permission === 'granted') return true;
+        if (Notification.permission === 'denied') {
+            updateBrowserPushHint();
+            return false;
+        }
+        try {
+            const result = await Notification.requestPermission();
+            updateBrowserPushHint();
+            return result === 'granted';
+        } catch (e) {
+            return false;
+        }
+    }
+
+    function updateBrowserPushHint() {
+        const hint = document.getElementById('browser-push-hint');
+        if (!hint) return;
+        const blocked = typeof Notification !== 'undefined' && Notification.permission === 'denied';
+        hint.style.display = blocked ? 'block' : 'none';
+    }
+
+    function showBrowserNotification(title, message) {
+        if (!userSettings.notifications.browserPush) return;
+        if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+        try {
+            new Notification(title, { body: message, icon: 'images/kairos-logo.png' });
+        } catch (e) {
+            console.error('Browser notification error:', e);
+        }
+    }
+
+    function getBedtimeReminderStorageKey() {
+        return 'kairos_bedtime_fired';
+    }
+
+    function hasFiredBedtimeReminderToday(eventId) {
+        try {
+            const fired = JSON.parse(localStorage.getItem(getBedtimeReminderStorageKey()) || '{}');
+            return fired[eventId] === toDateKey(new Date());
+        } catch (e) {
+            return false;
+        }
+    }
+
+    function markBedtimeReminderFired(eventId) {
+        try {
+            const fired = JSON.parse(localStorage.getItem(getBedtimeReminderStorageKey()) || '{}');
+            fired[eventId] = toDateKey(new Date());
+            localStorage.setItem(getBedtimeReminderStorageKey(), JSON.stringify(fired));
+        } catch (e) { /* non-critical, skip silently */ }
+    }
+
+    function checkBedtimeReminders() {
+        if (!userSettings.notifications.enabled || !userSettings.notifications.bedtimeReminders) return;
+        if (!scheduleData.length) return;
+
+        const now = new Date();
+        const currentDay = now.getDay();
+        const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+        scheduleData
+            .filter(ev => ev.category === 'sleep')
+            .forEach(ev => {
+                if (ev.day !== currentDay) return;
+
+                const startMin = scheduleTimeToMinutes(ev.start);
+                const reminderMin = startMin - BEDTIME_REMINDER_LEAD_MINUTES;
+                if (reminderMin < 0) return; // skip sleep events starting right after midnight for now — edge case
+
+                if (currentMinutes === reminderMin && !hasFiredBedtimeReminderToday(ev.id)) {
+                    const title = '🛌 Bedtime coming up';
+                    const message = `"${ev.title}" starts at ${scheduleMinutesToLabel(startMin)} — start winding down.`;
+                    pushNotification(title, message);
+                    showBrowserNotification(title, message);
+                    markBedtimeReminderFired(ev.id);
+                }
+            });
+    }
+
     renderConfigOptions();
     populateSettingsForm();
 
