@@ -800,8 +800,9 @@ document.addEventListener("DOMContentLoaded", () => {
             aiGenerateBtn.style.opacity = "0.7";
 
             const languageName = getGeminiLanguageName(userSettings.accessibility.language || 'en');
+            const scheduleSummary = buildScheduleSummaryForAI();
             const systemPrompt = `
-            You are an expert AI Study Coach. The user will provide a syllabus, assignment, or goal. 
+            You are an expert AI Study Coach/schedule helper. The user will provide a syllabus, assignment, or goal. 
             Break it down into logical, actionable study sections and tasks.
             IMPORTANT: Write all section titles and task titles in ${languageName}, since that is the user's chosen app language.
             CRITICAL INSTRUCTION: You MUST respond with ONLY a valid, raw JSON array. 
@@ -817,7 +818,7 @@ document.addEventListener("DOMContentLoaded", () => {
                   { "id": "gen-task-2", "title": "Read and highlight sources", "completed": false }
                 ]
               }
-            ]
+            ]${scheduleSummary}
             User's Request:
             ${assignmentText}
             `;
@@ -1163,7 +1164,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const languageName = getGeminiLanguageName(userSettings.accessibility.language || 'en');
         const taskSummary = tasksForDay.map(t => `- ${t.title} [${t.completed ? 'done' : 'pending'}]`).join('\n');
-        const prompt = `You are a supportive productivity coach. Here is a user's task list for ${dateKey}:\n${taskSummary}\n\nWrite a short, encouraging 1-2 sentence comment about their day in ${languageName}, since that is the user's chosen app language. Be specific about what they've completed or still need to do. Do not use markdown formatting.`;
+        const scheduleSummary = buildScheduleSummaryForAI();
+        const userContext = buildUserContextForAI();
+        const prompt = `You are a supportive productivity coach and a student/professional's schedule helper. Here is a user's task list for ${dateKey}:\n${taskSummary}${scheduleSummary}${userContext}\n\nWrite a short, encouraging 1-2 sentence comment about their day in ${languageName}, since that is the user's chosen app language. Be specific about what they've completed or still need to do, and gently flag if their workload looks like it's cutting into sleep or rest time. Do not use markdown formatting.`;
 
         try {
             const cleanApiKey = apiKey.trim();
@@ -2346,6 +2349,27 @@ document.addEventListener("DOMContentLoaded", () => {
         } else {
             updatePlanInFirestore();
         }
+    }
+
+    function calculateAge(birthdateStr) {
+        if (!birthdateStr) return null;
+        const birthDate = new Date(birthdateStr);
+        if (isNaN(birthDate.getTime())) return null;
+
+        const today = new Date();
+        let age = today.getFullYear() - birthDate.getFullYear();
+        const hasHadBirthdayThisYear =
+            today.getMonth() > birthDate.getMonth() ||
+            (today.getMonth() === birthDate.getMonth() && today.getDate() >= birthDate.getDate());
+        if (!hasHadBirthdayThisYear) age--;
+
+        return age >= 0 && age < 130 ? age : null;
+    }
+
+    function buildUserContextForAI() {
+        const age = calculateAge(userSettings.profile.birthday);
+        if (age === null) return '';
+        return `\n\nThe user is ${age} years old — tailor pacing, workload, and any health/rest suggestions appropriately for their age group.`;
     }
 
     // --- Schedule event modal ---
