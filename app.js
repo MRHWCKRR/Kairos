@@ -779,6 +779,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const aiInput = document.getElementById("ai-input");
     const aiGenerateBtn = document.getElementById("ai-generate-btn");
     let pendingAiSections = null;
+    let pendingAiRecurringEvents = [];
 
     if (aiInput && aiGenerateBtn) {
         aiGenerateBtn.addEventListener("click", async () => {
@@ -799,26 +800,35 @@ document.addEventListener("DOMContentLoaded", () => {
             aiGenerateBtn.disabled = true;
             aiGenerateBtn.style.opacity = "0.7";
 
-            const languageName = getGeminiLanguageName(userSettings.accessibility.language || 'en');
+           const languageName = getGeminiLanguageName(userSettings.accessibility.language || 'en');
             const scheduleSummary = buildScheduleSummaryForAI();
+            const userContext = buildUserContextForAI();
             const systemPrompt = `
-            You are an expert AI Study Coach/schedule helper. The user will provide a syllabus, assignment, or goal. 
+            You are an expert AI Study Coach. The user will provide a syllabus, assignment, or goal.
             Break it down into logical, actionable study sections and tasks.
             IMPORTANT: Write all section titles and task titles in ${languageName}, since that is the user's chosen app language.
-            CRITICAL INSTRUCTION: You MUST respond with ONLY a valid, raw JSON array. 
-            Do NOT include markdown formatting, backticks, or the word 'json'. 
-            Just the raw array.
-            Use this exact structure:
-            [
-              {
-                "id": "gen-sec-1",
-                "title": "Section 1: Research",
-                "tasks": [
-                  { "id": "gen-task-1", "title": "Find 3 academic sources", "completed": false },
-                  { "id": "gen-task-2", "title": "Read and highlight sources", "completed": false }
-                ]
-              }
-            ]${scheduleSummary}
+
+            ADDITIONALLY: if the user's text mentions any RECURRING weekly commitment (e.g. "I have football training every Tuesday 4-6pm", "I sleep from 10pm to 6am", "math class on Mondays and Wednesdays 9-10am"), extract each one as a recurring event. Only extract things that repeat weekly on a fixed day/time — do NOT extract one-off deadlines or dates, those belong in tasks instead. If nothing recurring is mentioned, return an empty array for recurringEvents.
+
+            CRITICAL INSTRUCTION: You MUST respond with ONLY a valid, raw JSON object.
+            Do NOT include markdown formatting, backticks, or the word 'json'.
+            Just the raw object, using this exact structure:
+            {
+              "sections": [
+                {
+                  "id": "gen-sec-1",
+                  "title": "Section 1: Research",
+                  "tasks": [
+                    { "id": "gen-task-1", "title": "Find 3 academic sources", "completed": false },
+                    { "id": "gen-task-2", "title": "Read and highlight sources", "completed": false }
+                  ]
+                }
+              ],
+              "recurringEvents": [
+                { "title": "Football Training", "category": "training", "day": 2, "start": "16:00", "end": "18:00" }
+              ]
+            }
+            "day" is 0-6 where 0=Sunday, 1=Monday, ... 6=Saturday. "category" must be one of: sleep, class, tutoring, training, other. Times are 24-hour "HH:MM".${scheduleSummary}${userContext}
             User's Request:
             ${assignmentText}
             `;
@@ -844,7 +854,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 const data = await response.json();
                 let aiResponseText = data.candidates[0].content.parts[0].text;
                 aiResponseText = aiResponseText.replace(/```json/gi, "").replace(/```/gi, "").trim();
-                const newSections = JSON.parse(aiResponseText);
+                const parsed = JSON.parse(aiResponseText);
+
+                const newSections = Array.isArray(parsed) ? parsed : (parsed.sections || []);
+                const recurringEvents = Array.isArray(parsed) ? [] : (parsed.recurringEvents || []);
 
                 const uniqueId = Date.now();
                 newSections.forEach((sec, sIndex) => {
@@ -855,6 +868,11 @@ document.addEventListener("DOMContentLoaded", () => {
                         task.date = task.date || null;
                     });
                 });
+
+                pendingAiSections = newSections;
+                pendingAiRecurringEvents = recurringEvents;
+                openAiDestinationModal();
+                aiInput.value = "";
 
                 pendingAiSections = newSections;
                 openAiDestinationModal();
@@ -890,12 +908,41 @@ document.addEventListener("DOMContentLoaded", () => {
         if (existingRadio) existingRadio.disabled = !hasExisting;
         if (aiDestinationNewName) aiDestinationNewName.value = '';
         updateAiDestinationFieldStates();
+
+        function openAiDestinationModal() {
+        if (!aiDestinationModal) return;
+        if (aiDestinationExistingSelect) {
+            aiDestinationExistingSelect.innerHTML = boardsData.map(b => `<option value="${b.id}">${b.title}</option>`).join('');
+        }
+        const hasExisting = boardsData.length > 0;
+        const newRadio = aiDestinationModal.querySelector('input[name="ai-destination"][value="new"]');
+        const existingRadio = aiDestinationModal.querySelector('input[name="ai-destination"][value="existing"]');
+        if (newRadio) newRadio.checked = true;
+        if (existingRadio) existingRadio.disabled = !hasExisting;
+        if (aiDestinationNewName) aiDestinationNewName.value = '';
+        updateAiDestinationFieldStates();
+
+        const recurringPreview = document.getElementById('ai-destination-recurring-preview');
+        const recurringList = document.getElementById('ai-destination-recurring-list');
+        if (recurringPreview && recurringList) {
+            if (pendingAiRecurringEvents.length) {
+                recurringList.innerHTML = pendingAiRecurringEvents.map(ev => {
+                    const cat = SCHEDULE_CATEGORIES[ev.category] || SCHEDULE_CATEGORIES.other;
+                    return `<li>${ev.title} — ${SCHEDULE_DAY_LABELS[ev.day]}, ${scheduleMinutesToLabel(scheduleTimeToMinutes(ev.start))}–${scheduleMinutesToLabel(scheduleTimeToMinutes(ev.end))} (${cat.label})</li>`;
+                }).join('');
+                recurringPreview.style.display = 'block';
+            } else {
+                recurringPreview.style.display = 'none';
+            }
+        }
+
         aiDestinationModal.classList.add('active');
     }
 
     function closeAiDestinationModal() {
         if (aiDestinationModal) aiDestinationModal.classList.remove('active');
         pendingAiSections = null;
+        pendingAiRecurringEvents = [];
     }
 
     function updateAiDestinationFieldStates() {
@@ -930,6 +977,21 @@ document.addEventListener("DOMContentLoaded", () => {
             } else {
                 const name = (aiDestinationNewName.value || '').trim() || 'AI Plan';
                 boardsData.push({ id: 'board-' + Date.now(), title: name, sections: pendingAiSections });
+            }
+
+            const addRecurringCheckbox = document.getElementById('ai-destination-add-recurring');
+            if (pendingAiRecurringEvents.length && (!addRecurringCheckbox || addRecurringCheckbox.checked)) {
+                pendingAiRecurringEvents.forEach((ev, i) => {
+                    scheduleData.push({
+                        id: `ai-sched-${Date.now()}-${i}`,
+                        title: ev.title,
+                        category: SCHEDULE_CATEGORIES[ev.category] ? ev.category : 'other',
+                        day: Math.max(0, Math.min(6, parseInt(ev.day, 10) || 0)),
+                        start: ev.start,
+                        end: ev.end
+                    });
+                });
+                renderScheduleWeek();
             }
 
             if (!currentPlanDocId) {
