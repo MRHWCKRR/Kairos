@@ -2647,6 +2647,388 @@ document.addEventListener("DOMContentLoaded", () => {
             });
     }
 
+    // --- 15 Achievements Engine ---
+
+    async function loadUserProgressFromFirestore(user) {
+        try {
+            const ref = doc(db, 'users', user.uid);
+            const snap = await getDoc(ref);
+            const data = snap.exists() ? snap.data() : null;
+            const isNewDoc = !data || (!data.achievements && !data.focusData);
+
+            achievementsData = deepMerge(defaultAchievementsData(), data?.achievements || {});
+            focusData = deepMerge(defaultFocusData(), data?.focusData || {});
+
+            if (isNewDoc) {
+                triggerMiscAchievement('signup');
+                if (OG_ACHIEVEMENT_AVAILABLE) triggerMiscAchievement('og');
+            }
+        } catch (error) {
+            console.error('Error loading achievements/focus data:', error);
+        }
+        renderAchievementsPage();
+        renderGoalSelects();
+        renderMiniAchievementsWidget();
+        renderFocusTimerWidget();
+        renderStatisticsPage();
+    }
+
+    async function saveAchievementsToFirestore() {
+        const user = auth.currentUser;
+        if (!user) return;
+        try {
+            await setDoc(doc(db, 'users', user.uid), { achievements: achievementsData }, { merge: true });
+        } catch (error) {
+            console.error('Error saving achievements:', error);
+        }
+    }
+
+    async function saveFocusDataToFirestore() {
+        const user = auth.currentUser;
+        if (!user) return;
+        try {
+            await setDoc(doc(db, 'users', user.uid), { focusData: focusData }, { merge: true });
+        } catch (error) {
+            console.error('Error saving focus data:', error);
+        }
+    }
+
+    function getAchievementProgress(def) {
+        if (def.type === 'focus_seconds') return { current: focusData.totalSeconds, target: def.threshold };
+        if (def.type === 'tasks_completed') return { current: achievementsData.lifetimeTasksCompleted, target: def.threshold };
+        return null;
+    }
+
+    function formatProgressValue(def, val) {
+        if (def.type === 'focus_seconds') {
+            return val >= 3600 ? `${(val / 3600).toFixed(1)}h` : `${Math.round(val / 60)}m`;
+        }
+        return String(val);
+    }
+
+    function unlockAchievement(id) {
+        if (achievementsData.unlocked[id]) return;
+        const def = ACHIEVEMENTS.find(a => a.id === id);
+        if (!def) return;
+
+        achievementsData.unlocked[id] = Date.now();
+        saveAchievementsToFirestore();
+        showAchievementToast(def);
+        renderAchievementsPage();
+        renderMiniAchievementsWidget();
+    }
+
+    function checkFocusAchievements() {
+        ACHIEVEMENTS.filter(a => a.category === 'focus').forEach(a => {
+            if (!achievementsData.unlocked[a.id] && focusData.totalSeconds >= a.threshold) unlockAchievement(a.id);
+        });
+    }
+
+    function checkTaskAchievements() {
+        ACHIEVEMENTS.filter(a => a.category === 'tasks').forEach(a => {
+            if (!achievementsData.unlocked[a.id] && achievementsData.lifetimeTasksCompleted >= a.threshold) unlockAchievement(a.id);
+        });
+    }
+
+    function triggerMiscAchievement(eventName) {
+        const def = ACHIEVEMENTS.find(a => a.category === 'misc' && a.event === eventName);
+        if (def) unlockAchievement(def.id);
+    }
+
+    function showAchievementToast(def) {
+        const container = document.getElementById('achievement-toast-container');
+        if (!container) return;
+
+        const toast = document.createElement('div');
+        toast.className = 'achievement-toast';
+        toast.innerHTML = `
+            <div class="achievement-toast-badge">${def.icon}</div>
+            <div class="achievement-toast-text">
+                <p class="achievement-toast-label">Achievement Unlocked</p>
+                <p class="achievement-toast-name">${def.name}</p>
+            </div>
+        `;
+        container.appendChild(toast);
+        requestAnimationFrame(() => toast.classList.add('active'));
+
+        if (window.confetti && confettiEnabled) {
+            confetti({ particleCount: 120, spread: 80, origin: { y: 0.4 }, colors: [getAccentColor(), '#fbbf24', '#ffffff'] });
+        }
+
+        setTimeout(() => {
+            toast.classList.remove('active');
+            setTimeout(() => toast.remove(), 400);
+        }, 4500);
+    }
+
+    function renderAchievementsPage() {
+        const container = document.getElementById('achievements-grid-container');
+        if (!container) return;
+
+        const categories = ['focus', 'tasks', 'misc'];
+        container.innerHTML = categories.map(cat => {
+            const items = ACHIEVEMENTS.filter(a => a.category === cat);
+            const cardsHTML = items.map(def => {
+                const unlocked = !!achievementsData.unlocked[def.id];
+                const progress = getAchievementProgress(def);
+                let progressHTML = '';
+                if (progress && !unlocked) {
+                    const pct = Math.min(100, Math.round((progress.current / progress.target) * 100));
+                    progressHTML = `
+                        <div class="badge-progress-bar"><div class="badge-progress-fill" style="width:${pct}%"></div></div>
+                        <p class="badge-progress-text">${formatProgressValue(def, progress.current)} / ${formatProgressValue(def, progress.target)}</p>
+                    `;
+                }
+                const tagHTML = unlocked
+                    ? `<span class="badge-unlocked-tag">Unlocked</span>`
+                    : (def.limitedAvailability ? `<span class="badge-unlocked-tag" style="opacity:0.5;">Limited</span>` : '');
+
+                return `
+                    <div class="badge-card ${unlocked ? 'unlocked' : 'locked'}" data-achievement-id="${def.id}">
+                        <div class="badge-icon-circle">${def.icon}</div>
+                        <p class="badge-name">${def.name}</p>
+                        <p class="badge-desc">${def.desc}</p>
+                        ${progressHTML}
+                        ${tagHTML}
+                    </div>
+                `;
+            }).join('');
+
+            return `
+                <div class="achievement-category-block">
+                    <h3 class="achievement-category-title">${ACHIEVEMENT_CATEGORY_LABELS[cat]}</h3>
+                    <div class="badge-grid">${cardsHTML}</div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    function renderGoalSelects() {
+        const container = document.getElementById('achievement-goal-selects');
+        if (!container) return;
+
+        const trackable = ACHIEVEMENTS.filter(a => a.type === 'focus_seconds' || a.type === 'tasks_completed');
+        const goals = achievementsData.goals || [];
+
+        container.innerHTML = [0, 1, 2].map(i => `
+            <select class="settings-input goal-select" data-goal-index="${i}">
+                <option value="">— None —</option>
+                ${trackable.map(a => `<option value="${a.id}" ${goals[i] === a.id ? 'selected' : ''}>${a.icon} ${a.name}</option>`).join('')}
+            </select>
+        `).join('');
+
+        container.querySelectorAll('.goal-select').forEach(select => {
+            select.addEventListener('change', () => {
+                const idx = parseInt(select.dataset.goalIndex, 10);
+                const newGoals = [...(achievementsData.goals || [])];
+                newGoals[idx] = select.value || null;
+                achievementsData.goals = newGoals;
+                saveAchievementsToFirestore();
+                renderMiniAchievementsWidget();
+            });
+        });
+    }
+
+    function renderMiniAchievementsWidget() {
+        const container = document.getElementById('mini-achievements-container');
+        if (!container) return;
+
+        const goalIds = (achievementsData.goals || []).filter(Boolean).slice(0, 3);
+        if (!goalIds.length) {
+            container.innerHTML = `<h3>Goals</h3><p class="text-muted">Pick 3 goals in the Achievements tab to track them here.</p>`;
+            return;
+        }
+
+        const itemsHTML = goalIds.map(id => {
+            const def = ACHIEVEMENTS.find(a => a.id === id);
+            if (!def) return '';
+            const progress = getAchievementProgress(def);
+            const unlocked = !!achievementsData.unlocked[id];
+            const pct = unlocked ? 100 : (progress ? Math.min(100, Math.round((progress.current / progress.target) * 100)) : 0);
+            return `
+                <div class="mini-goal-item">
+                    <div class="mini-goal-header"><span>${def.icon} ${def.name}</span><span>${pct}%</span></div>
+                    <div class="progress-bar-container"><div class="progress-bar-fill" style="width:${pct}%"></div></div>
+                </div>
+            `;
+        }).join('');
+
+        container.innerHTML = `<h3>Goals</h3>${itemsHTML}`;
+    }
+
+    // --- 16 Focus Timer Widget ---
+
+    function formatHMS(totalSeconds) {
+        const h = Math.floor(totalSeconds / 3600);
+        const m = Math.floor((totalSeconds % 3600) / 60);
+        const s = Math.floor(totalSeconds % 60);
+        return [h, m, s].map(n => String(n).padStart(2, '0')).join(':');
+    }
+
+    function getFocusTimerElapsedSeconds() {
+        let ms = focusTimerAccumulatedMs;
+        if (focusTimerRunning) ms += Date.now() - focusTimerStartTs;
+        return Math.floor(ms / 1000);
+    }
+
+    function renderFocusTimerWidget() {
+        const container = document.getElementById('focus-timer-container');
+        if (!container) return;
+
+        container.innerHTML = `
+            <h3>Focus Timer</h3>
+            <div id="focus-timer-display" class="focus-timer-display">${formatHMS(getFocusTimerElapsedSeconds())}</div>
+            <p class="text-muted focus-timer-longest-row">Longest Time: <span id="focus-timer-longest">${formatHMS(focusData.longestSessionSeconds)}</span></p>
+            <div class="focus-timer-controls">
+                <button id="focus-timer-start-btn" class="action-btn small-btn" style="display:${focusTimerRunning ? 'none' : 'inline-block'};">Start</button>
+                <button id="focus-timer-pause-btn" class="action-btn small-btn" style="display:${focusTimerRunning ? 'inline-block' : 'none'};">Pause</button>
+                <button id="focus-timer-stop-btn" class="settings-cancel-btn">Stop & Log</button>
+            </div>
+        `;
+
+        document.getElementById('focus-timer-start-btn').addEventListener('click', startFocusTimer);
+        document.getElementById('focus-timer-pause-btn').addEventListener('click', pauseFocusTimer);
+        document.getElementById('focus-timer-stop-btn').addEventListener('click', stopFocusTimer);
+    }
+
+    function updateFocusTimerDisplayTick() {
+        const el = document.getElementById('focus-timer-display');
+        if (el) el.textContent = formatHMS(getFocusTimerElapsedSeconds());
+    }
+
+    function startFocusTimer() {
+        if (focusTimerRunning) return;
+        focusTimerRunning = true;
+        focusTimerStartTs = Date.now();
+        focusTimerIntervalId = setInterval(updateFocusTimerDisplayTick, 1000);
+        renderFocusTimerWidget();
+    }
+
+    function pauseFocusTimer() {
+        if (!focusTimerRunning) return;
+        focusTimerRunning = false;
+        focusTimerAccumulatedMs += Date.now() - focusTimerStartTs;
+        clearInterval(focusTimerIntervalId);
+        renderFocusTimerWidget();
+    }
+
+    function stopFocusTimer() {
+        const elapsedSeconds = getFocusTimerElapsedSeconds();
+        focusTimerRunning = false;
+        clearInterval(focusTimerIntervalId);
+        focusTimerAccumulatedMs = 0;
+        focusTimerStartTs = null;
+
+        if (elapsedSeconds >= 1) {
+            focusData.totalSeconds += elapsedSeconds;
+            if (elapsedSeconds > focusData.longestSessionSeconds) focusData.longestSessionSeconds = elapsedSeconds;
+
+            const todayKey = toDateKey(new Date());
+            focusData.dailyFocusLog[todayKey] = (focusData.dailyFocusLog[todayKey] || 0) + elapsedSeconds;
+
+            checkFocusAchievements();
+            saveFocusDataToFirestore();
+            renderStatisticsPage();
+        }
+
+        renderFocusTimerWidget();
+        renderMiniAchievementsWidget();
+    }
+
+    function logTaskCompletionForStats() {
+        const todayKey = toDateKey(new Date());
+        focusData.dailyTasksLog[todayKey] = (focusData.dailyTasksLog[todayKey] || 0) + 1;
+        saveFocusDataToFirestore();
+        renderStatisticsPage();
+    }
+
+    // --- 17 Statistics Engine ---
+
+    function aggregateDailyLog(log, range) {
+        const now = new Date();
+
+        if (range === 'week') {
+            const days = [];
+            for (let i = 6; i >= 0; i--) {
+                const d = new Date(now);
+                d.setDate(d.getDate() - i);
+                days.push({ label: d.toLocaleDateString(undefined, { weekday: 'short' }), value: log[toDateKey(d)] || 0 });
+            }
+            return days;
+        }
+
+        if (range === 'month') {
+            const weeks = [0, 0, 0, 0, 0];
+            Object.keys(log).forEach(key => {
+                const d = new Date(key);
+                if (d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()) {
+                    const weekIndex = Math.min(4, Math.floor((d.getDate() - 1) / 7));
+                    weeks[weekIndex] += log[key];
+                }
+            });
+            return weeks.map((v, i) => ({ label: `Wk ${i + 1}`, value: v }));
+        }
+
+        // year
+        const months = Array(12).fill(0);
+        const monthLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        Object.keys(log).forEach(key => {
+            const d = new Date(key);
+            if (d.getFullYear() === now.getFullYear()) months[d.getMonth()] += log[key];
+        });
+        return months.map((v, i) => ({ label: monthLabels[i], value: v }));
+    }
+
+    function renderBarChartSVG(data, valueFormatter) {
+        const max = Math.max(1, ...data.map(d => d.value));
+        return `
+            <div class="bar-chart">
+                ${data.map(d => ` 
+                    <div class="bar-chart-col" style="width:${100 / data.length}%">
+                        <div class="bar-chart-bar" style="height:${(d.value / max) * 100}%" title="${valueFormatter(d.value)}"></div>
+                        <span class="bar-chart-label">${d.label}</span>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    }
+
+    function renderStatisticsPage() {
+        const chartsContainer = document.getElementById('stats-charts-container');
+        const totalsContainer = document.getElementById('stats-totals-container');
+        if (!chartsContainer) return;
+
+        const focusChartData = aggregateDailyLog(focusData.dailyFocusLog || {}, statsRange);
+        const taskChartData = aggregateDailyLog(focusData.dailyTasksLog || {}, statsRange);
+
+        chartsContainer.innerHTML = `
+            <div class="dash-card">
+                <h3>Focus Time</h3>
+                ${renderBarChartSVG(focusChartData, v => formatHMS(v))}
+            </div>
+            <div class="dash-card">
+                <h3>Tasks Completed</h3>
+                ${renderBarChartSVG(taskChartData, v => `${v} tasks`)}
+            </div>
+        `;
+
+        if (totalsContainer) {
+            totalsContainer.innerHTML = `
+                <div class="dash-card"><h3>Total Focus Logged</h3><p class="stats-percentage">${formatHMS(focusData.totalSeconds)}</p></div>
+                <div class="dash-card"><h3>Longest Session</h3><p class="stats-percentage">${formatHMS(focusData.longestSessionSeconds)}</p></div>
+                <div class="dash-card"><h3>Total Tasks Completed</h3><p class="stats-percentage">${achievementsData.lifetimeTasksCompleted}</p></div>
+            `;
+        }
+    }
+
+    document.querySelectorAll('#stats-range-toggle .option-tile').forEach(btn => {
+        btn.addEventListener('click', () => {
+            statsRange = btn.dataset.statsRange;
+            document.querySelectorAll('#stats-range-toggle .option-tile').forEach(b => b.classList.toggle('active', b === btn));
+            renderStatisticsPage();
+        });
+    });
+
     renderConfigOptions();
     populateSettingsForm();
 
