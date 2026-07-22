@@ -426,6 +426,7 @@ document.addEventListener("DOMContentLoaded", () => {
         renderScheduleWeek();
         renderFocusTimerWidget();
         renderMiniAchievementsWidget();
+        renderArchivePanel();
     }
 
     function findFirstIncompleteSection() {
@@ -637,6 +638,67 @@ document.addEventListener("DOMContentLoaded", () => {
             saveNotificationsToFirestore();
             renderNotifPanel();
             updateNotifBadge();
+            return;
+        }
+
+        const restoreBoardBtn = e.target.closest('.archive-restore-board-btn');
+        if (restoreBoardBtn) {
+            const board = findBoard(restoreBoardBtn.getAttribute('data-board-id'));
+            if (board) { board.archived = false; updatePlanInFirestore(); renderApp(); }
+            return;
+        }
+
+        const deleteBoardForeverBtn = e.target.closest('.archive-delete-board-btn');
+        if (deleteBoardForeverBtn) {
+            if (confirm('Permanently delete this board and everything in it? This cannot be undone.')) {
+                const boardId = deleteBoardForeverBtn.getAttribute('data-board-id');
+                boardsData = boardsData.filter(b => b.id !== boardId);
+                updatePlanInFirestore();
+                renderApp();
+            }
+            return;
+        }
+
+        const restoreSectionBtn = e.target.closest('.archive-restore-section-btn');
+        if (restoreSectionBtn) {
+            const found = findSection(restoreSectionBtn.getAttribute('data-section-id'));
+            if (found) { found.section.archived = false; updatePlanInFirestore(); renderApp(); }
+            return;
+        }
+
+        const deleteSectionForeverBtn = e.target.closest('.archive-delete-section-btn');
+        if (deleteSectionForeverBtn) {
+            if (confirm('Permanently delete this section and its tasks? This cannot be undone.')) {
+                const boardId = deleteSectionForeverBtn.getAttribute('data-board-id');
+                const sectionId = deleteSectionForeverBtn.getAttribute('data-section-id');
+                const board = findBoard(boardId);
+                if (board) {
+                    board.sections = board.sections.filter(s => s.id !== sectionId);
+                    updatePlanInFirestore();
+                    renderApp();
+                }
+            }
+            return;
+        }
+
+        const restoreTaskBtn = e.target.closest('.archive-restore-task-btn');
+        if (restoreTaskBtn) {
+            const found = findSection(restoreTaskBtn.getAttribute('data-section-id'));
+            const task = found ? found.section.tasks.find(t => t.id === restoreTaskBtn.getAttribute('data-task-id')) : null;
+            if (task) { task.archived = false; updatePlanInFirestore(); renderApp(); }
+            return;
+        }
+
+        const deleteTaskForeverBtn = e.target.closest('.archive-delete-task-btn');
+        if (deleteTaskForeverBtn) {
+            if (confirm('Permanently delete this task? This cannot be undone.')) {
+                const found = findSection(deleteTaskForeverBtn.getAttribute('data-section-id'));
+                if (found) {
+                    found.section.tasks = found.section.tasks.filter(t => t.id !== deleteTaskForeverBtn.getAttribute('data-task-id'));
+                    updatePlanInFirestore();
+                    renderApp();
+                }
+            }
             return;
         }
 
