@@ -200,6 +200,99 @@ document.addEventListener("DOMContentLoaded", () => {
         return null;
     }
 
+    function normalizeArchiveFields(boards) {
+        boards.forEach(board => {
+            if (board.archived === undefined) board.archived = false;
+            board.sections.forEach(section => {
+                if (section.archived === undefined) section.archived = false;
+                section.tasks.forEach(task => {
+                    if (task.archived === undefined) task.archived = false;
+                });
+            });
+        });
+        return boards;
+    }
+
+    function renderArchivePanel() {
+        const container = document.getElementById('archive-panel-container');
+        const countEl = document.getElementById('archive-count');
+        if (!container) return;
+
+        const archivedBoards = boardsData.filter(b => b.archived);
+        const archivedSections = [];
+        const archivedTasks = [];
+        boardsData.forEach(board => {
+            board.sections.forEach(section => {
+                if (section.archived && !board.archived) archivedSections.push({ board, section });
+                section.tasks.forEach(task => {
+                    if (task.archived && !section.archived && !board.archived) archivedTasks.push({ board, section, task });
+                });
+            });
+        });
+
+        const totalCount = archivedBoards.length + archivedSections.length + archivedTasks.length;
+        if (countEl) countEl.textContent = totalCount;
+
+        if (!totalCount) {
+            container.innerHTML = `<div class="archive-panel"><p class="archive-empty">Nothing archived yet. Deleted boards, sections, and tasks show up here so they can still be found on the Calendar and restored if needed.</p></div>`;
+            return;
+        }
+
+        let html = `<div class="archive-panel">`;
+
+        if (archivedBoards.length) {
+            html += `<p class="archive-section-title">Archived Boards</p>`;
+            html += archivedBoards.map(b => `
+                <div class="archive-item-row">
+                    <span class="archive-item-label">${b.title}</span>
+                    <div class="archive-item-actions">
+                        <button type="button" class="archive-restore-board-btn" data-board-id="${b.id}">Restore</button>
+                        <button type="button" class="archive-delete-board-btn danger-option" data-board-id="${b.id}">Delete Forever</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        if (archivedSections.length) {
+            html += `<p class="archive-section-title">Archived Sections</p>`;
+            html += archivedSections.map(({ board, section }) => `
+                <div class="archive-item-row">
+                    <span class="archive-item-label">${section.title} <span class="archive-item-meta">— ${board.title}</span></span>
+                    <div class="archive-item-actions">
+                        <button type="button" class="archive-restore-section-btn" data-section-id="${section.id}">Restore</button>
+                        <button type="button" class="archive-delete-section-btn danger-option" data-board-id="${board.id}" data-section-id="${section.id}">Delete Forever</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        if (archivedTasks.length) {
+            html += `<p class="archive-section-title">Archived Tasks</p>`;
+            html += archivedTasks.map(({ board, section, task }) => `
+                <div class="archive-item-row">
+                    <span class="archive-item-label">${task.title} <span class="archive-item-meta">— ${board.title} / ${section.title}</span></span>
+                    <div class="archive-item-actions">
+                        <button type="button" class="archive-restore-task-btn" data-section-id="${section.id}" data-task-id="${task.id}">Restore</button>
+                        <button type="button" class="archive-delete-task-btn danger-option" data-section-id="${section.id}" data-task-id="${task.id}">Delete Forever</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        html += `</div>`;
+        container.innerHTML = html;
+    }
+
+    const toggleArchiveBtn = document.getElementById('toggle-archive-btn');
+    const archivePanelContainer = document.getElementById('archive-panel-container');
+    if (toggleArchiveBtn && archivePanelContainer) {
+        toggleArchiveBtn.addEventListener('click', () => {
+            const isHidden = archivePanelContainer.style.display === 'none';
+            archivePanelContainer.style.display = isHidden ? 'block' : 'none';
+            if (isHidden) renderArchivePanel();
+        });
+    }
+
     // --- Calendar Data ---
     let dayInsights = {};
     let calendarViewDate = new Date();
@@ -337,7 +430,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function findFirstIncompleteSection() {
         for (const board of boardsData) {
-            const section = board.sections.find(s => s.tasks.some(task => !task.completed));
+            if (board.archived) continue;
+            const section = board.sections.find(s => !s.archived && s.tasks.some(task => !task.archived && !task.completed));
             if (section) return section;
         }
         return null;
@@ -347,7 +441,8 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!focusContainer) return;
         const activeSection = findFirstIncompleteSection();
         if (activeSection) {
-            let tasksHTML = activeSection.tasks.map(task => createTaskHTML(task, activeSection.id)).join('');
+            const visibleTasks = activeSection.tasks.filter(t => !t.archived);
+            let tasksHTML = visibleTasks.map(task => createTaskHTML(task, activeSection.id)).join('');
             focusContainer.innerHTML = `
                 <div class="fade-in-section">
                     <div class="checklist-header">
@@ -370,7 +465,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function renderSectionBlockHTML(board, section) {
-        let tasksHTML = section.tasks.map(task => createTaskHTML(task, section.id, true)).join('');
+        const visibleTasks = section.tasks.filter(t => !t.archived);
+        let tasksHTML = visibleTasks.map(task => createTaskHTML(task, section.id, true)).join('');
         return `
             <div class="board-section-block fade-in-section" data-board-id="${board.id}" data-section-id="${section.id}">
                 <div class="section-title-row">
@@ -379,7 +475,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         <button type="button" class="dots-menu-btn section-dots-btn" title="${tr('section_options')}">⋮</button>
                         <div class="dots-menu section-dots-menu">
                             <button type="button" class="section-rename-btn">${tr('rename')}</button>
-                            <button type="button" class="section-delete-btn danger-option">${tr('delete')}</button>
+                            <button type="button" class="section-delete-btn danger-option">Archive</button>
                         </div>
                     </div>
                 </div>
@@ -390,7 +486,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function renderBoardCardHTML(board) {
-        const sectionsHTML = board.sections.map(section => renderSectionBlockHTML(board, section)).join('');
+        const visibleSections = board.sections.filter(s => !s.archived);
+        const sectionsHTML = visibleSections.map(section => renderSectionBlockHTML(board, section)).join('');
         return `
             <div class="board-card fade-in-section" data-board-id="${board.id}">
                 <div class="board-card-header">
@@ -399,7 +496,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         <button type="button" class="dots-menu-btn board-dots-btn" title="${tr('board_options')}">⋮</button>
                         <div class="dots-menu board-dots-menu">
                             <button type="button" class="board-rename-btn">${tr('rename')}</button>
-                            <button type="button" class="board-delete-btn danger-option">${tr('delete')}</button>
+                            <button type="button" class="board-delete-btn danger-option">Archive</button>
                         </div>
                     </div>
                 </div>
@@ -411,11 +508,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function renderBoardsGrid() {
         if (!managerContainer) return;
-        if (!boardsData.length) {
+        const visibleBoards = boardsData.filter(b => !b.archived);
+        if (!visibleBoards.length) {
             managerContainer.innerHTML = `<p class="boards-empty-state text-muted">${tr('no_boards_yet')}</p>`;
             return;
         }
-        managerContainer.innerHTML = boardsData.map(renderBoardCardHTML).join('');
+        managerContainer.innerHTML = visibleBoards.map(renderBoardCardHTML).join('');
     }
 
     // --- 3 Interactive State Updates ---
@@ -548,15 +646,19 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
-        const taskDeleteBtn = e.target.closest('.task-delete-btn');
-        if (taskDeleteBtn) {
-            const sectionId = taskDeleteBtn.getAttribute('data-section');
-            const taskId = taskDeleteBtn.getAttribute('data-task');
-            const found = findSection(sectionId);
-            if (found) {
-                found.section.tasks = found.section.tasks.filter(t => t.id !== taskId);
-                updatePlanInFirestore();
-                renderApp();
+        const sectionDeleteBtn = e.target.closest('.section-delete-btn');
+        if (sectionDeleteBtn) {
+            const block = sectionDeleteBtn.closest('.board-section-block');
+            const boardId = block.getAttribute('data-board-id');
+            const sectionId = block.getAttribute('data-section-id');
+            if (confirm('Archive this section? Its tasks will stay visible on the Calendar and can be restored from the Archive.')) {
+                const board = findBoard(boardId);
+                if (board) {
+                    const section = board.sections.find(s => s.id === sectionId);
+                    if (section) section.archived = true;
+                    updatePlanInFirestore();
+                    renderApp();
+                }
             }
             return;
         }
@@ -568,7 +670,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (found) {
                 const title = prompt(tr('new_task_prompt'));
                 if (title && title.trim()) {
-                    found.section.tasks.push({ id: 'task-' + Date.now(), title: title.trim(), completed: false, date: null });
+                    found.section.tasks.push({ id: 'task-' + Date.now(), title: title.trim(), completed: false, date: null, archived: false });
                     updatePlanInFirestore();
                     renderApp();
                 }
@@ -583,7 +685,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (board) {
                 const title = prompt(tr('new_section_prompt'));
                 if (title && title.trim()) {
-                    board.sections.push({ id: 'sec-' + Date.now(), title: title.trim(), tasks: [] });
+                    board.sections.push({ id: 'sec-' + Date.now(), title: title.trim(), tasks: [], archived: false });
                     updatePlanInFirestore();
                     renderApp();
                 }
@@ -653,7 +755,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (addBoardBtn) {
             const title = prompt(tr('new_board_prompt'));
             if (title && title.trim()) {
-                boardsData.push({ id: 'board-' + Date.now(), title: title.trim(), sections: [] });
+                boardsData.push({ id: 'board-' + Date.now(), title: title.trim(), sections: [], archived: false });
                 if (!currentPlanDocId) { savePlanToFirestore(boardsData); } else { updatePlanInFirestore(); }
                 renderApp();
             }
@@ -665,10 +767,17 @@ document.addEventListener("DOMContentLoaded", () => {
     function updateRoutineStats() {
         let totalTasks = 0;
         let completedTasks = 0;
-        boardsData.forEach(board => board.sections.forEach(section => {
-            totalTasks += section.tasks.length;
-            completedTasks += section.tasks.filter(t => t.completed).length;
-        }));
+        boardsData.forEach(board => {
+            if (board.archived) return;
+            board.sections.forEach(section => {
+                if (section.archived) return;
+                section.tasks.forEach(task => {
+                    if (task.archived) return;
+                    totalTasks++;
+                    if (task.completed) completedTasks++;
+                });
+            });
+        });
         const percentage = totalTasks === 0 ? 0 : Math.round((completedTasks / totalTasks) * 100);
         const percentageText = document.getElementById("stats-percentage");
         const fractionText = document.getElementById("stats-fraction");
@@ -690,8 +799,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
         outer:
         for (const board of boardsData) {
+            if (board.archived) continue;
             for (const section of board.sections) {
-                const incompleteTask = section.tasks.find(t => !t.completed);
+                if (section.archived) continue;
+                const incompleteTask = section.tasks.find(t => !t.archived && !t.completed);
                 if (incompleteTask) {
                     nextTask = incompleteTask;
                     activeSection = section;
@@ -853,7 +964,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 const latestPlan = plans[0];
                 currentPlanDocId = latestPlan.docId;
                 const migrated = migrateToBoards(latestPlan);
-                boardsData = migrated || boardsData;
+                boardsData = normalizeArchiveFields(migrated || boardsData);
                 dayInsights = latestPlan.dayInsights || {};
                 scheduleData = Array.isArray(latestPlan.scheduleEvents) ? latestPlan.scheduleEvents : [];
 
@@ -3142,3 +3253,7 @@ document.addEventListener("DOMContentLoaded", () => {
     checkBedtimeReminders();
     setInterval(checkBedtimeReminders, 60000);
 });
+
+                                                                                                                                                                                                            
+
+    
