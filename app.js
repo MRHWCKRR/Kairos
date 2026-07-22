@@ -18,6 +18,11 @@ import { LANGUAGES, applyTranslations, getLocale, getGeminiLanguageName, t } fro
 
 console.log("APP.js is loaded and running");
 
+// ===========================================================
+// CONFIG (modular — add more entries to these arrays, no other
+// code changes needed for most additions)
+// ===========================================================
+
 const THEMES = [
     { id: 'default', name: 'Default Purple', swatch: '#a855f7' },
     { id: 'fairyfloss', name: 'Fairy Floss', swatch: '#ff8fc9' },
@@ -67,6 +72,45 @@ const AMBIENT_SOUNDS = [
     { id: 'custom', name: '🔗 Custom YouTube', file: null }
 ];
 
+const OG_ACHIEVEMENT_AVAILABLE = true; // flip to false to stop granting the OG badge to new signups
+
+const ACHIEVEMENTS = [
+    // --- Locked In / Focused Time (cumulative seconds) ---
+    { id: 'focus_25m',  category: 'focus', name: 'Novice',              desc: 'Log 25 minutes of focus time', icon: '🔥', type: 'focus_seconds', threshold: 25 * 60 },
+    { id: 'focus_1h',   category: 'focus', name: 'Apprentice',          desc: 'Log 1 hour of focus time',     icon: '⚡', type: 'focus_seconds', threshold: 60 * 60 },
+    { id: 'focus_2h',   category: 'focus', name: 'Adept',               desc: 'Log 2 hours of focus time',    icon: '🌀', type: 'focus_seconds', threshold: 2 * 3600 },
+    { id: 'focus_5h',   category: 'focus', name: 'Specialist',          desc: 'Log 5 hours of focus time',    icon: '🎯', type: 'focus_seconds', threshold: 5 * 3600 },
+    { id: 'focus_10h',  category: 'focus', name: 'Expert',              desc: 'Log 10 hours of focus time',   icon: '🛡️', type: 'focus_seconds', threshold: 10 * 3600 },
+    { id: 'focus_20h',  category: 'focus', name: 'Veteran',             desc: 'Log 20 hours of focus time',   icon: '🏅', type: 'focus_seconds', threshold: 20 * 3600 },
+    { id: 'focus_50h',  category: 'focus', name: 'Master',              desc: 'Log 50 hours of focus time',   icon: '👑', type: 'focus_seconds', threshold: 50 * 3600 },
+    { id: 'focus_100h', category: 'focus', name: 'Grandmaster',         desc: 'Log 100 hours of focus time',  icon: '💎', type: 'focus_seconds', threshold: 100 * 3600 },
+    { id: 'focus_300h', category: 'focus', name: 'Legend',              desc: 'Log 300 hours of focus time',  icon: '⭐', type: 'focus_seconds', threshold: 300 * 3600 },
+    { id: 'focus_500h', category: 'focus', name: 'Mythic',              desc: 'Log 500 hours of focus time',  icon: '🌟', type: 'focus_seconds', threshold: 500 * 3600 },
+    { id: 'focus_1000h',category: 'focus', name: 'DEVELOPER???',        desc: 'Log 1000 hours of focus time', icon: '🧠', type: 'focus_seconds', threshold: 1000 * 3600 },
+
+    // --- Tasks Completed (lifetime, anti-farmed) ---
+    { id: 'tasks_5',     category: 'tasks', name: 'Getting Started',       desc: 'Complete 5 tasks',      icon: '📝', type: 'tasks_completed', threshold: 5 },
+    { id: 'tasks_15',    category: 'tasks', name: 'Warming Up',            desc: 'Complete 15 tasks',     icon: '📋', type: 'tasks_completed', threshold: 15 },
+    { id: 'tasks_30',    category: 'tasks', name: 'Task Tackler',          desc: 'Complete 30 tasks',     icon: '✅', type: 'tasks_completed', threshold: 30 },
+    { id: 'tasks_50',    category: 'tasks', name: 'On A Roll',             desc: 'Complete 50 tasks',     icon: '🎲', type: 'tasks_completed', threshold: 50 },
+    { id: 'tasks_100',   category: 'tasks', name: 'Centurion of Checkboxes', desc: 'Complete 100 tasks', icon: '🏆', type: 'tasks_completed', threshold: 100 },
+    { id: 'tasks_200',   category: 'tasks', name: 'Double Century',        desc: 'Complete 200 tasks',    icon: '🎖️', type: 'tasks_completed', threshold: 200 },
+    { id: 'tasks_500',   category: 'tasks', name: 'Half-K Hero',           desc: 'Complete 500 tasks',    icon: '🚀', type: 'tasks_completed', threshold: 500 },
+    { id: 'tasks_800',   category: 'tasks', name: 'Almost There...',       desc: 'Complete 800 tasks',    icon: '🔟', type: 'tasks_completed', threshold: 800 },
+    { id: 'tasks_1000',  category: 'tasks', name: 'Kilo-Tasker',           desc: 'Complete 1,000 tasks',  icon: '🗻', type: 'tasks_completed', threshold: 1000 },
+    { id: 'tasks_20000', category: 'tasks', name: 'Task Titan',            desc: 'Complete 20,000 tasks', icon: '🗿', type: 'tasks_completed', threshold: 20000 },
+    { id: 'tasks_50000', category: 'tasks', name: 'CHECKLIST MASTER',      desc: 'Complete 50,000 tasks', icon: '👑', type: 'tasks_completed', threshold: 50000 },
+
+    // --- Milestone / random ---
+    { id: 'misc_welcome', category: 'misc', name: 'Welcome to Kairos', desc: 'Join Kairos',                                icon: '👋', type: 'event', event: 'signup' },
+    { id: 'misc_og',      category: 'misc', name: 'OG',                desc: 'One of the original Kairos users',           icon: '🥇', type: 'event', event: 'og', limitedAvailability: true },
+    { id: 'misc_lofi',    category: 'misc', name: 'LOFIIII',           desc: 'Turn on the Lo-fi ambient sound',            icon: '🎧', type: 'event', event: 'lofi' },
+    { id: 'misc_light',   category: 'misc', name: 'Come To the Light', desc: 'Switch to Light mode',                       icon: '☀️', type: 'event', event: 'light_mode' },
+    { id: 'misc_busy',    category: 'misc', name: 'Real Busy',         desc: 'Schedule more than 10 tasks on a single day', icon: '📅', type: 'event', event: 'busy_day' }
+];
+
+const ACHIEVEMENT_CATEGORY_LABELS = { focus: 'Locked In Time', tasks: 'Tasks Completed', misc: 'Milestones' };
+
 function cloneDeep(obj) {
     return typeof structuredClone === 'function' ? structuredClone(obj) : JSON.parse(JSON.stringify(obj));
 }
@@ -109,6 +153,13 @@ function defaultSettings() {
     };
 }
 
+function defaultAchievementsData() {
+    return { unlocked: {}, countedTaskIds: [], lifetimeTasksCompleted: 0, goals: [] };
+}
+function defaultFocusData() {
+    return { totalSeconds: 0, longestSessionSeconds: 0, dailyFocusLog: {}, dailyTasksLog: {} };
+}
+
 document.addEventListener("DOMContentLoaded", () => {
 
     let checklistRenderTimeout;
@@ -142,7 +193,7 @@ document.addEventListener("DOMContentLoaded", () => {
     ];
 
     function migrateToBoards(loadedDoc) {
-        if (Array.isArray(loadedDoc.boards)) return loadedDoc.boards;
+        if (Array.isArray(loadedDoc.boards) && loadedDoc.boards.length) return loadedDoc.boards;
         if (Array.isArray(loadedDoc.sections)) {
             return [{ id: 'board-' + Date.now(), title: 'My Routine', sections: loadedDoc.sections }];
         }
@@ -163,16 +214,30 @@ document.addEventListener("DOMContentLoaded", () => {
     } catch (e) { /* ignore malformed cache */ }
     let pendingSettings = cloneDeep(userSettings);
     let confettiEnabled = userSettings.appearance.confetti;
+
+    // --- Notifications state ---
     let notificationsData = [];
+    let unsubscribeNotifications = null;
+
+    // --- Schedule state ---
     let scheduleData = [];
     let editingScheduleEventId = null;
     const BEDTIME_REMINDER_LEAD_MINUTES = 15;
-    let unsubscribeNotifications = null;
-    let appReady = false;
-    let ytPlayer = null;
+
+    // --- Achievements / Focus Timer / Statistics state ---
+    let achievementsData = defaultAchievementsData();
+    let focusData = defaultFocusData();
+    let statsRange = 'week';
+    let focusTimerRunning = false;
+    let focusTimerStartTs = null;
+    let focusTimerAccumulatedMs = 0;
+    let focusTimerIntervalId = null;
+
+    let appReady = false; // guards against calling render functions before they're defined below
+    let ytPlayer = null; // YouTube ambient player state — declared early since applyAllSettings() (called just below) can reach it via applyAmbientSound()
     let ytApiReadyPromise = null;
 
-   
+    // Shorthand: translate a key using whichever language is currently active.
     function tr(key) {
         return t(key, userSettings.accessibility.language || 'en');
     }
@@ -192,6 +257,7 @@ document.addEventListener("DOMContentLoaded", () => {
         loadLatestPlanFromFirestore(user);
         loadUserSettingsFromFirestore(user);
         setupNotificationsSync(user);
+        loadUserProgressFromFirestore(user);
     });
     
     // --- 1 UI Nav & Clock ---
@@ -215,6 +281,13 @@ document.addEventListener("DOMContentLoaded", () => {
             }
             if (button.getAttribute("data-target") === "schedule-page") {
                 scrollScheduleToDefault();
+            }
+            if (button.getAttribute("data-target") === "achievements-page") {
+                renderAchievementsPage();
+                renderGoalSelects();
+            }
+            if (button.getAttribute("data-target") === "statistics-page") {
+                renderStatisticsPage();
             }
         });
     });
@@ -258,6 +331,8 @@ document.addEventListener("DOMContentLoaded", () => {
         updateWhatsNextWidget();
         renderCalendar();
         renderScheduleWeek();
+        renderFocusTimerWidget();
+        renderMiniAchievementsWidget();
     }
 
     function findFirstIncompleteSection() {
@@ -369,6 +444,13 @@ document.addEventListener("DOMContentLoaded", () => {
             if (!task) return;
 
             task.completed = isNowChecked;
+            if (isNowChecked && !achievementsData.countedTaskIds.includes(taskId)) {
+                achievementsData.countedTaskIds.push(taskId);
+                achievementsData.lifetimeTasksCompleted++;
+                logTaskCompletionForStats();
+                checkTaskAchievements();
+                saveAchievementsToFirestore();
+            }
 
             const matchingCheckboxes = document.querySelectorAll(`input[type='checkbox'][data-task='${taskId}']`);
             matchingCheckboxes.forEach(checkbox => {
@@ -424,6 +506,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 task.date = newDate || null;
                 updatePlanInFirestore();
                 renderCalendar();
+                if (newDate) {
+                    const countForDay = getTasksForDate(newDate).length;
+                    if (countForDay > 10) triggerMiscAchievement('busy_day');
+                }
             }
         }
     });
@@ -646,6 +732,13 @@ document.addEventListener("DOMContentLoaded", () => {
             const task = section.tasks.find(t => t.id === taskId);
             if (task) {
                 task.completed = true;
+                if (!achievementsData.countedTaskIds.includes(taskId)) {
+                    achievementsData.countedTaskIds.push(taskId);
+                    achievementsData.lifetimeTasksCompleted++;
+                    logTaskCompletionForStats();
+                    checkTaskAchievements();
+                    saveAchievementsToFirestore();
+                }
                 
                 const matchingCheckboxes = document.querySelectorAll(`input[type='checkbox'][data-task='${taskId}']`);
                 matchingCheckboxes.forEach(checkbox => {
@@ -857,6 +950,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 aiResponseText = aiResponseText.replace(/```json/gi, "").replace(/```/gi, "").trim();
                 const parsed = JSON.parse(aiResponseText);
 
+                // Backward-compatible: older prompt shape was a bare array of sections.
                 const newSections = Array.isArray(parsed) ? parsed : (parsed.sections || []);
                 const recurringEvents = Array.isArray(parsed) ? [] : (parsed.recurringEvents || []);
 
@@ -1212,7 +1306,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const taskSummary = tasksForDay.map(t => `- ${t.title} [${t.completed ? 'done' : 'pending'}]`).join('\n');
         const scheduleSummary = buildScheduleSummaryForAI();
         const userContext = buildUserContextForAI();
-        const prompt = `You are a supportive productivity coach and a student/professional's schedule helper. Here is a user's task list for ${dateKey}:\n${taskSummary}${scheduleSummary}${userContext}\n\nWrite a short, encouraging 1-2 sentence comment about their day in ${languageName}, since that is the user's chosen app language. Be specific about what they've completed or still need to do, and gently flag if their workload looks like it's cutting into sleep or rest time. Do not use markdown formatting.`;
+        const prompt = `You are a supportive productivity coach. Here is a user's task list for ${dateKey}:\n${taskSummary}${scheduleSummary}${userContext}\n\nWrite a short, encouraging 1-2 sentence comment about their day in ${languageName}, since that is the user's chosen app language. Be specific about what they've completed or still need to do, and gently flag if their workload looks like it's cutting into sleep or rest time. Do not use markdown formatting.`;
 
         try {
             const cleanApiKey = apiKey.trim();
@@ -1688,7 +1782,6 @@ document.addEventListener("DOMContentLoaded", () => {
         const textColorContainer = document.getElementById('text-color-options');
         if (textColorContainer) {
             textColorContainer.innerHTML = TEXT_COLORS.map(c => {
-            
                 const swatchBg = c.hex || 'var(--text-primary)';
                 const label = tr(c.nameKey);
                 return `
@@ -1766,6 +1859,7 @@ document.addEventListener("DOMContentLoaded", () => {
             ambientContainer.innerHTML = AMBIENT_SOUNDS.map(a => `<button class="option-tile" data-value="${a.id}">${a.name}</button>`).join('');
             ambientContainer.querySelectorAll('.option-tile').forEach(btn => {
                 btn.addEventListener('click', () => {
+                    if (btn.dataset.value === 'lofi') triggerMiscAchievement('lofi');
                     pendingSettings.appearance.ambientSound = btn.dataset.value;
                     setActiveTile('ambient-options', btn.dataset.value);
                     updateYoutubeRowVisibility();
@@ -1963,6 +2057,7 @@ document.addEventListener("DOMContentLoaded", () => {
             settingsSaveBtn.disabled = true;
 
             userSettings = cloneDeep(pendingSettings);
+            if (userSettings.appearance.mode === 'light') triggerMiscAchievement('light_mode');
             localStorage.setItem('kairos_settings_cache', JSON.stringify(userSettings));
             applyAllSettings();
             await saveUserSettingsToFirestore();
@@ -2077,6 +2172,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 exportedAt: new Date().toISOString(),
                 boards: boardsData,
                 dayInsights: dayInsights,
+                scheduleEvents: scheduleData,
+                achievements: achievementsData,
+                focusData: focusData,
                 settings: userSettings
             };
             const blob = new Blob([JSON.stringify(exportObj, null, 2)], { type: 'application/json' });
@@ -2112,6 +2210,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 localStorage.removeItem('kairos_settings_cache');
                 localStorage.removeItem('kairos_api_key');
+                localStorage.removeItem('kairos_bedtime_fired');
                 alert(tr('alert_account_deleted'));
                 window.location.href = 'login.html';
             } catch (error) {
@@ -2143,6 +2242,17 @@ document.addEventListener("DOMContentLoaded", () => {
                     }];
                     saveNotificationsToFirestore();
                 }
+            }
+
+            if (data && data.achievements) {
+                achievementsData = deepMerge(defaultAchievementsData(), data.achievements);
+                renderAchievementsPage();
+                renderMiniAchievementsWidget();
+            }
+            if (data && data.focusData) {
+                focusData = deepMerge(defaultFocusData(), data.focusData);
+                renderFocusTimerWidget();
+                renderStatisticsPage();
             }
 
             updateNotifBadge();
@@ -2283,7 +2393,6 @@ document.addEventListener("DOMContentLoaded", () => {
             checkDirty();
         });
     }
-
     const notifBedtimeInput = document.getElementById('settings-notif-bedtime');
     if (notifBedtimeInput) {
         notifBedtimeInput.addEventListener('change', (e) => {
@@ -2291,7 +2400,6 @@ document.addEventListener("DOMContentLoaded", () => {
             checkDirty();
         });
     }
-
     const notifBrowserPushInput = document.getElementById('settings-notif-browser-push');
     if (notifBrowserPushInput) {
         notifBrowserPushInput.addEventListener('change', async (e) => {
@@ -2337,6 +2445,44 @@ document.addEventListener("DOMContentLoaded", () => {
         return `${h12}:${String(m).padStart(2, '0')} ${period}`;
     }
 
+    function buildScheduleSummaryForAI() {
+        if (!scheduleData.length) return '';
+
+        const byDay = SCHEDULE_DAY_LABELS.map((label, dayIndex) => {
+            const events = scheduleData
+                .filter(ev => ev.day === dayIndex)
+                .map(ev => {
+                    const cat = SCHEDULE_CATEGORIES[ev.category] || SCHEDULE_CATEGORIES.other;
+                    return `${ev.title} (${cat.label}, ${scheduleMinutesToLabel(scheduleTimeToMinutes(ev.start))}–${scheduleMinutesToLabel(scheduleTimeToMinutes(ev.end))})`;
+                });
+            return events.length ? `${label}: ${events.join('; ')}` : null;
+        }).filter(Boolean);
+
+        if (!byDay.length) return '';
+        return `\n\nThe user has these recurring weekly commitments — do NOT schedule study tasks during these times, and take sleep hours into account when suggesting a healthy pace:\n${byDay.join('\n')}`;
+    }
+
+    function calculateAge(birthdateStr) {
+        if (!birthdateStr) return null;
+        const birthDate = new Date(birthdateStr);
+        if (isNaN(birthDate.getTime())) return null;
+
+        const today = new Date();
+        let age = today.getFullYear() - birthDate.getFullYear();
+        const hasHadBirthdayThisYear =
+            today.getMonth() > birthDate.getMonth() ||
+            (today.getMonth() === birthDate.getMonth() && today.getDate() >= birthDate.getDate());
+        if (!hasHadBirthdayThisYear) age--;
+
+        return age >= 0 && age < 130 ? age : null; // sanity guard against typo'd dates
+    }
+
+    function buildUserContextForAI() {
+        const age = calculateAge(userSettings.profile.birthday);
+        if (age === null) return '';
+        return `\n\nThe user is ${age} years old — tailor pacing, workload, and any health/rest suggestions appropriately for their age group.`;
+    }
+
     function renderScheduleEventBlock(ev) {
         const startMin = scheduleTimeToMinutes(ev.start);
         const endMinRaw = scheduleTimeToMinutes(ev.end);
@@ -2354,7 +2500,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function renderScheduleOverflowBlock(ev) {
-        // The tail of an overnight event (e.g. sleep), shown at the top of the next day.
         const endMin = scheduleTimeToMinutes(ev.end);
         if (endMin <= 0) return '';
         const height = Math.max(16, (endMin / 60) * SCHEDULE_HOUR_HEIGHT);
@@ -2389,7 +2534,6 @@ document.addEventListener("DOMContentLoaded", () => {
             const eventsForDay = scheduleData.filter(ev => ev.day === dayIndex);
             let eventsHTML = eventsForDay.map(renderScheduleEventBlock).join('');
 
-            // Pull in overnight events that started the day before
             const prevDay = (dayIndex + 6) % 7;
             const overflowEvents = scheduleData.filter(ev => ev.day === prevDay && scheduleTimeToMinutes(ev.end) <= scheduleTimeToMinutes(ev.start));
             eventsHTML += overflowEvents.map(renderScheduleOverflowBlock).join('');
@@ -2419,7 +2563,7 @@ document.addEventListener("DOMContentLoaded", () => {
     function scrollScheduleToDefault() {
         const grid = document.querySelector('#schedule-week-container .schedule-week-grid');
         if (grid && !grid.dataset.scrolled) {
-            grid.scrollTop = 6 * SCHEDULE_HOUR_HEIGHT; // open the view around 6 AM
+            grid.scrollTop = 6 * SCHEDULE_HOUR_HEIGHT;
             grid.dataset.scrolled = 'true';
         }
     }
@@ -2430,44 +2574,6 @@ document.addEventListener("DOMContentLoaded", () => {
         } else {
             updatePlanInFirestore();
         }
-    }
-
-    function buildScheduleSummaryForAI() {
-        if (!scheduleData.length) return '';
-
-        const byDay = SCHEDULE_DAY_LABELS.map((label, dayIndex) => {
-            const events = scheduleData
-                .filter(ev => ev.day === dayIndex)
-                .map(ev => {
-                    const cat = SCHEDULE_CATEGORIES[ev.category] || SCHEDULE_CATEGORIES.other;
-                    return `${ev.title} (${cat.label}, ${scheduleMinutesToLabel(scheduleTimeToMinutes(ev.start))}–${scheduleMinutesToLabel(scheduleTimeToMinutes(ev.end))})`;
-                });
-            return events.length ? `${label}: ${events.join('; ')}` : null;
-        }).filter(Boolean);
-
-        if (!byDay.length) return '';
-        return `\n\nThe user has these recurring weekly commitments — do NOT schedule study tasks during these times, and take sleep hours into account when suggesting a healthy pace:\n${byDay.join('\n')}`;
-    }
-
-    function calculateAge(birthdateStr) {
-        if (!birthdateStr) return null;
-        const birthDate = new Date(birthdateStr);
-        if (isNaN(birthDate.getTime())) return null;
-
-        const today = new Date();
-        let age = today.getFullYear() - birthDate.getFullYear();
-        const hasHadBirthdayThisYear =
-            today.getMonth() > birthDate.getMonth() ||
-            (today.getMonth() === birthDate.getMonth() && today.getDate() >= birthDate.getDate());
-        if (!hasHadBirthdayThisYear) age--;
-
-        return age >= 0 && age < 130 ? age : null;
-    }
-
-    function buildUserContextForAI() {
-        const age = calculateAge(userSettings.profile.birthday);
-        if (age === null) return '';
-        return `\n\nThe user is ${age} years old — tailor pacing, workload, and any health/rest suggestions appropriately for their age group.`;
     }
 
     // --- Schedule event modal ---
@@ -2635,13 +2741,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 const startMin = scheduleTimeToMinutes(ev.start);
                 const reminderMin = startMin - BEDTIME_REMINDER_LEAD_MINUTES;
-                if (reminderMin < 0) return; // skip sleep events starting right after midnight for now — edge case
+                if (reminderMin < 0) return;
 
                 if (currentMinutes === reminderMin && !hasFiredBedtimeReminderToday(ev.id)) {
                     const title = '🛌 Bedtime coming up';
                     const message = `"${ev.title}" starts at ${scheduleMinutesToLabel(startMin)} — start winding down.`;
                     pushNotification(title, message);
-                    showBrowserNotification(title, message);
                     markBedtimeReminderFired(ev.id);
                 }
             });
@@ -2969,7 +3074,6 @@ document.addEventListener("DOMContentLoaded", () => {
             return weeks.map((v, i) => ({ label: `Wk ${i + 1}`, value: v }));
         }
 
-        // year
         const months = Array(12).fill(0);
         const monthLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
         Object.keys(log).forEach(key => {
@@ -2983,7 +3087,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const max = Math.max(1, ...data.map(d => d.value));
         return `
             <div class="bar-chart">
-                ${data.map(d => ` 
+                ${data.map(d => `
                     <div class="bar-chart-col" style="width:${100 / data.length}%">
                         <div class="bar-chart-bar" style="height:${(d.value / max) * 100}%" title="${valueFormatter(d.value)}"></div>
                         <span class="bar-chart-label">${d.label}</span>
