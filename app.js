@@ -193,12 +193,12 @@ document.addEventListener("DOMContentLoaded", () => {
     ];
 
     function migrateToBoards(loadedDoc) {
-        if (Array.isArray(loadedDoc.boards) && loadedDoc.boards.length) return loadedDoc.boards;
-        if (Array.isArray(loadedDoc.sections)) {
-            return [{ id: 'board-' + Date.now(), title: 'My Routine', sections: loadedDoc.sections }];
-        }
-        return null;
+    if (Array.isArray(loadedDoc.boards)) return loadedDoc.boards;
+    if (Array.isArray(loadedDoc.sections)) {
+        return [{ id: 'board-' + Date.now(), title: 'My Routine', sections: loadedDoc.sections }];
     }
+    return null;
+}
 
     function normalizeArchiveFields(boards) {
         boards.forEach(board => {
@@ -3316,7 +3316,3 @@ document.addEventListener("DOMContentLoaded", () => {
     checkBedtimeReminders();
     setInterval(checkBedtimeReminders, 60000);
 });
-
-                                                                                                                                                                                                            
-
-    
