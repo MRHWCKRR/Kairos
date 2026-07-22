@@ -1378,3 +1378,55 @@ body.cursor-spaceship, body.cursor-spaceship * { cursor: url('cursors/spaceship.
     transition: height 0.4s ease;
 }
 .bar-chart-label { font-size: 0.65rem; color: var(--text-muted); margin-top: 6px; }
+
+/* ============================================= */
+/* ARCHIVE                                        */
+/* ============================================= */
+.archive-panel {
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+    padding: 20px;
+}
+.archive-section-title {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    margin: 16px 0 8px 0;
+}
+.archive-section-title:first-child { margin-top: 0; }
+.archive-item-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: var(--bg-main);
+    margin-bottom: 8px;
+    gap: 12px;
+}
+.archive-item-label {
+    font-size: 0.9rem;
+    color: var(--text-primary);
+    flex-grow: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.archive-item-meta { font-size: 0.78rem; color: var(--text-muted); font-weight: 400; }
+.archive-item-actions { display: flex; gap: 8px; flex-shrink: 0; }
+.archive-item-actions button {
+    font-size: 0.75rem;
+    padding: 6px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    border: 1px solid var(--border-subtle);
+    background: var(--bg-card);
+    color: var(--text-primary);
+}
+.archive-item-actions button:hover { border-color: var(--accent-glow); color: var(--accent-glow); }
+.archive-item-actions button.danger-option { color: #ef4444; border-color: rgba(239, 68, 68, 0.3); }
+.archive-item-actions button.danger-option:hover { background: rgba(239, 68, 68, 0.1); }
+.archive-empty { color: var(--text-muted); font-size: 0.85rem; text-align: center; padding: 20px; }
