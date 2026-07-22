@@ -646,6 +646,20 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
+        const taskDeleteBtn = e.target.closest('.task-delete-btn');
+        if (taskDeleteBtn) {
+            const sectionId = taskDeleteBtn.getAttribute('data-section');
+            const taskId = taskDeleteBtn.getAttribute('data-task');
+            const found = findSection(sectionId);
+            if (found) {
+                const task = found.section.tasks.find(t => t.id === taskId);
+                if (task) task.archived = true;
+                updatePlanInFirestore();
+                renderApp();
+            }
+            return;
+        }
+
         const sectionDeleteBtn = e.target.closest('.section-delete-btn');
         if (sectionDeleteBtn) {
             const block = sectionDeleteBtn.closest('.board-section-block');
@@ -708,22 +722,6 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
-        const sectionDeleteBtn = e.target.closest('.section-delete-btn');
-        if (sectionDeleteBtn) {
-            const block = sectionDeleteBtn.closest('.board-section-block');
-            const boardId = block.getAttribute('data-board-id');
-            const sectionId = block.getAttribute('data-section-id');
-            if (confirm(tr('confirm_delete_section'))) {
-                const board = findBoard(boardId);
-                if (board) {
-                    board.sections = board.sections.filter(s => s.id !== sectionId);
-                    updatePlanInFirestore();
-                    renderApp();
-                }
-            }
-            return;
-        }
-
         const boardRenameBtn = e.target.closest('.board-rename-btn');
         if (boardRenameBtn) {
             const card = boardRenameBtn.closest('.board-card');
@@ -743,10 +741,13 @@ document.addEventListener("DOMContentLoaded", () => {
         if (boardDeleteBtn) {
             const card = boardDeleteBtn.closest('.board-card');
             const boardId = card.getAttribute('data-board-id');
-            if (confirm(tr('confirm_delete_board'))) {
-                boardsData = boardsData.filter(b => b.id !== boardId);
-                updatePlanInFirestore();
-                renderApp();
+            if (confirm('Archive this board? Its tasks will stay visible on the Calendar and can be restored from the Archive.')) {
+                const board = findBoard(boardId);
+                if (board) {
+                    board.archived = true;
+                    updatePlanInFirestore();
+                    renderApp();
+                }
             }
             return;
         }
