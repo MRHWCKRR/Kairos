@@ -1535,6 +1535,11 @@ document.addEventListener("DOMContentLoaded", () => {
     function getAccentColor() {
         return getComputedStyle(document.body).getPropertyValue('--accent-glow').trim() || '#a855f7';
     }
+    function updateLogoForTheme(themeId) {
+        const logoImg = document.getElementById('app-logo-img');
+        if (!logoImg) return;
+        logoImg.src = LOGO_VARIANTS[themeId] || LOGO_VARIANTS.default;
+    }
 
     function applyAllSettings() {
         const s = userSettings;
@@ -1543,8 +1548,15 @@ document.addEventListener("DOMContentLoaded", () => {
                 document.body.classList.remove(cls);
             }
         });
+        document.body.classList.toggle('mode-light', s.appearance.mode === 'light');
         document.body.classList.add(`theme-${s.appearance.theme}`);
-        document.body.classList.add(`theme-${pendingSettings.appearance.theme}`);
+        document.body.classList.add(`theme-${s.appearance.theme}`);
+        updateLogoForTheme(s.appearance.theme);
+        document.body.classList.add(`textcolor-${s.appearance.textColor || 'default'}`);
+        document.body.classList.add(`font-${s.appearance.font}`);
+        document.body.classList.add(`density-${s.accessibility.density}`);
+        document.body.classList.add(`cursor-${s.appearance.cursor}`);
+        document.body.classList.toggle('reduce-motion', !!s.accessibility.reduceMotion);
 
         applyBackground(s.appearance.background, s.appearance.customBackground);
         applyAmbientSound(s.appearance.ambientSound, s.appearance.ambientVolume, s.appearance.customAmbientYoutubeUrl);
@@ -1919,6 +1931,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 document.body.classList.remove(cls);
             }
         });
+        document.body.classList.add(`theme-${pendingSettings.appearance.theme}`);
+        document.body.classList.add(`theme-${pendingSettings.appearance.theme}`);
+        updateLogoForTheme(pendingSettings.appearance.theme);
         document.body.classList.add(`textcolor-${pendingSettings.appearance.textColor || 'default'}`);
         document.body.classList.add(`font-${pendingSettings.appearance.font}`);
         document.body.classList.add(`cursor-${pendingSettings.appearance.cursor}`);
