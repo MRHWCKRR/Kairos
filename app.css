@@ -96,7 +96,6 @@ body.has-custom-bg { background-color: transparent; }
 .nav-item.active { background-color: var(--accent-glow-soft); color: var(--accent-glow); }
 .sidebar.collapsed .nav-item { color: transparent !important; }
 
-/* Widgets */
 .whats-next-widget {
     background-color: var(--bg-main);
     border: 1px solid var(--border-subtle);
@@ -104,7 +103,11 @@ body.has-custom-bg { background-color: transparent; }
     border-radius: 8px;
     max-height: 300px;
     overflow: hidden;
-    transition: opacity 0.2s, max-height 0.3s ease, padding 0.3s ease, margin 0.3s ease, border-color 0.3s ease;
+    visibility: visible;
+    transition: opacity 0.2s, max-height 0.3s ease, padding 0.3s ease, margin 0.3s ease, border-color 0.3s ease, visibility 0s linear 0.15s;
+}
+.whats-next-widget * {
+    white-space: normal !important;
 }
 .sidebar.collapsed .whats-next-widget {
     opacity: 0 !important;
@@ -113,6 +116,8 @@ body.has-custom-bg { background-color: transparent; }
     padding: 0 !important;
     margin: 0 !important;
     border-color: transparent !important;
+    visibility: hidden !important;
+    transition: opacity 0.2s, max-height 0.3s ease, padding 0.3s ease, margin 0.3s ease, border-color 0.3s ease, visibility 0s linear 0s;
 }
 .widget-label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
 #next-task-title { font-size: 0.95rem; margin: 4px 0 8px 0; font-weight: 500; }
