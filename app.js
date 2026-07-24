@@ -1082,8 +1082,8 @@ document.addEventListener("DOMContentLoaded", () => {
             You are an expert AI Study Coach. The user will provide a syllabus, assignment, or goal.
             Break it down into logical, actionable study sections and tasks.
             IMPORTANT: Write all section titles and task titles in ${languageName}, since that is the user's chosen app language.
-
-            ADDITIONALLY: if the user's text mentions any RECURRING weekly commitment (e.g. "I have football training every Tuesday 4-6pm", "I sleep from 10pm to 6am", "math class on Mondays and Wednesdays 9-10am"), extract each one as a recurring event. Only extract things that repeat weekly on a fixed day/time — do NOT extract one-off deadlines or dates, those belong in tasks instead. If nothing recurring is mentioned, return an empty array for recurringEvents.
+            ADDITIONALLY: if the user's text mentions any RECURRING weekly commitment (e.g. "I have football training every Tuesday 4-6pm", "I sleep from 10pm to 6am", "math class on Mondays and Wednesdays 9-10am"), extract each one as a recurring event. Only extract things that repeat weekly on a fixed day/time — do NOT extract one-off deadlines or dates, those belong in tasks instead. CRITICAL: only extract commitments that are NEW — if a commitment is already listed under "recurring weekly commitments" below, do NOT include it again in recurringEvents, even if the user's text also mentions it. If nothing new is mentioned, return an empty array for recurringEvents.
+            
 
             CRITICAL INSTRUCTION: You MUST respond with ONLY a valid, raw JSON object.
             Do NOT include markdown formatting, backticks, or the word 'json'.
@@ -1132,6 +1132,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 const parsed = JSON.parse(aiResponseText);
 
                 // Backward-compatible: older prompt shape was a bare array of sections.
+                const newSections = Array.isArray(parsed) ? parsed : (parsed.sections || []);
+                const rawRecurringEvents = Array.isArray(parsed) ? [] : (parsed.recurringEvents || []);
+                const recurringEvents = rawRecurringEvents.filter(ev => !isDuplicateScheduleEvent(ev));
                 const newSections = Array.isArray(parsed) ? parsed : (parsed.sections || []);
                 const recurringEvents = Array.isArray(parsed) ? [] : (parsed.recurringEvents || []);
 
@@ -2650,6 +2653,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (!byDay.length) return '';
         return `\n\nThe user has these recurring weekly commitments — do NOT schedule study tasks during these times, and take sleep hours into account when suggesting a healthy pace:\n${byDay.join('\n')}`;
+    }
+
+    function isDuplicateScheduleEvent(ev) {
+        return scheduleData.some(existing =>
+            existing.day === ev.day &&
+            existing.start === ev.start &&
+            existing.end === ev.end &&
+            String(existing.title).trim().toLowerCase() === String(ev.title).trim().toLowerCase()
+        );
     }
 
     function calculateAge(birthdateStr) {

@@ -414,7 +414,9 @@ body.has-custom-bg { background-color: transparent; }
     padding: 30px; 
     border-radius: 12px; 
     max-width: 550px; 
-    width: 90%; 
+    width: 90%;
+    max-height: 85vh;
+    overflow-y: auto;
     position: relative; 
     border: 1px solid var(--border-subtle); 
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5); 
