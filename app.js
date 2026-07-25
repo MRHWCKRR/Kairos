@@ -1240,16 +1240,28 @@ document.addEventListener("DOMContentLoaded", () => {
 
             const addRecurringCheckbox = document.getElementById('ai-destination-add-recurring');
             if (pendingAiRecurringEvents.length && (!addRecurringCheckbox || addRecurringCheckbox.checked)) {
+                const skippedTitles = [];
                 pendingAiRecurringEvents.forEach((ev, i) => {
-                    scheduleData.push({
-                        id: `ai-sched-${Date.now()}-${i}`,
-                        title: ev.title,
-                        category: SCHEDULE_CATEGORIES[ev.category] ? ev.category : 'other',
-                        day: Math.max(0, Math.min(6, parseInt(ev.day, 10) || 0)),
-                        start: ev.start,
-                        end: ev.end
+                    const rawDays = Array.isArray(ev.day) ? ev.day : [ev.day];
+                    rawDays.forEach((rawDay, j) => {
+                        const parsedDay = parseInt(rawDay, 10);
+                        if (Number.isNaN(parsedDay) || parsedDay < 0 || parsedDay > 6) {
+                            skippedTitles.push(ev.title || 'Untitled event');
+                            return;
+                        }
+                        scheduleData.push({
+                            id: `ai-sched-${Date.now()}-${i}-${j}`,
+                            title: ev.title,
+                            category: SCHEDULE_CATEGORIES[ev.category] ? ev.category : 'other',
+                            day: parsedDay,
+                            start: ev.start,
+                            end: ev.end
+                        });
                     });
                 });
+                if (skippedTitles.length) {
+                    alert(`Couldn't confidently determine the day for: ${skippedTitles.join(', ')}. Add ${skippedTitles.length === 1 ? 'it' : 'them'} manually from the Schedule tab.`);
+                }
                 renderScheduleWeek();
             }
 
