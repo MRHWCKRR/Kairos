@@ -2781,11 +2781,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const daysHTML = SCHEDULE_DAY_LABELS.map((label, dayIndex) => {
             const eventsForDay = scheduleData.filter(ev => ev.day === dayIndex);
-            let eventsHTML = eventsForDay.map(renderScheduleEventBlock).join('');
-
             const prevDay = (dayIndex + 6) % 7;
             const overflowEvents = scheduleData.filter(ev => ev.day === prevDay && scheduleTimeToMinutes(ev.end) <= scheduleTimeToMinutes(ev.start));
-            eventsHTML += overflowEvents.map(renderScheduleOverflowBlock).join('');
+
+            const laidOut = layoutScheduleEventsForDay(eventsForDay, overflowEvents);
+            const eventsHTML = laidOut.map(item =>
+                item.isOverflow
+                    ? renderScheduleOverflowBlock(item.ev, item.col, item.colCount)
+                    : renderScheduleEventBlock(item.ev, item.col, item.colCount)
+            ).join('');
 
             return `
                 <div class="schedule-day-col">
