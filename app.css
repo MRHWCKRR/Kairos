@@ -61,10 +61,29 @@ body.has-custom-bg { background-color: transparent; }
 
 .logo-mark {
     width: 26px;
-    height: auto;
+    height: 26px;
     flex-shrink: 0;
-    object-fit: contain;
 }
+
+.logo-stop-left-a  { stop-color: #d8b4fe; }
+.logo-stop-left-b  { stop-color: #c084fc; }
+.logo-stop-right-a { stop-color: #a855f7; }
+.logo-stop-right-b { stop-color: #7e22ce; }
+
+body.theme-fairyfloss .logo-stop-left-a  { stop-color: #f9a8d4; }
+body.theme-fairyfloss .logo-stop-left-b  { stop-color: #f472b6; }
+body.theme-fairyfloss .logo-stop-right-a { stop-color: #ec4899; }
+body.theme-fairyfloss .logo-stop-right-b { stop-color: #db2777; }
+
+body.theme-poseidon .logo-stop-left-a  { stop-color: #93c5fd; }
+body.theme-poseidon .logo-stop-left-b  { stop-color: #60a5fa; }
+body.theme-poseidon .logo-stop-right-a { stop-color: #3b82f6; }
+body.theme-poseidon .logo-stop-right-b { stop-color: #1d4ed8; }
+
+body.theme-peacefulplains .logo-stop-left-a  { stop-color: #86efac; }
+body.theme-peacefulplains .logo-stop-left-b  { stop-color: #4ade80; }
+body.theme-peacefulplains .logo-stop-right-a { stop-color: #22c55e; }
+body.theme-peacefulplains .logo-stop-right-b { stop-color: #15803d; }
 
 .logo-text { font-size: 1.2rem; font-weight: 800; flex-grow: 1; transition: opacity 0.2s; }
 

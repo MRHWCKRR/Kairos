@@ -25,7 +25,20 @@
         <!-- Left Sidebar -->
         <aside id="sidebar" class="sidebar">
             <div class="sidebar-header">
-                <img src="images/kairos-logo.png" alt="Kairos" class="logo-mark" id="app-logo-img">
+                <svg class="logo-mark" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Kairos">
+                    <defs>
+                        <linearGradient id="logoGradLeft" x1="0%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" class="logo-stop-left-a"/>
+                            <stop offset="100%" class="logo-stop-left-b"/>
+                        </linearGradient>
+                        <linearGradient id="logoGradRight" x1="0%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" class="logo-stop-right-a"/>
+                            <stop offset="100%" class="logo-stop-right-b"/>
+                        </linearGradient>
+                    </defs>
+                    <line x1="24.5" y1="85" x2="50.5" y2="15" stroke="url(#logoGradLeft)" stroke-width="15" stroke-linecap="round"/>
+                    <line x1="49.5" y1="85" x2="75.5" y2="15" stroke="url(#logoGradRight)" stroke-width="15" stroke-linecap="round"/>
+                </svg>
                 <h1 class="logo-text">Kairos</h1>
                 <button id="sidebar-toggle" class="toggle-btn" title="Toggle Sidebar">☰</button>
             </div>

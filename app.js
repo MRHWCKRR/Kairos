@@ -30,13 +30,6 @@ const THEMES = [
     { id: 'peacefulplains', name: 'Peaceful Plains', swatch: '#4ade80' }
 ];
 
-const LOGO_VARIANTS = {
-    default: 'images/kairos-logo.png',
-    fairyfloss: 'images/kairos-logo-fairyfloss.png',
-    poseidon: 'images/kairos-logo-poseidon.png',
-    peacefulplains: 'images/kairos-logo-peacefulplains.png'
-};
-
 const TEXT_COLORS = [
     { id: 'default', nameKey: 'color_default', hex: null },
     { id: 'white', nameKey: 'color_white', hex: '#ffffff' },
@@ -1552,11 +1545,7 @@ document.addEventListener("DOMContentLoaded", () => {
     function getAccentColor() {
         return getComputedStyle(document.body).getPropertyValue('--accent-glow').trim() || '#a855f7';
     }
-    function updateLogoForTheme(themeId) {
-        const logoImg = document.getElementById('app-logo-img');
-        if (!logoImg) return;
-        logoImg.src = LOGO_VARIANTS[themeId] || LOGO_VARIANTS.default;
-    }
+
 
     function applyAllSettings() {
         const s = userSettings;
@@ -1567,8 +1556,6 @@ document.addEventListener("DOMContentLoaded", () => {
         });
         document.body.classList.toggle('mode-light', s.appearance.mode === 'light');
         document.body.classList.add(`theme-${s.appearance.theme}`);
-        document.body.classList.add(`theme-${s.appearance.theme}`);
-        updateLogoForTheme(s.appearance.theme);
         document.body.classList.add(`textcolor-${s.appearance.textColor || 'default'}`);
         document.body.classList.add(`font-${s.appearance.font}`);
         document.body.classList.add(`density-${s.accessibility.density}`);
@@ -1949,8 +1936,6 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         });
         document.body.classList.add(`theme-${pendingSettings.appearance.theme}`);
-        document.body.classList.add(`theme-${pendingSettings.appearance.theme}`);
-        updateLogoForTheme(pendingSettings.appearance.theme);
         document.body.classList.add(`textcolor-${pendingSettings.appearance.textColor || 'default'}`);
         document.body.classList.add(`font-${pendingSettings.appearance.font}`);
         document.body.classList.add(`cursor-${pendingSettings.appearance.cursor}`);
