@@ -638,6 +638,12 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
+        const settingsLogoutBtn = e.target.closest('#settings-logout-btn');
+        if (settingsLogoutBtn) {
+            signOut(auth).catch(err => console.error('Logout failed', err));
+            return;
+        }
+
         const notifDeleteBtn = e.target.closest('.notif-delete-btn');
         if (notifDeleteBtn) {
             const notifId = notifDeleteBtn.getAttribute('data-notif-id');
@@ -2296,14 +2302,6 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     });
 
-    // Settings sidebar logout
-    const settingsLogoutBtn = document.getElementById('settings-logout-btn');
-    if (settingsLogoutBtn) {
-        settingsLogoutBtn.addEventListener('click', async () => {
-            try { await signOut(auth); } catch (error) { console.error('Logout failed', error); }
-        });
-    }
-
     // Security: change email
     const changeEmailBtn = document.getElementById('security-change-email-btn');
     if (changeEmailBtn) {
@@ -2694,32 +2692,72 @@ document.addEventListener("DOMContentLoaded", () => {
         return `\n\nThe user is ${age} years old — tailor pacing, workload, and any health/rest suggestions appropriately for their age group.`;
     }
 
-    function renderScheduleEventBlock(ev) {
+    function renderScheduleEventBlock(ev, col = 0, colCount = 1) {
         const startMin = scheduleTimeToMinutes(ev.start);
         const endMinRaw = scheduleTimeToMinutes(ev.end);
-        const wraps = endMinRaw <= startMin; // e.g. sleep 22:00 -> 06:00
+        const wraps = endMinRaw <= startMin;
         const endMin = wraps ? 24 * 60 : endMinRaw;
         const top = (startMin / 60) * SCHEDULE_HOUR_HEIGHT;
         const height = Math.max(20, ((endMin - startMin) / 60) * SCHEDULE_HOUR_HEIGHT);
         const cat = SCHEDULE_CATEGORIES[ev.category] || SCHEDULE_CATEGORIES.other;
+        const gapPct = 1.5;
+        const widthPct = (100 / colCount) - gapPct;
+        const leftPct = (100 / colCount) * col + (gapPct / 2);
         return `
-            <div class="schedule-event" style="top:${top}px; height:${height}px; --event-color:${cat.color};" data-event-id="${ev.id}" title="${ev.title}">
+            <div class="schedule-event" style="top:${top}px; height:${height}px; left:${leftPct}%; width:${widthPct}%; --event-color:${cat.color};" data-event-id="${ev.id}" title="${ev.title}">
                 <span class="schedule-event-title">${ev.title}</span>
                 <span class="schedule-event-time">${scheduleMinutesToLabel(startMin)} – ${scheduleMinutesToLabel(endMinRaw)}</span>
             </div>
         `;
     }
 
-    function renderScheduleOverflowBlock(ev) {
+    function renderScheduleOverflowBlock(ev, col = 0, colCount = 1) {
         const endMin = scheduleTimeToMinutes(ev.end);
         if (endMin <= 0) return '';
         const height = Math.max(16, (endMin / 60) * SCHEDULE_HOUR_HEIGHT);
         const cat = SCHEDULE_CATEGORIES[ev.category] || SCHEDULE_CATEGORIES.other;
+        const gapPct = 1.5;
+        const widthPct = (100 / colCount) - gapPct;
+        const leftPct = (100 / colCount) * col + (gapPct / 2);
         return `
-            <div class="schedule-event schedule-event-overflow" style="top:0px; height:${height}px; --event-color:${cat.color};" data-event-id="${ev.id}" title="${ev.title} (continued from previous night)">
+            <div class="schedule-event schedule-event-overflow" style="top:0px; height:${height}px; left:${leftPct}%; width:${widthPct}%; --event-color:${cat.color};" data-event-id="${ev.id}" title="${ev.title} (continued from previous night)">
                 <span class="schedule-event-title">${ev.title} ⤴</span>
             </div>
         `;
+    }
+
+    function layoutScheduleEventsForDay(primaryEvents, overflowEvents) {
+        const items = [
+            ...primaryEvents.map(ev => {
+                const startMin = scheduleTimeToMinutes(ev.start);
+                let endMin = scheduleTimeToMinutes(ev.end);
+                if (endMin <= startMin) endMin = 24 * 60;
+                return { ev, startMin, endMin, isOverflow: false };
+            }),
+            ...overflowEvents.map(ev => ({
+                ev, startMin: 0, endMin: scheduleTimeToMinutes(ev.end), isOverflow: true
+            }))
+        ].sort((a, b) => a.startMin - b.startMin);
+
+        const columnEnds = [];
+        items.forEach(item => {
+            let placed = false;
+            for (let c = 0; c < columnEnds.length; c++) {
+                if (columnEnds[c] <= item.startMin) {
+                    columnEnds[c] = item.endMin;
+                    item.col = c;
+                    placed = true;
+                    break;
+                }
+            }
+            if (!placed) {
+                item.col = columnEnds.length;
+                columnEnds.push(item.endMin);
+            }
+        });
+
+        const colCount = Math.max(1, columnEnds.length);
+        return items.map(item => ({ ...item, colCount }));
     }
 
     function renderScheduleWeek() {

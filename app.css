@@ -1168,15 +1168,14 @@ body.cursor-spaceship, body.cursor-spaceship * { cursor: url('cursors/spaceship.
 
 .schedule-event {
     position: absolute;
-    left: 4px;
-    right: 4px;
     background-color: color-mix(in srgb, var(--event-color) 22%, var(--bg-card));
     border-left: 3px solid var(--event-color);
     border-radius: 6px;
     padding: 4px 6px;
     overflow: hidden;
     cursor: pointer;
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    box-sizing: border-box;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, left 0.15s ease, width 0.15s ease;
     z-index: 1;
 }
 .schedule-event:hover {
