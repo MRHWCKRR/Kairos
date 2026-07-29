@@ -628,7 +628,18 @@ export const TRANSLATIONS = {
         notif_board_completion_label: '✅ 当日程完全完成时通知',
         notif_bedtime_label: '🛌 睡前提醒(睡眠事件开始前 15 分钟)',
         notif_browser_push_label: '📱 浏览器推送通知',
-        brow
+        browser_push_hint: '您的浏览器正在屏蔽此网站的通知。请检查浏览器的网站设置以允许通知。',
+        focus_timer_title: '专注计时器', longest_time: '最长时间:', start: '开始', pause: '暂停', stop_and_log: '停止并记录',
+        goals_title: '目标', goals_empty: '在"成就"标签页中选择 3 个目标,即可在此处追踪。',
+        achievement_unlocked: '成就已解锁',
+        no_notifications_yet: '暂无通知。',
+        recurring_events_detected: '检测到重复事件', add_to_schedule: '同时将其添加到我的日程',
+        schedule_event_title_label: '标题', schedule_event_category_label: '类别', schedule_event_day_label: '星期几',
+        schedule_event_start_label: '开始时间', schedule_event_end_label: '结束时间',
+        save_event: '保存事件', delete_event: '删除事件',
+        add_recurring_event_modal_title: '添加重复事件', edit_recurring_event_modal_title: '编辑重复事件',
+        cat_sleep: '睡眠', cat_class: '课程', cat_tutoring: '辅导', cat_training: '训练', cat_other: '其他',
+        day_sunday: '星期日', day_monday: '星期一', day_tuesday: '星期二', day_wednesday: '星期三', day_thursday: '星期四', day_friday: '星期五', day_saturday: '星期六'
     },
     ko: {
         nav_dashboard: '대시보드', nav_ai: 'AI 도우미', nav_tasks: '루틴 및 작업', nav_calendar: '캘린더', nav_settings: '설정',
