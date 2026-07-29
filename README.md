@@ -19,7 +19,7 @@ A smart, personalised and practical solution to school/work stress and last minu
   
 *   **Latest Gemini 3.5 Flash AI:** Latest generation AI for the accurate answers and less malfunctions. 
   
-*   **Completely open source** Zero paywalls and full privacy. All source code is hosted here on GitHub, and all data can be requested at the click of a button.
+*   **Completely open source:** Zero paywalls and full privacy. All source code is hosted here on GitHub, and all data can be requested at the click of a button.
 ---
 
 ## What its Made Of
