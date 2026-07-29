@@ -2,7 +2,7 @@
 [![Forks][forks-shield]][forks-url]
 [![Stargazers][stars-shield]][stars-url]
 [![Issues][issues-shield]][issues-url]
-[![MIT License][license-shield]][license-url]
+![MIT License][license-shield]
 
 # Kairos
 
@@ -55,3 +55,13 @@ https://github.com/MRHWCKRR/Kairos-Android
 ## Notes:
 
 - Bugs will likely exist, please create and issue to let me know :)
+
+[contributors-shield]: https://img.shields.io/github/contributors/MRHWCKRR/ClientWarden.svg?style=for-the-badge
+[contributors-url]: https://github.com/MRHWCKRR/Kairos/graphs/contributors
+[forks-shield]: https://img.shields.io/github/forks/MRHWCKRR/Kairos.svg?style=for-the-badge
+[forks-url]: https://github.com/MRHWCKRR/Kairos/network/members
+[stars-shield]: https://img.shields.io/github/stars/MRHWCKRR/Kairos.svg?style=for-the-badge
+[stars-url]: https://github.com/MRHWCKRR/Kairos/stargazers
+[issues-shield]: https://img.shields.io/github/issues/MRHWCKRR/Kairos.svg?style=for-the-badge
+[issues-url]: https://github.com/MRHWCKRR/Kairos/issues
+[license-shield]: https://img.shields.io/github/license/MRHWCKRR/Kairos.svg?style=for-the-badge
