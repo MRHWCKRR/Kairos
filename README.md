@@ -30,11 +30,19 @@ A smart, personalised and practical solution to school/work stress and last minu
 
 ### 1. Clone the Repository
 ```bash
-Coming Soon!
+https://github.com/MRHWCKRR/Kairos.git
 ```
 ### 2. Use the Website
 
 https://kairos-xi-two.vercel.app/app.html
+
+### 3. Get the Android App
+
+```bash
+Coming Soon!
+Development Repo:
+https://github.com/MRHWCKRR/Kairos-Android
+```
 
 ---
 
