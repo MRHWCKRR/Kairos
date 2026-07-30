@@ -14,8 +14,7 @@ import {
     doc, setDoc, getDoc, onSnapshot, collection, addDoc, serverTimestamp,
     query, where, orderBy, limit, getDocs, updateDoc, deleteDoc
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { LANGUAGES, applyTranslations, getLocale, getGeminiLanguageName, t } from './i18n.js';
-
+import { LANGUAGES, applyTranslations, getLocale, getGeminiLanguageName, t, ACHIEVEMENT_I18N } from './i18n.js';
 console.log("APP.js is loaded and running");
 
 // ===========================================================
@@ -3088,7 +3087,7 @@ document.addEventListener("DOMContentLoaded", () => {
             <div class="achievement-toast-badge">${def.icon}</div>
             <div class="achievement-toast-text">
                 <p class="achievement-toast-label">Achievement Unlocked</p>
-                <p class="achievement-toast-name">${def.name}</p>
+                <p class="achievement-toast-name">${getAchievementDisplay(def).name}</p>
             </div>
         `;
         container.appendChild(toast);
@@ -3102,6 +3101,15 @@ document.addEventListener("DOMContentLoaded", () => {
             toast.classList.remove('active');
             setTimeout(() => toast.remove(), 400);
         }, 4500);
+    }
+
+    function getAchievementDisplay(def) {
+        const lang = userSettings.accessibility.language || 'en';
+        const override = ACHIEVEMENT_I18N[def.id]?.[lang];
+        return {
+            name: override?.name || def.name,
+            desc: override?.desc || def.desc
+        };
     }
 
     function renderAchievementsPage() {
@@ -3126,11 +3134,12 @@ document.addEventListener("DOMContentLoaded", () => {
                     ? `<span class="badge-unlocked-tag">Unlocked</span>`
                     : (def.limitedAvailability ? `<span class="badge-unlocked-tag" style="opacity:0.5;">Limited</span>` : '');
 
+                const display = getAchievementDisplay(def);
                 return `
                     <div class="badge-card ${unlocked ? 'unlocked' : 'locked'}" data-achievement-id="${def.id}">
                         <div class="badge-icon-circle">${def.icon}</div>
-                        <p class="badge-name">${def.name}</p>
-                        <p class="badge-desc">${def.desc}</p>
+                        <p class="badge-name">${display.name}</p>
+                        <p class="badge-desc">${display.desc}</p>
                         ${progressHTML}
                         ${tagHTML}
                     </div>
@@ -3145,6 +3154,7 @@ document.addEventListener("DOMContentLoaded", () => {
             `;
         }).join('');
     }
+    
 
     function renderGoalSelects() {
         const container = document.getElementById('achievement-goal-selects');
@@ -3156,7 +3166,7 @@ document.addEventListener("DOMContentLoaded", () => {
         container.innerHTML = [0, 1, 2].map(i => `
             <select class="settings-input goal-select" data-goal-index="${i}">
                 <option value="">— None —</option>
-                ${trackable.map(a => `<option value="${a.id}" ${goals[i] === a.id ? 'selected' : ''}>${a.icon} ${a.name}</option>`).join('')}
+                ${trackable.map(a => `<option value="${a.id}" ${goals[i] === a.id ? 'selected' : ''}>${a.icon} ${getAchievementDisplay(a).name}</option>`).join('')}
             </select>
         `).join('');
 
@@ -3190,7 +3200,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const pct = unlocked ? 100 : (progress ? Math.min(100, Math.round((progress.current / progress.target) * 100)) : 0);
             return `
                 <div class="mini-goal-item">
-                    <div class="mini-goal-header"><span>${def.icon} ${def.name}</span><span>${pct}%</span></div>
+                    <div class="mini-goal-header"><span>${def.icon} ${getAchievementDisplay(def).name}</span><span>${pct}%</span></div>
                     <div class="progress-bar-container"><div class="progress-bar-fill" style="width:${pct}%"></div></div>
                 </div>
             `;

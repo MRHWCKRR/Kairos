@@ -47,10 +47,10 @@
                 <button class="nav-item active" data-target="home-page" data-i18n="nav_dashboard">Dashboard</button>
                 <button class="nav-item" data-target="ai-page" data-i18n="nav_ai">AI Helper</button>
                 <button class="nav-item" data-target="tasks-page" data-i18n="nav_tasks">Routines & Tasks</button>
-                <button class="nav-item" data-target="schedule-page">Schedule</button>
+                <button class="nav-item" data-target="schedule-page" data-i18n="nav_schedule">Schedule</button>
                 <button class="nav-item" data-target="calendar-page" data-i18n="nav_calendar">Calendar</button>
-                <button class="nav-item" data-target="achievements-page">Achievements</button>
-                <button class="nav-item" data-target="statistics-page">Statistics</button>
+                <button class="nav-item" data-target="achievements-page" data-i18n="nav_achievements">Achievements</button>
+                <button class="nav-item" data-target="statistics-page" data-i18n="nav_statistics">Statistics</button>
                 <button class="nav-item" data-target="settings-page" data-i18n="nav_settings">Settings</button>
             </nav>
 
@@ -134,7 +134,7 @@
                 <button id="add-board-btn" class="add-board-btn" data-i18n="add_board">+ Add Board</button>
 
                 <div id="archive-panel-toggle-row" style="margin-top: 24px;">
-                    <button id="toggle-archive-btn" class="settings-cancel-btn" style="border:1px solid var(--border-subtle); border-radius:8px;">View Archive (<span id="archive-count">0</span>)</button>
+                    <button id="toggle-archive-btn" class="settings-cancel-btn" style="border:1px solid var(--border-subtle); border-radius:8px;"><span data-i18n="view_archive">View Archive</span> (<span id="archive-count">0</span>)</button>
                 </div>
                 <div id="archive-panel-container" style="display:none; margin-top: 16px;"></div>
                 
@@ -142,14 +142,14 @@
 
             <!-- Schedule Page: recurring weekly commitments (sleep, classes, tutoring, training, etc.) -->
             <div id="schedule-page" class="page-view">
-                <h2>Schedule</h2>
-                <p>Recurring weekly commitments — sleep, classes, tutoring, training, and anything else that repeats every week.</p>
+            <h2 data-i18n="schedule_title">Schedule</h2>
+            <p data-i18n="schedule_desc">Recurring weekly commitments — sleep, classes, tutoring, training, and anything else that repeats every week.</p>
 
-                <div id="schedule-week-container" class="schedule-week">
-                    <!-- Content injected by JavaScript -->
-                </div>
-                <button id="add-schedule-event-btn" class="add-board-btn">+ Add Recurring Event</button>
+            <div id="schedule-week-container" class="schedule-week">
+                <!-- Content injected by JavaScript -->
             </div>
+            <button id="add-schedule-event-btn" class="add-board-btn" data-i18n="add_recurring_event">+ Add Recurring Event</button>
+        </div>
 
              <!-- Calendar and Routines -->
             <div id="calendar-page" class="page-view">
@@ -163,12 +163,12 @@
 
             <!-- Achievements -->
             <div id="achievements-page" class="page-view">
-                <h2>Achievements</h2>
-                <p>Track your progress and unlock badges as you build your routine.</p>
+                <h2 data-i18n="achievements_title">Achievements</h2>
+                <p data-i18n="achievements_desc">Track your progress and unlock badges as you build your routine.</p>
 
                 <div class="settings-group" id="achievement-goals-editor">
-                    <h3>Dashboard Goals</h3>
-                    <p class="text-muted">Pick up to 3 achievements to track with progress bars on your dashboard.</p>
+                    <h3 data-i18n="dashboard_goals_title">Dashboard Goals</h3>
+                    <p class="text-muted" data-i18n="dashboard_goals_desc">Pick up to 3 achievements to track with progress bars on your dashboard.</p>
                     <div id="achievement-goal-selects"></div>
                 </div>
 
@@ -177,13 +177,13 @@
 
             <!-- Statistics -->
             <div id="statistics-page" class="page-view">
-                <h2>Statistics</h2>
-                <p>Your focus time and task trends over time.</p>
+                <h2 data-i18n="statistics_title">Statistics</h2>
+                <p data-i18n="statistics_desc">Your focus time and task trends over time.</p>
 
                 <div class="option-tile-row" id="stats-range-toggle" style="margin-bottom: 20px;">
-                    <button class="option-tile active" data-stats-range="week">Week</button>
-                    <button class="option-tile" data-stats-range="month">Month</button>
-                    <button class="option-tile" data-stats-range="year">Year</button>
+                    <button class="option-tile active" data-stats-range="week" data-i18n="stats_range_week">Week</button>
+                    <button class="option-tile" data-stats-range="month" data-i18n="stats_range_month">Month</button>
+                    <button class="option-tile" data-stats-range="year" data-i18n="stats_range_year">Year</button>
                 </div>
 
                 <div id="stats-charts-container" class="dashboard-grid"></div>
