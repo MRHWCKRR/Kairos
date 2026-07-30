@@ -143,7 +143,16 @@ export const TRANSLATIONS = {
         save_event: 'Save Event', delete_event: 'Delete Event',
         add_recurring_event_modal_title: 'Add Recurring Event', edit_recurring_event_modal_title: 'Edit Recurring Event',
         cat_sleep: 'Sleep', cat_class: 'Class', cat_tutoring: 'Tutoring', cat_training: 'Training', cat_other: 'Other',
-        day_sunday: 'Sunday', day_monday: 'Monday', day_tuesday: 'Tuesday', day_wednesday: 'Wednesday', day_thursday: 'Thursday', day_friday: 'Friday', day_saturday: 'Saturday'
+        day_sunday: 'Sunday', day_monday: 'Monday', day_tuesday: 'Tuesday', day_wednesday: 'Wednesday', day_thursday: 'Thursday', day_friday: 'Friday', day_saturday: 'Saturday',
+        time_just_now: 'Just now', time_minutes_ago: '{n}m ago', time_hours_ago: '{n}h ago', time_days_ago: '{n}d ago',
+        confirm_archive_board: 'Archive this board? Its tasks will stay visible on the Calendar and can be restored from the Archive.',
+        confirm_archive_section: 'Archive this section? Its tasks will stay visible on the Calendar and can be restored from the Archive.',
+        confirm_delete_board_forever: 'Permanently delete this board and everything in it? This cannot be undone.',
+        confirm_delete_section_forever: 'Permanently delete this section and its tasks? This cannot be undone.',
+        confirm_delete_task_forever: 'Permanently delete this task? This cannot be undone.',
+        confirm_delete_schedule_event: 'Delete this recurring event?',
+        alert_fill_schedule_fields: 'Please fill in the title, start time, and end time.',
+        alert_same_start_end: "Start and end time can't be the same."
     },
 
     es: {
@@ -243,7 +252,17 @@ export const TRANSLATIONS = {
         save_event: 'Guardar Evento', delete_event: 'Eliminar Evento',
         add_recurring_event_modal_title: 'Añadir Evento Recurrente', edit_recurring_event_modal_title: 'Editar Evento Recurrente',
         cat_sleep: 'Sueño', cat_class: 'Clase', cat_tutoring: 'Tutoría', cat_training: 'Entrenamiento', cat_other: 'Otro',
-        day_sunday: 'Domingo', day_monday: 'Lunes', day_tuesday: 'Martes', day_wednesday: 'Miércoles', day_thursday: 'Jueves', day_friday: 'Viernes', day_saturday: 'Sábado'
+        day_sunday: 'Domingo', day_monday: 'Lunes', day_tuesday: 'Martes', day_wednesday: 'Miércoles', day_thursday: 'Jueves', day_friday: 'Viernes', day_saturday: 'Sábado',
+
+        time_just_now: 'Justo ahora', time_minutes_ago: 'hace {n}m', time_hours_ago: 'hace {n}h', time_days_ago: 'hace {n}d',
+        confirm_archive_board: 'Archivar este tablero? Sus tareas seguirán visibles en el Calendario y podrán restaurarse desde el Archivo.',
+        confirm_archive_section: 'Archivar esta sección? Sus tareas seguirán visibles en el Calendario y podrán restaurarse desde el Archivo.',
+        confirm_delete_board_forever: 'Eliminar este tablero y todo su contenido de forma permanente? Esta acción no se puede deshacer.',
+        confirm_delete_section_forever: 'Eliminar esta sección y sus tareas de forma permanente? Esta acción no se puede deshacer.',
+        confirm_delete_task_forever: 'Eliminar esta tarea de forma permanente? Esta acción no se puede deshacer.',
+        confirm_delete_schedule_event: 'Eliminar este evento recurrente?',
+        alert_fill_schedule_fields: 'Por favor completa el título, la hora de inicio y la hora de fin.',
+        alert_same_start_end: 'La hora de inicio y de fin no pueden ser iguales.'
     },
     fr: {
         nav_dashboard: 'Tableau de bord', nav_ai: 'Assistant IA', nav_tasks: 'Routines et Tâches', nav_calendar: 'Calendrier', nav_settings: 'Paramètres',
@@ -342,7 +361,16 @@ export const TRANSLATIONS = {
         save_event: "Enregistrer l'Événement", delete_event: "Supprimer l'Événement",
         add_recurring_event_modal_title: 'Ajouter un Événement Récurrent', edit_recurring_event_modal_title: "Modifier l'Événement Récurrent",
         cat_sleep: 'Sommeil', cat_class: 'Cours', cat_tutoring: 'Tutorat', cat_training: 'Entraînement', cat_other: 'Autre',
-        day_sunday: 'Dimanche', day_monday: 'Lundi', day_tuesday: 'Mardi', day_wednesday: 'Mercredi', day_thursday: 'Jeudi', day_friday: 'Vendredi', day_saturday: 'Samedi'
+        day_sunday: 'Dimanche', day_monday: 'Lundi', day_tuesday: 'Mardi', day_wednesday: 'Mercredi', day_thursday: 'Jeudi', day_friday: 'Vendredi', day_saturday: 'Samedi',
+        time_just_now: "À l'instant", time_minutes_ago: 'il y a {n}min', time_hours_ago: 'il y a {n}h', time_days_ago: 'il y a {n}j',
+        confirm_archive_board: 'Archiver ce tableau ? Ses tâches resteront visibles dans le Calendrier et pourront être restaurées depuis les Archives.',
+        confirm_archive_section: 'Archiver cette section ? Ses tâches resteront visibles dans le Calendrier et pourront être restaurées depuis les Archives.',
+        confirm_delete_board_forever: 'Supprimer définitivement ce tableau et tout son contenu ? Cette action est irréversible.',
+        confirm_delete_section_forever: 'Supprimer définitivement cette section et ses tâches ? Cette action est irréversible.',
+        confirm_delete_task_forever: 'Supprimer définitivement cette tâche ? Cette action est irréversible.',
+        confirm_delete_schedule_event: 'Supprimer cet événement récurrent ?',
+        alert_fill_schedule_fields: "Veuillez renseigner le titre, l'heure de début et l'heure de fin.",
+        alert_same_start_end: "L'heure de début et de fin ne peuvent pas être identiques."
     },
     it: {
         nav_dashboard: 'Dashboard', nav_ai: 'Assistente IA', nav_tasks: 'Routine e Attività', nav_calendar: 'Calendario', nav_settings: 'Impostazioni',
@@ -441,7 +469,16 @@ export const TRANSLATIONS = {
         save_event: 'Salva Evento', delete_event: 'Elimina Evento',
         add_recurring_event_modal_title: 'Aggiungi Evento Ricorrente', edit_recurring_event_modal_title: 'Modifica Evento Ricorrente',
         cat_sleep: 'Sonno', cat_class: 'Lezione', cat_tutoring: 'Ripetizioni', cat_training: 'Allenamento', cat_other: 'Altro',
-        day_sunday: 'Domenica', day_monday: 'Lunedì', day_tuesday: 'Martedì', day_wednesday: 'Mercoledì', day_thursday: 'Giovedì', day_friday: 'Venerdì', day_saturday: 'Sabato'
+        day_sunday: 'Domenica', day_monday: 'Lunedì', day_tuesday: 'Martedì', day_wednesday: 'Mercoledì', day_thursday: 'Giovedì', day_friday: 'Venerdì', day_saturday: 'Sabato',
+        time_just_now: 'Proprio ora', time_minutes_ago: '{n}m fa', time_hours_ago: '{n}h fa', time_days_ago: '{n}g fa',
+        confirm_archive_board: "Archiviare questa bacheca? Le sue attività resteranno visibili nel Calendario e potranno essere ripristinate dall'Archivio.",
+        confirm_archive_section: "Archiviare questa sezione? Le sue attività resteranno visibili nel Calendario e potranno essere ripristinate dall'Archivio.",
+        confirm_delete_board_forever: 'Eliminare definitivamente questa bacheca e tutto il suo contenuto? Questa azione non può essere annullata.',
+        confirm_delete_section_forever: 'Eliminare definitivamente questa sezione e le sue attività? Questa azione non può essere annullata.',
+        confirm_delete_task_forever: 'Eliminare definitivamente questa attività? Questa azione non può essere annullata.',
+        confirm_delete_schedule_event: 'Eliminare questo evento ricorrente?',
+        alert_fill_schedule_fields: "Inserisci il titolo, l'ora di inizio e l'ora di fine.",
+        alert_same_start_end: "L'ora di inizio e di fine non possono coincidere."
     },
     ru: {
         nav_dashboard: 'Панель управления', nav_ai: 'ИИ-помощник', nav_tasks: 'Распорядок и задачи', nav_calendar: 'Календарь', nav_settings: 'Настройки',
@@ -540,7 +577,18 @@ export const TRANSLATIONS = {
         save_event: 'Сохранить событие', delete_event: 'Удалить событие',
         add_recurring_event_modal_title: 'Добавить повторяющееся событие', edit_recurring_event_modal_title: 'Изменить повторяющееся событие',
         cat_sleep: 'Сон', cat_class: 'Занятие', cat_tutoring: 'Репетиторство', cat_training: 'Тренировка', cat_other: 'Другое',
-        day_sunday: 'Воскресенье', day_monday: 'Понедельник', day_tuesday: 'Вторник', day_wednesday: 'Среда', day_thursday: 'Четверг', day_friday: 'Пятница', day_saturday: 'Суббота'
+        day_sunday: 'Воскресенье', day_monday: 'Понедельник', day_tuesday: 'Вторник', day_wednesday: 'Среда', day_thursday: 'Четверг', day_friday: 'Пятница', day_saturday: 'Суббота',
+
+        time_just_now: 'Только что', time_minutes_ago: '{n} мин назад', time_hours_ago: '{n} ч назад', time_days_ago: '{n} дн назад',
+        confirm_archive_board: 'Архивировать эту доску? Её задачи останутся видимыми в Календаре и смогут быть восстановлены из Архива.',
+        confirm_archive_section: 'Архивировать этот раздел? Его задачи останутся видимыми в Календаре и смогут быть восстановлены из Архива.',
+        confirm_delete_board_forever: 'Навсегда удалить эту доску и всё её содержимое? Это действие нельзя отменить.',
+        confirm_delete_section_forever: 'Навсегда удалить этот раздел и его задачи? Это действие нельзя отменить.',
+        confirm_delete_task_forever: 'Навсегда удалить эту задачу? Это действие нельзя отменить.',
+        confirm_delete_schedule_event: 'Удалить это повторяющееся событие?',
+        alert_fill_schedule_fields: 'Пожалуйста, заполните название, время начала и время окончания.',
+        alert_same_start_end: 'Время начала и окончания не могут совпадать.'
+
     },
     zh: {
         nav_dashboard: '仪表盘', nav_ai: 'AI 助手', nav_tasks: '日程与任务', nav_calendar: '日历', nav_settings: '设置',
@@ -639,7 +687,18 @@ export const TRANSLATIONS = {
         save_event: '保存事件', delete_event: '删除事件',
         add_recurring_event_modal_title: '添加重复事件', edit_recurring_event_modal_title: '编辑重复事件',
         cat_sleep: '睡眠', cat_class: '课程', cat_tutoring: '辅导', cat_training: '训练', cat_other: '其他',
-        day_sunday: '星期日', day_monday: '星期一', day_tuesday: '星期二', day_wednesday: '星期三', day_thursday: '星期四', day_friday: '星期五', day_saturday: '星期六'
+        day_sunday: '星期日', day_monday: '星期一', day_tuesday: '星期二', day_wednesday: '星期三', day_thursday: '星期四', day_friday: '星期五', day_saturday: '星期六',
+
+        time_just_now: '刚刚', time_minutes_ago: '{n}分钟前', time_hours_ago: '{n}小时前', time_days_ago: '{n}天前',
+        confirm_archive_board: '归档此看板？其任务仍会在日历中显示，并可从归档中恢复。',
+        confirm_archive_section: '归档此分组？其任务仍会在日历中显示，并可从归档中恢复。',
+        confirm_delete_board_forever: '永久删除此看板及其所有内容？此操作无法撤销。',
+        confirm_delete_section_forever: '永久删除此分组及其任务？此操作无法撤销。',
+        confirm_delete_task_forever: '永久删除此任务？此操作无法撤销。',
+        confirm_delete_schedule_event: '删除此重复事件？',
+        alert_fill_schedule_fields: '请填写标题、开始时间和结束时间。',
+        alert_same_start_end: '开始时间和结束时间不能相同。'
+
     },
     ko: {
         nav_dashboard: '대시보드', nav_ai: 'AI 도우미', nav_tasks: '루틴 및 작업', nav_calendar: '캘린더', nav_settings: '설정',
@@ -709,7 +768,45 @@ export const TRANSLATIONS = {
 
         text_color: '텍스트 색상',
         color_default: '기본값', color_white: '흰색', color_skyblue: '하늘색', color_navy: '남색',
-        color_turquoise: '터쿼이즈', color_mint: '민트', color_rose: '로즈', color_amber: '앰버', color_lavender: '라벤더'
+        color_turquoise: '터쿼이즈', color_mint: '민트', color_rose: '로즈', color_amber: '앰버', color_lavender: '라벤더',
+
+        nav_schedule: '일정', nav_achievements: '업적', nav_statistics: '통계',
+        schedule_title: '일정', schedule_desc: '매주 반복되는 일정 — 수면, 수업, 과외, 훈련 등 매주 반복되는 모든 것.',
+        add_recurring_event: '+ 반복 일정 추가',
+        achievements_title: '업적', achievements_desc: '루틴을 쌓아가며 진행 상황을 추적하고 배지를 잠금 해제하세요.',
+        dashboard_goals_title: '대시보드 목표', dashboard_goals_desc: '대시보드에서 진행률 표시줄로 추적할 업적을 최대 3개 선택하세요.',
+        statistics_title: '통계', statistics_desc: '시간에 따른 집중 시간 및 작업 추세.',
+        stats_range_week: '주', stats_range_month: '월', stats_range_year: '년',
+        view_archive: '보관함 보기',
+        archive_empty: '아직 보관된 항목이 없습니다. 삭제된 보드, 섹션, 작업은 여기에 표시되어 캘린더에서 계속 보이며 필요 시 복원할 수 있습니다.',
+        archived_boards: '보관된 보드', archived_sections: '보관된 섹션', archived_tasks: '보관된 작업',
+        restore: '복원', delete_forever: '영구 삭제', archive_action: '보관',
+        notifications_group_title: '알림',
+        notif_enabled_label: '🔔 알림 사용',
+        notif_board_completion_label: '✅ 루틴을 완전히 완료했을 때 알림',
+        notif_bedtime_label: '🛌 취침 알림 (수면 일정 15분 전)',
+        notif_browser_push_label: '📱 브라우저 푸시 알림',
+        browser_push_hint: '브라우저가 이 사이트의 알림을 차단하고 있습니다. 브라우저의 사이트 설정에서 허용해 주세요.',
+        focus_timer_title: '집중 타이머', longest_time: '최장 시간:', start: '시작', pause: '일시정지', stop_and_log: '정지 및 기록',
+        goals_title: '목표', goals_empty: '"업적" 탭에서 목표 3개를 선택하면 여기에 표시됩니다.',
+        achievement_unlocked: '업적 달성',
+        no_notifications_yet: '아직 알림이 없습니다.',
+        recurring_events_detected: '반복 일정이 감지되었습니다', add_to_schedule: '내 일정에도 추가',
+        schedule_event_title_label: '제목', schedule_event_category_label: '카테고리', schedule_event_day_label: '요일',
+        schedule_event_start_label: '시작 시간', schedule_event_end_label: '종료 시간',
+        save_event: '일정 저장', delete_event: '일정 삭제',
+        add_recurring_event_modal_title: '반복 일정 추가', edit_recurring_event_modal_title: '반복 일정 편집',
+        cat_sleep: '수면', cat_class: '수업', cat_tutoring: '과외', cat_training: '훈련', cat_other: '기타',
+        day_sunday: '일요일', day_monday: '월요일', day_tuesday: '화요일', day_wednesday: '수요일', day_thursday: '목요일', day_friday: '금요일', day_saturday: '토요일',
+        time_just_now: '방금 전', time_minutes_ago: '{n}분 전', time_hours_ago: '{n}시간 전', time_days_ago: '{n}일 전',
+        confirm_archive_board: '이 보드를 보관하시겠습니까? 작업은 캘린더에서 계속 표시되며 보관함에서 복원할 수 있습니다.',
+        confirm_archive_section: '이 섹션을 보관하시겠습니까? 작업은 캘린더에서 계속 표시되며 보관함에서 복원할 수 있습니다.',
+        confirm_delete_board_forever: '이 보드와 그 안의 모든 항목을 영구적으로 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.',
+        confirm_delete_section_forever: '이 섹션과 그 작업을 영구적으로 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.',
+        confirm_delete_task_forever: '이 작업을 영구적으로 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.',
+        confirm_delete_schedule_event: '이 반복 일정을 삭제하시겠습니까?',
+        alert_fill_schedule_fields: '제목, 시작 시간, 종료 시간을 입력해 주세요.',
+        alert_same_start_end: '시작 시간과 종료 시간은 같을 수 없습니다.'
     },
     ar: {
         nav_dashboard: 'لوحة التحكم', nav_ai: 'مساعد الذكاء الاصطناعي', nav_tasks: 'الروتين والمهام', nav_calendar: 'التقويم', nav_settings: 'الإعدادات',
@@ -779,7 +876,45 @@ export const TRANSLATIONS = {
 
         text_color: 'لون النص',
         color_default: 'افتراضي', color_white: 'أبيض', color_skyblue: 'أزرق سماوي', color_navy: 'كحلي',
-        color_turquoise: 'فيروزي', color_mint: 'نعناعي', color_rose: 'وردي', color_amber: 'كهرماني', color_lavender: 'خزامى'
+        color_turquoise: 'فيروزي', color_mint: 'نعناعي', color_rose: 'وردي', color_amber: 'كهرماني', color_lavender: 'خزامى',
+
+        nav_schedule: 'الجدول', nav_achievements: 'الإنجازات', nav_statistics: 'الإحصائيات',
+        schedule_title: 'الجدول', schedule_desc: 'الالتزامات الأسبوعية المتكررة — النوم، الحصص الدراسية، الدروس الخصوصية، التدريب، وأي شيء آخر يتكرر كل أسبوع.',
+        add_recurring_event: '+ إضافة حدث متكرر',
+        achievements_title: 'الإنجازات', achievements_desc: 'تتبّع تقدّمك وافتح الأوسمة أثناء بنائك لروتينك.',
+        dashboard_goals_title: 'أهداف لوحة التحكم', dashboard_goals_desc: 'اختر حتى 3 إنجازات لتتبعها بأشرطة التقدّم في لوحة التحكم.',
+        statistics_title: 'الإحصائيات', statistics_desc: 'وقت تركيزك واتجاهات مهامك عبر الزمن.',
+        stats_range_week: 'أسبوع', stats_range_month: 'شهر', stats_range_year: 'سنة',
+        view_archive: 'عرض الأرشيف',
+        archive_empty: 'لا يوجد شيء مؤرشف بعد. اللوحات والأقسام والمهام المحذوفة تظهر هنا لتبقى مرئية في التقويم ويمكن استعادتها عند الحاجة.',
+        archived_boards: 'اللوحات المؤرشفة', archived_sections: 'الأقسام المؤرشفة', archived_tasks: 'المهام المؤرشفة',
+        restore: 'استعادة', delete_forever: 'حذف نهائي', archive_action: 'أرشفة',
+        notifications_group_title: 'الإشعارات',
+        notif_enabled_label: '🔔 تفعيل الإشعارات',
+        notif_board_completion_label: '✅ الإشعار عند إكمال الروتين بالكامل',
+        notif_bedtime_label: '🛌 تذكيرات موعد النوم (قبل 15 دقيقة من أحداث النوم)',
+        notif_browser_push_label: '📱 إشعارات الدفع من المتصفح',
+        browser_push_hint: 'يقوم متصفحك بحظر الإشعارات لهذا الموقع. تحقق من إعدادات الموقع في متصفحك للسماح بها.',
+        focus_timer_title: 'مؤقت التركيز', longest_time: 'أطول مدة:', start: 'بدء', pause: 'إيقاف مؤقت', stop_and_log: 'إيقاف وتسجيل',
+        goals_title: 'الأهداف', goals_empty: 'اختر 3 أهداف من تبويب الإنجازات لتتبعها هنا.',
+        achievement_unlocked: 'تم فتح الإنجاز',
+        no_notifications_yet: 'لا توجد إشعارات بعد.',
+        recurring_events_detected: 'تم اكتشاف أحداث متكررة', add_to_schedule: 'إضافتها أيضًا إلى جدولي',
+        schedule_event_title_label: 'العنوان', schedule_event_category_label: 'الفئة', schedule_event_day_label: 'يوم الأسبوع',
+        schedule_event_start_label: 'وقت البدء', schedule_event_end_label: 'وقت الانتهاء',
+        save_event: 'حفظ الحدث', delete_event: 'حذف الحدث',
+        add_recurring_event_modal_title: 'إضافة حدث متكرر', edit_recurring_event_modal_title: 'تعديل الحدث المتكرر',
+        cat_sleep: 'نوم', cat_class: 'حصة دراسية', cat_tutoring: 'دروس خصوصية', cat_training: 'تدريب', cat_other: 'أخرى',
+        day_sunday: 'الأحد', day_monday: 'الاثنين', day_tuesday: 'الثلاثاء', day_wednesday: 'الأربعاء', day_thursday: 'الخميس', day_friday: 'الجمعة', day_saturday: 'السبت',
+        time_just_now: 'الآن', time_minutes_ago: 'قبل {n} د', time_hours_ago: 'قبل {n} س', time_days_ago: 'قبل {n} يوم',
+        confirm_archive_board: 'هل تريد أرشفة هذه اللوحة؟ ستبقى مهامها ظاهرة في التقويم ويمكن استعادتها من الأرشيف.',
+        confirm_archive_section: 'هل تريد أرشفة هذا القسم؟ ستبقى مهامه ظاهرة في التقويم ويمكن استعادتها من الأرشيف.',
+        confirm_delete_board_forever: 'هل تريد حذف هذه اللوحة وكل محتوياتها نهائيًا؟ لا يمكن التراجع عن هذا الإجراء.',
+        confirm_delete_section_forever: 'هل تريد حذف هذا القسم ومهامه نهائيًا؟ لا يمكن التراجع عن هذا الإجراء.',
+        confirm_delete_task_forever: 'هل تريد حذف هذه المهمة نهائيًا؟ لا يمكن التراجع عن هذا الإجراء.',
+        confirm_delete_schedule_event: 'هل تريد حذف هذا الحدث المتكرر؟',
+        alert_fill_schedule_fields: 'يرجى إدخال العنوان ووقت البدء ووقت الانتهاء.',
+        alert_same_start_end: 'لا يمكن أن يكون وقت البدء ووقت الانتهاء متطابقين.'
     }
 };
 
