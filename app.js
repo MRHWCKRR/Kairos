@@ -233,46 +233,46 @@ document.addEventListener("DOMContentLoaded", () => {
         if (countEl) countEl.textContent = totalCount;
 
         if (!totalCount) {
-            container.innerHTML = `<div class="archive-panel"><p class="archive-empty">Nothing archived yet. Deleted boards, sections, and tasks show up here so they can still be found on the Calendar and restored if needed.</p></div>`;
+            container.innerHTML = `<div class="archive-panel"><p class="archive-empty">${tr('archive_empty')}</p></div>`;
             return;
         }
 
         let html = `<div class="archive-panel">`;
 
         if (archivedBoards.length) {
-            html += `<p class="archive-section-title">Archived Boards</p>`;
+            html += `<p class="archive-section-title">${tr('archived_boards')}</p>`;
             html += archivedBoards.map(b => `
                 <div class="archive-item-row">
                     <span class="archive-item-label">${b.title}</span>
                     <div class="archive-item-actions">
-                        <button type="button" class="archive-restore-board-btn" data-board-id="${b.id}">Restore</button>
-                        <button type="button" class="archive-delete-board-btn danger-option" data-board-id="${b.id}">Delete Forever</button>
+                        <button type="button" class="archive-restore-board-btn" data-board-id="${b.id}">${tr('restore')}</button>
+                        <button type="button" class="archive-delete-board-btn danger-option" data-board-id="${b.id}">${tr('delete_forever')}</button>
                     </div>
                 </div>
             `).join('');
         }
 
         if (archivedSections.length) {
-            html += `<p class="archive-section-title">Archived Sections</p>`;
+            html += `<p class="archive-section-title">${tr('archived_sections')}</p>`;
             html += archivedSections.map(({ board, section }) => `
                 <div class="archive-item-row">
                     <span class="archive-item-label">${section.title} <span class="archive-item-meta">— ${board.title}</span></span>
                     <div class="archive-item-actions">
-                        <button type="button" class="archive-restore-section-btn" data-section-id="${section.id}">Restore</button>
-                        <button type="button" class="archive-delete-section-btn danger-option" data-board-id="${board.id}" data-section-id="${section.id}">Delete Forever</button>
+                        <button type="button" class="archive-restore-section-btn" data-section-id="${section.id}">${tr('restore')}</button>
+                        <button type="button" class="archive-delete-section-btn danger-option" data-board-id="${board.id}" data-section-id="${section.id}">${tr('delete_forever')}</button>
                     </div>
                 </div>
             `).join('');
         }
 
         if (archivedTasks.length) {
-            html += `<p class="archive-section-title">Archived Tasks</p>`;
+            html += `<p class="archive-section-title">${tr('archived_tasks')}</p>`;
             html += archivedTasks.map(({ board, section, task }) => `
                 <div class="archive-item-row">
                     <span class="archive-item-label">${task.title} <span class="archive-item-meta">— ${board.title} / ${section.title}</span></span>
                     <div class="archive-item-actions">
-                        <button type="button" class="archive-restore-task-btn" data-section-id="${section.id}" data-task-id="${task.id}">Restore</button>
-                        <button type="button" class="archive-delete-task-btn danger-option" data-section-id="${section.id}" data-task-id="${task.id}">Delete Forever</button>
+                        <button type="button" class="archive-restore-task-btn" data-section-id="${section.id}" data-task-id="${task.id}">${tr('restore')}</button>
+                        <button type="button" class="archive-delete-task-btn danger-option" data-section-id="${section.id}" data-task-id="${task.id}">${tr('delete_forever')}</button>
                     </div>
                 </div>
             `).join('');
@@ -332,6 +332,28 @@ document.addEventListener("DOMContentLoaded", () => {
     // Shorthand: translate a key using whichever language is currently active.
     function tr(key) {
         return t(key, userSettings.accessibility.language || 'en');
+    }
+
+    function trFmt(key, vars) {
+        let str = tr(key);
+        Object.keys(vars || {}).forEach(k => { str = str.replace(`{${k}}`, vars[k]); });
+        return str;
+    }
+
+    function refreshDynamicUI() {
+        if (!appReady) return;
+        renderConfigOptions();
+        populateSettingsForm();
+        if (auth.currentUser) renderUserProfileMenu(auth.currentUser);
+        renderNotifPanel();
+        renderFocusTimerWidget();
+        renderMiniAchievementsWidget();
+        renderStatisticsPage();
+        renderAchievementsPage();
+        renderGoalSelects();
+        renderArchivePanel();
+        updateRoutineStats();
+        if (selectedCalendarDate) renderDayPanel();
     }
 
     applyAllSettings();
@@ -852,7 +874,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const fillBar = document.getElementById("progress-bar-fill");
         if (percentageText && fractionText && fillBar) {
             percentageText.textContent = `${percentage}%`;
-            fractionText.textContent = `${completedTasks} / ${totalTasks} tasks completed`;
+            fractionText.textContent = trFmt('tasks_completed_fraction', { completed: completedTasks, total: totalTasks });
             fillBar.style.width = `${percentage}%`;
         }
     }
@@ -1441,8 +1463,8 @@ document.addEventListener("DOMContentLoaded", () => {
         const tasksForDay = getTasksForDate(selectedCalendarDate);
         const completedCount = tasksForDay.filter(t => t.completed).length;
 
-        if (dayDetailTotal) dayDetailTotal.textContent = `${tasksForDay.length} task${tasksForDay.length === 1 ? '' : 's'}`;
-        if (dayDetailCompleted) dayDetailCompleted.textContent = `${completedCount} finished`;
+        container.innerHTML = `<h3>${tr('goals_title')}</h3><p class="text-muted">${tr('goals_empty')}</p>`;
+            return;
 
         if (dayDetailTaskList) {
             dayDetailTaskList.innerHTML = tasksForDay.length
@@ -1568,7 +1590,10 @@ document.addEventListener("DOMContentLoaded", () => {
         confettiEnabled = s.appearance.confetti;
         updateClock();
 
-        if (appReady) renderApp();
+        if (appReady) {
+            renderApp();
+            refreshDynamicUI();
+        }
     }
 
     function applyBackground(bgId, customDataUrl) {
@@ -1763,7 +1788,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     🔔<span class="notif-badge" id="notif-badge" style="display:none;">0</span>
                 </button>
                 <div class="notif-panel" id="notif-panel">
-                    <div class="notif-panel-header">Notifications</div>
+                    <div class="notif-panel-header">${tr('notifications_group_title')}</div>
                     <div class="notif-panel-list" id="notif-panel-list"></div>
                 </div>
             </div>
@@ -1774,8 +1799,8 @@ document.addEventListener("DOMContentLoaded", () => {
                     <span style="font-size: 0.7em; opacity: 0.7;">▼</span>
                 </div>
                 <div id="profile-dropdown-menu" class="profile-dropdown-menu">
-                    <button id="dropdown-settings-btn">⚙️ Settings</button>
-                    <button id="dropdown-logout-btn">Sign Out</button>
+                    <button id="dropdown-settings-btn">⚙️ ${tr('nav_settings')}</button>
+                    <button id="dropdown-logout-btn">${tr('log_out')}</button>
                 </div>
             </div>
         `;
@@ -2504,7 +2529,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!list) return;
 
         if (!notificationsData.length) {
-            list.innerHTML = `<p class="notif-empty text-muted">No notifications yet.</p>`;
+            list.innerHTML = `<p class="notif-empty text-muted">${tr('no_notifications_yet')}</p>`;
             return;
         }
 
@@ -3131,8 +3156,8 @@ document.addEventListener("DOMContentLoaded", () => {
                     `;
                 }
                 const tagHTML = unlocked
-                    ? `<span class="badge-unlocked-tag">Unlocked</span>`
-                    : (def.limitedAvailability ? `<span class="badge-unlocked-tag" style="opacity:0.5;">Limited</span>` : '');
+                    ? `<span class="badge-unlocked-tag">${tr('unlocked_tag')}</span>`
+                    : (def.limitedAvailability ? `<span class="badge-unlocked-tag" style="opacity:0.5;">${tr('limited_tag')}</span>` : '');
 
                 const display = getAchievementDisplay(def);
                 return `
@@ -3148,7 +3173,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             return `
                 <div class="achievement-category-block">
-                    <h3 class="achievement-category-title">${ACHIEVEMENT_CATEGORY_LABELS[cat]}</h3>
+                    <h3 class="achievement-category-title">${tr('achievement_category_' + cat)}</h3>
                     <div class="badge-grid">${cardsHTML}</div>
                 </div>
             `;
@@ -3206,7 +3231,7 @@ document.addEventListener("DOMContentLoaded", () => {
             `;
         }).join('');
 
-        container.innerHTML = `<h3>Goals</h3>${itemsHTML}`;
+        container.innerHTML = `<h3>${tr('goals_title')}</h3>${itemsHTML}`;
     }
 
     // --- 16 Focus Timer Widget ---
@@ -3229,13 +3254,13 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!container) return;
 
         container.innerHTML = `
-            <h3>Focus Timer</h3>
+            <h3>${tr('focus_timer_title')}</h3>
             <div id="focus-timer-display" class="focus-timer-display">${formatHMS(getFocusTimerElapsedSeconds())}</div>
-            <p class="text-muted focus-timer-longest-row">Longest Time: <span id="focus-timer-longest">${formatHMS(focusData.longestSessionSeconds)}</span></p>
+            <p class="text-muted focus-timer-longest-row">${tr('longest_time')} <span id="focus-timer-longest">${formatHMS(focusData.longestSessionSeconds)}</span></p>
             <div class="focus-timer-controls">
-                <button id="focus-timer-start-btn" class="action-btn small-btn" style="display:${focusTimerRunning ? 'none' : 'inline-block'};">Start</button>
-                <button id="focus-timer-pause-btn" class="action-btn small-btn" style="display:${focusTimerRunning ? 'inline-block' : 'none'};">Pause</button>
-                <button id="focus-timer-stop-btn" class="settings-cancel-btn">Stop & Log</button>
+                <button id="focus-timer-start-btn" class="action-btn small-btn" style="display:${focusTimerRunning ? 'none' : 'inline-block'};">${tr('start')}</button>
+                <button id="focus-timer-pause-btn" class="action-btn small-btn" style="display:${focusTimerRunning ? 'inline-block' : 'none'};">${tr('pause')}</button>
+                <button id="focus-timer-stop-btn" class="settings-cancel-btn">${tr('stop_and_log')}</button>
             </div>
         `;
 
@@ -3305,7 +3330,7 @@ document.addEventListener("DOMContentLoaded", () => {
             for (let i = 6; i >= 0; i--) {
                 const d = new Date(now);
                 d.setDate(d.getDate() - i);
-                days.push({ label: d.toLocaleDateString(undefined, { weekday: 'short' }), value: log[toDateKey(d)] || 0 });
+                days.push({ label: d.toLocaleDateString(getLocale(userSettings.accessibility.language || 'en'), { weekday: 'short' }), value: log[toDateKey(d)] || 0 });
             }
             return days;
         }
@@ -3319,11 +3344,12 @@ document.addEventListener("DOMContentLoaded", () => {
                     weeks[weekIndex] += log[key];
                 }
             });
-            return weeks.map((v, i) => ({ label: `Wk ${i + 1}`, value: v }));
+            return weeks.map((v, i) => ({ label: `${tr('week_abbrev')} ${i + 1}`, value: v }));
         }
 
         const months = Array(12).fill(0);
-        const monthLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const monthLocale = getLocale(userSettings.accessibility.language || 'en');
+        const monthLabels = Array.from({ length: 12 }, (_, i) => new Date(2023, i, 1).toLocaleDateString(monthLocale, { month: 'short' }));
         Object.keys(log).forEach(key => {
             const d = new Date(key);
             if (d.getFullYear() === now.getFullYear()) months[d.getMonth()] += log[key];
@@ -3355,20 +3381,20 @@ document.addEventListener("DOMContentLoaded", () => {
 
         chartsContainer.innerHTML = `
             <div class="dash-card">
-                <h3>Focus Time</h3>
+                <h3>${tr('focus_time_chart_label')}</h3>
                 ${renderBarChartSVG(focusChartData, v => formatHMS(v))}
             </div>
             <div class="dash-card">
-                <h3>Tasks Completed</h3>
-                ${renderBarChartSVG(taskChartData, v => `${v} tasks`)}
+                <h3>${tr('achievement_category_tasks')}</h3>
+                ${renderBarChartSVG(taskChartData, v => trFmt('day_detail_tasks', { n: v }))}
             </div>
         `;
 
         if (totalsContainer) {
             totalsContainer.innerHTML = `
-                <div class="dash-card"><h3>Total Focus Logged</h3><p class="stats-percentage">${formatHMS(focusData.totalSeconds)}</p></div>
-                <div class="dash-card"><h3>Longest Session</h3><p class="stats-percentage">${formatHMS(focusData.longestSessionSeconds)}</p></div>
-                <div class="dash-card"><h3>Total Tasks Completed</h3><p class="stats-percentage">${achievementsData.lifetimeTasksCompleted}</p></div>
+                <div class="dash-card"><h3>${tr('total_focus_logged')}</h3><p class="stats-percentage">${formatHMS(focusData.totalSeconds)}</p></div>
+                <div class="dash-card"><h3>${tr('longest_session')}</h3><p class="stats-percentage">${formatHMS(focusData.longestSessionSeconds)}</p></div>
+                <div class="dash-card"><h3>${tr('total_tasks_completed_stat')}</h3><p class="stats-percentage">${achievementsData.lifetimeTasksCompleted}</p></div>
             `;
         }
     }
