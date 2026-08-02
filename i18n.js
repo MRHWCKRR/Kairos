@@ -152,7 +152,13 @@ export const TRANSLATIONS = {
         confirm_delete_task_forever: 'Permanently delete this task? This cannot be undone.',
         confirm_delete_schedule_event: 'Delete this recurring event?',
         alert_fill_schedule_fields: 'Please fill in the title, start time, and end time.',
-        alert_same_start_end: "Start and end time can't be the same."
+        alert_same_start_end: "Start and end time can't be the same.",
+        unlocked_tag: 'Unlocked', limited_tag: 'Limited',
+        tasks_completed_fraction: '{completed} / {total} tasks completed',
+        day_detail_tasks: '{n} tasks', day_detail_finished: '{n} finished',
+        achievement_category_focus: 'Locked In Time', achievement_category_tasks: 'Tasks Completed', achievement_category_misc: 'Milestones',
+        focus_time_chart_label: 'Focus Time', week_abbrev: 'Wk',
+        total_focus_logged: 'Total Focus Logged', longest_session: 'Longest Session', total_tasks_completed_stat: 'Total Tasks Completed'
     },
 
     es: {
@@ -262,7 +268,14 @@ export const TRANSLATIONS = {
         confirm_delete_task_forever: 'Eliminar esta tarea de forma permanente? Esta acción no se puede deshacer.',
         confirm_delete_schedule_event: 'Eliminar este evento recurrente?',
         alert_fill_schedule_fields: 'Por favor completa el título, la hora de inicio y la hora de fin.',
-        alert_same_start_end: 'La hora de inicio y de fin no pueden ser iguales.'
+        alert_same_start_end: 'La hora de inicio y de fin no pueden ser iguales.',
+        unlocked_tag: 'Desbloqueado', limited_tag: 'Limitado',
+        tasks_completed_fraction: '{completed} / {total} tareas completadas',
+        day_detail_tasks: '{n} tareas', day_detail_finished: '{n} completadas',
+        achievement_category_focus: 'Tiempo Concentrado', achievement_category_tasks: 'Tareas Completadas', achievement_category_misc: 'Hitos',
+        focus_time_chart_label: 'Tiempo de Concentración', week_abbrev: 'Sem',
+        total_focus_logged: 'Tiempo Total de Concentración', longest_session: 'Sesión Más Larga', total_tasks_completed_stat: 'Total de Tareas Completadas',
+        
     },
     fr: {
         nav_dashboard: 'Tableau de bord', nav_ai: 'Assistant IA', nav_tasks: 'Routines et Tâches', nav_calendar: 'Calendrier', nav_settings: 'Paramètres',
@@ -370,7 +383,15 @@ export const TRANSLATIONS = {
         confirm_delete_task_forever: 'Supprimer définitivement cette tâche ? Cette action est irréversible.',
         confirm_delete_schedule_event: 'Supprimer cet événement récurrent ?',
         alert_fill_schedule_fields: "Veuillez renseigner le titre, l'heure de début et l'heure de fin.",
-        alert_same_start_end: "L'heure de début et de fin ne peuvent pas être identiques."
+        alert_same_start_end: "L'heure de début et de fin ne peuvent pas être identiques.",
+        unlocked_tag: 'Débloqué', limited_tag: 'Limité',
+        tasks_completed_fraction: '{completed} / {total} tâches terminées',
+        day_detail_tasks: '{n} tâches', day_detail_finished: '{n} terminées',
+        achievement_category_focus: 'Temps de Concentration', achievement_category_tasks: 'Tâches Terminées', achievement_category_misc: 'Jalons',
+        focus_time_chart_label: 'Temps de Concentration', week_abbrev: 'Sem',
+        total_focus_logged: 'Temps de Concentration Total', longest_session: 'Session la Plus Longue', total_tasks_completed_stat: 'Total des Tâches Terminées'
+
+
     },
     it: {
         nav_dashboard: 'Dashboard', nav_ai: 'Assistente IA', nav_tasks: 'Routine e Attività', nav_calendar: 'Calendario', nav_settings: 'Impostazioni',
@@ -478,7 +499,14 @@ export const TRANSLATIONS = {
         confirm_delete_task_forever: 'Eliminare definitivamente questa attività? Questa azione non può essere annullata.',
         confirm_delete_schedule_event: 'Eliminare questo evento ricorrente?',
         alert_fill_schedule_fields: "Inserisci il titolo, l'ora di inizio e l'ora di fine.",
-        alert_same_start_end: "L'ora di inizio e di fine non possono coincidere."
+        alert_same_start_end: "L'ora di inizio e di fine non possono coincidere.",
+        unlocked_tag: 'Sbloccato', limited_tag: 'Limitato',
+        tasks_completed_fraction: '{completed} / {total} attività completate',
+        day_detail_tasks: '{n} attività', day_detail_finished: '{n} completate',
+        achievement_category_focus: 'Tempo di Concentrazione', achievement_category_tasks: 'Attività Completate', achievement_category_misc: 'Traguardi',
+        focus_time_chart_label: 'Tempo di Concentrazione', week_abbrev: 'Sett',
+        total_focus_logged: 'Tempo di Concentrazione Totale', longest_session: 'Sessione più Lunga', total_tasks_completed_stat: 'Totale Attività Completate'
+
     },
     ru: {
         nav_dashboard: 'Панель управления', nav_ai: 'ИИ-помощник', nav_tasks: 'Распорядок и задачи', nav_calendar: 'Календарь', nav_settings: 'Настройки',
@@ -587,7 +615,13 @@ export const TRANSLATIONS = {
         confirm_delete_task_forever: 'Навсегда удалить эту задачу? Это действие нельзя отменить.',
         confirm_delete_schedule_event: 'Удалить это повторяющееся событие?',
         alert_fill_schedule_fields: 'Пожалуйста, заполните название, время начала и время окончания.',
-        alert_same_start_end: 'Время начала и окончания не могут совпадать.'
+        alert_same_start_end: 'Время начала и окончания не могут совпадать.',
+        unlocked_tag: 'Открыто', limited_tag: 'Ограничено',
+        tasks_completed_fraction: '{completed} / {total} задач выполнено',
+        day_detail_tasks: '{n} задач', day_detail_finished: '{n} выполнено',
+        achievement_category_focus: 'Время в фокусе', achievement_category_tasks: 'Выполненные задачи', achievement_category_misc: 'Вехи',
+        focus_time_chart_label: 'Время концентрации', week_abbrev: 'Нед',
+        total_focus_logged: 'Всего времени концентрации', longest_session: 'Самая долгая сессия', total_tasks_completed_stat: 'Всего выполнено задач'
 
     },
     zh: {
@@ -697,7 +731,14 @@ export const TRANSLATIONS = {
         confirm_delete_task_forever: '永久删除此任务？此操作无法撤销。',
         confirm_delete_schedule_event: '删除此重复事件？',
         alert_fill_schedule_fields: '请填写标题、开始时间和结束时间。',
-        alert_same_start_end: '开始时间和结束时间不能相同。'
+        alert_same_start_end: '开始时间和结束时间不能相同。',
+        unlocked_tag: '已解锁', limited_tag: '限量',
+        tasks_completed_fraction: '{completed} / {total} 个任务已完成',
+        day_detail_tasks: '{n} 个任务', day_detail_finished: '{n} 个已完成',
+        achievement_category_focus: '专注时间', achievement_category_tasks: '已完成任务', achievement_category_misc: '里程碑',
+        focus_time_chart_label: '专注时间', week_abbrev: '周',
+        total_focus_logged: '累计专注时间', longest_session: '最长单次专注', total_tasks_completed_stat: '累计完成任务'
+
 
     },
     ko: {
@@ -806,7 +847,13 @@ export const TRANSLATIONS = {
         confirm_delete_task_forever: '이 작업을 영구적으로 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.',
         confirm_delete_schedule_event: '이 반복 일정을 삭제하시겠습니까?',
         alert_fill_schedule_fields: '제목, 시작 시간, 종료 시간을 입력해 주세요.',
-        alert_same_start_end: '시작 시간과 종료 시간은 같을 수 없습니다.'
+        alert_same_start_end: '시작 시간과 종료 시간은 같을 수 없습니다.',
+        unlocked_tag: '달성함', limited_tag: '한정',
+        tasks_completed_fraction: '{completed} / {total}개 작업 완료',
+        day_detail_tasks: '작업 {n}개', day_detail_finished: '{n}개 완료',
+        achievement_category_focus: '집중 시간', achievement_category_tasks: '완료한 작업', achievement_category_misc: '마일스톤',
+        focus_time_chart_label: '집중 시간', week_abbrev: '주',
+        total_focus_logged: '총 집중 시간', longest_session: '최장 세션', total_tasks_completed_stat: '총 완료한 작업'
     },
     ar: {
         nav_dashboard: 'لوحة التحكم', nav_ai: 'مساعد الذكاء الاصطناعي', nav_tasks: 'الروتين والمهام', nav_calendar: 'التقويم', nav_settings: 'الإعدادات',
@@ -914,7 +961,13 @@ export const TRANSLATIONS = {
         confirm_delete_task_forever: 'هل تريد حذف هذه المهمة نهائيًا؟ لا يمكن التراجع عن هذا الإجراء.',
         confirm_delete_schedule_event: 'هل تريد حذف هذا الحدث المتكرر؟',
         alert_fill_schedule_fields: 'يرجى إدخال العنوان ووقت البدء ووقت الانتهاء.',
-        alert_same_start_end: 'لا يمكن أن يكون وقت البدء ووقت الانتهاء متطابقين.'
+        alert_same_start_end: 'لا يمكن أن يكون وقت البدء ووقت الانتهاء متطابقين.',
+        unlocked_tag: 'مفتوح', limited_tag: 'محدود',
+        tasks_completed_fraction: '{completed} / {total} مهمة مكتملة',
+        day_detail_tasks: '{n} مهمة', day_detail_finished: '{n} مكتملة',
+        achievement_category_focus: 'وقت التركيز', achievement_category_tasks: 'المهام المكتملة', achievement_category_misc: 'إنجازات بارزة',
+        focus_time_chart_label: 'وقت التركيز', week_abbrev: 'أسبوع',
+        total_focus_logged: 'إجمالي وقت التركيز', longest_session: 'أطول جلسة', total_tasks_completed_stat: 'إجمالي المهام المكتملة'
     }
 };
 
