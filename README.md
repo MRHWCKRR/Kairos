@@ -13,7 +13,7 @@ A smart, personalised and practical solution to school/work stress and last minu
 
 ---
 
-##  Planned Key Features
+## Key Features
 
 *   **AI Powered automatic scheduling:** Saves you time and will maximise your time management.
   
