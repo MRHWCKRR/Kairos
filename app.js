@@ -311,6 +311,18 @@ document.addEventListener("DOMContentLoaded", () => {
     let notificationsData = [];
     let unsubscribeNotifications = null;
 
+    let pendingInitialLoads = 0;
+
+    function hideLoadingScreen() {
+        const el = document.getElementById('app-loading-screen');
+        if (el) el.classList.add('hidden');
+    }
+
+    function markInitialLoadComplete() {
+        pendingInitialLoads = Math.max(0, pendingInitialLoads - 1);
+        if (pendingInitialLoads === 0) hideLoadingScreen();
+    }
+
     // --- Schedule state ---
     let scheduleData = [];
     let editingScheduleEventId = null;
@@ -368,10 +380,13 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         console.log("User is logged in:", user.email);
+        pendingInitialLoads = 3;
         loadLatestPlanFromFirestore(user);
         loadUserSettingsFromFirestore(user);
         setupNotificationsSync(user);
         loadUserProgressFromFirestore(user);
+
+        setTimeout(hideLoadingScreen, 8000);
     });
     
     // --- 1 UI Nav & Clock ---
