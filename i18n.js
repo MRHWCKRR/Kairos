@@ -158,7 +158,8 @@ export const TRANSLATIONS = {
         day_detail_tasks: '{n} tasks', day_detail_finished: '{n} finished',
         achievement_category_focus: 'Locked In Time', achievement_category_tasks: 'Tasks Completed', achievement_category_misc: 'Milestones',
         focus_time_chart_label: 'Focus Time', week_abbrev: 'Wk',
-        total_focus_logged: 'Total Focus Logged', longest_session: 'Longest Session', total_tasks_completed_stat: 'Total Tasks Completed'
+        total_focus_logged: 'Total Focus Logged', longest_session: 'Longest Session', total_tasks_completed_stat: 'Total Tasks Completed',
+        loading_workspace: 'Loading your workspace...',
     },
 
     es: {
@@ -275,6 +276,7 @@ export const TRANSLATIONS = {
         achievement_category_focus: 'Tiempo Concentrado', achievement_category_tasks: 'Tareas Completadas', achievement_category_misc: 'Hitos',
         focus_time_chart_label: 'Tiempo de Concentración', week_abbrev: 'Sem',
         total_focus_logged: 'Tiempo Total de Concentración', longest_session: 'Sesión Más Larga', total_tasks_completed_stat: 'Total de Tareas Completadas',
+        loading_workspace: 'Cargando tu espacio de trabajo...',
         
     },
     fr: {
@@ -389,7 +391,8 @@ export const TRANSLATIONS = {
         day_detail_tasks: '{n} tâches', day_detail_finished: '{n} terminées',
         achievement_category_focus: 'Temps de Concentration', achievement_category_tasks: 'Tâches Terminées', achievement_category_misc: 'Jalons',
         focus_time_chart_label: 'Temps de Concentration', week_abbrev: 'Sem',
-        total_focus_logged: 'Temps de Concentration Total', longest_session: 'Session la Plus Longue', total_tasks_completed_stat: 'Total des Tâches Terminées'
+        total_focus_logged: 'Temps de Concentration Total', longest_session: 'Session la Plus Longue', total_tasks_completed_stat: 'Total des Tâches Terminées',
+        loading_workspace: 'Chargement de votre espace de travail...',
 
 
     },
@@ -505,7 +508,8 @@ export const TRANSLATIONS = {
         day_detail_tasks: '{n} attività', day_detail_finished: '{n} completate',
         achievement_category_focus: 'Tempo di Concentrazione', achievement_category_tasks: 'Attività Completate', achievement_category_misc: 'Traguardi',
         focus_time_chart_label: 'Tempo di Concentrazione', week_abbrev: 'Sett',
-        total_focus_logged: 'Tempo di Concentrazione Totale', longest_session: 'Sessione più Lunga', total_tasks_completed_stat: 'Totale Attività Completate'
+        total_focus_logged: 'Tempo di Concentrazione Totale', longest_session: 'Sessione più Lunga', total_tasks_completed_stat: 'Totale Attività Completate',
+        loading_workspace: 'Caricamento del tuo spazio di lavoro...',
 
     },
     ru: {
@@ -621,7 +625,8 @@ export const TRANSLATIONS = {
         day_detail_tasks: '{n} задач', day_detail_finished: '{n} выполнено',
         achievement_category_focus: 'Время в фокусе', achievement_category_tasks: 'Выполненные задачи', achievement_category_misc: 'Вехи',
         focus_time_chart_label: 'Время концентрации', week_abbrev: 'Нед',
-        total_focus_logged: 'Всего времени концентрации', longest_session: 'Самая долгая сессия', total_tasks_completed_stat: 'Всего выполнено задач'
+        total_focus_logged: 'Всего времени концентрации', longest_session: 'Самая долгая сессия', total_tasks_completed_stat: 'Всего выполнено задач',
+        loading_workspace: 'Загрузка вашего рабочего пространства...',
 
     },
     zh: {
@@ -737,7 +742,8 @@ export const TRANSLATIONS = {
         day_detail_tasks: '{n} 个任务', day_detail_finished: '{n} 个已完成',
         achievement_category_focus: '专注时间', achievement_category_tasks: '已完成任务', achievement_category_misc: '里程碑',
         focus_time_chart_label: '专注时间', week_abbrev: '周',
-        total_focus_logged: '累计专注时间', longest_session: '最长单次专注', total_tasks_completed_stat: '累计完成任务'
+        total_focus_logged: '累计专注时间', longest_session: '最长单次专注', total_tasks_completed_stat: '累计完成任务',
+        loading_workspace: '正在加载你的工作区...',
 
 
     },
@@ -853,7 +859,8 @@ export const TRANSLATIONS = {
         day_detail_tasks: '작업 {n}개', day_detail_finished: '{n}개 완료',
         achievement_category_focus: '집중 시간', achievement_category_tasks: '완료한 작업', achievement_category_misc: '마일스톤',
         focus_time_chart_label: '집중 시간', week_abbrev: '주',
-        total_focus_logged: '총 집중 시간', longest_session: '최장 세션', total_tasks_completed_stat: '총 완료한 작업'
+        total_focus_logged: '총 집중 시간', longest_session: '최장 세션', total_tasks_completed_stat: '총 완료한 작업',
+        loading_workspace: '작업 공간을 불러오는 중...',
     },
     ar: {
         nav_dashboard: 'لوحة التحكم', nav_ai: 'مساعد الذكاء الاصطناعي', nav_tasks: 'الروتين والمهام', nav_calendar: 'التقويم', nav_settings: 'الإعدادات',
@@ -967,7 +974,8 @@ export const TRANSLATIONS = {
         day_detail_tasks: '{n} مهمة', day_detail_finished: '{n} مكتملة',
         achievement_category_focus: 'وقت التركيز', achievement_category_tasks: 'المهام المكتملة', achievement_category_misc: 'إنجازات بارزة',
         focus_time_chart_label: 'وقت التركيز', week_abbrev: 'أسبوع',
-        total_focus_logged: 'إجمالي وقت التركيز', longest_session: 'أطول جلسة', total_tasks_completed_stat: 'إجمالي المهام المكتملة'
+        total_focus_logged: 'إجمالي وقت التركيز', longest_session: 'أطول جلسة', total_tasks_completed_stat: 'إجمالي المهام المكتملة',
+        loading_workspace: 'جارٍ تحميل مساحة عملك...',
     }
 };
 

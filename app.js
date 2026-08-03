@@ -1082,6 +1082,8 @@ document.addEventListener("DOMContentLoaded", () => {
         } catch (error) {
             console.error("Error loading plans from Firestore:", error);
             renderApp();
+        } finally {
+            markInitialLoadComplete();
         }
     }
 
@@ -1766,6 +1768,7 @@ document.addEventListener("DOMContentLoaded", () => {
         populateSettingsForm();
         renderUserProfileMenu(user);
         setupNotificationBell();
+        markInitialLoadComplete();
     }
 
     async function saveUserSettingsToFirestore() {
@@ -3053,6 +3056,7 @@ document.addEventListener("DOMContentLoaded", () => {
         renderMiniAchievementsWidget();
         renderFocusTimerWidget();
         renderStatisticsPage();
+        markInitialLoadComplete();
     }
 
     async function saveAchievementsToFirestore() {
