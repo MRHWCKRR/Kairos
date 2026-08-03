@@ -14,6 +14,24 @@
 </head>
 <body>
 
+    <div id="app-loading-screen" class="app-loading-screen">
+        <svg class="loading-logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Kairos">
+            <defs>
+                <linearGradient id="loadingGradLeft" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" class="logo-stop-left-a"/>
+                    <stop offset="100%" class="logo-stop-left-b"/>
+                </linearGradient>
+                <linearGradient id="loadingGradRight" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" class="logo-stop-right-a"/>
+                    <stop offset="100%" class="logo-stop-right-b"/>
+                </linearGradient>
+            </defs>
+            <line x1="24.5" y1="85" x2="50.5" y2="15" stroke="url(#loadingGradLeft)" stroke-width="15" stroke-linecap="round"/>
+            <line x1="49.5" y1="85" x2="75.5" y2="15" stroke="url(#loadingGradRight)" stroke-width="15" stroke-linecap="round"/>
+        </svg>
+        <p class="loading-text-msg" data-i18n="loading_workspace">Loading your workspace...</p>
+    </div>
+
     <!-- Fixed background layer for Appearance > Background -->
     <div id="app-bg-layer" class="app-bg-layer"></div>
 
