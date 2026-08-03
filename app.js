@@ -385,6 +385,7 @@ document.addEventListener("DOMContentLoaded", () => {
         loadUserSettingsFromFirestore(user);
         setupNotificationsSync(user);
         loadUserProgressFromFirestore(user);
+        loadAiChatHistoryFromFirestore(user);
 
         setTimeout(hideLoadingScreen, 8000);
     });
@@ -392,31 +393,59 @@ document.addEventListener("DOMContentLoaded", () => {
     // --- 1 UI Nav & Clock ---
     const sidebar = document.getElementById("sidebar");
     const sidebarToggle = document.getElementById("sidebar-toggle");
-    if (sidebarToggle && sidebar) sidebarToggle.addEventListener("click", () => sidebar.classList.toggle("collapsed"));
+    if (sidebarToggle && sidebar) {
+        sidebarToggle.addEventListener("click", () => {
+            sidebar.classList.toggle("collapsed");
+            const aiPage = document.getElementById('ai-page');
+            if (aiPage && aiPage.classList.contains('active')) {
+                sidebarManuallyToggledOnAI = true;
+            }
+        });
+    }
 
     const navItems = document.querySelectorAll(".nav-item");
     const pageViews = document.querySelectorAll(".page-view");
+
+    let aiPageAutoCollapsed = false;
+    let sidebarManuallyToggledOnAI = false;
 
     navItems.forEach(button => {
         button.addEventListener("click", () => {
             navItems.forEach(item => item.classList.remove("active"));
             pageViews.forEach(page => page.classList.remove("active"));
             button.classList.add("active");
-            const targetPage = document.getElementById(button.getAttribute("data-target"));
+            const targetName = button.getAttribute("data-target");
+            const targetPage = document.getElementById(targetName);
             if (targetPage) targetPage.classList.add("active");
 
-            if (button.getAttribute("data-target") === "settings-page") {
+            if (targetName === "settings-page") {
                 enterSettingsPage();
             }
-            if (button.getAttribute("data-target") === "schedule-page") {
+            if (targetName === "schedule-page") {
                 scrollScheduleToDefault();
             }
-            if (button.getAttribute("data-target") === "achievements-page") {
+            if (targetName === "achievements-page") {
                 renderAchievementsPage();
                 renderGoalSelects();
             }
-            if (button.getAttribute("data-target") === "statistics-page") {
+            if (targetName === "statistics-page") {
                 renderStatisticsPage();
+            }
+
+            if (targetName === "ai-page") {
+                sidebarManuallyToggledOnAI = false;
+                if (sidebar && !sidebar.classList.contains("collapsed")) {
+                    sidebar.classList.add("collapsed");
+                    aiPageAutoCollapsed = true;
+                } else {
+                    aiPageAutoCollapsed = false;
+                }
+            } else {
+                if (aiPageAutoCollapsed && !sidebarManuallyToggledOnAI && sidebar) {
+                    sidebar.classList.remove("collapsed");
+                }
+                aiPageAutoCollapsed = false;
+                sidebarManuallyToggledOnAI = false;
             }
         });
     });
@@ -1088,113 +1117,297 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // --- 7 AI Plan Generator ---
-    const aiInput = document.getElementById("ai-input");
-    const aiGenerateBtn = document.getElementById("ai-generate-btn");
     let pendingAiSections = null;
     let pendingAiRecurringEvents = [];
+    let isGeneratingPlan = false;
 
-    if (aiInput && aiGenerateBtn) {
-        aiGenerateBtn.addEventListener("click", async () => {
-            const assignmentText = aiInput.value.trim();
-            const apiKey = localStorage.getItem("kairos_api_key");
+    async function generatePlanFromText(assignmentText, triggerBtn) {
+        const apiKey = localStorage.getItem("kairos_api_key");
 
-            if (!apiKey) {
-                alert(tr('alert_no_api_key'));
-                return;
+        if (!apiKey) {
+            alert(tr('alert_no_api_key'));
+            return;
+        }
+        if (!assignmentText || !assignmentText.trim()) {
+            alert(tr('alert_empty_input'));
+            return;
+        }
+        if (isGeneratingPlan) return;
+        isGeneratingPlan = true;
+
+        const originalBtnText = triggerBtn ? triggerBtn.innerText : null;
+        if (triggerBtn) {
+            triggerBtn.innerText = tr('generating_plan_ellipsis');
+            triggerBtn.disabled = true;
+            triggerBtn.style.opacity = "0.7";
+        }
+
+        const languageName = getGeminiLanguageName(userSettings.accessibility.language || 'en');
+        const scheduleSummary = buildScheduleSummaryForAI();
+        const userContext = buildUserContextForAI();
+        const systemPrompt = `
+        You are an expert AI Study Coach. The user will provide a syllabus, assignment, or goal.
+        Break it down into logical, actionable study sections and tasks.
+        IMPORTANT: Write all section titles and task titles in ${languageName}, since that is the user's chosen app language.
+        ADDITIONALLY: if the user's text mentions any RECURRING weekly commitment (e.g. "I have football training every Tuesday 4-6pm", "I sleep from 10pm to 6am", "math class on Mondays and Wednesdays 9-10am"), extract each one as a recurring event. Only extract things that repeat weekly on a fixed day/time — do NOT extract one-off deadlines or dates, those belong in tasks instead. CRITICAL: only extract commitments that are NEW — if a commitment is already listed under "recurring weekly commitments" below, do NOT include it again in recurringEvents, even if the user's text also mentions it. If nothing new is mentioned, return an empty array for recurringEvents. CRITICAL: "day" must ALWAYS be a single integer 0-6, never a string, range, or array. If a commitment repeats on multiple days (e.g. "every weekday", "Monday and Wednesday", "weekends"), you MUST output one separate event object per day, each with its own single "day" integer — e.g. "weekdays 9:30pm-7:30am" becomes 5 separate objects with day 1, 2, 3, 4, and 5, each identical except for "day".
+
+        CRITICAL INSTRUCTION: You MUST respond with ONLY a valid, raw JSON object.
+        Do NOT include markdown formatting, backticks, or the word 'json'.
+        Just the raw object, using this exact structure:
+        {
+          "sections": [
+            {
+              "id": "gen-sec-1",
+              "title": "Section 1: Research",
+              "tasks": [
+                { "id": "gen-task-1", "title": "Find 3 academic sources", "completed": false },
+                { "id": "gen-task-2", "title": "Read and highlight sources", "completed": false }
+              ]
             }
-            if (!assignmentText) {
+          ],
+          "recurringEvents": [
+            { "title": "Football Training", "category": "training", "day": 2, "start": "16:00", "end": "18:00" }
+          ]
+        }
+        "day" is 0-6 where 0=Sunday, 1=Monday, ... 6=Saturday. "category" must be one of: sleep, class, tutoring, training, other. Times are 24-hour "HH:MM".${scheduleSummary}${userContext}
+        User's Request:
+        ${assignmentText}
+        `;
+
+        try {
+            const cleanApiKey = apiKey.trim();
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${cleanApiKey}`;
+
+            const response = await fetch(apiUrl, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    contents: [{ parts: [{ text: systemPrompt }] }]
+                })
+            });
+
+            if (!response.ok) {
+                const errorDetails = await response.text();
+                console.error("Google API Rejected the Request:", errorDetails);
+                throw new Error(`API Error ${response.status}. See console for details.`);
+            }
+
+            const data = await response.json();
+            let aiResponseText = data.candidates[0].content.parts[0].text;
+            aiResponseText = aiResponseText.replace(/```json/gi, "").replace(/```/gi, "").trim();
+            const parsed = JSON.parse(aiResponseText);
+
+            const newSections = Array.isArray(parsed) ? parsed : (parsed.sections || []);
+            const rawRecurringEvents = Array.isArray(parsed) ? [] : (parsed.recurringEvents || []);
+            const recurringEvents = rawRecurringEvents.filter(ev => !isDuplicateScheduleEvent(ev));
+
+            const uniqueId = Date.now();
+            newSections.forEach((sec, sIndex) => {
+                sec.id = `ai-sec-${uniqueId}-${sIndex}`;
+                sec.tasks.forEach((task, tIndex) => {
+                    task.id = `ai-task-${uniqueId}-${sIndex}-${tIndex}`;
+                    task.completed = false;
+                    task.date = task.date || null;
+                });
+            });
+
+            pendingAiSections = newSections;
+            pendingAiRecurringEvents = recurringEvents;
+            openAiDestinationModal();
+
+        } catch (error) {
+            console.error(error);
+            alert(tr('alert_ai_generation_error'));
+        } finally {
+            isGeneratingPlan = false;
+            if (triggerBtn) {
+                triggerBtn.innerText = originalBtnText;
+                triggerBtn.disabled = false;
+                triggerBtn.style.opacity = "1";
+            }
+        }
+    }
+
+    // --- AI Chatbot (Hack Club free AI proxy) ---
+    const HACKCLUB_API_URL = 'https://ai.hackclub.com/proxy/v1/chat/completions';
+    const HACKCLUB_MODEL = 'qwen/qwen3-32b';
+
+    let aiChatMessages = []; // { role: 'user' | 'assistant', content: string }
+    let aiChatSending = false;
+
+    const aiChatMessagesEl = document.getElementById('ai-chat-messages');
+    const aiChatInputEl = document.getElementById('ai-chat-input');
+    const aiChatSendBtn = document.getElementById('ai-chat-send-btn');
+    const aiChatNewBtn = document.getElementById('ai-chat-new-btn');
+    const aiChatPlanBtn = document.getElementById('ai-chat-plan-btn');
+
+    async function loadAiChatHistoryFromFirestore(user) {
+        try {
+            const ref = doc(db, 'users', user.uid);
+            const snap = await getDoc(ref);
+            if (snap.exists() && Array.isArray(snap.data().aiChatHistory)) {
+                aiChatMessages = snap.data().aiChatHistory;
+            }
+        } catch (error) {
+            console.error('Error loading AI chat history:', error);
+        }
+        renderAiChatMessages();
+    }
+
+    async function saveAiChatHistoryToFirestore() {
+        const user = auth.currentUser;
+        if (!user) return;
+        try {
+            await setDoc(doc(db, 'users', user.uid), { aiChatHistory: aiChatMessages.slice(-60) }, { merge: true });
+        } catch (error) {
+            console.error('Error saving AI chat history:', error);
+        }
+    }
+
+    function renderAiChatMessages() {
+        if (!aiChatMessagesEl) return;
+
+        if (!aiChatMessages.length) {
+            aiChatMessagesEl.innerHTML = `
+                <div class="ai-chat-empty-state">
+                    <div class="ai-chat-empty-icon">💬</div>
+                    <p>${tr('ai_chat_empty_state')}</p>
+                </div>
+            `;
+            return;
+        }
+
+        aiChatMessagesEl.innerHTML = aiChatMessages.map(m => `
+            <div class="ai-chat-bubble-row ${m.role === 'user' ? 'user' : 'assistant'}">
+                <div class="ai-chat-bubble">${escapeHtml(m.content)}</div>
+            </div>
+        `).join('');
+
+        aiChatMessagesEl.scrollTop = aiChatMessagesEl.scrollHeight;
+    }
+
+    function escapeHtml(str) {
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+
+    function showAiChatTypingIndicator() {
+        if (!aiChatMessagesEl) return;
+        const row = document.createElement('div');
+        row.className = 'ai-chat-bubble-row assistant';
+        row.id = 'ai-chat-typing-row';
+        row.innerHTML = `<div class="ai-chat-bubble"><span class="ai-chat-typing-dots"><span></span><span></span><span></span></span></div>`;
+        aiChatMessagesEl.appendChild(row);
+        aiChatMessagesEl.scrollTop = aiChatMessagesEl.scrollHeight;
+    }
+
+    function hideAiChatTypingIndicator() {
+        const row = document.getElementById('ai-chat-typing-row');
+        if (row) row.remove();
+    }
+
+    async function sendHackClubChatMessage(messages) {
+        const headers = { 'Content-Type': 'application/json' };
+        const key = localStorage.getItem('kairos_hackclub_key');
+        if (key) headers['Authorization'] = `Bearer ${key.trim()}`;
+
+        const response = await fetch(HACKCLUB_API_URL, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({
+                model: HACKCLUB_MODEL,
+                messages,
+                stream: false
+            })
+        });
+
+        if (!response.ok) {
+            const errText = await response.text();
+            console.error('Hack Club AI error:', errText);
+            throw new Error(`Hack Club AI error ${response.status}`);
+        }
+
+        const data = await response.json();
+        return data.choices[0].message.content;
+    }
+
+    async function handleAiChatSend() {
+        if (aiChatSending || !aiChatInputEl) return;
+        const text = aiChatInputEl.value.trim();
+        if (!text) return;
+
+        aiChatMessages.push({ role: 'user', content: text });
+        aiChatInputEl.value = '';
+        aiChatInputEl.style.height = 'auto';
+        renderAiChatMessages();
+
+        aiChatSending = true;
+        if (aiChatSendBtn) aiChatSendBtn.disabled = true;
+        showAiChatTypingIndicator();
+
+        try {
+            const apiMessages = aiChatMessages.map(m => ({ role: m.role, content: m.content }));
+            const reply = await sendHackClubChatMessage(apiMessages);
+            aiChatMessages.push({ role: 'assistant', content: reply });
+        } catch (error) {
+            console.error(error);
+            aiChatMessages.push({ role: 'assistant', content: tr('ai_chat_error') });
+        } finally {
+            hideAiChatTypingIndicator();
+            aiChatSending = false;
+            if (aiChatSendBtn) aiChatSendBtn.disabled = false;
+            renderAiChatMessages();
+            saveAiChatHistoryToFirestore();
+        }
+    }
+
+    if (aiChatSendBtn) aiChatSendBtn.addEventListener('click', handleAiChatSend);
+    if (aiChatInputEl) {
+        aiChatInputEl.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleAiChatSend();
+            }
+        });
+        aiChatInputEl.addEventListener('input', () => {
+            aiChatInputEl.style.height = 'auto';
+            aiChatInputEl.style.height = Math.min(160, aiChatInputEl.scrollHeight) + 'px';
+        });
+    }
+
+    if (aiChatNewBtn) {
+        aiChatNewBtn.addEventListener('click', () => {
+            if (aiChatMessages.length && !confirm(tr('confirm_new_chat'))) return;
+            aiChatMessages = [];
+            renderAiChatMessages();
+            saveAiChatHistoryToFirestore();
+        });
+    }
+
+    if (aiChatPlanBtn) {
+        aiChatPlanBtn.addEventListener('click', () => {
+            if (!aiChatMessages.length) {
                 alert(tr('alert_empty_input'));
                 return;
             }
+            const transcript = aiChatMessages
+                .map(m => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`)
+                .join('\n');
+            generatePlanFromText(transcript, aiChatPlanBtn);
+        });
+    }
 
-            const originalBtnText = aiGenerateBtn.innerText;
-            aiGenerateBtn.innerText = tr('generating_plan_ellipsis');
-            aiGenerateBtn.disabled = true;
-            aiGenerateBtn.style.opacity = "0.7";
-
-            const languageName = getGeminiLanguageName(userSettings.accessibility.language || 'en');
-            const scheduleSummary = buildScheduleSummaryForAI();
-            const userContext = buildUserContextForAI();
-            const systemPrompt = `
-            You are an expert AI Study Coach. The user will provide a syllabus, assignment, or goal.
-            Break it down into logical, actionable study sections and tasks.
-            IMPORTANT: Write all section titles and task titles in ${languageName}, since that is the user's chosen app language.
-            ADDITIONALLY: if the user's text mentions any RECURRING weekly commitment (e.g. "I have football training every Tuesday 4-6pm", "I sleep from 10pm to 6am", "math class on Mondays and Wednesdays 9-10am"), extract each one as a recurring event. Only extract things that repeat weekly on a fixed day/time — do NOT extract one-off deadlines or dates, those belong in tasks instead. CRITICAL: only extract commitments that are NEW — if a commitment is already listed under "recurring weekly commitments" below, do NOT include it again in recurringEvents, even if the user's text also mentions it. If nothing new is mentioned, return an empty array for recurringEvents. CRITICAL: "day" must ALWAYS be a single integer 0-6, never a string, range, or array. If a commitment repeats on multiple days (e.g. "every weekday", "Monday and Wednesday", "weekends"), you MUST output one separate event object per day, each with its own single "day" integer — e.g. "weekdays 9:30pm-7:30am" becomes 5 separate objects with day 1, 2, 3, 4, and 5, each identical except for "day".            
-
-            CRITICAL INSTRUCTION: You MUST respond with ONLY a valid, raw JSON object.
-            Do NOT include markdown formatting, backticks, or the word 'json'.
-            Just the raw object, using this exact structure:
-            {
-              "sections": [
-                {
-                  "id": "gen-sec-1",
-                  "title": "Section 1: Research",
-                  "tasks": [
-                    { "id": "gen-task-1", "title": "Find 3 academic sources", "completed": false },
-                    { "id": "gen-task-2", "title": "Read and highlight sources", "completed": false }
-                  ]
-                }
-              ],
-              "recurringEvents": [
-                { "title": "Football Training", "category": "training", "day": 2, "start": "16:00", "end": "18:00" }
-              ]
-            }
-            "day" is 0-6 where 0=Sunday, 1=Monday, ... 6=Saturday. "category" must be one of: sleep, class, tutoring, training, other. Times are 24-hour "HH:MM".${scheduleSummary}${userContext}
-            User's Request:
-            ${assignmentText}
-            `;
-
-            try {
-                const cleanApiKey = apiKey.trim(); 
-                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${cleanApiKey}`;
-                
-                const response = await fetch(apiUrl, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        contents: [{ parts: [{ text: systemPrompt }] }]
-                    })
-                });
-
-                if (!response.ok) {
-                    const errorDetails = await response.text(); 
-                    console.error("Google API Rejected the Request:", errorDetails);
-                    throw new Error(`API Error ${response.status}. See console for details.`);
-                }
-
-                const data = await response.json();
-                let aiResponseText = data.candidates[0].content.parts[0].text;
-                aiResponseText = aiResponseText.replace(/```json/gi, "").replace(/```/gi, "").trim();
-                const parsed = JSON.parse(aiResponseText);
-
-                // Backward-compatible: older prompt shape was a bare array of sections.
-                const newSections = Array.isArray(parsed) ? parsed : (parsed.sections || []);
-                const rawRecurringEvents = Array.isArray(parsed) ? [] : (parsed.recurringEvents || []);
-                const recurringEvents = rawRecurringEvents.filter(ev => !isDuplicateScheduleEvent(ev));
-
-                const uniqueId = Date.now();
-                newSections.forEach((sec, sIndex) => {
-                    sec.id = `ai-sec-${uniqueId}-${sIndex}`;
-                    sec.tasks.forEach((task, tIndex) => {
-                        task.id = `ai-task-${uniqueId}-${sIndex}-${tIndex}`;
-                        task.completed = false;
-                        task.date = task.date || null;
-                    });
-                });
-
-                pendingAiSections = newSections;
-                pendingAiRecurringEvents = recurringEvents;
-                openAiDestinationModal();
-                aiInput.value = "";
-
-            } catch (error) {
-                console.error(error);
-                alert(tr('alert_ai_generation_error'));
-            } finally {
-                aiGenerateBtn.innerText = originalBtnText;
-                aiGenerateBtn.disabled = false;
-                aiGenerateBtn.style.opacity = "1";
-            }
+    // Hack Club key (optional)
+    const hackclubKeyInput = document.getElementById('hackclub-key-input');
+    const saveHackclubKeyBtn = document.getElementById('save-hackclub-key-btn');
+    if (hackclubKeyInput && saveHackclubKeyBtn) {
+        const savedHcKey = localStorage.getItem('kairos_hackclub_key');
+        if (savedHcKey) hackclubKeyInput.value = savedHcKey;
+        saveHackclubKeyBtn.addEventListener('click', () => {
+            localStorage.setItem('kairos_hackclub_key', hackclubKeyInput.value.trim());
+            saveHackclubKeyBtn.innerText = 'Saved! ✓';
+            setTimeout(() => { saveHackclubKeyBtn.innerText = 'Save Key'; }, 2000);
         });
     }
 
