@@ -1308,19 +1308,21 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     async function sendHackClubChatMessage(messages) {
-        const headers = { 'Content-Type': 'application/json' };
-        const key = localStorage.getItem('kairos_hackclub_key');
-        if (key) headers['Authorization'] = `Bearer ${key.trim()}`;
-
-        const response = await fetch(HACKCLUB_API_URL, {
+        const response = await fetch('https://kairos.kirosapp.workers.dev/', {
             method: 'POST',
-            headers,
-            body: JSON.stringify({
-                model: HACKCLUB_MODEL,
-                messages,
-                stream: false
-            })
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ messages })
         });
+
+        if (!response.ok) {
+            const errText = await response.text();
+            console.error('Chat proxy error:', errText);
+            throw new Error(`Chat proxy error ${response.status}`);
+        }
+
+        const data = await response.json();
+        return data.choices[0].message.content;
+    }
 
         if (!response.ok) {
             const errText = await response.text();
