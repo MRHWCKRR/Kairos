@@ -160,6 +160,10 @@ export const TRANSLATIONS = {
         focus_time_chart_label: 'Focus Time', week_abbrev: 'Wk',
         total_focus_logged: 'Total Focus Logged', longest_session: 'Longest Session', total_tasks_completed_stat: 'Total Tasks Completed',
         loading_workspace: 'Loading your workspace...',
+        new_chat: 'New Chat', create_plan_from_chat: '📋 Create Plan From Chat',
+        ai_chat_placeholder: 'Ask anything...', ai_chat_empty_state: 'Ask me anything — or tell me about an assignment and I can turn it into a plan.',
+        ai_chat_error: "Sorry, I couldn't reach the AI service just now. Please try again.",
+        confirm_new_chat: 'Start a new chat? This clears your current conversation.',
     },
 
     es: {
@@ -393,6 +397,10 @@ export const TRANSLATIONS = {
         focus_time_chart_label: 'Temps de Concentration', week_abbrev: 'Sem',
         total_focus_logged: 'Temps de Concentration Total', longest_session: 'Session la Plus Longue', total_tasks_completed_stat: 'Total des Tâches Terminées',
         loading_workspace: 'Chargement de votre espace de travail...',
+        new_chat: 'Nuevo Chat', create_plan_from_chat: '📋 Crear Plan Desde el Chat',
+        ai_chat_placeholder: 'Pregunta lo que quieras...', ai_chat_empty_state: 'Pregúntame lo que quieras, o cuéntame sobre una tarea y puedo convertirla en un plan.',
+        ai_chat_error: 'Lo siento, no pude conectar con el servicio de IA en este momento. Inténtalo de nuevo.',
+        confirm_new_chat: '¿Iniciar un nuevo chat? Esto borrará tu conversación actual.',
 
 
     },
@@ -510,6 +518,11 @@ export const TRANSLATIONS = {
         focus_time_chart_label: 'Tempo di Concentrazione', week_abbrev: 'Sett',
         total_focus_logged: 'Tempo di Concentrazione Totale', longest_session: 'Sessione più Lunga', total_tasks_completed_stat: 'Totale Attività Completate',
         loading_workspace: 'Caricamento del tuo spazio di lavoro...',
+        new_chat: 'Nouvelle Discussion', create_plan_from_chat: '📋 Créer un Plan à Partir du Chat',
+        ai_chat_placeholder: 'Posez-moi une question...', ai_chat_empty_state: "Posez-moi n'importe quelle question, ou parlez-moi d'un devoir et je peux le transformer en plan.",
+        ai_chat_error: "Désolé, je n'ai pas pu joindre le service IA pour le moment. Veuillez réessayer.",
+        confirm_new_chat: 'Démarrer une nouvelle discussion ? Cela effacera votre conversation actuelle.',
+
 
     },
     ru: {
@@ -627,6 +640,11 @@ export const TRANSLATIONS = {
         focus_time_chart_label: 'Время концентрации', week_abbrev: 'Нед',
         total_focus_logged: 'Всего времени концентрации', longest_session: 'Самая долгая сессия', total_tasks_completed_stat: 'Всего выполнено задач',
         loading_workspace: 'Загрузка вашего рабочего пространства...',
+        new_chat: 'Новый чат', create_plan_from_chat: '📋 Создать план из чата',
+        ai_chat_placeholder: 'Спросите что угодно...', ai_chat_empty_state: 'Спросите меня о чём угодно — или расскажите о задании, и я превращу его в план.',
+        ai_chat_error: 'Извините, не удалось связаться с сервисом ИИ. Попробуйте снова.',
+        confirm_new_chat: 'Начать новый чат? Текущий разговор будет удалён.',
+
 
     },
     zh: {
@@ -744,6 +762,11 @@ export const TRANSLATIONS = {
         focus_time_chart_label: '专注时间', week_abbrev: '周',
         total_focus_logged: '累计专注时间', longest_session: '最长单次专注', total_tasks_completed_stat: '累计完成任务',
         loading_workspace: '正在加载你的工作区...',
+        new_chat: '新对话', create_plan_from_chat: '📋 根据对话创建计划',
+        ai_chat_placeholder: '问我任何问题...', ai_chat_empty_state: '问我任何问题——或者告诉我一项作业，我可以把它变成一个计划。',
+        ai_chat_error: '抱歉，暂时无法连接到AI服务，请重试。',
+        confirm_new_chat: '开始新对话？这将清除当前对话。',
+
 
 
     },
@@ -861,6 +884,10 @@ export const TRANSLATIONS = {
         focus_time_chart_label: '집중 시간', week_abbrev: '주',
         total_focus_logged: '총 집중 시간', longest_session: '최장 세션', total_tasks_completed_stat: '총 완료한 작업',
         loading_workspace: '작업 공간을 불러오는 중...',
+        new_chat: '새 채팅', create_plan_from_chat: '📋 채팅으로 계획 만들기',
+        ai_chat_placeholder: '무엇이든 물어보세요...', ai_chat_empty_state: '무엇이든 물어보세요 — 또는 과제에 대해 알려주시면 계획으로 만들어 드릴게요.',
+        ai_chat_error: '죄송합니다, 지금 AI 서비스에 연결할 수 없습니다. 다시 시도해 주세요.',
+        confirm_new_chat: '새 채팅을 시작할까요? 현재 대화 내용이 지워집니다.',
     },
     ar: {
         nav_dashboard: 'لوحة التحكم', nav_ai: 'مساعد الذكاء الاصطناعي', nav_tasks: 'الروتين والمهام', nav_calendar: 'التقويم', nav_settings: 'الإعدادات',
@@ -976,6 +1003,10 @@ export const TRANSLATIONS = {
         focus_time_chart_label: 'وقت التركيز', week_abbrev: 'أسبوع',
         total_focus_logged: 'إجمالي وقت التركيز', longest_session: 'أطول جلسة', total_tasks_completed_stat: 'إجمالي المهام المكتملة',
         loading_workspace: 'جارٍ تحميل مساحة عملك...',
+        new_chat: 'محادثة جديدة', create_plan_from_chat: '📋 إنشاء خطة من المحادثة',
+        ai_chat_placeholder: 'اسألني أي شيء...', ai_chat_empty_state: 'اسألني أي شيء — أو أخبرني عن مهمة دراسية وسأحوّلها إلى خطة.',
+        ai_chat_error: 'عذرًا، تعذّر الوصول إلى خدمة الذكاء الاصطناعي الآن. يرجى المحاولة مرة أخرى.',
+        confirm_new_chat: 'بدء محادثة جديدة؟ سيؤدي هذا إلى مسح محادثتك الحالية.',
     }
 };
 
