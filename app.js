@@ -1324,16 +1324,6 @@ document.addEventListener("DOMContentLoaded", () => {
         return data.choices[0].message.content;
     }
 
-        if (!response.ok) {
-            const errText = await response.text();
-            console.error('Hack Club AI error:', errText);
-            throw new Error(`Hack Club AI error ${response.status}`);
-        }
-
-        const data = await response.json();
-        return data.choices[0].message.content;
-    }
-
     async function handleAiChatSend() {
         if (aiChatSending || !aiChatInputEl) return;
         const text = aiChatInputEl.value.trim();
