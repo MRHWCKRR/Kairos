@@ -22,13 +22,6 @@ console.log("APP.js is loaded and running");
 // code changes needed for most additions)
 // ===========================================================
 
-const THEMES = [
-    { id: 'default', name: 'Default Purple', swatch: '#a855f7' },
-    { id: 'fairyfloss', name: 'Fairy Floss', swatch: '#ff8fc9' },
-    { id: 'poseidon', name: 'Poseidon', swatch: '#38bdf8' },
-    { id: 'peacefulplains', name: 'Peaceful Plains', swatch: '#4ade80' }
-];
-
 const TEXT_COLORS = [
     { id: 'default', nameKey: 'color_default', hex: null },
     { id: 'white', nameKey: 'color_white', hex: '#ffffff' },
@@ -47,28 +40,35 @@ const FONT_PACKS = [
     { id: 'mono', name: 'JetBrains Mono' }
 ];
 
+const THEMES = [
+    { id: 'default', nameKey: 'theme_default', swatch: '#a855f7' },
+    { id: 'fairyfloss', nameKey: 'theme_fairyfloss', swatch: '#ff8fc9' },
+    { id: 'poseidon', nameKey: 'theme_poseidon', swatch: '#38bdf8' },
+    { id: 'peacefulplains', nameKey: 'theme_peacefulplains', swatch: '#4ade80' }
+];
+
 const CURSORS = [
-    { id: 'default', name: 'Default' },
-    { id: 'bunny', name: '🐰 Bunny' },
-    { id: 'spaceship', name: '🚀 Spaceship' }
+    { id: 'default', nameKey: 'cursor_default' },
+    { id: 'bunny', nameKey: 'cursor_bunny' },
+    { id: 'spaceship', nameKey: 'cursor_spaceship' }
 ];
 
 const BACKGROUNDS = [
-    { id: 'none', name: 'None', type: 'none' },
-    { id: 'bg1', name: 'Nebula', type: 'image', file: 'backgrounds/bg1.jpg' },
-    { id: 'bg2', name: 'Forest', type: 'image', file: 'backgrounds/bg2.jpg' },
-    { id: 'bg3', name: 'Waves', type: 'image', file: 'backgrounds/bg3.jpg' },
-    { id: 'anim1', name: 'Particles', type: 'video', file: 'backgrounds/anim1.mp4' },
-    { id: 'anim2', name: 'Rain', type: 'video', file: 'backgrounds/anim2.mp4' },
-    { id: 'custom', name: 'Custom', type: 'custom' }
+    { id: 'none', nameKey: 'bg_none', type: 'none' },
+    { id: 'bg1', nameKey: 'bg_nebula', type: 'image', file: 'backgrounds/bg1.jpg' },
+    { id: 'bg2', nameKey: 'bg_forest', type: 'image', file: 'backgrounds/bg2.jpg' },
+    { id: 'bg3', nameKey: 'bg_waves', type: 'image', file: 'backgrounds/bg3.jpg' },
+    { id: 'anim1', nameKey: 'bg_particles', type: 'video', file: 'backgrounds/anim1.mp4' },
+    { id: 'anim2', nameKey: 'bg_rain', type: 'video', file: 'backgrounds/anim2.mp4' },
+    { id: 'custom', nameKey: 'bg_custom', type: 'custom' }
 ];
 
 const AMBIENT_SOUNDS = [
-    { id: 'none', name: 'None' },
-    { id: 'rain', name: '🌧️ Rain', file: 'ambient/rain.mp3' },
-    { id: 'lofi', name: '🎧 Lo-fi', file: 'ambient/lofi.mp3' },
-    { id: 'cafe', name: '☕ Cafe', file: 'ambient/cafe.mp3' },
-    { id: 'custom', name: '🔗 Custom YouTube', file: null }
+    { id: 'none', nameKey: 'ambient_none' },
+    { id: 'rain', nameKey: 'ambient_rain', file: 'ambient/rain.mp3' },
+    { id: 'lofi', nameKey: 'ambient_lofi', file: 'ambient/lofi.mp3' },
+    { id: 'cafe', nameKey: 'ambient_cafe', file: 'ambient/cafe.mp3' },
+    { id: 'custom', nameKey: 'ambient_custom', file: null }
 ];
 
 const OG_ACHIEVEMENT_AVAILABLE = true; // flip to false to stop granting the OG badge to new signups
@@ -1347,7 +1347,11 @@ document.addEventListener("DOMContentLoaded", () => {
         showAiChatTypingIndicator();
 
         try {
-            const apiMessages = aiChatMessages.map(m => ({ role: m.role, content: m.content }));
+            const languageName = getGeminiLanguageName(userSettings.accessibility.language || 'en');
+            const apiMessages = [
+                { role: 'system', content: `You are a helpful, friendly assistant inside the Kairos productivity app. Always respond in ${languageName}, regardless of what language the user writes in, unless they explicitly ask you to reply in a different language.` },
+                ...aiChatMessages.map(m => ({ role: m.role, content: m.content }))
+            ];
             const reply = await sendHackClubChatMessage(apiMessages);
             aiChatMessages.push({ role: 'assistant', content: reply });
         } catch (error) {
@@ -1438,8 +1442,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (pendingAiRecurringEvents.length) {
                 recurringList.innerHTML = pendingAiRecurringEvents.map(ev => {
                     const cat = SCHEDULE_CATEGORIES[ev.category] || SCHEDULE_CATEGORIES.other;
-                    return `<li>${ev.title} — ${SCHEDULE_DAY_LABELS[ev.day]}, ${scheduleMinutesToLabel(scheduleTimeToMinutes(ev.start))}–${scheduleMinutesToLabel(scheduleTimeToMinutes(ev.end))} (${cat.label})</li>`;
-                }).join('');
+                    return `<li>${ev.title} — ${getScheduleDayLabels()[ev.day]}, ${scheduleMinutesToLabel(scheduleTimeToMinutes(ev.start))}–${scheduleMinutesToLabel(scheduleTimeToMinutes(ev.end))} (${tr('cat_' + ev.category)})</li>`;                }).join('');
                 recurringPreview.style.display = 'block';
             } else {
                 recurringPreview.style.display = 'none';
@@ -2213,9 +2216,9 @@ document.addEventListener("DOMContentLoaded", () => {
         const themeContainer = document.getElementById('theme-options');
         if (themeContainer) {
             themeContainer.innerHTML = THEMES.map(t => `
-                <button class="swatch" data-value="${t.id}" title="${t.name}">
+                <button class="swatch" data-value="${t.id}" title="${tr(t.nameKey)}">
                     <span class="swatch-color" style="background:${t.swatch}"></span>
-                    <span class="swatch-label">${t.name}</span>
+                    <span class="swatch-label">${tr(t.nameKey)}</span>
                 </button>
             `).join('');
             themeContainer.querySelectorAll('.swatch').forEach(btn => {
@@ -2265,8 +2268,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const cursorContainer = document.getElementById('cursor-options');
         if (cursorContainer) {
-            cursorContainer.innerHTML = CURSORS.map(c => `<button class="swatch cursor-swatch" data-value="${c.id}"><span class="swatch-label">${c.name}</span></button>`).join('');
-            cursorContainer.querySelectorAll('.swatch').forEach(btn => {
+            cursorContainer.innerHTML = CURSORS.map(c => `<button class="swatch cursor-swatch" data-value="${c.id}"><span class="swatch-label">${tr(c.nameKey)}</span></button>`).join('');            cursorContainer.querySelectorAll('.swatch').forEach(btn => {
                 btn.addEventListener('click', () => {
                     pendingSettings.appearance.cursor = btn.dataset.value;
                     setActiveSwatch('cursor-options', btn.dataset.value);
@@ -2280,12 +2282,12 @@ document.addEventListener("DOMContentLoaded", () => {
         if (bgContainer) {
             bgContainer.innerHTML = BACKGROUNDS.map(b => {
                 if (b.type === 'custom') {
-                    return `<button class="swatch bg-swatch bg-swatch-custom" data-value="custom"><span class="swatch-color" style="background:var(--bg-main);">📤</span><span class="swatch-label">${b.name}</span></button>`;
+                    return `<button class="swatch bg-swatch bg-swatch-custom" data-value="custom"><span class="swatch-color" style="background:var(--bg-main);">📤</span><span class="swatch-label">${tr(b.nameKey)}</span></button>`;
                 }
                 const preview = b.type === 'none' ? 'none' : `url(${b.file})`;
-                return `<button class="swatch bg-swatch" data-value="${b.id}" title="${b.name}">
+                return `<button class="swatch bg-swatch" data-value="${b.id}" title="${tr(b.nameKey)}">
                     <span class="swatch-color" style="background-image:${preview}; background-color: var(--bg-main);">${b.type === 'video' ? '▶' : ''}</span>
-                    <span class="swatch-label">${b.name}</span>
+                    <span class="swatch-label">${tr(b.nameKey)}</span>
                 </button>`;
             }).join('');
             bgContainer.querySelectorAll('.swatch').forEach(btn => {
@@ -2870,7 +2872,11 @@ document.addEventListener("DOMContentLoaded", () => {
         other:     { label: 'Other',     color: '#64748b' }
     };
     const SCHEDULE_HOUR_HEIGHT = 48; // px per hour on the grid
-    const SCHEDULE_DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    function getScheduleDayLabels() {
+        const locale = getLocale(userSettings.accessibility.language || 'en');
+        const formatter = new Intl.DateTimeFormat(locale, { weekday: 'short' });
+        return [0, 1, 2, 3, 4, 5, 6].map(i => formatter.format(new Date(2023, 0, 1 + i))); // Jan 1 2023 was a Sunday
+    }
 
     function scheduleTimeToMinutes(t) {
         if (!t) return 0;
@@ -2889,7 +2895,7 @@ document.addEventListener("DOMContentLoaded", () => {
     function buildScheduleSummaryForAI() {
         if (!scheduleData.length) return '';
 
-        const byDay = SCHEDULE_DAY_LABELS.map((label, dayIndex) => {
+        const byDay = getScheduleDayLabels().map((label, dayIndex) => {
             const events = scheduleData
                 .filter(ev => ev.day === dayIndex)
                 .map(ev => {
@@ -3007,9 +3013,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const legendHTML = `
             <div class="schedule-legend">
-                ${Object.values(SCHEDULE_CATEGORIES).map(cat => `
+                ${Object.keys(SCHEDULE_CATEGORIES).map(key => `
                     <span class="schedule-legend-item">
-                        <span class="schedule-legend-dot" style="background:${cat.color}"></span>${cat.label}
+                        <span class="schedule-legend-dot" style="background:${SCHEDULE_CATEGORIES[key].color}"></span>${tr('cat_' + key)}
                     </span>
                 `).join('')}
             </div>

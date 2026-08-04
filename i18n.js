@@ -165,6 +165,11 @@ export const TRANSLATIONS = {
         ai_chat_error: "Sorry, I couldn't reach the AI service just now. Please try again.",
         confirm_new_chat: 'Start a new chat? This clears your current conversation.',
         ai_chat_rate_limited: "You're sending messages a bit fast — please wait a moment and try again.",
+        theme_default: 'Default Purple', theme_fairyfloss: 'Fairy Floss', theme_poseidon: 'Poseidon', theme_peacefulplains: 'Peaceful Plains',
+        cursor_default: 'Default', cursor_bunny: '🐰 Bunny', cursor_spaceship: '🚀 Spaceship',
+        ambient_none: 'None', ambient_rain: '🌧️ Rain', ambient_lofi: '🎧 Lo-fi', ambient_cafe: '☕ Cafe', ambient_custom: '🔗 Custom YouTube',
+        bg_none: 'None', bg_nebula: 'Nebula', bg_forest: 'Forest', bg_waves: 'Waves', bg_particles: 'Particles', bg_rain: 'Rain', bg_custom: 'Custom',
+        avatar_url_placeholder: '...or paste an image URL',
 
     },
 
@@ -284,6 +289,11 @@ export const TRANSLATIONS = {
         total_focus_logged: 'Tiempo Total de Concentración', longest_session: 'Sesión Más Larga', total_tasks_completed_stat: 'Total de Tareas Completadas',
         loading_workspace: 'Cargando tu espacio de trabajo...',
         ai_chat_rate_limited: 'Estás enviando mensajes demasiado rápido — espera un momento e inténtalo de nuevo.',
+        theme_default: 'Púrpura Predeterminado', theme_fairyfloss: 'Algodón de Azúcar', theme_poseidon: 'Poseidón', theme_peacefulplains: 'Llanuras Pacíficas',
+        cursor_default: 'Predeterminado', cursor_bunny: '🐰 Conejito', cursor_spaceship: '🚀 Nave Espacial',
+        ambient_none: 'Ninguno', ambient_rain: '🌧️ Lluvia', ambient_lofi: '🎧 Lo-fi', ambient_cafe: '☕ Café', ambient_custom: '🔗 YouTube Personalizado',
+        bg_none: 'Ninguno', bg_nebula: 'Nebulosa', bg_forest: 'Bosque', bg_waves: 'Olas', bg_particles: 'Partículas', bg_rain: 'Lluvia', bg_custom: 'Personalizado',
+        avatar_url_placeholder: '...o pega una URL de imagen',
         
     },
     fr: {
@@ -405,6 +415,11 @@ export const TRANSLATIONS = {
         ai_chat_error: 'Lo siento, no pude conectar con el servicio de IA en este momento. Inténtalo de nuevo.',
         confirm_new_chat: '¿Iniciar un nuevo chat? Esto borrará tu conversación actual.',
         ai_chat_rate_limited: 'Vous envoyez des messages un peu trop vite — veuillez patienter un instant et réessayer.',
+        theme_default: 'Violet par Défaut', theme_fairyfloss: 'Barbe à Papa', theme_poseidon: 'Poséidon', theme_peacefulplains: 'Plaines Paisibles',
+        cursor_default: 'Par Défaut', cursor_bunny: '🐰 Lapin', cursor_spaceship: '🚀 Vaisseau Spatial',
+        ambient_none: 'Aucun', ambient_rain: '🌧️ Pluie', ambient_lofi: '🎧 Lo-fi', ambient_cafe: '☕ Café', ambient_custom: '🔗 YouTube Personnalisé',
+        bg_none: 'Aucun', bg_nebula: 'Nébuleuse', bg_forest: 'Forêt', bg_waves: 'Vagues', bg_particles: 'Particules', bg_rain: 'Pluie', bg_custom: 'Personnalisé',
+        avatar_url_placeholder: "...ou collez une URL d'image",
 
 
     },
@@ -527,6 +542,11 @@ export const TRANSLATIONS = {
         ai_chat_error: "Désolé, je n'ai pas pu joindre le service IA pour le moment. Veuillez réessayer.",
         confirm_new_chat: 'Démarrer une nouvelle discussion ? Cela effacera votre conversation actuelle.',
         ai_chat_rate_limited: 'Stai inviando messaggi un po troppo velocemente: attendi un momento e riprova.',
+        theme_default: 'Viola Predefinito', theme_fairyfloss: 'Zucchero Filato', theme_poseidon: 'Poseidone', theme_peacefulplains: 'Pianure Tranquille',
+        cursor_default: 'Predefinito', cursor_bunny: '🐰 Coniglietto', cursor_spaceship: '🚀 Astronave',
+        ambient_none: 'Nessuno', ambient_rain: '🌧️ Pioggia', ambient_lofi: '🎧 Lo-fi', ambient_cafe: '☕ Caffè', ambient_custom: '🔗 YouTube Personalizzato',
+        bg_none: 'Nessuno', bg_nebula: 'Nebulosa', bg_forest: 'Foresta', bg_waves: 'Onde', bg_particles: 'Particelle', bg_rain: 'Pioggia', bg_custom: 'Personalizzato',
+        avatar_url_placeholder: '...oppure incolla un URL immagine',
 
 
     },
@@ -650,6 +670,11 @@ export const TRANSLATIONS = {
         ai_chat_error: 'Извините, не удалось связаться с сервисом ИИ. Попробуйте снова.',
         confirm_new_chat: 'Начать новый чат? Текущий разговор будет удалён.',
         ai_chat_rate_limited: 'Вы отправляете сообщения слишком быстро — подождите немного и попробуйте снова.',
+        theme_default: 'Фиолетовый по умолчанию', theme_fairyfloss: 'Сахарная вата', theme_poseidon: 'Посейдон', theme_peacefulplains: 'Мирные равнины',
+        cursor_default: 'По умолчанию', cursor_bunny: '🐰 Зайчик', cursor_spaceship: '🚀 Космический корабль',
+        ambient_none: 'Нет', ambient_rain: '🌧️ Дождь', ambient_lofi: '🎧 Lo-fi', ambient_cafe: '☕ Кафе', ambient_custom: '🔗 Свой YouTube',
+        bg_none: 'Нет', bg_nebula: 'Туманность', bg_forest: 'Лес', bg_waves: 'Волны', bg_particles: 'Частицы', bg_rain: 'Дождь', bg_custom: 'Свой',
+        avatar_url_placeholder: '...или вставьте URL изображения',
 
 
     },
@@ -773,6 +798,11 @@ export const TRANSLATIONS = {
         ai_chat_error: '抱歉，暂时无法连接到AI服务，请重试。',
         confirm_new_chat: '开始新对话？这将清除当前对话。',
         ai_chat_rate_limited: '您发送消息的速度有点快，请稍等片刻后重试。',
+        theme_default: '默认紫色', theme_fairyfloss: '仙女棉花糖', theme_poseidon: '波塞冬', theme_peacefulplains: '静谧平原',
+        cursor_default: '默认', cursor_bunny: '🐰 兔子', cursor_spaceship: '🚀 飞船',
+        ambient_none: '无', ambient_rain: '🌧️ 雨声', ambient_lofi: '🎧 Lo-fi', ambient_cafe: '☕ 咖啡馆', ambient_custom: '🔗 自定义YouTube',
+        bg_none: '无', bg_nebula: '星云', bg_forest: '森林', bg_waves: '海浪', bg_particles: '粒子', bg_rain: '雨天', bg_custom: '自定义',
+        avatar_url_placeholder: '...或粘贴图片链接',
 
 
 
@@ -897,6 +927,11 @@ export const TRANSLATIONS = {
         ai_chat_error: '죄송합니다, 지금 AI 서비스에 연결할 수 없습니다. 다시 시도해 주세요.',
         confirm_new_chat: '새 채팅을 시작할까요? 현재 대화 내용이 지워집니다.',
         ai_chat_rate_limited: '메시지를 조금 빠르게 보내고 있어요 — 잠시 후 다시 시도해 주세요.',
+        theme_default: '기본 퍼플', theme_fairyfloss: '페어리 플로스', theme_poseidon: '포세이돈', theme_peacefulplains: '평화로운 평원',
+        cursor_default: '기본값', cursor_bunny: '🐰 토끼', cursor_spaceship: '🚀 우주선',
+        ambient_none: '없음', ambient_rain: '🌧️ 비', ambient_lofi: '🎧 로파이', ambient_cafe: '☕ 카페', ambient_custom: '🔗 커스텀 유튜브',
+        bg_none: '없음', bg_nebula: '성운', bg_forest: '숲', bg_waves: '파도', bg_particles: '입자', bg_rain: '비', bg_custom: '커스텀',
+        avatar_url_placeholder: '...또는 이미지 URL 붙여넣기',
     },
     ar: {
         nav_dashboard: 'لوحة التحكم', nav_ai: 'مساعد الذكاء الاصطناعي', nav_tasks: 'الروتين والمهام', nav_calendar: 'التقويم', nav_settings: 'الإعدادات',
@@ -1017,6 +1052,11 @@ export const TRANSLATIONS = {
         ai_chat_error: 'عذرًا، تعذّر الوصول إلى خدمة الذكاء الاصطناعي الآن. يرجى المحاولة مرة أخرى.',
         confirm_new_chat: 'بدء محادثة جديدة؟ سيؤدي هذا إلى مسح محادثتك الحالية.',
         ai_chat_rate_limited: 'أنت ترسل الرسائل بسرعة كبيرة — يرجى الانتظار قليلاً ثم المحاولة مرة أخرى.',
+        theme_default: 'بنفسجي افتراضي', theme_fairyfloss: 'غزل البنات', theme_poseidon: 'بوسيدون', theme_peacefulplains: 'سهول هادئة',
+        cursor_default: 'افتراضي', cursor_bunny: '🐰 أرنب', cursor_spaceship: '🚀 مركبة فضائية',
+        ambient_none: 'لا شيء', ambient_rain: '🌧️ مطر', ambient_lofi: '🎧 لوفاي', ambient_cafe: '☕ مقهى', ambient_custom: '🔗 يوتيوب مخصص',
+        bg_none: 'لا شيء', bg_nebula: 'سديم', bg_forest: 'غابة', bg_waves: 'أمواج', bg_particles: 'جسيمات', bg_rain: 'مطر', bg_custom: 'مخصص',
+        avatar_url_placeholder: '...أو الصق رابط صورة',
     }
 };
 
