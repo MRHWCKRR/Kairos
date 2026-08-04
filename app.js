@@ -1307,13 +1307,21 @@ document.addEventListener("DOMContentLoaded", () => {
         if (row) row.remove();
     }
 
+    const KAIROS_RELAY_SECRET = 'PASTE_THE_SAME_VALUE_YOU_SET_IN_STEP_2_HERE';
+
     async function sendHackClubChatMessage(messages) {
-        const response = await fetch('https://kairos.kirosapp.workers.dev/', {
+        const response = await fetch('https://kairos.yourname.workers.dev', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Kairos-Auth': KAIROS_RELAY_SECRET
+            },
             body: JSON.stringify({ messages })
         });
 
+        if (response.status === 429) {
+            throw new Error('rate_limited');
+        }
         if (!response.ok) {
             const errText = await response.text();
             console.error('Chat proxy error:', errText);
@@ -1344,7 +1352,8 @@ document.addEventListener("DOMContentLoaded", () => {
             aiChatMessages.push({ role: 'assistant', content: reply });
         } catch (error) {
             console.error(error);
-            aiChatMessages.push({ role: 'assistant', content: tr('ai_chat_error') });
+            const message = error.message === 'rate_limited' ? tr('ai_chat_rate_limited') : tr('ai_chat_error');
+            aiChatMessages.push({ role: 'assistant', content: message });
         } finally {
             hideAiChatTypingIndicator();
             aiChatSending = false;
