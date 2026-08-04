@@ -164,6 +164,8 @@ export const TRANSLATIONS = {
         ai_chat_placeholder: 'Ask anything...', ai_chat_empty_state: 'Ask me anything — or tell me about an assignment and I can turn it into a plan.',
         ai_chat_error: "Sorry, I couldn't reach the AI service just now. Please try again.",
         confirm_new_chat: 'Start a new chat? This clears your current conversation.',
+        ai_chat_rate_limited: "You're sending messages a bit fast — please wait a moment and try again.",
+
     },
 
     es: {
@@ -281,6 +283,7 @@ export const TRANSLATIONS = {
         focus_time_chart_label: 'Tiempo de Concentración', week_abbrev: 'Sem',
         total_focus_logged: 'Tiempo Total de Concentración', longest_session: 'Sesión Más Larga', total_tasks_completed_stat: 'Total de Tareas Completadas',
         loading_workspace: 'Cargando tu espacio de trabajo...',
+        ai_chat_rate_limited: 'Estás enviando mensajes demasiado rápido — espera un momento e inténtalo de nuevo.',
         
     },
     fr: {
@@ -401,6 +404,7 @@ export const TRANSLATIONS = {
         ai_chat_placeholder: 'Pregunta lo que quieras...', ai_chat_empty_state: 'Pregúntame lo que quieras, o cuéntame sobre una tarea y puedo convertirla en un plan.',
         ai_chat_error: 'Lo siento, no pude conectar con el servicio de IA en este momento. Inténtalo de nuevo.',
         confirm_new_chat: '¿Iniciar un nuevo chat? Esto borrará tu conversación actual.',
+        ai_chat_rate_limited: 'Vous envoyez des messages un peu trop vite — veuillez patienter un instant et réessayer.',
 
 
     },
@@ -522,6 +526,7 @@ export const TRANSLATIONS = {
         ai_chat_placeholder: 'Posez-moi une question...', ai_chat_empty_state: "Posez-moi n'importe quelle question, ou parlez-moi d'un devoir et je peux le transformer en plan.",
         ai_chat_error: "Désolé, je n'ai pas pu joindre le service IA pour le moment. Veuillez réessayer.",
         confirm_new_chat: 'Démarrer une nouvelle discussion ? Cela effacera votre conversation actuelle.',
+        ai_chat_rate_limited: 'Stai inviando messaggi un po troppo velocemente: attendi un momento e riprova.',
 
 
     },
@@ -644,6 +649,7 @@ export const TRANSLATIONS = {
         ai_chat_placeholder: 'Спросите что угодно...', ai_chat_empty_state: 'Спросите меня о чём угодно — или расскажите о задании, и я превращу его в план.',
         ai_chat_error: 'Извините, не удалось связаться с сервисом ИИ. Попробуйте снова.',
         confirm_new_chat: 'Начать новый чат? Текущий разговор будет удалён.',
+        ai_chat_rate_limited: 'Вы отправляете сообщения слишком быстро — подождите немного и попробуйте снова.',
 
 
     },
@@ -766,6 +772,8 @@ export const TRANSLATIONS = {
         ai_chat_placeholder: '问我任何问题...', ai_chat_empty_state: '问我任何问题——或者告诉我一项作业，我可以把它变成一个计划。',
         ai_chat_error: '抱歉，暂时无法连接到AI服务，请重试。',
         confirm_new_chat: '开始新对话？这将清除当前对话。',
+        ai_chat_rate_limited: '您发送消息的速度有点快，请稍等片刻后重试。',
+
 
 
 
@@ -888,6 +896,7 @@ export const TRANSLATIONS = {
         ai_chat_placeholder: '무엇이든 물어보세요...', ai_chat_empty_state: '무엇이든 물어보세요 — 또는 과제에 대해 알려주시면 계획으로 만들어 드릴게요.',
         ai_chat_error: '죄송합니다, 지금 AI 서비스에 연결할 수 없습니다. 다시 시도해 주세요.',
         confirm_new_chat: '새 채팅을 시작할까요? 현재 대화 내용이 지워집니다.',
+        ai_chat_rate_limited: '메시지를 조금 빠르게 보내고 있어요 — 잠시 후 다시 시도해 주세요.',
     },
     ar: {
         nav_dashboard: 'لوحة التحكم', nav_ai: 'مساعد الذكاء الاصطناعي', nav_tasks: 'الروتين والمهام', nav_calendar: 'التقويم', nav_settings: 'الإعدادات',
@@ -1007,6 +1016,7 @@ export const TRANSLATIONS = {
         ai_chat_placeholder: 'اسألني أي شيء...', ai_chat_empty_state: 'اسألني أي شيء — أو أخبرني عن مهمة دراسية وسأحوّلها إلى خطة.',
         ai_chat_error: 'عذرًا، تعذّر الوصول إلى خدمة الذكاء الاصطناعي الآن. يرجى المحاولة مرة أخرى.',
         confirm_new_chat: 'بدء محادثة جديدة؟ سيؤدي هذا إلى مسح محادثتك الحالية.',
+        ai_chat_rate_limited: 'أنت ترسل الرسائل بسرعة كبيرة — يرجى الانتظار قليلاً ثم المحاولة مرة أخرى.',
     }
 };
 

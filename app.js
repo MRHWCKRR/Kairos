@@ -1307,10 +1307,10 @@ document.addEventListener("DOMContentLoaded", () => {
         if (row) row.remove();
     }
 
-    const KAIROS_RELAY_SECRET = 'PASTE_THE_SAME_VALUE_YOU_SET_IN_STEP_2_HERE';
+    const KAIROS_RELAY_SECRET = 'xxx';
 
     async function sendHackClubChatMessage(messages) {
-        const response = await fetch('https://kairos.yourname.workers.dev', {
+        const response = await fetch('https://kairos.kirosapp.workers.dev', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
