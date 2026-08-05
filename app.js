@@ -343,7 +343,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Shorthand: translate a key using whichever language is currently active.
     function tr(key) {
-        return t(key, userSettings.accessibility.language || 'en');
+        const result = t(key, userSettings.accessibility.language || 'en');
+        return (result === undefined || result === null) ? key : result;
     }
 
     function trFmt(key, vars) {
@@ -2307,7 +2308,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const ambientContainer = document.getElementById('ambient-options');
         if (ambientContainer) {
-            ambientContainer.innerHTML = AMBIENT_SOUNDS.map(a => `<button class="option-tile" data-value="${a.id}">${a.name}</button>`).join('');
+            ambientContainer.innerHTML = AMBIENT_SOUNDS.map(a => `<button class="option-tile" data-value="${a.id}">${tr(a.nameKey)}</button>`).join('');
             ambientContainer.querySelectorAll('.option-tile').forEach(btn => {
                 btn.addEventListener('click', () => {
                     if (btn.dataset.value === 'lofi') triggerMiscAchievement('lofi');
@@ -3026,7 +3027,7 @@ document.addEventListener("DOMContentLoaded", () => {
             hourRowsHTML += `<div class="schedule-hour-row" style="height:${SCHEDULE_HOUR_HEIGHT}px;"><span class="schedule-hour-label">${scheduleMinutesToLabel(h * 60)}</span></div>`;
         }
 
-        const daysHTML = SCHEDULE_DAY_LABELS.map((label, dayIndex) => {
+        const daysHTML = getScheduleDayLabels().map((label, dayIndex) => {
             const eventsForDay = scheduleData.filter(ev => ev.day === dayIndex);
             const prevDay = (dayIndex + 6) % 7;
             const overflowEvents = scheduleData.filter(ev => ev.day === prevDay && scheduleTimeToMinutes(ev.end) <= scheduleTimeToMinutes(ev.start));
