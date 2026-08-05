@@ -1308,7 +1308,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (row) row.remove();
     }
 
-    const KAIROS_RELAY_SECRET = 'xxx';
+    const KAIROS_RELAY_SECRET = '__KAIROS_RELAY_SECRET__';
 
     async function sendHackClubChatMessage(messages) {
         const response = await fetch('https://kairos.kirosapp.workers.dev', {
