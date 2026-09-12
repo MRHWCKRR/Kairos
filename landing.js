@@ -2,13 +2,29 @@ document.addEventListener('DOMContentLoaded',()=>{const spotlight=document.creat
 // Keep testimonials in a true continuous loop. Add/edit only the original cards in index.html.\n(function(){const track=document.getElementById('testimonial-track');if(!track)return;const originals=[...track.children];if(originals.length<2)return;originals.forEach(card=>{const clone=card.cloneNode(true);clone.setAttribute('aria-hidden','true');track.appendChild(clone)});})();
 
 (function(){
-  const track = document.getElementById('testimonial-track');
-  if (!track) return;
-  const originals = Array.from(track.children);
-  if (!originals.length) return;
-  originals.forEach(function(card){
-    const clone = card.cloneNode(true);
+  const track=document.getElementById('testimonial-track');
+  if(!track) return;
+  const cards=Array.from(track.children);
+  if(!cards.length) return;
+
+  // Build enough copies to fill the viewport, then animate by exactly one set width.
+  const originalWidth=cards.reduce((sum,card)=>sum+card.getBoundingClientRect().width,0)+(cards.length-1)*16;
+  const copies=Math.max(3,Math.ceil(window.innerWidth/originalWidth)+2);
+  for(let i=1;i<copies;i++) cards.forEach(card=>{
+    const clone=card.cloneNode(true);
     clone.setAttribute('aria-hidden','true');
     track.appendChild(clone);
   });
+
+  let offset=0;
+  let last=performance.now();
+  const speed=38;
+  function loop(now){
+    const dt=(now-last)/1000; last=now;
+    offset-=speed*dt;
+    if(-offset>=originalWidth) offset+=originalWidth;
+    track.style.transform='translate3d('+offset+'px,0,0)';
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
 })();
