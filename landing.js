@@ -28,29 +28,3 @@ document.addEventListener('DOMContentLoaded',()=>{const spotlight=document.creat
   }
   requestAnimationFrame(loop);
 })();
-
-// Launch CTA: rename the old action and add the early-supporter waitlist offer.
-(function(){
-  document.querySelectorAll('a.btn-primary').forEach(link=>{
-    if(link.textContent.trim().replace('↗','').trim()==='Open Kairos'){
-      const arrow=link.querySelector('span');
-      link.childNodes.forEach(node=>{if(node.nodeType===Node.TEXT_NODE)node.textContent='Try Kairos ';});
-      if(!arrow) link.insertAdjacentHTML('beforeend','<span>↗</span>');
-    }
-  });
-
-  const style=document.createElement('style');
-  style.textContent='.final-cta-buttons{display:flex;justify-content:center;align-items:center;gap:12px;flex-wrap:wrap}.waitlist-cta{border-color:rgba(192,132,252,.3);background:rgba(168,85,247,.07)}@media(max-width:650px){.final-cta-buttons{flex-direction:column}.final-cta-buttons a{width:100%;max-width:340px}}';
-  document.head.appendChild(style);
-
-  const finalCta=document.querySelector('.final-cta');
-  const primary=finalCta?.querySelector('a.btn-primary');
-  if(finalCta && primary && !finalCta.querySelector('.waitlist-cta')){
-    const waitlist=document.createElement('a');
-    waitlist.href='waitlist.html';
-    waitlist.className='btn-secondary large waitlist-cta';
-    waitlist.innerHTML='<span>Get 1 month free</span><span aria-hidden="true">✦</span>';
-    primary.insertAdjacentElement('afterend',waitlist);
-    primary.parentElement?.classList.add('final-cta-buttons');
-  }
-})();
