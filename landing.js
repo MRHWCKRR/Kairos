@@ -40,6 +40,10 @@ document.addEventListener('DOMContentLoaded',()=>{const spotlight=document.creat
     }
   });
 
+  const style=document.createElement('style');
+  style.textContent='.final-cta-buttons{display:flex;justify-content:center;align-items:center;gap:12px;flex-wrap:wrap}.waitlist-cta{border-color:rgba(192,132,252,.3);background:rgba(168,85,247,.07)}@media(max-width:650px){.final-cta-buttons{flex-direction:column}.final-cta-buttons a{width:100%;max-width:340px}}';
+  document.head.appendChild(style);
+
   const finalCta=document.querySelector('.final-cta');
   const primary=finalCta?.querySelector('a.btn-primary');
   if(finalCta && primary && !finalCta.querySelector('.waitlist-cta')){
