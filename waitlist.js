@@ -1,5 +1,5 @@
 // Set this to the deployed Google Apps Script Web App URL described in waitlist/README.md.
-const WAITLIST_ENDPOINT = 'PASTE_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE';
+const WAITLIST_ENDPOINT = 'https://script.google.com/macros/s/AKfycbze7YVyvZJ32qA5BAyCpycN9fM4imnpodBK2gwGlPMDjgGlsmn7tdX5FoRjdKQFleUlLw/exec';
 
 const form = document.getElementById('waitlist-form');
 const status = document.getElementById('form-status');
