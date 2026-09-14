@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0b0810">
+<meta name="description" content="Join the Kairos launch waitlist and get one month free when Kairos officially releases.">
+<title>Join the Kairos Waitlist</title>
+<link rel="stylesheet" href="landing.css">
+<link rel="stylesheet" href="waitlist.css">
+<link rel="icon" type="image/png" sizes="32x32" href="images/favicon-32.png">
+</head>
+<body class="waitlist-page">
+<div class="page-glow page-glow-one"></div>
+<div class="page-glow page-glow-two"></div>
+<main class="waitlist-shell">
+  <a class="waitlist-logo" href="index.html"><img src="images/kairos-logo.png" alt="">Kairos</a>
+  <section class="waitlist-card" aria-labelledby="waitlist-title">
+    <div class="waitlist-badge">✦ Launch offer</div>
+    <h1 id="waitlist-title">Be first in line.<br><span>Get one month free.</span></h1>
+    <p class="waitlist-lead">Join the Kairos launch list and we'll let you know when Kairos officially releases on iOS and Android. As an early supporter, you'll get <strong>your first month free</strong>.</p>
+    <form id="waitlist-form" novalidate>
+      <label for="name">Your name</label>
+      <input id="name" name="name" type="text" autocomplete="name" placeholder="Alex" required maxlength="100">
+      <label for="email">Email address</label>
+      <input id="email" name="email" type="email" autocomplete="email" placeholder="you@example.com" required maxlength="254">
+      <button class="btn-primary waitlist-submit" type="submit"><span>Join the waitlist</span><span aria-hidden="true">→</span></button>
+      <p class="form-note">We'll only use your details for Kairos launch updates and the free-month offer.</p>
+      <p class="form-status" id="form-status" role="status" aria-live="polite"></p>
+    </form>
+  </section>
+  <a class="back-link" href="index.html">← Back to Kairos</a>
+</main>
+<script src="waitlist.js"></script>
+</body>
+</html>
