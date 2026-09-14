@@ -8,187 +8,68 @@
     <link rel="icon" type="image/png" sizes="32x32" href="images/favicon-32.png">
     <link rel="apple-touch-icon" sizes="180x180" href="images/favicon-180.png">
     <style>
-        .login-page {
-            display: flex;
-            min-height: 100vh;
-            width: 100%;
-        }
-
-        .login-container {
-            flex: 2;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            padding: 40px;
-            background-color: #0f0f13;
-        }
-
-        .login-box {
-            width: 100%;
-            max-width: 400px;
-            box-sizing: border-box;
-        }
-
-        .login-logo {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            margin-bottom: 24px;
-        }
-
+        .login-page { display: flex; min-height: 100vh; width: 100%; }
+        .login-container { flex: 2; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 40px; background-color: #0f0f13; }
+        .login-box { width: 100%; max-width: 400px; box-sizing: border-box; }
+        .login-logo { display: flex; align-items: center; gap: 8px; margin-bottom: 24px; }
         .login-logo img { height: 32px; width: auto; }
         .login-logo span { font-size: 1.3rem; font-weight: bold; color: #a855f7; letter-spacing: 1px; }
-
-        .login-box h2 {
-            font-size: 2rem;
-            margin-bottom: 10px;
-        }
-
+        .login-box h2 { font-size: 2rem; margin-bottom: 10px; }
         .login-box p { color: #aaa; margin-bottom: 30px; }
 
-        /* Login / Sign up toggle */
-        .auth-toggle {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            width: 100%;
-            padding: 4px;
-            margin-bottom: 24px;
-            border-radius: 8px;
-            background: #1e1e2f;
-            border: 1px solid #333;
-            box-sizing: border-box;
-        }
-
-        .auth-toggle button {
-            padding: 9px 12px;
-            border: 0;
-            border-radius: 5px;
-            background: transparent;
-            color: #aaa;
-            font: inherit;
-            font-weight: 600;
-            cursor: pointer;
-            transition: 0.2s ease;
-        }
-
-        .auth-toggle button:hover { color: #fff; }
-
-        .auth-toggle button.active {
-            background: #a855f7;
-            color: #fff;
-        }
-
         .social-btn {
-            width: 100%;
-            padding: 12px;
-            margin-bottom: 15px;
-            border-radius: 6px;
-            border: 1px solid #333;
-            background: #1e1e2f;
-            color: #fff;
-            font-weight: bold;
-            cursor: pointer;
-            transition: 0.3s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
+            width: 100%; padding: 12px; margin-bottom: 15px; border-radius: 6px;
+            border: 1px solid #333; background: #1e1e2f; color: #fff;
+            font-weight: bold; cursor: pointer; transition: 0.3s;
+            display: flex; align-items: center; justify-content: center; gap: 10px;
             box-sizing: border-box;
         }
-
         .social-btn:hover { background: #2a2a40; border-color: #a855f7; }
+        .social-btn img { width: 18px; height: 18px; object-fit: contain; flex-shrink: 0; }
 
-        .divider {
-            text-align: center;
-            margin: 20px 0;
-            color: #666;
-            font-size: 0.9rem;
-        }
-
+        .divider { text-align: center; margin: 20px 0; color: #666; font-size: 0.9rem; }
         .form-group { margin-bottom: 15px; }
         .form-group label { display: block; margin-bottom: 5px; color: #ccc; font-size: 0.9rem; }
+        .form-group input { width: 100%; padding: 12px; border-radius: 6px; background: #1e1e2f; border: 1px solid #333; color: #fff; box-sizing: border-box; }
+        .login-btn { width: 100%; padding: 12px; border-radius: 6px; background: #a855f7; border: none; color: white; font-weight: bold; cursor: pointer; margin-top: 10px; box-sizing: border-box; }
+        .login-btn:disabled { opacity: 0.65; cursor: not-allowed; }
 
-        .form-group input {
-            width: 100%;
-            padding: 12px;
-            border-radius: 6px;
-            background: #1e1e2f;
-            border: 1px solid #333;
-            color: #fff;
-            box-sizing: border-box;
+        .auth-switch {
+            margin-top: 18px;
+            text-align: center;
+            color: #888;
+            font-size: 0.9rem;
         }
-
-        .login-btn {
-            width: 100%;
-            padding: 12px;
-            border-radius: 6px;
-            background: #a855f7;
-            border: none;
-            color: white;
-            font-weight: bold;
+        .auth-switch a {
+            color: #a855f7;
+            font-weight: 600;
+            text-decoration: none;
             cursor: pointer;
-            margin-top: 10px;
-            box-sizing: border-box;
         }
+        .auth-switch a:hover { text-decoration: underline; }
 
-        .login-btn:disabled {
-            opacity: 0.65;
-            cursor: not-allowed;
-        }
-
-        .image-container {
-            flex: 3;
-            background: url('image_0c9bc9.png') center/cover no-repeat;
-            border-left: 1px solid #333;
-        }
+        .image-container { flex: 3; background: url('image_0c9bc9.png') center/cover no-repeat; border-left: 1px solid #333; }
 
         @media (max-width: 768px) {
             .login-page { flex-direction: column; }
-
             .image-container { display: none; }
-
-            .login-container {
-                flex: 1;
-                min-height: 100vh;
-                padding: 32px 20px;
-                justify-content: flex-start;
-                overflow-y: auto;
-            }
-
-            .login-box {
-                max-width: 440px;
-                margin: auto 0;
-            }
-
+            .login-container { flex: 1; min-height: 100vh; padding: 32px 20px; justify-content: flex-start; overflow-y: auto; }
+            .login-box { max-width: 440px; margin: auto 0; }
             .login-logo { margin-bottom: 20px; }
-
-            .login-box h2 {
-                font-size: 1.75rem;
-            }
-
-            .login-box p {
-                margin-bottom: 24px;
-            }
-
-            .social-btn {
-                padding: 13px 12px;
-            }
+            .login-box h2 { font-size: 1.75rem; }
+            .login-box p { margin-bottom: 24px; }
+            .social-btn { padding: 13px 12px; }
         }
-
         @media (max-width: 380px) {
             .login-container { padding: 24px 16px; }
-
             .login-logo img { height: 28px; }
             .login-logo span { font-size: 1.2rem; }
-
             .login-box h2 { font-size: 1.55rem; }
         }
     </style>
 </head>
 <body>
     <div class="login-page">
-
         <div class="login-container">
             <div class="login-box">
                 <div class="login-logo">
@@ -199,15 +80,19 @@
                 <h2 id="auth-title">Welcome back</h2>
                 <p id="auth-subtitle">Log in to access your intelligent schedule.</p>
 
-                <div class="auth-toggle" role="tablist" aria-label="Authentication mode">
-                    <button type="button" id="login-tab" class="active" role="tab" aria-selected="true">Log in</button>
-                    <button type="button" id="signup-tab" role="tab" aria-selected="false">Sign up</button>
-                </div>
-
                 <div class="social-buttons">
-                    <button class="social-btn" id="btn-google">Continue with Google</button>
-                    <button class="social-btn" id="btn-github">Continue with GitHub</button>
-                    <button class="social-btn" id="btn-microsoft">Continue with Microsoft</button>
+                    <button class="social-btn" id="btn-google">
+                        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="">
+                        Continue with Google
+                    </button>
+                    <button class="social-btn" id="btn-github">
+                        <img src="https://github.githubassets.com/assets/GitHub-Mark-ea2971cee799.png" alt="">
+                        Continue with GitHub
+                    </button>
+                    <button class="social-btn" id="btn-microsoft">
+                        <img src="https://upload.wikimedia.org/wikipedia/commons/4/44/Microsoft_logo.svg" alt="">
+                        Continue with Microsoft
+                    </button>
                 </div>
 
                 <div class="divider">OR SECURELY WITH EMAIL</div>
@@ -216,11 +101,6 @@
                     <div class="form-group">
                         <label for="email">Email Address</label>
                         <input type="email" id="email" required placeholder="you@example.com" autocomplete="email">
-                    </div>
-
-                    <div class="form-group" id="confirm-password-group" hidden>
-                        <label for="confirm-password">Confirm Password</label>
-                        <input type="password" id="confirm-password" placeholder="••••••••" autocomplete="new-password">
                     </div>
 
                     <div class="form-group">
@@ -235,6 +115,10 @@
 
                     <button type="submit" class="login-btn" id="auth-submit">Sign In</button>
                 </form>
+
+                <div class="auth-switch">
+                    Don't have an account yet? <a href="signup.html" id="signup-link">Sign up</a>
+                </div>
             </div>
         </div>
 
