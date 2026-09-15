@@ -161,6 +161,54 @@ function defaultFocusData() {
 
 document.addEventListener("DOMContentLoaded", () => {
 
+    // Block the web workspace on phones/tablets before the app can render.
+    const mobileAccessScreen = document.getElementById('mobile-access-screen');
+    const mobileAccessTitle = document.getElementById('mobile-access-title');
+    const mobileAccessMessage = document.getElementById('mobile-access-message');
+    const mobileAccessPlatform = document.getElementById('mobile-access-platform');
+    const mobileAccessDownload = document.getElementById('mobile-access-download');
+    const mobileAccessNote = document.getElementById('mobile-access-note');
+
+    const mobileAccessInfo = (() => {
+        const ua = navigator.userAgent || '';
+        const platform = navigator.platform || '';
+        const touchMac = /Macintosh/i.test(ua) && navigator.maxTouchPoints > 1;
+        const isIOS = /iPad|iPhone|iPod/i.test(ua) || touchMac;
+        const isAndroid = /Android/i.test(ua);
+        return {
+            isMobile: isIOS || isAndroid || /Mobile|Tablet/i.test(ua),
+            isIOS,
+            isAndroid
+        };
+    })();
+
+    if (mobileAccessInfo.isMobile) {
+        document.documentElement.classList.add('kairos-mobile-blocked');
+        document.body.classList.add('kairos-mobile-blocked');
+        mobileAccessScreen?.classList.add('is-visible');
+        mobileAccessScreen?.setAttribute('aria-hidden', 'false');
+
+        if (mobileAccessInfo.isIOS) {
+            mobileAccessTitle.textContent = 'Kairos is better on a computer.';
+            mobileAccessMessage.textContent = 'The Kairos web app is designed for PC and laptop screens. For iPhone and iPad, use the upcoming native Kairos app instead.';
+            mobileAccessPlatform.textContent = 'iPhone & iPad';
+            mobileAccessDownload.textContent = 'Get the Kairos iOS app';
+            mobileAccessDownload.href = 'waitlist.html';
+            mobileAccessNote.textContent = 'The iOS app is coming soon. Join the waitlist to be notified.';
+        } else if (mobileAccessInfo.isAndroid) {
+            mobileAccessTitle.textContent = 'Kairos is better on a computer.';
+            mobileAccessMessage.textContent = 'The Kairos web app is designed for PC and laptop screens. For Android, use the upcoming native Kairos app instead.';
+            mobileAccessPlatform.textContent = 'Android';
+            mobileAccessDownload.textContent = 'Get the Kairos Android app';
+            mobileAccessDownload.href = 'waitlist.html';
+            mobileAccessNote.textContent = 'The Android app is coming soon. Join the waitlist to be notified.';
+        }
+
+        // Stop here so Firebase/auth, workspace rendering and other app logic do not run on mobile.
+        return;
+    }
+
+
     let checklistRenderTimeout;
     let currentPlanDocId = null;
 
