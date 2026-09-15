@@ -1585,6 +1585,22 @@ body.cursor-spaceship, body.cursor-spaceship * { cursor: url('cursors/spaceship.
    rendered before the workspace so the desktop UI never flashes
    on phones or tablets.
    =========================================================== */
+/* Safari/iOS can load module scripts asynchronously. Keep the mobile
+   gate visible even if app.js never reaches DOMContentLoaded. */
+html.kairos-mobile-device body > #app-loading-screen {
+    display: none !important;
+}
+html.kairos-mobile-device body > #mobile-access-screen {
+    display: flex !important;
+    position: fixed;
+    z-index: 10000;
+}
+html.kairos-mobile-device body > .app-layout,
+html.kairos-mobile-device body > #app-bg-layer,
+html.kairos-mobile-device body > #ambient-audio {
+    display: none !important;
+}
+
 .mobile-access-screen {
     display: none;
     position: fixed;
