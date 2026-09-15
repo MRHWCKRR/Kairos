@@ -28,13 +28,13 @@ const RTL_LANGS = new Set(['ar']);
 // Plain English language names for instructing Hack Club AI reliably
 // (the model follows "respond in Korean" more reliably than an
 // endonym or bare ISO code embedded in a prompt).
-export const GEMINI_LANGUAGE_NAMES = {
+export const LANGUAGE_NAMES = {
     en: 'English', es: 'Spanish', fr: 'French', it: 'Italian',
     ru: 'Russian', zh: 'Simplified Chinese', ko: 'Korean', ar: 'Arabic'
 };
 
-export function getHack Club AILanguageName(lang) {
-    return GEMINI_LANGUAGE_NAMES[lang] || GEMINI_LANGUAGE_NAMES.en;
+export function getLanguageName(lang) {
+    return LANGUAGE_NAMES[lang] || LANGUAGE_NAMES.en;
 }
 
 export function getLocale(lang) {
