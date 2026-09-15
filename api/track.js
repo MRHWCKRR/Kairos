@@ -1,6 +1,8 @@
 import crypto from "node:crypto";
 import { db } from "./_firebaseAdmin.js";
 
+const RETENTION_DAYS = 90;
+
 function getClientIp(req) {
   const forwarded = req.headers["x-forwarded-for"];
   if (typeof forwarded === "string" && forwarded) return forwarded.split(",")[0].trim();
@@ -55,9 +57,10 @@ export default async function handler(req, res) {
     const visitorId = hashVisitor(ip, ua);
     const now = new Date();
     const day = now.toISOString().slice(0, 10);
+    const expiresAt = new Date(now.getTime() + RETENTION_DAYS * 86400000);
 
     await db.collection("kairosAnalytics").add({
-      visitorId, day, timestamp: now, page, referrer,
+      visitorId, day, timestamp: now, expiresAt, page, referrer,
       country: country || "Unknown", device, os, browser
     });
     res.status(204).end();
