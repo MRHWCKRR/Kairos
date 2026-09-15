@@ -7,6 +7,8 @@ const errorBox = document.getElementById("analytics-error");
 const loading = document.getElementById("analytics-loading");
 const range = document.getElementById("range");
 const refresh = document.getElementById("refresh");
+const clearButton = document.getElementById("clear-analytics");
+const clearStatus = document.getElementById("clear-status");
 let currentUser = null;
 
 function showError(message) {
@@ -92,6 +94,31 @@ document.getElementById("login-form").addEventListener("submit", async event => 
 document.getElementById("logout").addEventListener("click", () => signOut(auth));
 range.addEventListener("change", () => currentUser && loadAnalytics(currentUser));
 refresh.addEventListener("click", () => currentUser && loadAnalytics(currentUser));
+
+clearButton.addEventListener("click", async () => {
+  const confirmed = window.confirm("Clear ALL Kairos analytics data?\n\nThis permanently deletes every stored analytics event and cannot be undone. New visits will start being recorded again immediately afterward.");
+  if (!confirmed || !currentUser) return;
+
+  clearButton.disabled = true;
+  clearStatus.hidden = false;
+  clearStatus.textContent = "Clearing analytics data…";
+  errorBox.hidden = true;
+  try {
+    const token = await currentUser.getIdToken(true);
+    const response = await fetch("/api/analytics", {
+      method: "DELETE",
+      headers: { Authorization: "Bearer " + token }
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || "Unable to clear analytics data.");
+    clearStatus.textContent = "Analytics cleared. " + Number(result.deleted || 0).toLocaleString() + " events deleted.";
+    await loadAnalytics(currentUser);
+  } catch (error) {
+    clearStatus.textContent = error.message || "Unable to clear analytics data.";
+  } finally {
+    clearButton.disabled = false;
+  }
+});
 
 onAuthStateChanged(auth, user => {
   currentUser = user;
