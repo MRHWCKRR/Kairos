@@ -1,6 +1,0 @@
-/* Use the restored full landing stylesheet locally so the landing page does not depend on a raw GitHub CSS import. */
-@import url('./landing.css');
-
-/* Platform preview images: keep the complete screenshots visible inside the device frames. */
-.device-screen{overflow:hidden}
-.device-screen .device-preview{display:block;width:100%;height:100%;max-width:100%;max-height:100%;object-fit:contain;object-position:center}
