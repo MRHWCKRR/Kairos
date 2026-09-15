@@ -86,9 +86,26 @@ async function loadAnalytics(user) {
 document.getElementById("login-form").addEventListener("submit", async event => {
   event.preventDefault();
   errorBox.hidden = true;
+  const button = event.currentTarget.querySelector('button[type="submit"]');
+  button.disabled = true;
+  button.textContent = "Signing in…";
   try {
     await signInWithEmailAndPassword(auth, document.getElementById("email").value.trim(), document.getElementById("password").value);
-  } catch { showError("Sign-in failed."); }
+  } catch (error) {
+    console.error("Kairos analytics sign-in failed:", error);
+    const messages = {
+      "auth/invalid-credential": "Incorrect email or password.",
+      "auth/invalid-email": "Enter a valid email address.",
+      "auth/user-disabled": "This account has been disabled.",
+      "auth/operation-not-allowed": "Email/password sign-in is not enabled in Firebase Authentication.",
+      "auth/unauthorized-domain": "This website domain is not authorized in Firebase Authentication.",
+      "auth/too-many-requests": "Too many sign-in attempts. Try again later."
+    };
+    showError(messages[error.code] || "Sign-in failed. Open the browser console for the Firebase error code.");
+  } finally {
+    button.disabled = false;
+    button.textContent = "Sign in";
+  }
 });
 
 document.getElementById("logout").addEventListener("click", () => signOut(auth));
