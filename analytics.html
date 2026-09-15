@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow,noarchive"><title>Kairos Analytics</title>
+<link rel="stylesheet" href="analytics.css">
+</head>
+<body>
+<main class="shell">
+<header class="topbar"><div><div class="eyebrow">Private</div><h1>Kairos Analytics</h1><p>Internal visitor telemetry. Raw IP addresses are never stored.</p></div><button id="logout" class="button">Sign out</button></header>
+<section id="analytics-login" class="panel"><h2>Admin sign-in</h2><p>This dashboard is not linked from the public Kairos site.</p>
+<form id="login-form"><input id="email" type="email" autocomplete="username" placeholder="Email" required><input id="password" type="password" autocomplete="current-password" placeholder="Password" required><button class="button primary" type="submit">Sign in</button></form>
+<p id="analytics-error" class="error" hidden></p></section>
+<p id="analytics-loading" class="muted" hidden>Loading analytics…</p>
+<section id="analytics-dashboard" hidden>
+<div class="cards">
+<article><span>Page views</span><strong id="page-views">—</strong></article>
+<article><span>Unique visitors</span><strong id="unique-visitors">—</strong></article>
+<article><span>Visitors today</span><strong id="today-visitors">—</strong></article>
+<article><span>Active now</span><strong id="active-now">—</strong><small>seen in the last 5 minutes</small></article>
+</div>
+<div class="grid">
+<section class="panel"><h2>Devices</h2><table><tbody id="device-rows"></tbody></table></section>
+<section class="panel"><h2>Operating systems</h2><table><tbody id="os-rows"></tbody></table></section>
+<section class="panel"><h2>Browsers</h2><table><tbody id="browser-rows"></tbody></table></section>
+<section class="panel"><h2>Countries</h2><table><tbody id="country-rows"></tbody></table></section>
+<section class="panel wide"><h2>Pages</h2><table><tbody id="page-rows"></tbody></table></section>
+</div>
+<section class="panel"><h2>Recent visits</h2><div class="table-wrap"><table><thead><tr><th>Time</th><th>Device</th><th>OS</th><th>Browser</th><th>Country</th><th>Page</th></tr></thead><tbody id="recent-rows"></tbody></table></div></section>
+</section>
+</main>
+<script type="module" src="analytics.js"></script>
+</body></html>
