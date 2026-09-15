@@ -486,19 +486,9 @@
                         <!-- AI Engine -->
                         <section id="settings-ai" class="settings-panel">
                             <h2 data-i18n="ai_engine_title">AI Engine</h2>
-                            <p data-i18n="ai_engine_desc">Connect your own Gemini API key to power AI plan generation & day insights.</p>
+                            <p data-i18n="ai_engine_desc">Kairos AI is powered by Hack Club AI. No API key is required.</p>
                             <div class="settings-group">
-                                <label class="settings-label" data-i18n="gemini_api_key">Gemini API Key</label>
-                                <input type="password" id="api-key-input" class="settings-input" placeholder="Key is secured locally in your browser." data-i18n="api_key_placeholder" data-i18n-placeholder>
-                                <button id="save-settings-btn" class="action-btn small-btn" data-i18n="save_key">Save Key</button>
-                                <p class="api-helper-text"><span data-i18n="no_api_key_link">Don't have one?</span> <a href="#" id="open-api-modal" data-i18n="click_here">Click here!</a></p>
-                            </div>
-
-                            <div class="settings-group">
-                                <label class="settings-label">Hack Club AI Key (optional)</label>
-                                <input type="password" id="hackclub-key-input" class="settings-input" placeholder="Only needed if chat requests get rejected without one.">
-                                <button id="save-hackclub-key-btn" class="action-btn small-btn">Save Key</button>
-                                <p class="settings-hint">The AI Helper chat uses Hack Club's free AI proxy by default — no key required for most users. Only add one here if you're hitting authorization errors.</p>
+                                <p class="settings-hint">AI requests are securely routed through the Kairos AI relay. Your API credentials are never exposed to the browser.</p>
                             </div>
                         </section>
 
@@ -534,20 +524,6 @@
             </div>
 
         </main>
-    </div>
-
-<!-- API Modal -->
-    <div id="api-guide-modal" class="modal-overlay">
-        <div class="modal-content">
-            <span class="close-modal" id="close-api-modal">&times;</span>
-            <h2>How to get a Gemini API Key</h2>
-            <ol class="api-steps">
-                <li>Go to <a href="https://aistudio.google.com/app/apikey" target="_blank">Google AI Studio</a>.</li>
-                <li>Click the <strong>"Create API key"</strong> button.</li>
-                <img src="images/Helper-modal.png" alt="Create API Key Step" class="guide-img">
-                <li>Copy the key and paste it into the Settings page.</li>
-            </ol>
-        </div>
     </div>
 
     <div id="day-detail-overlay" class="day-detail-overlay">
