@@ -37,9 +37,9 @@
 <section class="panel"><h2>Referrers</h2><table><tbody id="referrer-rows"></tbody></table></section>
 </div>
 <section class="panel"><div class="section-heading"><div><h2>Recent visits</h2><p class="muted">The latest 50 events in the selected range.</p></div></div><div class="table-wrap"><table><thead><tr><th>Time</th><th>Device</th><th>OS</th><th>Browser</th><th>Country</th><th>Page</th></tr></thead><tbody id="recent-rows"></tbody></table></div></section>
-<section class="panel system-info"><h2>Storage & privacy</h2><div class="info-grid"><div><span>Retention</span><strong id="retention-days">90 days</strong></div><div><span>Raw IP storage</span><strong>Never</strong></div><div><span>Tracking IDs</span><strong>Daily rotating</strong></div><div><span>Events loaded</span><strong id="events-loaded">—</strong></div></div><p class="muted">Analytics events expire automatically after the configured retention period when Firestore TTL is enabled for <code>expiresAt</code>.</p></section>
+<section class="panel system-info"><h2>Storage & privacy</h2><div class="info-grid"><div><span>Retention</span><strong id="retention-days">90 days</strong></div><div><span>Raw IP storage</span><strong>Never</strong></div><div><span>Tracking IDs</span><strong>Daily rotating</strong></div><div><span>Events loaded</span><strong id="events-loaded">—</strong></div></div><p class="muted">Analytics events are automatically removed by the scheduled daily retention cleanup after the configured retention period.</p></section>
 <section class="panel danger-zone"><h2>Danger zone</h2><p class="muted">Permanently delete every stored analytics event. This cannot be undone.</p><button id="clear-analytics" class="button danger">Clear all analytics data</button><p id="clear-status" class="muted" hidden></p></section>
 </section>
 </main>
-<script type="module" src="analytics.js"></script>
+<script type="module" src="analytics-dashboard.js"></script>
 </body></html>
