@@ -1,7 +1,6 @@
 import { auth } from "./firebase.js";
-import { GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
-const googleProvider = new GoogleAuthProvider();
 const login = document.getElementById("analytics-login");
 const dashboard = document.getElementById("analytics-dashboard");
 const errorBox = document.getElementById("analytics-error");
@@ -37,7 +36,7 @@ function renderDaily(daily) {
   chart.innerHTML = entries.map(([day, value]) => {
     const height = Math.max(4, Math.round((value.pageViews / max) * 100));
     const label = new Date(day + "T00:00:00Z").toLocaleDateString(undefined, { month: "short", day: "numeric" });
-    return "<div class=day-bar title=\"" + escapeHtml(day + " — " + value.pageViews + " page views, " + value.uniqueVisitors + " unique visitors") + ""><div class=bar-value>" + value.pageViews.toLocaleString() + "</div><div class=bar style=\"height:" + height + "%\"></div><div class=bar-label>" + escapeHtml(label) + "</div></div>";
+    return "<div class=day-bar title=\"" + escapeHtml(day + " — " + value.pageViews + " page views, " + value.uniqueVisitors + " unique visitors") + "\"><div class=bar-value>" + value.pageViews.toLocaleString() + "</div><div class=bar style=\"height:" + height + "%\"></div><div class=bar-label>" + escapeHtml(label) + "</div></div>";
   }).join("");
 }
 
@@ -89,24 +88,23 @@ document.getElementById("login-form").addEventListener("submit", async event => 
   errorBox.hidden = true;
   const button = event.currentTarget.querySelector('button[type="submit"]');
   button.disabled = true;
-  button.textContent = "Opening Google…";
+  button.textContent = "Signing in…";
   try {
-    await signInWithPopup(auth, googleProvider);
+    await signInWithEmailAndPassword(auth, document.getElementById("email").value.trim(), document.getElementById("password").value);
   } catch (error) {
-    console.error("Kairos analytics Google sign-in failed:", error);
+    console.error("Kairos analytics sign-in failed:", error);
     const messages = {
-      "auth/popup-closed-by-user": "Google sign-in was cancelled.",
-      "auth/popup-blocked": "Your browser blocked the Google sign-in popup. Allow popups for Kairos and try again.",
-      "auth/unauthorized-domain": "This website domain is not authorized in Firebase Authentication.",
-      "auth/account-exists-with-different-credential": "This Google account is already registered with a different sign-in method.",
+      "auth/invalid-credential": "Incorrect email or password.",
+      "auth/invalid-email": "Enter a valid email address.",
       "auth/user-disabled": "This account has been disabled.",
-      "auth/operation-not-allowed": "Google sign-in is not enabled in Firebase Authentication.",
+      "auth/operation-not-allowed": "Email/password sign-in is not enabled in Firebase Authentication.",
+      "auth/unauthorized-domain": "This website domain is not authorized in Firebase Authentication.",
       "auth/too-many-requests": "Too many sign-in attempts. Try again later."
     };
-    showError(messages[error.code] || "Google sign-in failed. Open the browser console for the Firebase error code.");
+    showError(messages[error.code] || "Sign-in failed. Open the browser console for the Firebase error code.");
   } finally {
     button.disabled = false;
-    button.textContent = "Sign in with Google";
+    button.textContent = "Sign in";
   }
 });
 
