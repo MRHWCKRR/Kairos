@@ -11,6 +11,7 @@ Add these to the Kairos Vercel project:
 - FIREBASE_PRIVATE_KEY = the Firebase Admin service-account private key
 - ANALYTICS_HASH_SECRET = a long random secret
 - ANALYTICS_ADMIN_UID = the Firebase Auth UID of the account allowed to access /analytics.html
+- CRON_SECRET = a long random secret used to authenticate the scheduled analytics cleanup
 
 Never commit the service-account JSON file or these secrets to GitHub. After changing Vercel environment variables, redeploy.
 
@@ -24,14 +25,13 @@ The analytics dashboard uses the existing Firebase Authentication system. Only A
 
 Each `kairosAnalytics` event contains an `expiresAt` timestamp set to 90 days after the event is created.
 
-**Enable Firestore TTL for `expiresAt`:**
+Firestore's native TTL feature is **not required**. It requires billing to be enabled on the Firebase project, so Kairos instead uses a Vercel Cron Job to clean up expired events without requiring Firestore TTL.
 
-1. Open Firebase Console → Firestore Database → **Time-to-live**.
-2. Create a TTL policy for the `kairosAnalytics` collection group.
-3. Select the field `expiresAt`.
-4. Save the policy and wait for Firestore to begin expiring old events.
+The scheduled endpoint `/api/cleanup-analytics` runs once per day and deletes events whose `expiresAt` timestamp has passed. Deletion is performed in batches of 400 documents so the operation stays below Firestore's 500-write batch limit. The endpoint requires the Vercel `CRON_SECRET` and cannot be triggered by ordinary visitors.
 
-TTL deletion is automatic and asynchronous. It is preferable to keeping an ever-growing analytics collection indefinitely. The dashboard advertises the 90-day retention period and supports 7, 30 and 90-day views.
+The cleanup runs automatically after deployment. Vercel Hobby cron jobs run once per day, which is sufficient for the 90-day retention policy. Cleanup is asynchronous, so an event may remain for a short time after its 90-day expiry before the daily cleanup runs.
+
+The dashboard advertises the 90-day retention period and supports 7, 30 and 90-day views.
 
 The dashboard limits each load to 10,000 recent events. If that limit is reached, it explicitly warns that the selected range is truncated. This prevents an accidental very large read from being hidden behind the UI.
 
