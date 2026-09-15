@@ -44,13 +44,13 @@ function installMarkdownStyles() {
     style.textContent = `
         .ai-chat-bubble { overflow-wrap: anywhere; }
 
-        /* Compact Markdown typography to match normal chat line spacing. */
+        /* Balanced Markdown typography for readable AI responses. */
         .ai-chat-bubble-row.assistant .ai-chat-bubble {
             white-space: normal;
-            line-height: 1.4;
+            line-height: 1.46;
         }
         .ai-chat-bubble-row.assistant .ai-chat-bubble p {
-            margin: 0 0 0.15em;
+            margin: 0 0 0.28em;
         }
         .ai-chat-bubble-row.assistant .ai-chat-bubble p:last-child { margin-bottom: 0; }
 
@@ -60,8 +60,8 @@ function installMarkdownStyles() {
         .ai-chat-bubble-row.assistant .ai-chat-bubble h4,
         .ai-chat-bubble-row.assistant .ai-chat-bubble h5,
         .ai-chat-bubble-row.assistant .ai-chat-bubble h6 {
-            margin: 0.35em 0 0.1em;
-            line-height: 1.2;
+            margin: 0.45em 0 0.15em;
+            line-height: 1.25;
         }
         .ai-chat-bubble-row.assistant .ai-chat-bubble h1:first-child,
         .ai-chat-bubble-row.assistant .ai-chat-bubble h2:first-child,
@@ -69,14 +69,14 @@ function installMarkdownStyles() {
 
         .ai-chat-bubble-row.assistant .ai-chat-bubble ul,
         .ai-chat-bubble-row.assistant .ai-chat-bubble ol {
-            margin: 0.1em 0 0.2em;
+            margin: 0.2em 0 0.3em;
             padding-left: 1.5em;
         }
-        .ai-chat-bubble-row.assistant .ai-chat-bubble li { margin: 0; }
+        .ai-chat-bubble-row.assistant .ai-chat-bubble li { margin: 0.05em 0; }
 
         .ai-chat-bubble-row.assistant .ai-chat-bubble blockquote {
-            margin: 0.2em 0;
-            padding: 0.2em 0.6em;
+            margin: 0.3em 0;
+            padding: 0.25em 0.65em;
             border-left: 3px solid var(--accent-glow);
             color: var(--text-muted);
             background: var(--accent-glow-soft);
@@ -84,7 +84,7 @@ function installMarkdownStyles() {
         }
 
         .ai-chat-bubble-row.assistant .ai-chat-bubble code {
-            padding: 0.05em 0.25em;
+            padding: 0.06em 0.28em;
             border-radius: 4px;
             background: var(--bg-main);
             border: 1px solid var(--border-subtle);
@@ -92,7 +92,7 @@ function installMarkdownStyles() {
             font-size: 0.88em;
         }
         .ai-chat-bubble-row.assistant .ai-chat-bubble pre {
-            margin: 0.2em 0;
+            margin: 0.3em 0;
             padding: 8px;
             overflow-x: auto;
             border-radius: 8px;
@@ -114,17 +114,17 @@ function installMarkdownStyles() {
         .ai-chat-bubble-row.assistant .ai-chat-bubble hr {
             border: 0;
             border-top: 1px solid var(--border-subtle);
-            margin: 0.25em 0;
+            margin: 0.35em 0;
         }
         .ai-chat-bubble-row.assistant .ai-chat-bubble table {
             width: 100%;
             border-collapse: collapse;
-            margin: 0.2em 0;
+            margin: 0.3em 0;
             font-size: 0.92em;
         }
         .ai-chat-bubble-row.assistant .ai-chat-bubble th,
         .ai-chat-bubble-row.assistant .ai-chat-bubble td {
-            padding: 3px 6px;
+            padding: 4px 7px;
             border: 1px solid var(--border-subtle);
             text-align: left;
         }
