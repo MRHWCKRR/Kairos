@@ -9,9 +9,23 @@ if (!secret) {
     process.exit(1);
 }
 
-const filePath = path.join(__dirname, 'app.js');
-let content = fs.readFileSync(filePath, 'utf8');
-content = content.replaceAll('__KAIROS_RELAY_SECRET__', secret);
-fs.writeFileSync(filePath, content);
+const appPath = path.join(__dirname, 'app.js');
+let appContent = fs.readFileSync(appPath, 'utf8');
+appContent = appContent.replaceAll('__KAIROS_RELAY_SECRET__', secret);
+fs.writeFileSync(appPath, appContent);
 
-console.log('Build complete: injected KAIROS_RELAY_SECRET into app.js');
+// Add the first-party privacy-minimised visitor tracker to public pages.
+// analytics.html is intentionally excluded because the admin dashboard does not
+// need to record the administrator's own dashboard visits.
+for (const name of fs.readdirSync(__dirname)) {
+    if (!name.endsWith('.html') || name === 'analytics.html') continue;
+    const filePath = path.join(__dirname, name);
+    let html = fs.readFileSync(filePath, 'utf8');
+    html = html.replace(/\s*<script src="analytics-tracker\.js"><\/script>/g, '');
+    if (html.includes('</body>')) {
+        html = html.replace('</body>', '<script src="analytics-tracker.js"></script></body>');
+        fs.writeFileSync(filePath, html);
+    }
+}
+
+console.log('Build complete: injected relay secret and privacy-first analytics tracker');
