@@ -1579,3 +1579,124 @@ body.cursor-spaceship, body.cursor-spaceship * { cursor: url('cursors/spaceship.
     transition: opacity 0.2s;
 }
 .ai-chat-send-btn:disabled { opacity: 0.5; cursor: default; }
+/* ===========================================================
+   MOBILE ACCESS GATE
+   The web app itself remains desktop-only. The mobile gate is
+   rendered before the workspace so the desktop UI never flashes
+   on phones or tablets.
+   =========================================================== */
+.mobile-access-screen {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    min-height: 100dvh;
+    overflow-y: auto;
+    box-sizing: border-box;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background:
+        radial-gradient(circle at 50% 0%, rgba(168, 85, 247, 0.16), transparent 42%),
+        var(--bg-primary, #0b0810);
+    color: var(--text-primary, #f5f1f8);
+}
+.mobile-access-screen.is-visible {
+    display: flex;
+}
+.mobile-access-card {
+    width: min(100%, 440px);
+    box-sizing: border-box;
+    padding: 42px 28px 30px;
+    text-align: center;
+    border: 1px solid rgba(168, 85, 247, 0.2);
+    border-radius: 24px;
+    background: rgba(19, 16, 26, 0.88);
+    box-shadow: 0 30px 90px rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(24px);
+}
+.mobile-access-logo {
+    width: 54px;
+    height: 54px;
+    margin: 0 auto 14px;
+}
+.mobile-access-logo svg {
+    width: 100%;
+    height: 100%;
+}
+.mobile-access-kicker {
+    color: #c084fc;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+}
+.mobile-access-card h1 {
+    margin: 0 auto 14px;
+    max-width: 380px;
+    font-size: clamp(2rem, 8vw, 2.65rem);
+    line-height: 1.06;
+    letter-spacing: -0.045em;
+}
+.mobile-access-card > p {
+    margin: 0 auto;
+    max-width: 360px;
+    color: var(--text-muted, #9c94a5);
+    font-size: 0.94rem;
+    line-height: 1.65;
+}
+.mobile-access-platform {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin: 22px auto 18px;
+    padding: 8px 12px;
+    border: 1px solid rgba(168, 85, 247, 0.22);
+    border-radius: 999px;
+    background: rgba(168, 85, 247, 0.08);
+    color: #c084fc;
+    font-size: 0.76rem;
+    font-weight: 700;
+}
+.mobile-access-actions {
+    display: grid;
+    gap: 10px;
+    margin-top: 4px;
+}
+.mobile-access-actions a {
+    min-height: 50px;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border-radius: 12px;
+    text-decoration: none;
+    font-size: 0.9rem;
+    font-weight: 800;
+    transition: transform 0.18s ease, opacity 0.18s ease;
+}
+.mobile-access-actions a:hover {
+    transform: translateY(-1px);
+}
+.mobile-access-primary {
+    background: linear-gradient(135deg, #a855f7, #c084fc);
+    color: #fff;
+}
+.mobile-access-secondary {
+    border: 1px solid var(--border-subtle, rgba(255,255,255,0.12));
+    color: var(--text-primary, #f5f1f8);
+    background: rgba(255,255,255,0.03);
+}
+.mobile-access-note {
+    margin-top: 18px !important;
+    font-size: 0.72rem !important;
+    color: var(--text-muted, #817986) !important;
+}
+@media (max-width: 650px) {
+    .mobile-access-card {
+        padding: 34px 22px 26px;
+        border-radius: 20px;
+    }
+}
