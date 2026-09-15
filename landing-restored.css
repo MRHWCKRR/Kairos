@@ -1,0 +1,6 @@
+/* Restored landing page styling from the last known-good landing.css revision. */
+@import url('https://raw.githubusercontent.com/MRHWCKRR/Kairos/c54d89b7ca29c52337b6d8ec1f38d6e9fdf3a365/landing.css');
+
+/* Platform preview images: keep the complete screenshots visible inside the device frames. */
+.device-screen{overflow:hidden}
+.device-screen .device-preview{display:block;width:100%;height:100%;max-width:100%;max-height:100%;object-fit:contain;object-position:center}
