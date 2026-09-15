@@ -5,7 +5,8 @@ import {
     browserLocalPersistence,
     browserSessionPersistence,
     GoogleAuthProvider,
-    signInWithPopup
+    signInWithPopup,
+    onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
 const loginForm = document.getElementById('email-login-form');
@@ -14,11 +15,17 @@ const rememberMe = document.getElementById('remember-me');
 const googleBtn = document.getElementById('btn-google');
 
 function clearAccountScopedBrowserState() {
-    // These values belong to the signed-in Kairos account, not the browser.
-    // Never carry them across a user switch.
     localStorage.removeItem('kairos_settings_cache');
     localStorage.removeItem('kairos_bedtime_fired');
 }
+
+// If Firebase already has a valid session, there is no reason to show the login page.
+// onAuthStateChanged waits for Firebase to restore persisted auth state before redirecting.
+onAuthStateChanged(auth, (user) => {
+    if (user) {
+        window.location.replace('app.html');
+    }
+});
 
 if (loginForm && authSubmit) {
     loginForm.addEventListener('submit', async (e) => {
@@ -26,7 +33,6 @@ if (loginForm && authSubmit) {
 
         const email = document.getElementById('email').value.trim();
         const password = document.getElementById('password').value;
-
         if (!email || !password) return;
 
         authSubmit.textContent = 'Signing in...';
@@ -37,17 +43,9 @@ if (loginForm && authSubmit) {
                 auth,
                 rememberMe?.checked ? browserLocalPersistence : browserSessionPersistence
             );
-
-            // Clear the previous account's browser cache before the new account
-            // becomes the current Firebase user.
             clearAccountScopedBrowserState();
-
             const credential = await signInWithEmailAndPassword(auth, email, password);
-            if (!credential?.user?.uid) {
-                throw new Error('Sign-in completed, but no Firebase user session was returned.');
-            }
-
-            console.log('Signed in to Kairos:', credential.user.uid);
+            if (!credential?.user?.uid) throw new Error('No Firebase user session was returned.');
             window.location.replace('app.html');
         } catch (error) {
             console.error('Authentication Error:', error);
@@ -70,11 +68,7 @@ googleBtn?.addEventListener('click', async () => {
     try {
         clearAccountScopedBrowserState();
         const credential = await signInWithPopup(auth, new GoogleAuthProvider());
-        if (!credential?.user?.uid) {
-            throw new Error('Google sign-in completed, but no Firebase user session was returned.');
-        }
-
-        console.log('Signed in to Kairos with Google:', credential.user.uid);
+        if (!credential?.user?.uid) throw new Error('No Firebase user session was returned.');
         window.location.replace('app.html');
     } catch (error) {
         console.error('Google Auth Error:', error);
