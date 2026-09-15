@@ -11,6 +11,7 @@ Add these to the Kairos Vercel project:
 - FIREBASE_PRIVATE_KEY = the Firebase Admin service-account private key
 - ANALYTICS_HASH_SECRET = a long random secret
 - ANALYTICS_ADMIN_UID = the Firebase Auth UID of the account allowed to access /analytics.html
+- CRON_SECRET = a long random secret used to authenticate the scheduled analytics cleanup
 
 Never commit the service-account JSON file or these secrets to GitHub. After changing Vercel environment variables, redeploy.
 
@@ -20,6 +21,22 @@ Enable Cloud Firestore in the existing kairos-1a project. The analytics API uses
 
 The analytics dashboard uses the existing Firebase Authentication system. Only ANALYTICS_ADMIN_UID can read analytics through the server.
 
+## Analytics retention / storage cost control
+
+Each `kairosAnalytics` event contains an `expiresAt` timestamp set to 90 days after the event is created.
+
+Firestore's native TTL feature is **not required**. It requires billing to be enabled on the Firebase project, so Kairos instead uses a Vercel Cron Job to clean up expired events without requiring Firestore TTL.
+
+The scheduled endpoint `/api/cleanup-analytics` runs once per day and deletes events whose `expiresAt` timestamp has passed. Deletion is performed in batches of 400 documents so the operation stays below Firestore's 500-write batch limit. The endpoint requires the Vercel `CRON_SECRET` and cannot be triggered by ordinary visitors.
+
+The cleanup runs automatically after deployment. Vercel Hobby cron jobs run once per day, which is sufficient for the 90-day retention policy. Cleanup is asynchronous, so an event may remain for a short time after its 90-day expiry before the daily cleanup runs.
+
+The dashboard advertises the 90-day retention period and supports 7, 30 and 90-day views.
+
+The dashboard limits each load to 10,000 recent events. If that limit is reached, it explicitly warns that the selected range is truncated. This prevents an accidental very large read from being hidden behind the UI.
+
+The tracker also avoids duplicate page tracking for the same pathname during a browser session using `sessionStorage`.
+
 ## Privacy model
 
 - Raw IP addresses are never written to Firestore.
@@ -28,3 +45,19 @@ The analytics dashboard uses the existing Firebase Authentication system. Only A
 - Only coarse country code, device class, OS, browser, page and referrer are stored.
 - No exact device model, GPS location, screen fingerprint, advertising ID, or third-party analytics platform is used.
 - Analytics failures never affect Kairos.
+
+## Dashboard features
+
+The private dashboard provides:
+
+- Page views
+- Unique visitors
+- Visitors today
+- Active visitors in the last 5 minutes
+- 7 / 30 / 90-day range selection
+- Daily page-view and unique-visitor activity
+- Device, OS, browser and country breakdowns
+- Page and referrer breakdowns
+- Recent visits
+- Retention and privacy status
+- Explicit warning when the 10,000-event dashboard read limit is reached

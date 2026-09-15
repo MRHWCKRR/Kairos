@@ -5,6 +5,11 @@ const login = document.getElementById("analytics-login");
 const dashboard = document.getElementById("analytics-dashboard");
 const errorBox = document.getElementById("analytics-error");
 const loading = document.getElementById("analytics-loading");
+const range = document.getElementById("range");
+const refresh = document.getElementById("refresh");
+const clearButton = document.getElementById("clear-analytics");
+const clearStatus = document.getElementById("clear-status");
+let currentUser = null;
 
 function showError(message) {
   errorBox.textContent = message;
@@ -16,7 +21,23 @@ function escapeHtml(value) {
 }
 
 function rows(items) {
-  return items.map(([name, count]) => "<tr><td>" + escapeHtml(name) + "</td><td>" + count + "</td></tr>").join("");
+  if (!items.length) return "<tr><td colspan=2 class=empty>No data</td></tr>";
+  return items.map(([name, count]) => "<tr><td>" + escapeHtml(name) + "</td><td>" + count.toLocaleString() + "</td></tr>").join("");
+}
+
+function renderDaily(daily) {
+  const chart = document.getElementById("daily-chart");
+  const entries = Object.entries(daily).sort(([a], [b]) => a.localeCompare(b));
+  if (!entries.length) {
+    chart.innerHTML = "<p class=muted>No activity in this range.</p>";
+    return;
+  }
+  const max = Math.max(1, ...entries.map(([, value]) => value.pageViews));
+  chart.innerHTML = entries.map(([day, value]) => {
+    const height = Math.max(4, Math.round((value.pageViews / max) * 100));
+    const label = new Date(day + "T00:00:00Z").toLocaleDateString(undefined, { month: "short", day: "numeric" });
+    return "<div class=day-bar title=\"" + escapeHtml(day + " — " + value.pageViews + " page views, " + value.uniqueVisitors + " unique visitors") + ""><div class=bar-value>" + value.pageViews.toLocaleString() + "</div><div class=bar style=\"height:" + height + "%\"></div><div class=bar-label>" + escapeHtml(label) + "</div></div>";
+  }).join("");
 }
 
 function render(data) {
@@ -29,21 +50,32 @@ function render(data) {
   document.getElementById("browser-rows").innerHTML = rows(data.breakdowns.browser);
   document.getElementById("country-rows").innerHTML = rows(data.breakdowns.country);
   document.getElementById("page-rows").innerHTML = rows(data.breakdowns.page);
-  document.getElementById("recent-rows").innerHTML = data.recent.map(e =>
+  document.getElementById("referrer-rows").innerHTML = rows(data.breakdowns.referrer);
+  document.getElementById("recent-rows").innerHTML = data.recent.length ? data.recent.map(e =>
     "<tr><td>" + new Date(e.timestamp).toLocaleString() + "</td><td>" + escapeHtml(e.device) +
     "</td><td>" + escapeHtml(e.os) + "</td><td>" + escapeHtml(e.browser) +
     "</td><td>" + escapeHtml(e.country) + "</td><td>" + escapeHtml(e.page) + "</td></tr>"
-  ).join("");
+  ).join("") : "<tr><td colspan=6 class=empty>No visits in this range.</td></tr>";
+  document.getElementById("retention-days").textContent = data.retentionDays + " days";
+  document.getElementById("events-loaded").textContent = data.totals.pageViews.toLocaleString() + (data.truncated ? "+" : "");
+  document.getElementById("truncation-warning").hidden = !data.truncated;
+  renderDaily(data.daily);
 }
 
 async function loadAnalytics(user) {
-  loading.hidden = false; dashboard.hidden = true; errorBox.hidden = true;
+  loading.hidden = false;
+  dashboard.hidden = true;
+  errorBox.hidden = true;
   try {
     const token = await user.getIdToken();
-    const response = await fetch("/api/analytics?days=30", { headers: { Authorization: "Bearer " + token }, cache: "no-store" });
+    const response = await fetch("/api/analytics?days=" + encodeURIComponent(range.value), {
+      headers: { Authorization: "Bearer " + token },
+      cache: "no-store"
+    });
     if (!response.ok) throw new Error("You do not have access to analytics.");
     render(await response.json());
     dashboard.hidden = false;
+    refresh.hidden = false;
   } catch (error) {
     showError(error.message || "Unable to load analytics.");
   } finally {
@@ -52,14 +84,50 @@ async function loadAnalytics(user) {
 }
 
 document.getElementById("login-form").addEventListener("submit", async event => {
-  event.preventDefault(); errorBox.hidden = true;
+  event.preventDefault();
+  errorBox.hidden = true;
   try {
     await signInWithEmailAndPassword(auth, document.getElementById("email").value.trim(), document.getElementById("password").value);
   } catch { showError("Sign-in failed."); }
 });
+
 document.getElementById("logout").addEventListener("click", () => signOut(auth));
+range.addEventListener("change", () => currentUser && loadAnalytics(currentUser));
+refresh.addEventListener("click", () => currentUser && loadAnalytics(currentUser));
+
+clearButton.addEventListener("click", async () => {
+  const confirmed = window.confirm("Clear ALL Kairos analytics data?\n\nThis permanently deletes every stored analytics event and cannot be undone. New visits will start being recorded again immediately afterward.");
+  if (!confirmed || !currentUser) return;
+
+  clearButton.disabled = true;
+  clearStatus.hidden = false;
+  clearStatus.textContent = "Clearing analytics data…";
+  errorBox.hidden = true;
+  try {
+    const token = await currentUser.getIdToken(true);
+    const response = await fetch("/api/analytics", {
+      method: "DELETE",
+      headers: { Authorization: "Bearer " + token }
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || "Unable to clear analytics data.");
+    clearStatus.textContent = "Analytics cleared. " + Number(result.deleted || 0).toLocaleString() + " events deleted.";
+    await loadAnalytics(currentUser);
+  } catch (error) {
+    clearStatus.textContent = error.message || "Unable to clear analytics data.";
+  } finally {
+    clearButton.disabled = false;
+  }
+});
 
 onAuthStateChanged(auth, user => {
-  if (user) { login.hidden = true; loadAnalytics(user); }
-  else { login.hidden = false; dashboard.hidden = true; }
+  currentUser = user;
+  if (user) {
+    login.hidden = true;
+    loadAnalytics(user);
+  } else {
+    login.hidden = false;
+    dashboard.hidden = true;
+    refresh.hidden = true;
+  }
 });

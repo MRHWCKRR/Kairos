@@ -7,26 +7,38 @@
 </head>
 <body>
 <main class="shell">
-<header class="topbar"><div><div class="eyebrow">Private</div><h1>Kairos Analytics</h1><p>Internal visitor telemetry. Raw IP addresses are never stored.</p></div><button id="logout" class="button">Sign out</button></header>
+<header class="topbar">
+  <div><div class="eyebrow">Private</div><h1>Kairos Analytics</h1><p>Internal visitor telemetry. Raw IP addresses are never stored.</p></div>
+  <div class="top-actions"><button id="refresh" class="button" hidden>Refresh</button><button id="logout" class="button">Sign out</button></div>
+</header>
 <section id="analytics-login" class="panel"><h2>Admin sign-in</h2><p>This dashboard is not linked from the public Kairos site.</p>
 <form id="login-form"><input id="email" type="email" autocomplete="username" placeholder="Email" required><input id="password" type="password" autocomplete="current-password" placeholder="Password" required><button class="button primary" type="submit">Sign in</button></form>
 <p id="analytics-error" class="error" hidden></p></section>
 <p id="analytics-loading" class="muted" hidden>Loading analytics…</p>
 <section id="analytics-dashboard" hidden>
+<div class="controls panel">
+  <div><strong>Date range</strong><span class="muted">Choose how much recent data to inspect.</span></div>
+  <div class="control-actions"><select id="range"><option value="7">Last 7 days</option><option value="30" selected>Last 30 days</option><option value="90">Last 90 days</option></select></div>
+</div>
+<div id="truncation-warning" class="notice" hidden>The selected range contains more than the dashboard load limit, so totals and breakdowns may be incomplete. Reduce the date range to see the full detail.</div>
 <div class="cards">
 <article><span>Page views</span><strong id="page-views">—</strong></article>
 <article><span>Unique visitors</span><strong id="unique-visitors">—</strong></article>
 <article><span>Visitors today</span><strong id="today-visitors">—</strong></article>
 <article><span>Active now</span><strong id="active-now">—</strong><small>seen in the last 5 minutes</small></article>
 </div>
+<section class="panel"><div class="section-heading"><div><h2>Daily activity</h2><p class="muted">Page views and unique visitors by UTC day.</p></div></div><div id="daily-chart" class="daily-chart"></div></section>
 <div class="grid">
 <section class="panel"><h2>Devices</h2><table><tbody id="device-rows"></tbody></table></section>
 <section class="panel"><h2>Operating systems</h2><table><tbody id="os-rows"></tbody></table></section>
 <section class="panel"><h2>Browsers</h2><table><tbody id="browser-rows"></tbody></table></section>
 <section class="panel"><h2>Countries</h2><table><tbody id="country-rows"></tbody></table></section>
-<section class="panel wide"><h2>Pages</h2><table><tbody id="page-rows"></tbody></table></section>
+<section class="panel"><h2>Pages</h2><table><tbody id="page-rows"></tbody></table></section>
+<section class="panel"><h2>Referrers</h2><table><tbody id="referrer-rows"></tbody></table></section>
 </div>
-<section class="panel"><h2>Recent visits</h2><div class="table-wrap"><table><thead><tr><th>Time</th><th>Device</th><th>OS</th><th>Browser</th><th>Country</th><th>Page</th></tr></thead><tbody id="recent-rows"></tbody></table></div></section>
+<section class="panel"><div class="section-heading"><div><h2>Recent visits</h2><p class="muted">The latest 50 events in the selected range.</p></div></div><div class="table-wrap"><table><thead><tr><th>Time</th><th>Device</th><th>OS</th><th>Browser</th><th>Country</th><th>Page</th></tr></thead><tbody id="recent-rows"></tbody></table></div></section>
+<section class="panel system-info"><h2>Storage & privacy</h2><div class="info-grid"><div><span>Retention</span><strong id="retention-days">90 days</strong></div><div><span>Raw IP storage</span><strong>Never</strong></div><div><span>Tracking IDs</span><strong>Daily rotating</strong></div><div><span>Events loaded</span><strong id="events-loaded">—</strong></div></div><p class="muted">Analytics events expire automatically after the configured retention period when Firestore TTL is enabled for <code>expiresAt</code>.</p></section>
+<section class="panel danger-zone"><h2>Danger zone</h2><p class="muted">Permanently delete every stored analytics event. This cannot be undone.</p><button id="clear-analytics" class="button danger">Clear all analytics data</button><p id="clear-status" class="muted" hidden></p></section>
 </section>
 </main>
 <script type="module" src="analytics.js"></script>
