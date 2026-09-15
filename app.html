@@ -13,6 +13,26 @@
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 </head>
 <body>
+    <script>
+        // Run the mobile gate before app.js/Firebase is imported. This is
+        // intentionally independent of the application JavaScript so Safari
+        // can never leave a phone sitting on the workspace loading screen.
+        (function () {
+            var ua = navigator.userAgent || '';
+            var isIOS = /iPad|iPhone|iPod/i.test(ua) ||
+                (/Macintosh/i.test(ua) && navigator.maxTouchPoints > 1);
+            var isAndroid = /Android/i.test(ua);
+            var isMobile = isIOS || isAndroid || /Mobile|Tablet/i.test(ua);
+
+            if (isMobile) {
+                document.documentElement.classList.add('kairos-mobile-device');
+                window.__kairosMobileDevice = {
+                    isIOS: isIOS,
+                    isAndroid: isAndroid
+                };
+            }
+        })();
+    </script>
     <!-- Mobile access gate: Kairos Web is intentionally desktop-only. -->
     <div id="mobile-access-screen" class="mobile-access-screen" aria-hidden="true">
         <div class="mobile-access-card">
