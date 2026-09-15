@@ -44,9 +44,13 @@ function installMarkdownStyles() {
     style.textContent = `
         .ai-chat-bubble { overflow-wrap: anywhere; }
 
-        /* Keep Markdown compact so normal AI replies don't have large vertical gaps. */
+        /* Compact Markdown typography to match normal chat line spacing. */
+        .ai-chat-bubble-row.assistant .ai-chat-bubble {
+            white-space: normal;
+            line-height: 1.4;
+        }
         .ai-chat-bubble-row.assistant .ai-chat-bubble p {
-            margin: 0 0 0.35em;
+            margin: 0 0 0.15em;
         }
         .ai-chat-bubble-row.assistant .ai-chat-bubble p:last-child { margin-bottom: 0; }
 
@@ -56,8 +60,8 @@ function installMarkdownStyles() {
         .ai-chat-bubble-row.assistant .ai-chat-bubble h4,
         .ai-chat-bubble-row.assistant .ai-chat-bubble h5,
         .ai-chat-bubble-row.assistant .ai-chat-bubble h6 {
-            margin: 0.6em 0 0.25em;
-            line-height: 1.3;
+            margin: 0.35em 0 0.1em;
+            line-height: 1.2;
         }
         .ai-chat-bubble-row.assistant .ai-chat-bubble h1:first-child,
         .ai-chat-bubble-row.assistant .ai-chat-bubble h2:first-child,
@@ -65,14 +69,14 @@ function installMarkdownStyles() {
 
         .ai-chat-bubble-row.assistant .ai-chat-bubble ul,
         .ai-chat-bubble-row.assistant .ai-chat-bubble ol {
-            margin: 0.25em 0 0.4em;
+            margin: 0.1em 0 0.2em;
             padding-left: 1.5em;
         }
-        .ai-chat-bubble-row.assistant .ai-chat-bubble li { margin: 0.1em 0; }
+        .ai-chat-bubble-row.assistant .ai-chat-bubble li { margin: 0; }
 
         .ai-chat-bubble-row.assistant .ai-chat-bubble blockquote {
-            margin: 0.4em 0;
-            padding: 0.35em 0.75em;
+            margin: 0.2em 0;
+            padding: 0.2em 0.6em;
             border-left: 3px solid var(--accent-glow);
             color: var(--text-muted);
             background: var(--accent-glow-soft);
@@ -80,7 +84,7 @@ function installMarkdownStyles() {
         }
 
         .ai-chat-bubble-row.assistant .ai-chat-bubble code {
-            padding: 0.1em 0.3em;
+            padding: 0.05em 0.25em;
             border-radius: 4px;
             background: var(--bg-main);
             border: 1px solid var(--border-subtle);
@@ -88,8 +92,8 @@ function installMarkdownStyles() {
             font-size: 0.88em;
         }
         .ai-chat-bubble-row.assistant .ai-chat-bubble pre {
-            margin: 0.4em 0;
-            padding: 10px;
+            margin: 0.2em 0;
+            padding: 8px;
             overflow-x: auto;
             border-radius: 8px;
             background: var(--bg-main);
@@ -110,17 +114,17 @@ function installMarkdownStyles() {
         .ai-chat-bubble-row.assistant .ai-chat-bubble hr {
             border: 0;
             border-top: 1px solid var(--border-subtle);
-            margin: 0.5em 0;
+            margin: 0.25em 0;
         }
         .ai-chat-bubble-row.assistant .ai-chat-bubble table {
             width: 100%;
             border-collapse: collapse;
-            margin: 0.4em 0;
+            margin: 0.2em 0;
             font-size: 0.92em;
         }
         .ai-chat-bubble-row.assistant .ai-chat-bubble th,
         .ai-chat-bubble-row.assistant .ai-chat-bubble td {
-            padding: 5px 8px;
+            padding: 3px 6px;
             border: 1px solid var(--border-subtle);
             text-align: left;
         }
