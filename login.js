@@ -13,6 +13,13 @@ const authSubmit = document.getElementById('auth-submit');
 const rememberMe = document.getElementById('remember-me');
 const googleBtn = document.getElementById('btn-google');
 
+function clearAccountScopedBrowserState() {
+    // These values belong to the signed-in Kairos account, not the browser.
+    // Never carry them across a user switch.
+    localStorage.removeItem('kairos_settings_cache');
+    localStorage.removeItem('kairos_bedtime_fired');
+}
+
 if (loginForm && authSubmit) {
     loginForm.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -30,8 +37,18 @@ if (loginForm && authSubmit) {
                 auth,
                 rememberMe?.checked ? browserLocalPersistence : browserSessionPersistence
             );
-            await signInWithEmailAndPassword(auth, email, password);
-            window.location.href = 'app.html';
+
+            // Clear the previous account's browser cache before the new account
+            // becomes the current Firebase user.
+            clearAccountScopedBrowserState();
+
+            const credential = await signInWithEmailAndPassword(auth, email, password);
+            if (!credential?.user?.uid) {
+                throw new Error('Sign-in completed, but no Firebase user session was returned.');
+            }
+
+            console.log('Signed in to Kairos:', credential.user.uid);
+            window.location.replace('app.html');
         } catch (error) {
             console.error('Authentication Error:', error);
             const messages = {
@@ -51,8 +68,14 @@ if (loginForm && authSubmit) {
 googleBtn?.addEventListener('click', async () => {
     googleBtn.disabled = true;
     try {
-        await signInWithPopup(auth, new GoogleAuthProvider());
-        window.location.href = 'app.html';
+        clearAccountScopedBrowserState();
+        const credential = await signInWithPopup(auth, new GoogleAuthProvider());
+        if (!credential?.user?.uid) {
+            throw new Error('Google sign-in completed, but no Firebase user session was returned.');
+        }
+
+        console.log('Signed in to Kairos with Google:', credential.user.uid);
+        window.location.replace('app.html');
     } catch (error) {
         console.error('Google Auth Error:', error);
         alert(error.code === 'auth/popup-closed-by-user'
