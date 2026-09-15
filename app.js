@@ -14,7 +14,7 @@ import {
     doc, setDoc, getDoc, onSnapshot, collection, addDoc, serverTimestamp,
     query, where, orderBy, limit, getDocs, updateDoc, deleteDoc
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { LANGUAGES, applyTranslations, getLocale, getGeminiLanguageName, t, ACHIEVEMENT_I18N } from './i18n.js';
+import { LANGUAGES, applyTranslations, getLocale, getLanguageName, t, ACHIEVEMENT_I18N } from './i18n.js';
 console.log("APP.js is loaded and running");
 
 // ===========================================================
@@ -1072,27 +1072,6 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    // --- 5 Local Storage Settings (Gemini key) ---
-    const apiKeyInput = document.getElementById("api-key-input");
-    const saveSettingsBtn = document.getElementById("save-settings-btn");
-
-    if (apiKeyInput && saveSettingsBtn) {
-        const savedKey = localStorage.getItem("kairos_api_key");
-        if (savedKey) { apiKeyInput.value = savedKey; }
-        saveSettingsBtn.addEventListener("click", () => {
-            const key = apiKeyInput.value.trim();
-            if (key !== "") {
-                localStorage.setItem("kairos_api_key", key);
-                saveSettingsBtn.innerText = tr("key_saved");
-                saveSettingsBtn.style.backgroundColor = "#22c55e";
-                setTimeout(() => {
-                    saveSettingsBtn.innerText = tr("save_key");
-                    saveSettingsBtn.style.backgroundColor = "var(--accent-glow)";
-                }, 2000);
-            }
-        });
-    }
-
     // --- 6 Cloud Sync Data Actions ---
     async function savePlanToFirestore(planData) {
         const user = auth.currentUser;
@@ -1179,12 +1158,6 @@ document.addEventListener("DOMContentLoaded", () => {
     let isGeneratingPlan = false;
 
     async function generatePlanFromText(assignmentText, triggerBtn) {
-        const apiKey = localStorage.getItem("kairos_api_key");
-
-        if (!apiKey) {
-            alert(tr('alert_no_api_key'));
-            return;
-        }
         if (!assignmentText || !assignmentText.trim()) {
             alert(tr('alert_empty_input'));
             return;
@@ -1232,25 +1205,20 @@ document.addEventListener("DOMContentLoaded", () => {
         `;
 
         try {
-            const cleanApiKey = apiKey.trim();
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${cleanApiKey}`;
-
-            const response = await fetch(apiUrl, {
+            const response = await fetch('https://kairos.kirosapp.workers.dev', {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    contents: [{ parts: [{ text: systemPrompt }] }]
-                })
+                body: JSON.stringify({ messages: [{ role: "user", content: systemPrompt }] })
             });
 
             if (!response.ok) {
                 const errorDetails = await response.text();
-                console.error("Google API Rejected the Request:", errorDetails);
-                throw new Error(`API Error ${response.status}. See console for details.`);
+                console.error("AI Relay Rejected the Request:", errorDetails);
+                throw new Error(`AI Relay Error ${response.status}. See console for details.`);
             }
 
             const data = await response.json();
-            let aiResponseText = data.candidates[0].content.parts[0].text;
+            let aiResponseText = data.choices?.[0]?.message?.content || "";
             aiResponseText = aiResponseText.replace(/```json/gi, "").replace(/```/gi, "").trim();
             const parsed = JSON.parse(aiResponseText);
 
@@ -1286,9 +1254,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // --- AI Chatbot (Hack Club free AI proxy) ---
-    const HACKCLUB_API_URL = 'https://ai.hackclub.com/proxy/v1/chat/completions';
-    const HACKCLUB_MODEL = 'qwen/qwen3-32b';
-
     let aiChatMessages = []; // { role: 'user' | 'assistant', content: string }
     let aiChatSending = false;
 
@@ -1364,14 +1329,11 @@ document.addEventListener("DOMContentLoaded", () => {
         if (row) row.remove();
     }
 
-    const KAIROS_RELAY_SECRET = '__KAIROS_RELAY_SECRET__';
-
     async function sendHackClubChatMessage(messages) {
         const response = await fetch('https://kairos.kirosapp.workers.dev', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-Kairos-Auth': KAIROS_RELAY_SECRET
             },
             body: JSON.stringify({ messages })
         });
@@ -1457,19 +1419,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 .map(m => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`)
                 .join('\n');
             generatePlanFromText(transcript, aiChatPlanBtn);
-        });
-    }
-
-    // Hack Club key (optional)
-    const hackclubKeyInput = document.getElementById('hackclub-key-input');
-    const saveHackclubKeyBtn = document.getElementById('save-hackclub-key-btn');
-    if (hackclubKeyInput && saveHackclubKeyBtn) {
-        const savedHcKey = localStorage.getItem('kairos_hackclub_key');
-        if (savedHcKey) hackclubKeyInput.value = savedHcKey;
-        saveHackclubKeyBtn.addEventListener('click', () => {
-            localStorage.setItem('kairos_hackclub_key', hackclubKeyInput.value.trim());
-            saveHackclubKeyBtn.innerText = 'Saved! ✓';
-            setTimeout(() => { saveHackclubKeyBtn.innerText = 'Save Key'; }, 2000);
         });
     }
 
@@ -1785,14 +1734,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     async function generateDayInsight(dateKey) {
-        const apiKey = localStorage.getItem('kairos_api_key');
-        if (!apiKey) {
-            if (selectedCalendarDate === dateKey && dayDetailAiContent) {
-                dayDetailAiContent.innerHTML = `<p class="text-muted">${tr('add_api_key_hint')}</p>`;
-            }
-            return;
-        }
-
         const tasksForDay = getTasksForDate(dateKey);
         if (tasksForDay.length === 0) {
             if (selectedCalendarDate === dateKey && dayDetailAiContent) {
@@ -1813,22 +1754,20 @@ document.addEventListener("DOMContentLoaded", () => {
         const prompt = `You are a supportive productivity coach. Here is a user's task list for ${dateKey}:\n${taskSummary}${scheduleSummary}${userContext}\n\nWrite a short, encouraging 1-2 sentence comment about their day in ${languageName}, since that is the user's chosen app language. Be specific about what they've completed or still need to do, and gently flag if their workload looks like it's cutting into sleep or rest time. Do not use markdown formatting.`;
 
         try {
-            const cleanApiKey = apiKey.trim();
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${cleanApiKey}`;
-            const response = await fetch(apiUrl, {
+            const response = await fetch('https://kairos.kirosapp.workers.dev', {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+                body: JSON.stringify({ messages: [{ role: "user", content: prompt }] })
             });
 
             if (!response.ok) {
                 const errText = await response.text();
-                console.error("Gemini insight error:", errText);
-                throw new Error(`API Error ${response.status}`);
+                console.error("AI relay insight error:", errText);
+                throw new Error(`AI Relay Error ${response.status}`);
             }
 
             const data = await response.json();
-            const commentText = data.candidates[0].content.parts[0].text.trim();
+            const commentText = (data.choices?.[0]?.message?.content || "").trim();
 
             dayInsights[dateKey] = commentText;
             if (selectedCalendarDate === dateKey && dayDetailAiContent) {
@@ -2709,7 +2648,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 await deleteUser(user);
 
                 localStorage.removeItem('kairos_settings_cache');
-                localStorage.removeItem('kairos_api_key');
                 localStorage.removeItem('kairos_bedtime_fired');
                 alert(tr('alert_account_deleted'));
                 window.location.href = 'login.html';
