@@ -13,6 +13,36 @@
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 </head>
 <body>
+    <!-- Mobile access gate: Kairos Web is intentionally desktop-only. -->
+    <div id="mobile-access-screen" class="mobile-access-screen" aria-hidden="true">
+        <div class="mobile-access-card">
+            <div class="mobile-access-logo" aria-hidden="true">
+                <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <linearGradient id="mobileAccessGradLeft" x1="0%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" class="logo-stop-left-a"/>
+                            <stop offset="100%" class="logo-stop-left-b"/>
+                        </linearGradient>
+                        <linearGradient id="mobileAccessGradRight" x1="0%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" class="logo-stop-right-a"/>
+                            <stop offset="100%" class="logo-stop-right-b"/>
+                        </linearGradient>
+                    </defs>
+                    <line x1="24.5" y1="85" x2="50.5" y2="15" stroke="url(#mobileAccessGradLeft)" stroke-width="15" stroke-linecap="round"/>
+                    <line x1="49.5" y1="85" x2="75.5" y2="15" stroke="url(#mobileAccessGradRight)" stroke-width="15" stroke-linecap="round"/>
+                </svg>
+            </div>
+            <div class="mobile-access-kicker">Kairos</div>
+            <h1 id="mobile-access-title">Kairos is better on a computer.</h1>
+            <p id="mobile-access-message">The Kairos web app is designed for PC and laptop screens. Please open Kairos on a computer to continue.</p>
+            <div id="mobile-access-platform" class="mobile-access-platform">Desktop web app</div>
+            <div class="mobile-access-actions">
+                <a id="mobile-access-download" class="mobile-access-primary" href="waitlist.html">Get Kairos for mobile <span>↗</span></a>
+                <a class="mobile-access-secondary" href="index.html">Back to Kairos</a>
+            </div>
+            <p id="mobile-access-note" class="mobile-access-note">Mobile apps are coming soon.</p>
+        </div>
+    </div>
 
     <div id="app-loading-screen" class="app-loading-screen">
         <svg class="loading-logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Kairos">
