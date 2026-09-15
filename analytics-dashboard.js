@@ -1,5 +1,5 @@
 import { auth } from "./firebase.js";
-import { signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
 const login = document.getElementById("analytics-login");
 const dashboard = document.getElementById("analytics-dashboard");
@@ -7,6 +7,7 @@ const errorBox = document.getElementById("analytics-error");
 const loading = document.getElementById("analytics-loading");
 const range = document.getElementById("range");
 const refresh = document.getElementById("refresh");
+const googleSignIn = document.getElementById("google-sign-in");
 const clearButton = document.getElementById("clear-analytics");
 const clearStatus = document.getElementById("clear-status");
 let currentUser = null;
@@ -83,28 +84,27 @@ async function loadAnalytics(user) {
   }
 }
 
-document.getElementById("login-form").addEventListener("submit", async event => {
-  event.preventDefault();
+googleSignIn.addEventListener("click", async () => {
   errorBox.hidden = true;
-  const button = event.currentTarget.querySelector('button[type="submit"]');
-  button.disabled = true;
-  button.textContent = "Signing in…";
+  googleSignIn.disabled = true;
+  googleSignIn.textContent = "Signing in…";
   try {
-    await signInWithEmailAndPassword(auth, document.getElementById("email").value.trim(), document.getElementById("password").value);
+    const provider = new GoogleAuthProvider();
+    await signInWithPopup(auth, provider);
   } catch (error) {
-    console.error("Kairos analytics sign-in failed:", error);
+    console.error("Kairos analytics Google sign-in failed:", error);
     const messages = {
-      "auth/invalid-credential": "Incorrect email or password.",
-      "auth/invalid-email": "Enter a valid email address.",
-      "auth/user-disabled": "This account has been disabled.",
-      "auth/operation-not-allowed": "Email/password sign-in is not enabled in Firebase Authentication.",
+      "auth/popup-closed-by-user": "Google sign-in was cancelled.",
+      "auth/popup-blocked": "The Google sign-in popup was blocked. Allow popups for Kairos and try again.",
       "auth/unauthorized-domain": "This website domain is not authorized in Firebase Authentication.",
-      "auth/too-many-requests": "Too many sign-in attempts. Try again later."
+      "auth/operation-not-allowed": "Google sign-in is not enabled in Firebase Authentication.",
+      "auth/account-exists-with-different-credential": "This Google account is already linked to another sign-in method.",
+      "auth/network-request-failed": "Network error while signing in. Check your connection and try again."
     };
-    showError(messages[error.code] || "Sign-in failed. Open the browser console for the Firebase error code.");
+    showError(messages[error.code] || "Google sign-in failed. Check the browser console for the Firebase error code.");
   } finally {
-    button.disabled = false;
-    button.textContent = "Sign in";
+    googleSignIn.disabled = false;
+    googleSignIn.textContent = "Continue with Google";
   }
 });
 
