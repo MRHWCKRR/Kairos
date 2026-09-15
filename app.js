@@ -421,22 +421,30 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // --- Auth Management ---
     onAuthStateChanged(auth, (user) => {
+        // Always arm the fallback before any Firestore work. If one of the
+        // initial data requests hangs or throws, the workspace must not be
+        // trapped behind the loading screen forever.
+        const loadingFallback = setTimeout(hideLoadingScreen, 8000);
+
         if (!user) {
             console.log("No user detected. Redirecting to login...");
             if (unsubscribeNotifications) { unsubscribeNotifications(); unsubscribeNotifications = null; }
+            clearTimeout(loadingFallback);
             window.location.replace("login.html");
-            return; 
+            return;
         }
 
         console.log("User is logged in:", user.email);
-        pendingInitialLoads = 3;
-        loadLatestPlanFromFirestore(user);
-        loadUserSettingsFromFirestore(user);
-        setupNotificationsSync(user);
-        loadUserProgressFromFirestore(user);
-        loadAiChatHistoryFromFirestore(user);
+        pendingInitialLoads = 0;
+        hideLoadingScreen();
 
-        setTimeout(hideLoadingScreen, 8000);
+        // Load user data independently so a failure in one request does not
+        // prevent the rest of the app from becoming usable.
+        Promise.resolve().then(() => loadLatestPlanFromFirestore(user)).catch(err => console.error("Failed to load latest plan:", err));
+        Promise.resolve().then(() => loadUserSettingsFromFirestore(user)).catch(err => console.error("Failed to load settings:", err));
+        Promise.resolve().then(() => setupNotificationsSync(user)).catch(err => console.error("Failed to sync notifications:", err));
+        Promise.resolve().then(() => loadUserProgressFromFirestore(user)).catch(err => console.error("Failed to load user progress:", err));
+        Promise.resolve().then(() => loadAiChatHistoryFromFirestore(user)).catch(err => console.error("Failed to load AI chat history:", err));
     });
     
     // --- 1 UI Nav & Clock ---
