@@ -1172,7 +1172,7 @@ document.addEventListener("DOMContentLoaded", () => {
             triggerBtn.style.opacity = "0.7";
         }
 
-        const languageName = getGeminiLanguageName(userSettings.accessibility.language || 'en');
+        const languageName = getLanguageName(userSettings.accessibility.language || 'en');
         const scheduleSummary = buildScheduleSummaryForAI();
         const userContext = buildUserContextForAI();
         const systemPrompt = `
@@ -1366,7 +1366,7 @@ document.addEventListener("DOMContentLoaded", () => {
         showAiChatTypingIndicator();
 
         try {
-            const languageName = getGeminiLanguageName(userSettings.accessibility.language || 'en');
+            const languageName = getLanguageName(userSettings.accessibility.language || 'en');
             const apiMessages = [
                 { role: 'system', content: `You are a helpful, friendly assistant inside the Kairos productivity app. Always respond in ${languageName}, regardless of what language the user writes in, unless they explicitly ask you to reply in a different language.` },
                 ...aiChatMessages.map(m => ({ role: m.role, content: m.content }))
@@ -1747,7 +1747,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         if (dayDetailAiBtn) dayDetailAiBtn.disabled = true;
 
-        const languageName = getGeminiLanguageName(userSettings.accessibility.language || 'en');
+        const languageName = getLanguageName(userSettings.accessibility.language || 'en');
         const taskSummary = tasksForDay.map(t => `- ${t.title} [${t.completed ? 'done' : 'pending'}]`).join('\n');
         const scheduleSummary = buildScheduleSummaryForAI();
         const userContext = buildUserContextForAI();
