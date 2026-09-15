@@ -1,5 +1,5 @@
 import { auth } from "./firebase.js";
-import { GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { GoogleAuthProvider, signInWithRedirect, getRedirectResult, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
 const googleProvider = new GoogleAuthProvider();
 const login = document.getElementById("analytics-login");
@@ -15,6 +15,20 @@ let currentUser = null;
 function showError(message) {
   errorBox.textContent = message;
   errorBox.hidden = false;
+}
+
+function authErrorMessage(error) {
+  const messages = {
+    "auth/unauthorized-domain": "This website domain is not authorized in Firebase Authentication.",
+    "auth/account-exists-with-different-credential": "This Google account is already registered with a different sign-in method.",
+    "auth/user-disabled": "This account has been disabled.",
+    "auth/operation-not-allowed": "Google sign-in is not enabled in Firebase Authentication.",
+    "auth/too-many-requests": "Too many sign-in attempts. Try again later.",
+    "auth/network-request-failed": "The Google sign-in request failed because of a network error. Check your connection and try again.",
+    "auth/popup-closed-by-user": "Google sign-in was cancelled.",
+    "auth/popup-blocked": "Your browser blocked the Google sign-in popup."
+  };
+  return messages[error?.code] || "Google sign-in failed. Open the browser console for the Firebase error code.";
 }
 
 function escapeHtml(value) {
@@ -84,27 +98,28 @@ async function loadAnalytics(user) {
   }
 }
 
+async function handleRedirectResult() {
+  try {
+    await getRedirectResult(auth);
+  } catch (error) {
+    console.error("Kairos analytics Google redirect sign-in failed:", error);
+    showError(authErrorMessage(error));
+  }
+}
+
+handleRedirectResult();
+
 document.getElementById("login-form").addEventListener("submit", async event => {
   event.preventDefault();
   errorBox.hidden = true;
   const button = event.currentTarget.querySelector('button[type="submit"]');
   button.disabled = true;
-  button.textContent = "Opening Google…";
+  button.textContent = "Redirecting to Google…";
   try {
-    await signInWithPopup(auth, googleProvider);
+    await signInWithRedirect(auth, googleProvider);
   } catch (error) {
     console.error("Kairos analytics Google sign-in failed:", error);
-    const messages = {
-      "auth/popup-closed-by-user": "Google sign-in was cancelled.",
-      "auth/popup-blocked": "Your browser blocked the Google sign-in popup. Allow popups for Kairos and try again.",
-      "auth/unauthorized-domain": "This website domain is not authorized in Firebase Authentication.",
-      "auth/account-exists-with-different-credential": "This Google account is already registered with a different sign-in method.",
-      "auth/user-disabled": "This account has been disabled.",
-      "auth/operation-not-allowed": "Google sign-in is not enabled in Firebase Authentication.",
-      "auth/too-many-requests": "Too many sign-in attempts. Try again later."
-    };
-    showError(messages[error.code] || "Google sign-in failed. Open the browser console for the Firebase error code.");
-  } finally {
+    showError(authErrorMessage(error));
     button.disabled = false;
     button.textContent = "Sign in with Google";
   }
