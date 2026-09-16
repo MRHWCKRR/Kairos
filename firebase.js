@@ -17,3 +17,11 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
+
+// Load onboarding only after this module has finished exporting the primary
+// Firebase app. This prevents onboarding from ever blocking app.js startup.
+if (typeof window !== "undefined" && document.getElementById("app-loading-screen")) {
+    import("./onboarding-force.js?v=3").catch(error => {
+        console.error("Kairos onboarding module failed to load:", error);
+    });
+}
