@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getAuth } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { getAuth, initializeRecaptchaConfig } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { getFirestore } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import "./ai-markdown.js";
 
@@ -16,6 +16,17 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
+
+// Preload Firebase Authentication's reCAPTCHA configuration. When reCAPTCHA
+// Enterprise bot protection is enabled for this project, Firebase Auth can
+// transparently challenge suspicious authentication traffic without requiring
+// a separate CAPTCHA provider or exposing a secret key in the client.
+export const authProtectionReady = initializeRecaptchaConfig(auth).catch(error => {
+    // Keep authentication functional if the Firebase project has not enabled
+    // reCAPTCHA protection yet. The console configuration can be enabled later
+    // without another application-code change.
+    console.warn("Kairos auth reCAPTCHA protection is not configured:", error);
+});
 export const db = getFirestore(app);
 
 // Keep the real loading screen visible while the shared onboarding state is
