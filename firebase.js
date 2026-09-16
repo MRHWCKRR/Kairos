@@ -1,6 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getAuth, initializeRecaptchaConfig } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { getFirestore } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { initializeAppCheck, ReCaptchaEnterpriseProvider } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app-check.js";
 import "./ai-markdown.js";
 
 // Your web app's Firebase configuration
@@ -15,6 +16,30 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
+
+// Firebase App Check adds an attestation layer so requests from automated or
+// tampered clients can be rejected when App Check enforcement is enabled.
+// Replace this public site key with the reCAPTCHA Enterprise key registered
+// for the Kairos web app in Firebase Console.
+const RECAPTCHA_ENTERPRISE_SITE_KEY = "REPLACE_WITH_KAIROS_RECAPTCHA_ENTERPRISE_SITE_KEY";
+
+export const appCheckReady = (() => {
+    if (!RECAPTCHA_ENTERPRISE_SITE_KEY || RECAPTCHA_ENTERPRISE_SITE_KEY.startsWith("REPLACE_")) {
+        console.warn("Kairos App Check is not initialized: add the reCAPTCHA Enterprise site key in firebase.js.");
+        return Promise.resolve(null);
+    }
+
+    try {
+        const appCheck = initializeAppCheck(app, {
+            provider: new ReCaptchaEnterpriseProvider(RECAPTCHA_ENTERPRISE_SITE_KEY),
+            isTokenAutoRefreshEnabled: true
+        });
+        return Promise.resolve(appCheck);
+    } catch (error) {
+        console.error("Kairos App Check initialization failed:", error);
+        return Promise.resolve(null);
+    }
+})();
 export const auth = getAuth(app);
 
 // Preload Firebase Authentication's reCAPTCHA configuration. When reCAPTCHA
