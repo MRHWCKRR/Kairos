@@ -20,9 +20,14 @@ if (location.pathname.endsWith("/app.html") || location.pathname.endsWith("/app"
     const replayDb = getFirestore(replayApp);
     const REPLAY_KEY = "kairos-onboarding-replay-armed";
 
-    // Arm once per app open. The reload lets onboarding.js see onboardingCompleted=false
-    // before its auth/profile check, while preventing an infinite reload loop.
-    if (!sessionStorage.getItem(REPLAY_KEY)) {
+    // IMPORTANT: onboarding.js is loaded dynamically only after this state is
+    // armed. This removes the Firebase/auth race that could cause the existing
+    // account check to skip the walkthrough before the replay flag was written.
+    const loadOnboarding = () => import("./onboarding.js");
+
+    if (sessionStorage.getItem(REPLAY_KEY)) {
+        loadOnboarding();
+    } else {
         onAuthStateChanged(replayAuth, async user => {
             if (!user) return;
             sessionStorage.setItem(REPLAY_KEY, "1");
@@ -31,7 +36,7 @@ if (location.pathname.endsWith("/app.html") || location.pathname.endsWith("/app"
             } catch (error) {
                 console.warn("Kairos onboarding replay could not arm:", error);
             }
-            location.reload();
+            await loadOnboarding();
         });
     }
 }
