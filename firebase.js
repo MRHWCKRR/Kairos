@@ -21,7 +21,7 @@ const app = initializeApp(firebaseConfig);
 // tampered clients can be rejected when App Check enforcement is enabled.
 // Replace this public site key with the reCAPTCHA Enterprise key registered
 // for the Kairos web app in Firebase Console.
-const RECAPTCHA_ENTERPRISE_SITE_KEY = "REPLACE_WITH_KAIROS_RECAPTCHA_ENTERPRISE_SITE_KEY";
+const RECAPTCHA_ENTERPRISE_SITE_KEY = "6Lerb74tAAAAAPyda5aVXG3ZVwMwSIMgIQLKPPQF";
 
 export const appCheckReady = (() => {
     if (!RECAPTCHA_ENTERPRISE_SITE_KEY || RECAPTCHA_ENTERPRISE_SITE_KEY.startsWith("REPLACE_")) {
