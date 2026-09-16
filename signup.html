@@ -28,6 +28,24 @@
         .auth-switch { margin-top:18px; text-align:center; color:#888; font-size:.9rem; }
         .auth-switch a { color:#a855f7; font-weight:600; text-decoration:none; }
         .auth-switch a:hover { text-decoration:underline; }
+        .signup-security-note {
+            margin: 14px 0 0;
+            padding: 10px 12px;
+            border: 1px solid #2b2b3a;
+            border-radius: 8px;
+            background: #15151d;
+            color: #858592;
+            font-size: .78rem;
+            line-height: 1.45;
+        }
+        .signup-honeypot {
+            position: absolute !important;
+            left: -10000px !important;
+            width: 1px !important;
+            height: 1px !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
+        }
         .image-container { flex:3; background:url('image_0c9bc9.png') center/cover no-repeat; border-left:1px solid #333; }
         @media (max-width:768px) {
             .login-page { flex-direction:column; }
@@ -63,7 +81,12 @@
 
     <div class="divider">OR SIGN UP WITH EMAIL</div>
 
-    <form id="signup-form">
+    <form id="signup-form" novalidate>
+        <!-- Honeypot field: real users never see or fill this. -->
+        <div class="signup-honeypot" aria-hidden="true">
+            <label for="website">Website</label>
+            <input type="text" id="website" name="website" tabindex="-1" autocomplete="off">
+        </div>
         <div class="form-group">
             <label for="email">Email Address</label>
             <input type="email" id="email" required placeholder="you@example.com" autocomplete="email">
@@ -79,6 +102,7 @@
         <button type="submit" class="login-btn" id="signup-submit">Create account</button>
     </form>
 
+    <p class="signup-security-note">Kairos uses automated abuse protection and may require additional security verification for suspicious sign-up activity.</p>
     <div class="auth-switch">Already have an account? <a href="login.html">Log in</a></div>
 </div>
 </div>
