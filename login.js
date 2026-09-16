@@ -6,6 +6,8 @@ import {
     browserSessionPersistence,
     GoogleAuthProvider,
     signInWithPopup,
+    sendEmailVerification,
+    signOut,
     onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
@@ -46,6 +48,18 @@ if (loginForm && authSubmit) {
             clearAccountScopedBrowserState();
             const credential = await signInWithEmailAndPassword(auth, email, password);
             if (!credential?.user?.uid) throw new Error('No Firebase user session was returned.');
+
+            // Email/password accounts must verify ownership before accessing
+            // Kairos. OAuth providers such as Google supply a verified identity.
+            if (!credential.user.emailVerified) {
+                await sendEmailVerification(credential.user).catch(() => {});
+                await signOut(auth);
+                throw Object.assign(
+                    new Error('Please verify your email address before logging in. A new verification email has been sent.'),
+                    { code: 'auth/email-not-verified' }
+                );
+            }
+
             window.location.replace('app.html');
         } catch (error) {
             console.error('Authentication Error:', error);
@@ -54,7 +68,8 @@ if (loginForm && authSubmit) {
                 'auth/user-not-found': 'No Kairos account was found with that email.',
                 'auth/wrong-password': 'The email or password is incorrect.',
                 'auth/too-many-requests': 'Too many attempts. Please wait a moment and try again.',
-                'auth/network-request-failed': 'Network error. Please check your connection and try again.'
+                'auth/network-request-failed': 'Network error. Please check your connection and try again.',
+                'auth/email-not-verified': 'Please verify your email address before logging in. A new verification email has been sent.'
             };
             alert(messages[error.code] || 'Login failed. Please try again.');
             authSubmit.textContent = 'Sign In';
