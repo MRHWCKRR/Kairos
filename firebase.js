@@ -18,10 +18,55 @@ const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 
-// Load onboarding only after this module has finished exporting the primary
-// Firebase app. This prevents onboarding from ever blocking app.js startup.
-if (typeof window !== "undefined" && document.getElementById("app-loading-screen")) {
-    import("./onboarding-force.js?v=3").catch(error => {
-        console.error("Kairos onboarding module failed to load:", error);
-    });
+// Keep the real loading screen visible while the shared onboarding state is
+// being checked. app.js may try to hide it as soon as Firebase auth resolves;
+// the gate below prevents that from causing a flash of the main workspace.
+if (typeof window !== "undefined") {
+    const loadingScreen = document.getElementById("app-loading-screen");
+
+    if (loadingScreen) {
+        let onboardingGateActive = true;
+        window.__kairosOnboardingGate = true;
+
+        const releaseLoadingGate = () => {
+            if (!onboardingGateActive) return;
+            onboardingGateActive = false;
+            window.__kairosOnboardingGate = false;
+            loadingScreen.classList.add("hidden");
+            observer.disconnect();
+        };
+
+        const observer = new MutationObserver(() => {
+            if (!onboardingGateActive) return;
+
+            // Once onboarding is actually mounted, let it replace the loading
+            // screen. If onboarding was already completed, keep the loading
+            // screen up until the completion event releases the gate.
+            if (document.getElementById("kairos-onboarding")) {
+                onboardingGateActive = false;
+                window.__kairosOnboardingGate = false;
+                loadingScreen.classList.add("hidden");
+                observer.disconnect();
+                return;
+            }
+
+            if (loadingScreen.classList.contains("hidden")) {
+                loadingScreen.classList.remove("hidden");
+            }
+        });
+
+        observer.observe(loadingScreen, {
+            attributes: true,
+            attributeFilter: ["class"]
+        });
+
+        window.addEventListener("kairos:onboarding-complete", releaseLoadingGate, { once: true });
+
+        // Load onboarding only after this module has finished exporting the
+        // primary Firebase app. This prevents onboarding from blocking app.js.
+        import("./onboarding-force.js?v=4").catch(error => {
+            console.error("Kairos onboarding module failed to load:", error);
+            releaseLoadingGate();
+        });
+    }
 }
