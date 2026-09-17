@@ -33,7 +33,6 @@
         .signup-security-note { margin:14px 0 0; padding:10px 12px; border:1px solid #2b2b3a; border-radius:8px; background:#15151d; color:#858592; font-size:.78rem; line-height:1.45; }
         .signup-honeypot { position:absolute !important; left:-10000px !important; width:1px !important; height:1px !important; opacity:0 !important; pointer-events:none !important; }
         .image-container { flex:3; background:url('image_0c9bc9.png') center/cover no-repeat; border-left:1px solid #333; }
-
         .auth-modal-backdrop { position:fixed; inset:0; z-index:1000; display:flex; align-items:center; justify-content:center; padding:20px; background:rgba(0,0,0,.72); backdrop-filter:blur(8px); opacity:0; visibility:hidden; transition:opacity .2s ease, visibility .2s ease; }
         .auth-modal-backdrop.is-visible { opacity:1; visibility:visible; }
         .auth-modal { width:min(100%,430px); padding:30px; border:1px solid #343445; border-radius:16px; background:#15151d; box-shadow:0 24px 80px rgba(0,0,0,.5); transform:translateY(10px) scale(.98); transition:transform .2s ease; }
@@ -48,10 +47,9 @@
         .auth-modal-primary:hover { background:#9333ea; }
         .auth-modal-secondary { border:1px solid #333343; background:#1e1e2a; color:#ddd; }
         .auth-modal-secondary:hover { border-color:#55556a; background:#252534; }
-        .auth-modal-status { min-height:18px; margin:11px 0 0; color:#858592; font-size:.78rem; text-align:center; }
-        .auth-modal-close { margin-top:12px; width:100%; border:0; background:transparent; color:#777785; cursor:pointer; font-size:.82rem; }
-        .auth-modal-close:hover { color:#aaa; }
-
+        .auth-change-email { margin:0 0 16px !important; text-align:center; color:#888 !important; font-size:.82rem; }
+        .auth-change-email button { padding:0; border:0; background:none; color:#b56cff; font:inherit; font-weight:600; cursor:pointer; }
+        .auth-change-email button:hover { text-decoration:underline; }
         @media (max-width:768px) {
             .login-page { flex-direction:column; }
             .image-container { display:none; }
@@ -63,12 +61,7 @@
             .social-btn { padding:13px 12px; }
             .auth-modal { padding:24px; }
         }
-        @media (max-width:380px) {
-            .login-container { padding:24px 16px; }
-            .login-logo img { height:28px; }
-            .login-logo span { font-size:1.2rem; }
-            .login-box h2 { font-size:1.55rem; }
-        }
+        @media (max-width:380px) { .login-container { padding:24px 16px; } .login-logo img { height:28px; } .login-logo span { font-size:1.2rem; } .login-box h2 { font-size:1.55rem; } }
     </style>
 </head>
 <body>
@@ -78,41 +71,22 @@
     <div class="login-logo"><img src="images/kairos-logo.png" alt="Kairos"><span>Kairos</span></div>
     <h2>Create your account</h2>
     <p>Create your Kairos account and start planning smarter.</p>
-
     <div class="social-buttons">
         <button class="social-btn" id="btn-google"><img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="">Continue with Google</button>
         <button class="social-btn" id="btn-github"><img src="https://github.githubassets.com/assets/GitHub-Mark-ea2971cee799.png" alt="">Continue with GitHub</button>
         <button class="social-btn" id="btn-microsoft"><img src="https://upload.wikimedia.org/wikipedia/commons/4/44/Microsoft_logo.svg" alt="">Continue with Microsoft</button>
     </div>
-
     <div class="divider">OR SIGN UP WITH EMAIL</div>
-
     <form id="signup-form" novalidate>
-        <div class="signup-honeypot" aria-hidden="true">
-            <label for="website">Website</label>
-            <input type="text" id="website" name="website" tabindex="-1" autocomplete="off">
-        </div>
-        <div class="form-group">
-            <label for="email">Email Address</label>
-            <input type="email" id="email" required placeholder="you@example.com" autocomplete="email">
-        </div>
-        <div class="form-group">
-            <label for="password">Password</label>
-            <input type="password" id="password" required placeholder="••••••••" autocomplete="new-password" minlength="6">
-        </div>
-        <div class="form-group">
-            <label for="confirm-password">Confirm Password</label>
-            <input type="password" id="confirm-password" required placeholder="••••••••" autocomplete="new-password" minlength="6">
-        </div>
+        <div class="signup-honeypot" aria-hidden="true"><label for="website">Website</label><input type="text" id="website" name="website" tabindex="-1" autocomplete="off"></div>
+        <div class="form-group"><label for="email">Email Address</label><input type="email" id="email" required placeholder="you@example.com" autocomplete="email"></div>
+        <div class="form-group"><label for="password">Password</label><input type="password" id="password" required placeholder="••••••••" autocomplete="new-password" minlength="6"></div>
+        <div class="form-group"><label for="confirm-password">Confirm Password</label><input type="password" id="confirm-password" required placeholder="••••••••" autocomplete="new-password" minlength="6"></div>
         <button type="submit" class="login-btn" id="signup-submit">Create account</button>
     </form>
-
     <p class="signup-security-note">Kairos uses automated abuse protection and may require additional security verification for suspicious sign-up activity.</p>
     <div class="auth-switch">Already have an account? <a href="login.html">Log in</a></div>
-</div>
-</div>
-<div class="image-container"></div>
-</div>
+</div></div><div class="image-container"></div></div>
 
 <div class="auth-modal-backdrop" id="verification-modal" role="dialog" aria-modal="true" aria-labelledby="verification-modal-title" aria-hidden="true">
     <div class="auth-modal">
@@ -120,13 +94,11 @@
         <h3 id="verification-modal-title">Check your email</h3>
         <p class="auth-modal-message">We've sent a verification link to:</p>
         <span class="auth-modal-email" id="verification-email"></span>
+        <p class="auth-change-email">Wrong email? <button type="button" id="change-email-btn">Change it here</button></p>
         <p class="auth-modal-message">Click the link in that email to verify your address. Your account will be ready once verification is complete.</p>
         <div class="auth-modal-actions">
-            <button class="auth-modal-primary" id="open-email-btn" type="button">Open email</button>
             <button class="auth-modal-secondary" id="continue-verification-btn" type="button">Continue to verification</button>
         </div>
-        <p class="auth-modal-status" id="verification-modal-status" aria-live="polite"></p>
-        <button class="auth-modal-close" id="verification-modal-close" type="button">I'll do this later</button>
     </div>
 </div>
 <script type="module" src="signup.js"></script>
