@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Email verification | Kairos</title>
+    <link rel="stylesheet" href="landing.css">
+    <link rel="icon" type="image/png" sizes="32x32" href="images/favicon-32.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="images/favicon-180.png">
+    <style>
+        .verification-page { min-height:100vh; display:flex; align-items:center; justify-content:center; padding:28px 18px; box-sizing:border-box; background:#0f0f13; }
+        .verification-card { width:min(100%, 460px); padding:38px 34px; box-sizing:border-box; border:1px solid #2f2f3c; border-radius:18px; background:#15151d; box-shadow:0 24px 80px rgba(0,0,0,.35); text-align:center; }
+        .verification-logo { display:flex; align-items:center; justify-content:center; gap:8px; margin-bottom:34px; }
+        .verification-logo img { width:auto; height:30px; }
+        .verification-logo span { color:#a855f7; font-size:1.25rem; font-weight:700; letter-spacing:1px; }
+        .verification-icon { width:68px; height:68px; display:flex; align-items:center; justify-content:center; margin:0 auto 20px; border-radius:20px; background:rgba(168,85,247,.13); color:#c084fc; font-size:30px; }
+        .verification-icon.success { background:rgba(74,222,128,.11); color:#86efac; }
+        .verification-card h1 { margin:0 0 10px; color:#fff; font-size:1.75rem; }
+        .verification-card p { margin:0 auto 20px; max-width:380px; color:#9d9da9; line-height:1.6; }
+        .verification-email { display:block; max-width:100%; margin:0 auto 24px; padding:11px 13px; box-sizing:border-box; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; border:1px solid #30303e; border-radius:9px; background:#101017; color:#e6e6ed; font-size:.9rem; }
+        .verification-actions { display:flex; flex-direction:column; gap:10px; }
+        .verification-btn { width:100%; padding:12px 14px; border-radius:9px; font-weight:600; cursor:pointer; box-sizing:border-box; }
+        .verification-primary { border:1px solid #a855f7; background:#a855f7; color:#fff; }
+        .verification-primary:hover { background:#9333ea; }
+        .verification-secondary { border:1px solid #353544; background:#1d1d29; color:#ddd; }
+        .verification-secondary:hover { background:#252534; }
+        .verification-status { min-height:20px; margin:14px 0 0 !important; color:#858592 !important; font-size:.8rem; }
+        .verification-footnote { margin-top:25px !important; margin-bottom:0 !important; color:#686875 !important; font-size:.78rem; }
+        @media (max-width:480px) { .verification-card { padding:30px 22px; } .verification-card h1 { font-size:1.55rem; } }
+    </style>
+</head>
+<body>
+<main class="verification-page">
+    <section class="verification-card" aria-live="polite">
+        <div class="verification-logo"><img src="images/kairos-logo.png" alt="Kairos"><span>Kairos</span></div>
+
+        <div class="verification-icon" id="verification-icon" aria-hidden="true">✉</div>
+        <h1 id="verification-title">You're almost there.</h1>
+        <p id="verification-message">We've sent a verification link to your email address. Click the link in that email to activate your Kairos account.</p>
+        <span class="verification-email" id="verification-email" hidden></span>
+
+        <div class="verification-actions">
+            <button class="verification-btn verification-primary" id="check-btn" type="button">I've verified my email</button>
+            <button class="verification-btn verification-secondary" id="login-btn" type="button">Return to login</button>
+        </div>
+        <p class="verification-status" id="verification-status" aria-live="polite"></p>
+        <p class="verification-footnote">Didn't receive the email? Check your spam or junk folder. You can request another verification email when you sign in.</p>
+    </section>
+</main>
+<script type="module" src="verify-email.js"></script>
+</body>
+</html>
