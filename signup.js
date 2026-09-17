@@ -3,8 +3,7 @@ import {
     createUserWithEmailAndPassword,
     GoogleAuthProvider,
     signInWithPopup,
-    sendEmailVerification,
-    signOut
+    sendEmailVerification
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
 const form = document.getElementById('signup-form');
@@ -101,7 +100,6 @@ async function createEmailAccount() {
     if (!newUser?.uid) throw new Error('Account was created, but no Firebase user session was returned.');
 
     await sendEmailVerification(newUser, verificationActionSettings(email));
-    await signOut(auth);
     clearAccountScopedBrowserState();
     showVerificationModal(email);
 }
