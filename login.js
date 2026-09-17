@@ -6,8 +6,6 @@ import {
     browserSessionPersistence,
     GoogleAuthProvider,
     signInWithPopup,
-    sendEmailVerification,
-    signOut,
     onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
@@ -21,16 +19,8 @@ function clearAccountScopedBrowserState() {
     localStorage.removeItem('kairos_bedtime_fired');
 }
 
-function verificationActionSettings(email) {
-    const params = new URLSearchParams({ email, verified: '1' });
-    return {
-        url: `${window.location.origin}/verify-email.html?${params.toString()}`,
-        handleCodeInApp: false
-    };
-}
-
 onAuthStateChanged(auth, (user) => {
-    if (user) window.location.replace('app.html');
+    if (user?.emailVerified) window.location.replace('app.html');
 });
 
 if (loginForm && authSubmit) {
@@ -51,9 +41,7 @@ if (loginForm && authSubmit) {
             if (!credential?.user?.uid) throw new Error('No Firebase user session was returned.');
 
             if (!credential.user.emailVerified) {
-                await sendEmailVerification(credential.user, verificationActionSettings(email)).catch(() => {});
-                await signOut(auth);
-                window.location.replace(`verify-email.html?email=${encodeURIComponent(email)}&resent=1`);
+                window.location.replace(`verify-email.html?email=${encodeURIComponent(email)}&resent=0`);
                 return;
             }
 
