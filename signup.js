@@ -16,10 +16,8 @@ const googleBtn = document.getElementById('btn-google');
 const honeypot = document.getElementById('website');
 const verificationModal = document.getElementById('verification-modal');
 const verificationEmail = document.getElementById('verification-email');
-const openEmailBtn = document.getElementById('open-email-btn');
 const continueVerificationBtn = document.getElementById('continue-verification-btn');
 const changeEmailBtn = document.getElementById('change-email-btn');
-const verificationModalClose = document.getElementById('verification-modal-close');
 
 const SIGNUP_LIMIT_KEY = 'kairos_signup_attempts';
 const MAX_ATTEMPTS = 5;
@@ -80,10 +78,15 @@ function showVerificationModal(email) {
     document.body.style.overflow = 'hidden';
     continueVerificationBtn.focus();
 }
-function closeVerificationModal() {
+function returnToSignupForm() {
     verificationModal.classList.remove('is-visible');
     verificationModal.setAttribute('aria-hidden', 'true');
     document.body.style.overflow = '';
+    const currentEmail = verificationEmail.textContent || '';
+    emailInput.value = currentEmail;
+    emailInput.focus();
+    emailInput.select();
+    emailInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
 async function createEmailAccount() {
@@ -137,28 +140,5 @@ googleBtn?.addEventListener('click', async () => {
     }
 });
 
-openEmailBtn?.addEventListener('click', () => {
-    const domain = (verificationEmail.textContent.split('@')[1] || '').toLowerCase();
-    const providers = {
-        'gmail.com': 'https://mail.google.com/', 'googlemail.com': 'https://mail.google.com/',
-        'outlook.com': 'https://outlook.live.com/mail/', 'hotmail.com': 'https://outlook.live.com/mail/', 'live.com': 'https://outlook.live.com/mail/',
-        'yahoo.com': 'https://mail.yahoo.com/', 'icloud.com': 'https://www.icloud.com/mail/', 'me.com': 'https://www.icloud.com/mail/', 'mac.com': 'https://www.icloud.com/mail/'
-    };
-    const inbox = providers[domain];
-    if (inbox) window.location.assign(inbox);
-    else window.location.assign(verificationDestination);
-});
-
-changeEmailBtn?.addEventListener('click', () => {
-    const currentEmail = verificationEmail.textContent || '';
-    closeVerificationModal();
-    emailInput.value = currentEmail;
-    emailInput.focus();
-    emailInput.select();
-    emailInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
-});
-
+changeEmailBtn?.addEventListener('click', returnToSignupForm);
 continueVerificationBtn?.addEventListener('click', () => window.location.assign(verificationDestination));
-verificationModalClose?.addEventListener('click', closeVerificationModal);
-verificationModal?.addEventListener('click', event => { if (event.target === verificationModal) closeVerificationModal(); });
-document.addEventListener('keydown', event => { if (event.key === 'Escape' && verificationModal?.classList.contains('is-visible')) closeVerificationModal(); });
