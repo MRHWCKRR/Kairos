@@ -13,7 +13,6 @@ const confirmPassword = document.getElementById('confirm-password');
 const submit = document.getElementById('signup-submit');
 const googleBtn = document.getElementById('btn-google');
 const honeypot = document.getElementById('website');
-
 const verificationModal = document.getElementById('verification-modal');
 const verificationEmail = document.getElementById('verification-email');
 const openEmailBtn = document.getElementById('open-email-btn');
@@ -24,7 +23,6 @@ const SIGNUP_LIMIT_KEY = 'kairos_signup_attempts';
 const MAX_ATTEMPTS = 5;
 const WINDOW_MS = 60 * 60 * 1000;
 const MIN_FORM_AGE_MS = 1500;
-
 const formLoadedAt = Date.now();
 let verificationDestination = 'verify-email.html';
 
@@ -32,9 +30,7 @@ function readSignupAttempts() {
     try {
         const raw = JSON.parse(localStorage.getItem(SIGNUP_LIMIT_KEY) || '[]');
         return Array.isArray(raw) ? raw.filter(ts => Number.isFinite(ts) && Date.now() - ts < WINDOW_MS) : [];
-    } catch {
-        return [];
-    }
+    } catch { return []; }
 }
 
 function recordSignupAttempt() {
@@ -104,10 +100,7 @@ function closeVerificationModal() {
 
 async function createEmailAccount() {
     enforceSignupRateLimit();
-
-    if (isLikelyBot()) {
-        throw new Error('Sign up could not be completed. Please refresh the page and try again.');
-    }
+    if (isLikelyBot()) throw new Error('Sign up could not be completed. Please refresh the page and try again.');
 
     recordSignupAttempt();
     await waitForAuthProtection();
@@ -115,10 +108,7 @@ async function createEmailAccount() {
     const email = document.getElementById('email').value.trim();
     const credential = await createUserWithEmailAndPassword(auth, email, password.value);
     const newUser = credential.user;
-
-    if (!newUser?.uid) {
-        throw new Error('Account was created, but no Firebase user session was returned.');
-    }
+    if (!newUser?.uid) throw new Error('Account was created, but no Firebase user session was returned.');
 
     await sendEmailVerification(newUser, verificationActionSettings(email));
     await signOut(auth);
@@ -126,24 +116,22 @@ async function createEmailAccount() {
     showVerificationModal(email);
 }
 
-form?.addEventListener('submit', async (e) => {
+form?.addEventListener('submit', async e => {
     e.preventDefault();
-
     if (password.value !== confirmPassword.value) {
-        alert("Passwords do not match.");
+        alert('Passwords do not match.');
         return;
     }
 
-    submit.textContent = "Checking security...";
+    submit.textContent = 'Checking security...';
     submit.disabled = true;
-
     try {
         await createEmailAccount();
-        submit.textContent = "Account created";
+        submit.textContent = 'Account created';
     } catch (error) {
-        console.error("Sign up error:", error);
+        console.error('Sign up error:', error);
         showSignupError(error);
-        submit.textContent = "Create account";
+        submit.textContent = 'Create account';
         submit.disabled = false;
     }
 });
@@ -158,24 +146,35 @@ googleBtn?.addEventListener('click', async () => {
         googleBtn.disabled = true;
         const credential = await signInWithPopup(auth, new GoogleAuthProvider());
         if (!credential?.user?.uid) throw new Error('Google sign-in completed, but no Firebase user session was returned.');
-
         clearAccountScopedBrowserState();
-        window.location.replace("app.html");
+        window.location.replace('app.html');
     } catch (error) {
-        console.error("Google Auth Error:", error);
+        console.error('Google Auth Error:', error);
         showSignupError(error);
         googleBtn.disabled = false;
     }
 });
 
 openEmailBtn?.addEventListener('click', () => {
-    window.location.href = `mailto:${encodeURIComponent(verificationEmail.textContent || '')}`;
+    const email = verificationEmail.textContent || '';
+    const domain = email.split('@')[1]?.toLowerCase();
+    const providers = {
+        'gmail.com': 'https://mail.google.com/',
+        'googlemail.com': 'https://mail.google.com/',
+        'outlook.com': 'https://outlook.live.com/mail/',
+        'hotmail.com': 'https://outlook.live.com/mail/',
+        'live.com': 'https://outlook.live.com/mail/',
+        'yahoo.com': 'https://mail.yahoo.com/',
+        'icloud.com': 'https://www.icloud.com/mail/',
+        'me.com': 'https://www.icloud.com/mail/',
+        'mac.com': 'https://www.icloud.com/mail/'
+    };
+    const inbox = providers[domain] || null;
+    if (inbox) window.open(inbox, '_blank', 'noopener,noreferrer');
+    else window.location.replace(verificationDestination);
 });
 
-continueVerificationBtn?.addEventListener('click', () => {
-    window.location.replace(verificationDestination);
-});
-
+continueVerificationBtn?.addEventListener('click', () => window.location.replace(verificationDestination));
 verificationModalClose?.addEventListener('click', closeVerificationModal);
 verificationModal?.addEventListener('click', event => {
     if (event.target === verificationModal) closeVerificationModal();
