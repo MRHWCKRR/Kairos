@@ -21,12 +21,16 @@ function clearAccountScopedBrowserState() {
     localStorage.removeItem('kairos_bedtime_fired');
 }
 
-// If Firebase already has a valid session, there is no reason to show the login page.
-// onAuthStateChanged waits for Firebase to restore persisted auth state before redirecting.
+function verificationActionSettings(email) {
+    const params = new URLSearchParams({ email, verified: '1' });
+    return {
+        url: `${window.location.origin}/verify-email.html?${params.toString()}`,
+        handleCodeInApp: false
+    };
+}
+
 onAuthStateChanged(auth, (user) => {
-    if (user) {
-        window.location.replace('app.html');
-    }
+    if (user) window.location.replace('app.html');
 });
 
 if (loginForm && authSubmit) {
@@ -41,23 +45,16 @@ if (loginForm && authSubmit) {
         authSubmit.disabled = true;
 
         try {
-            await setPersistence(
-                auth,
-                rememberMe?.checked ? browserLocalPersistence : browserSessionPersistence
-            );
+            await setPersistence(auth, rememberMe?.checked ? browserLocalPersistence : browserSessionPersistence);
             clearAccountScopedBrowserState();
             const credential = await signInWithEmailAndPassword(auth, email, password);
             if (!credential?.user?.uid) throw new Error('No Firebase user session was returned.');
 
-            // Email/password accounts must verify ownership before accessing
-            // Kairos. OAuth providers such as Google supply a verified identity.
             if (!credential.user.emailVerified) {
-                await sendEmailVerification(credential.user).catch(() => {});
+                await sendEmailVerification(credential.user, verificationActionSettings(email)).catch(() => {});
                 await signOut(auth);
-                throw Object.assign(
-                    new Error('Please verify your email address before logging in. A new verification email has been sent.'),
-                    { code: 'auth/email-not-verified' }
-                );
+                window.location.replace(`verify-email.html?email=${encodeURIComponent(email)}&resent=1`);
+                return;
             }
 
             window.location.replace('app.html');
@@ -68,8 +65,7 @@ if (loginForm && authSubmit) {
                 'auth/user-not-found': 'No Kairos account was found with that email.',
                 'auth/wrong-password': 'The email or password is incorrect.',
                 'auth/too-many-requests': 'Too many attempts. Please wait a moment and try again.',
-                'auth/network-request-failed': 'Network error. Please check your connection and try again.',
-                'auth/email-not-verified': 'Please verify your email address before logging in. A new verification email has been sent.'
+                'auth/network-request-failed': 'Network error. Please check your connection and try again.'
             };
             alert(messages[error.code] || 'Login failed. Please try again.');
             authSubmit.textContent = 'Sign In';
@@ -87,9 +83,7 @@ googleBtn?.addEventListener('click', async () => {
         window.location.replace('app.html');
     } catch (error) {
         console.error('Google Auth Error:', error);
-        alert(error.code === 'auth/popup-closed-by-user'
-            ? 'Sign-in cancelled.'
-            : 'Google sign-in failed. Please try again.');
+        alert(error.code === 'auth/popup-closed-by-user' ? 'Sign-in cancelled.' : 'Google sign-in failed. Please try again.');
         googleBtn.disabled = false;
     }
 });
