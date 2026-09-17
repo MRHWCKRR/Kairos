@@ -10,6 +10,7 @@ import {
 const form = document.getElementById('signup-form');
 const password = document.getElementById('password');
 const confirmPassword = document.getElementById('confirm-password');
+const emailInput = document.getElementById('email');
 const submit = document.getElementById('signup-submit');
 const googleBtn = document.getElementById('btn-google');
 const honeypot = document.getElementById('website');
@@ -17,6 +18,7 @@ const verificationModal = document.getElementById('verification-modal');
 const verificationEmail = document.getElementById('verification-email');
 const openEmailBtn = document.getElementById('open-email-btn');
 const continueVerificationBtn = document.getElementById('continue-verification-btn');
+const changeEmailBtn = document.getElementById('change-email-btn');
 const verificationModalClose = document.getElementById('verification-modal-close');
 
 const SIGNUP_LIMIT_KEY = 'kairos_signup_attempts';
@@ -32,13 +34,11 @@ function readSignupAttempts() {
         return Array.isArray(raw) ? raw.filter(ts => Number.isFinite(ts) && Date.now() - ts < WINDOW_MS) : [];
     } catch { return []; }
 }
-
 function recordSignupAttempt() {
     const attempts = readSignupAttempts();
     attempts.push(Date.now());
     localStorage.setItem(SIGNUP_LIMIT_KEY, JSON.stringify(attempts));
 }
-
 function enforceSignupRateLimit() {
     const attempts = readSignupAttempts();
     if (attempts.length >= MAX_ATTEMPTS) {
@@ -47,28 +47,18 @@ function enforceSignupRateLimit() {
         throw new Error(`Too many sign-up attempts from this browser. Please try again in about ${minutes} minute${minutes === 1 ? '' : 's'}.`);
     }
 }
-
 function clearAccountScopedBrowserState() {
     localStorage.removeItem('kairos_settings_cache');
     localStorage.removeItem('kairos_bedtime_fired');
 }
-
 function isLikelyBot() {
     return Boolean(honeypot?.value?.trim()) || Date.now() - formLoadedAt < MIN_FORM_AGE_MS;
 }
-
-async function waitForAuthProtection() {
-    await authProtectionReady;
-}
-
+async function waitForAuthProtection() { await authProtectionReady; }
 function verificationActionSettings(email) {
     const params = new URLSearchParams({ email, verified: '1' });
-    return {
-        url: `${window.location.origin}/verify-email.html?${params.toString()}`,
-        handleCodeInApp: false
-    };
+    return { url: `${window.location.origin}/verify-email.html?${params.toString()}`, handleCodeInApp: false };
 }
-
 function showSignupError(error) {
     const messages = {
         'auth/email-already-in-use': 'An account with this email already exists. Try logging in instead.',
@@ -82,7 +72,6 @@ function showSignupError(error) {
     };
     alert(messages[error?.code] || error?.message || 'Sign up failed. Please try again.');
 }
-
 function showVerificationModal(email) {
     verificationEmail.textContent = email;
     verificationDestination = `verify-email.html?email=${encodeURIComponent(email)}`;
@@ -91,7 +80,6 @@ function showVerificationModal(email) {
     document.body.style.overflow = 'hidden';
     continueVerificationBtn.focus();
 }
-
 function closeVerificationModal() {
     verificationModal.classList.remove('is-visible');
     verificationModal.setAttribute('aria-hidden', 'true');
@@ -101,11 +89,10 @@ function closeVerificationModal() {
 async function createEmailAccount() {
     enforceSignupRateLimit();
     if (isLikelyBot()) throw new Error('Sign up could not be completed. Please refresh the page and try again.');
-
     recordSignupAttempt();
     await waitForAuthProtection();
 
-    const email = document.getElementById('email').value.trim();
+    const email = emailInput.value.trim();
     const credential = await createUserWithEmailAndPassword(auth, email, password.value);
     const newUser = credential.user;
     if (!newUser?.uid) throw new Error('Account was created, but no Firebase user session was returned.');
@@ -118,11 +105,7 @@ async function createEmailAccount() {
 
 form?.addEventListener('submit', async e => {
     e.preventDefault();
-    if (password.value !== confirmPassword.value) {
-        alert('Passwords do not match.');
-        return;
-    }
-
+    if (password.value !== confirmPassword.value) { alert('Passwords do not match.'); return; }
     submit.textContent = 'Checking security...';
     submit.disabled = true;
     try {
@@ -142,7 +125,6 @@ googleBtn?.addEventListener('click', async () => {
         if (isLikelyBot()) throw new Error('Sign up could not be completed. Please refresh the page and try again.');
         recordSignupAttempt();
         await waitForAuthProtection();
-
         googleBtn.disabled = true;
         const credential = await signInWithPopup(auth, new GoogleAuthProvider());
         if (!credential?.user?.uid) throw new Error('Google sign-in completed, but no Firebase user session was returned.');
@@ -156,29 +138,27 @@ googleBtn?.addEventListener('click', async () => {
 });
 
 openEmailBtn?.addEventListener('click', () => {
-    const email = verificationEmail.textContent || '';
-    const domain = email.split('@')[1]?.toLowerCase();
+    const domain = (verificationEmail.textContent.split('@')[1] || '').toLowerCase();
     const providers = {
-        'gmail.com': 'https://mail.google.com/',
-        'googlemail.com': 'https://mail.google.com/',
-        'outlook.com': 'https://outlook.live.com/mail/',
-        'hotmail.com': 'https://outlook.live.com/mail/',
-        'live.com': 'https://outlook.live.com/mail/',
-        'yahoo.com': 'https://mail.yahoo.com/',
-        'icloud.com': 'https://www.icloud.com/mail/',
-        'me.com': 'https://www.icloud.com/mail/',
-        'mac.com': 'https://www.icloud.com/mail/'
+        'gmail.com': 'https://mail.google.com/', 'googlemail.com': 'https://mail.google.com/',
+        'outlook.com': 'https://outlook.live.com/mail/', 'hotmail.com': 'https://outlook.live.com/mail/', 'live.com': 'https://outlook.live.com/mail/',
+        'yahoo.com': 'https://mail.yahoo.com/', 'icloud.com': 'https://www.icloud.com/mail/', 'me.com': 'https://www.icloud.com/mail/', 'mac.com': 'https://www.icloud.com/mail/'
     };
-    const inbox = providers[domain] || null;
-    if (inbox) window.open(inbox, '_blank', 'noopener,noreferrer');
-    else window.location.replace(verificationDestination);
+    const inbox = providers[domain];
+    if (inbox) window.location.assign(inbox);
+    else window.location.assign(verificationDestination);
 });
 
-continueVerificationBtn?.addEventListener('click', () => window.location.replace(verificationDestination));
+changeEmailBtn?.addEventListener('click', () => {
+    const currentEmail = verificationEmail.textContent || '';
+    closeVerificationModal();
+    emailInput.value = currentEmail;
+    emailInput.focus();
+    emailInput.select();
+    emailInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+});
+
+continueVerificationBtn?.addEventListener('click', () => window.location.assign(verificationDestination));
 verificationModalClose?.addEventListener('click', closeVerificationModal);
-verificationModal?.addEventListener('click', event => {
-    if (event.target === verificationModal) closeVerificationModal();
-});
-document.addEventListener('keydown', event => {
-    if (event.key === 'Escape' && verificationModal?.classList.contains('is-visible')) closeVerificationModal();
-});
+verificationModal?.addEventListener('click', event => { if (event.target === verificationModal) closeVerificationModal(); });
+document.addEventListener('keydown', event => { if (event.key === 'Escape' && verificationModal?.classList.contains('is-visible')) closeVerificationModal(); });
