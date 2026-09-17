@@ -1,5 +1,9 @@
-import { auth } from './firebase.js';
-import { onAuthStateChanged, reload } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { auth, authProtectionReady } from './firebase.js';
+import {
+    onAuthStateChanged,
+    reload,
+    sendEmailVerification
+} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
 const params = new URLSearchParams(window.location.search);
 const email = params.get('email') || '';
@@ -11,11 +15,20 @@ const title = document.getElementById('verification-title');
 const message = document.getElementById('verification-message');
 const emailEl = document.getElementById('verification-email');
 const checkBtn = document.getElementById('check-btn');
+const resendBtn = document.getElementById('resend-btn');
 const status = document.getElementById('verification-status');
 
 if (email) {
     emailEl.textContent = email;
     emailEl.hidden = false;
+}
+
+function verificationActionSettings(targetEmail) {
+    const verificationParams = new URLSearchParams({ email: targetEmail, verified: '1' });
+    return {
+        url: `${window.location.origin}/verify-email.html?${verificationParams.toString()}`,
+        handleCodeInApp: false
+    };
 }
 
 function showVerified() {
@@ -24,6 +37,8 @@ function showVerified() {
     title.textContent = 'Email verified!';
     message.textContent = 'Your email address has been verified successfully. Your Kairos account is ready to use.';
     checkBtn.textContent = 'Continue to login';
+    checkBtn.hidden = false;
+    resendBtn.hidden = true;
     status.textContent = '';
 }
 
@@ -36,11 +51,33 @@ function showPending() {
         : 'We sent you a verification link. Click the link in that email to activate your Kairos account.';
 }
 
+async function resendVerificationEmail(user) {
+    if (!user || user.emailVerified) return;
+    resendBtn.disabled = true;
+    status.textContent = 'Sending a new verification email...';
+    try {
+        await authProtectionReady;
+        await sendEmailVerification(user, verificationActionSettings(user.email));
+        status.textContent = 'A new verification email has been sent. Use the latest email.';
+    } catch (error) {
+        console.error('Verification resend error:', error);
+        const messageByCode = {
+            'auth/too-many-requests': 'Too many verification emails were requested. Please wait before trying again.',
+            'auth/network-request-failed': 'Network error. Please check your connection and try again.'
+        };
+        status.textContent = messageByCode[error?.code] || 'Unable to send a new verification email. Please try again.';
+        resendBtn.disabled = false;
+        return;
+    }
+    setTimeout(() => { resendBtn.disabled = false; }, 30000);
+}
+
 if (verified) showVerified();
 else showPending();
 
-// Also supports a future flow where the user remains signed in while verifying.
+let currentUser = null;
 onAuthStateChanged(auth, async user => {
+    currentUser = user;
     if (!user || verified) return;
     try {
         await reload(user);
@@ -50,6 +87,7 @@ onAuthStateChanged(auth, async user => {
     }
 });
 
+resendBtn?.addEventListener('click', () => resendVerificationEmail(currentUser));
 checkBtn?.addEventListener('click', () => {
     window.location.replace('login.html');
 });
