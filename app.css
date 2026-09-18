@@ -1723,5 +1723,97 @@ html.kairos-mobile-device body > #ambient-audio {
 .delete-account-warning { color: var(--text-primary); line-height: 1.6; margin-bottom: 16px; }
 .delete-account-notice { display: flex; flex-direction: column; gap: 6px; padding: 14px 16px; margin-bottom: 20px; border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 10px; background: rgba(239, 68, 68, 0.08); color: var(--text-muted); line-height: 1.5; font-size: 0.9rem; }
 .delete-account-notice strong { color: #ef4444; }
+.delete-account-confirm-label { display: block; margin-bottom: 8px; color: var(--text-primary); font-size: 0.85rem; }
+.delete-account-confirm-label strong { color: #ef4444; letter-spacing: 0.04em; }
+.delete-account-input { width: 100%; box-sizing: border-box; margin-bottom: 20px; text-transform: uppercase; }
 .delete-account-actions { display: flex; justify-content: flex-end; gap: 10px; }
 .delete-account-actions button { min-width: 140px; }
+.delete-account-actions .danger-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* Account deletion goodbye screen */
+.account-deleted-screen {
+    position: fixed;
+    inset: 0;
+    z-index: 30000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 32px;
+    box-sizing: border-box;
+    background:
+        radial-gradient(circle at 50% 15%, rgba(168, 85, 247, 0.12), transparent 38%),
+        var(--bg-main);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.35s ease, visibility 0.35s ease;
+}
+.account-deleted-screen.active {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+}
+.account-deleted-card {
+    width: min(100%, 560px);
+    text-align: center;
+}
+.account-deleted-mascot-placeholder {
+    width: 180px;
+    height: 180px;
+    margin: 0 auto 28px;
+    border: 1px dashed var(--border-subtle);
+    border-radius: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    background: var(--bg-card);
+    font-size: 0.78rem;
+    padding: 16px;
+    box-sizing: border-box;
+}
+.account-deleted-kicker {
+    margin: 0 0 8px;
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    font-weight: 800;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+}
+.account-deleted-card h1 {
+    margin: 0 0 16px;
+    font-size: clamp(2rem, 5vw, 3rem);
+    letter-spacing: -0.04em;
+}
+.account-deleted-message {
+    max-width: 520px;
+    margin: 0 auto 12px;
+    color: var(--text-primary);
+    line-height: 1.7;
+    font-size: 1rem;
+}
+.account-deleted-submessage {
+    max-width: 500px;
+    margin: 0 auto 26px;
+    color: var(--text-muted);
+    line-height: 1.6;
+    font-size: 0.88rem;
+}
+.account-deleted-card .action-btn {
+    min-width: 170px;
+}
+@media (max-width: 600px) {
+    .delete-account-actions {
+        flex-direction: column-reverse;
+    }
+    .delete-account-actions button {
+        width: 100%;
+    }
+    .account-deleted-screen {
+        padding: 24px;
+    }
+    .account-deleted-mascot-placeholder {
+        width: 150px;
+        height: 150px;
+    }
+}
