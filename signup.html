@@ -33,23 +33,6 @@
         .signup-security-note { margin:14px 0 0; padding:10px 12px; border:1px solid #2b2b3a; border-radius:8px; background:#15151d; color:#858592; font-size:.78rem; line-height:1.45; }
         .signup-honeypot { position:absolute !important; left:-10000px !important; width:1px !important; height:1px !important; opacity:0 !important; pointer-events:none !important; }
         .image-container { flex:3; background:url('image_0c9bc9.png') center/cover no-repeat; border-left:1px solid #333; }
-        .auth-modal-backdrop { position:fixed; inset:0; z-index:1000; display:flex; align-items:center; justify-content:center; padding:20px; background:rgba(0,0,0,.72); backdrop-filter:blur(8px); opacity:0; visibility:hidden; transition:opacity .2s ease, visibility .2s ease; }
-        .auth-modal-backdrop.is-visible { opacity:1; visibility:visible; }
-        .auth-modal { width:min(100%,430px); padding:30px; border:1px solid #343445; border-radius:16px; background:#15151d; box-shadow:0 24px 80px rgba(0,0,0,.5); transform:translateY(10px) scale(.98); transition:transform .2s ease; }
-        .auth-modal-backdrop.is-visible .auth-modal { transform:translateY(0) scale(1); }
-        .auth-modal-icon { width:52px; height:52px; display:flex; align-items:center; justify-content:center; margin-bottom:18px; border-radius:14px; background:rgba(168,85,247,.14); color:#c084fc; font-size:25px; }
-        .auth-modal h3 { margin:0 0 8px; font-size:1.45rem; color:#fff; }
-        .auth-modal-message { margin:0 0 18px !important; color:#aaa !important; line-height:1.55; }
-        .auth-modal-email { display:block; margin:0 0 22px; padding:12px 14px; border:1px solid #2f2f40; border-radius:9px; background:#101017; color:#e5e5ed; font-size:.9rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-        .auth-modal-actions { display:flex; flex-direction:column; gap:9px; }
-        .auth-modal-primary, .auth-modal-secondary { width:100%; padding:11px 14px; border-radius:8px; font-weight:600; cursor:pointer; box-sizing:border-box; }
-        .auth-modal-primary { border:1px solid #a855f7; background:#a855f7; color:#fff; }
-        .auth-modal-primary:hover { background:#9333ea; }
-        .auth-modal-secondary { border:1px solid #333343; background:#1e1e2a; color:#ddd; }
-        .auth-modal-secondary:hover { border-color:#55556a; background:#252534; }
-        .auth-change-email { margin:0 0 16px !important; text-align:center; color:#888 !important; font-size:.82rem; }
-        .auth-change-email button { padding:0; border:0; background:none; color:#b56cff; font:inherit; font-weight:600; cursor:pointer; }
-        .auth-change-email button:hover { text-decoration:underline; }
         @media (max-width:768px) {
             .login-page { flex-direction:column; }
             .image-container { display:none; }
@@ -88,19 +71,7 @@
     <div class="auth-switch">Already have an account? <a href="login.html">Log in</a></div>
 </div></div><div class="image-container"></div></div>
 
-<div class="auth-modal-backdrop" id="verification-modal" role="dialog" aria-modal="true" aria-labelledby="verification-modal-title" aria-hidden="true">
-    <div class="auth-modal">
-        <div class="auth-modal-icon" aria-hidden="true">✉</div>
-        <h3 id="verification-modal-title">Check your email</h3>
-        <p class="auth-modal-message">We've sent a verification link to:</p>
-        <span class="auth-modal-email" id="verification-email"></span>
-        <p class="auth-change-email">Wrong email? <button type="button" id="change-email-btn">Change it here</button></p>
-        <p class="auth-modal-message">Click the link in that email to verify your address. Your account will be ready once verification is complete.</p>
-        <div class="auth-modal-actions">
-            <button class="auth-modal-secondary" id="continue-verification-btn" type="button">Continue to verification</button>
-        </div>
-    </div>
-</div>
+
 <script type="module" src="signup.js"></script>
 </body>
 </html>
