@@ -633,10 +633,26 @@
                 <strong>You won't be able to immediately create a new account with the same email.</strong>
                 <span>Firebase may take some time to fully release a recently deleted email address, so you may need to wait before signing up again.</span>
             </div>
+            <label for="delete-account-input" class="delete-account-confirm-label">Type <strong>DELETE</strong> to confirm.</label>
+            <input id="delete-account-input" class="settings-input delete-account-input" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Type DELETE">
             <div class="delete-account-actions">
                 <button id="delete-account-cancel-btn" class="settings-cancel-btn">Cancel</button>
-                <button id="delete-account-confirm-btn" class="action-btn danger-btn">Delete my account</button>
+                <button id="delete-account-confirm-btn" class="action-btn danger-btn" disabled>Delete my account</button>
             </div>
+        </div>
+    </div>
+
+    <!-- Account deletion goodbye screen -->
+    <div id="account-deleted-screen" class="account-deleted-screen" aria-hidden="true">
+        <div class="account-deleted-card">
+            <div class="account-deleted-mascot-placeholder" aria-hidden="true">
+                <span>Your mascot goes here</span>
+            </div>
+            <p class="account-deleted-kicker">Goodbye</p>
+            <h1>We're sorry to see you go.</h1>
+            <p class="account-deleted-message">Kairos won't be the same without you. Thank you for trusting us with your plans, tasks, and time.</p>
+            <p class="account-deleted-submessage">Your account and Kairos data have been deleted. If you ever decide to come back, we'll be here.</p>
+            <button id="account-deleted-login-btn" class="action-btn">Return to Kairos</button>
         </div>
     </div>
 
