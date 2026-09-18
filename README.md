@@ -53,7 +53,7 @@ https://github.com/MRHWCKRR/Kairos-Android
 
 ## Notes:
 
-- Bugs will likely exist, please create and issue to let me know :)
+- Bugs will likely exist, please create an issue to let me know :)
 
 [contributors-shield]: https://img.shields.io/github/contributors/MRHWCKRR/ClientWarden.svg?style=for-the-badge
 [contributors-url]: https://github.com/MRHWCKRR/Kairos/graphs/contributors
