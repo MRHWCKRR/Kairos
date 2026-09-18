@@ -2661,23 +2661,45 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!overlay) return;
 
         const cancelBtn = document.getElementById('delete-account-cancel-btn');
+        const closeBtn = document.getElementById('delete-account-modal-close');
         const confirmBtn = document.getElementById('delete-account-confirm-btn');
+        const deleteInput = document.getElementById('delete-account-input');
 
         overlay.classList.add('active');
         document.body.classList.add('modal-open');
+        if (deleteInput) {
+            deleteInput.value = '';
+            deleteInput.focus();
+        }
+        if (confirmBtn) confirmBtn.disabled = true;
 
         const closeModal = () => {
             overlay.classList.remove('active');
             document.body.classList.remove('modal-open');
+            if (deleteInput) deleteInput.value = '';
+            if (confirmBtn) {
+                confirmBtn.disabled = true;
+                confirmBtn.textContent = 'Delete my account';
+            }
+        };
+
+        const handleOverlayClick = (event) => {
+            if (event.target === overlay) closeModal();
+        };
+
+        const handleInput = () => {
+            if (!confirmBtn || !deleteInput) return;
+            confirmBtn.disabled = deleteInput.value !== 'DELETE';
         };
 
         cancelBtn?.addEventListener('click', closeModal, { once: true });
-        overlay.addEventListener('click', (event) => {
-            if (event.target === overlay) closeModal();
-        }, { once: true });
+        closeBtn?.addEventListener('click', closeModal, { once: true });
+        overlay.addEventListener('click', handleOverlayClick);
+        deleteInput?.addEventListener('input', handleInput);
 
-        confirmBtn?.addEventListener('click', async () => {
-            if (confirmBtn.disabled) return;
+        const handleConfirm = async () => {
+            if (!confirmBtn || confirmBtn.disabled) return;
+
             confirmBtn.disabled = true;
             confirmBtn.textContent = 'Deleting...';
 
@@ -2692,14 +2714,38 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 localStorage.removeItem('kairos_settings_cache');
                 localStorage.removeItem('kairos_bedtime_fired');
-                window.location.href = 'login.html';
+                overlay.classList.remove('active');
+                document.body.classList.remove('modal-open');
+                showAccountDeletedScreen();
             } catch (error) {
                 console.error(error);
                 confirmBtn.disabled = false;
                 confirmBtn.textContent = 'Delete my account';
                 alert('Could not delete your account: ' + error.message + '\n\nFor security, Firebase may require a recent sign-in before allowing account deletion. Try logging out, logging back in, then retrying.');
             }
+        };
+
+        confirmBtn?.addEventListener('click', handleConfirm);
+    }
+
+    function showAccountDeletedScreen() {
+        const screen = document.getElementById('account-deleted-screen');
+        if (!screen) {
+            window.location.href = 'login.html';
+            return;
+        }
+
+        screen.classList.add('active');
+        document.body.classList.add('modal-open');
+
+        const loginBtn = document.getElementById('account-deleted-login-btn');
+        loginBtn?.addEventListener('click', () => {
+            window.location.href = 'login.html';
         }, { once: true });
+
+        window.setTimeout(() => {
+            window.location.href = 'login.html';
+        }, 8000);
     }
 
     // --- 12 Notifications Engine (Firestore-synced) ---
