@@ -9,6 +9,8 @@ const params = new URLSearchParams(window.location.search);
 const email = params.get('email') || '';
 const verified = params.get('verified') === '1';
 const resent = params.get('resent') === '1';
+const RESEND_COOLDOWN_SECONDS = 60;
+let resendCooldownTimer = null;
 
 const icon = document.getElementById('verification-icon');
 const title = document.getElementById('verification-title');
@@ -51,6 +53,27 @@ function showPending() {
         : 'We sent you a verification link. Click the link in that email to activate your Kairos account.';
 }
 
+function startResendCooldown() {
+    if (!resendBtn) return;
+    clearInterval(resendCooldownTimer);
+
+    let remaining = RESEND_COOLDOWN_SECONDS;
+    resendBtn.disabled = true;
+    resendBtn.textContent = 'Resend verification email (' + remaining + 's)';
+
+    resendCooldownTimer = setInterval(() => {
+        remaining -= 1;
+        if (remaining <= 0) {
+            clearInterval(resendCooldownTimer);
+            resendCooldownTimer = null;
+            resendBtn.disabled = false;
+            resendBtn.textContent = 'Resend verification email';
+            return;
+        }
+        resendBtn.textContent = 'Resend verification email (' + remaining + 's)';
+    }, 1000);
+}
+
 async function resendVerificationEmail(user) {
     if (!user || user.emailVerified) return;
     resendBtn.disabled = true;
@@ -69,7 +92,7 @@ async function resendVerificationEmail(user) {
         resendBtn.disabled = false;
         return;
     }
-    setTimeout(() => { resendBtn.disabled = false; }, 30000);
+    startResendCooldown();
 }
 
 if (verified) showVerified();
