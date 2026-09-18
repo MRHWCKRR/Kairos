@@ -420,7 +420,7 @@ document.addEventListener("DOMContentLoaded", () => {
     applyAllSettings();
 
     // --- Auth Management ---
-    onAuthStateChanged(auth, (user) => {
+    onAuthStateChanged(auth, async (user) => {
         // Always arm the fallback before any Firestore work. If one of the
         // initial data requests hangs or throws, the workspace must not be
         // trapped behind the loading screen forever.
@@ -434,7 +434,25 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
-        console.log("User is logged in:", user.email);
+        // Firebase can restore a persisted session even when the email has
+        // never been verified. Refresh the account state before allowing the
+        // workspace to load so app.html is never an auth bypass.
+        try {
+            await user.reload();
+        } catch (error) {
+            console.warn("Unable to refresh authentication state:", error);
+        }
+
+        if (!auth.currentUser?.emailVerified) {
+            console.log("User email is not verified. Redirecting to verification...");
+            if (unsubscribeNotifications) { unsubscribeNotifications(); unsubscribeNotifications = null; }
+            clearTimeout(loadingFallback);
+            const emailParam = auth.currentUser?.email ? "?email=" + encodeURIComponent(auth.currentUser.email) : "";
+            window.location.replace("verify-email.html" + emailParam);
+            return;
+        }
+
+        console.log("User is logged in and verified:", user.email);
         pendingInitialLoads = 0;
         hideLoadingScreen();
 
