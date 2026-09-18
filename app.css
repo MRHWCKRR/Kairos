@@ -1716,3 +1716,12 @@ html.kairos-mobile-device body > #ambient-audio {
         border-radius: 20px;
     }
 }
+
+/* Delete account confirmation modal */
+.delete-account-modal-content { max-width: 480px; position: relative; }
+.delete-account-icon { font-size: 2rem; margin-bottom: 8px; }
+.delete-account-warning { color: var(--text-primary); line-height: 1.6; margin-bottom: 16px; }
+.delete-account-notice { display: flex; flex-direction: column; gap: 6px; padding: 14px 16px; margin-bottom: 20px; border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 10px; background: rgba(239, 68, 68, 0.08); color: var(--text-muted); line-height: 1.5; font-size: 0.9rem; }
+.delete-account-notice strong { color: #ef4444; }
+.delete-account-actions { display: flex; justify-content: flex-end; gap: 10px; }
+.delete-account-actions button { min-width: 140px; }
