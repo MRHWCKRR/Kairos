@@ -420,7 +420,16 @@ document.addEventListener("DOMContentLoaded", () => {
     applyAllSettings();
 
     // --- Auth Management ---
+    let accountDeletionInProgress = false;
+
     onAuthStateChanged(auth, async (user) => {
+        // Account deletion intentionally signs the user out. Do not let the
+        // normal auth guard redirect to login before the goodbye screen appears.
+        if (!user && accountDeletionInProgress) {
+            console.log("Account deletion completed. Skipping auth redirect for goodbye screen.");
+            return;
+        }
+
         // Always arm the fallback before any Firestore work. If one of the
         // initial data requests hangs or throws, the workspace must not be
         // trapped behind the loading screen forever.
@@ -497,8 +506,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 enterSettingsPage();
             }
             if (targetName === "schedule-page") {
-                scrollScheduleToDefault();
-            }
+                scrollScheduleToDefault();            }
             if (targetName === "achievements-page") {
                 renderAchievementsPage();
                 renderGoalSelects();
@@ -997,7 +1005,6 @@ document.addEventListener("DOMContentLoaded", () => {
             fillBar.style.width = `${percentage}%`;
         }
     }
-
     // --- 4 What's Next Widget Engine ---
     function updateWhatsNextWidget() {
         const container = document.getElementById('whats-next-content');
@@ -1497,8 +1504,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (aiDestinationModal) {
         aiDestinationModal.addEventListener('click', (e) => {
             if (e.target === aiDestinationModal) closeAiDestinationModal();
-        });
-    }
+        });    }
 
     if (aiDestinationConfirmBtn) {
         aiDestinationConfirmBtn.addEventListener('click', () => {
@@ -1997,8 +2003,7 @@ document.addEventListener("DOMContentLoaded", () => {
         localStorage.setItem('kairos_settings_cache', JSON.stringify(userSettings));
         applyAllSettings();
         populateSettingsForm();
-        renderUserProfileMenu(user);
-        setupNotificationBell();
+        renderUserProfileMenu(user);        setupNotificationBell();
         markInitialLoadComplete();
     }
 
@@ -2497,8 +2502,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 applyBackground('custom', reader.result);
                 checkDirty();
             };
-            reader.readAsDataURL(file);
-        });
+            reader.readAsDataURL(file);        });
     }
 
     // Remove custom background
@@ -2710,6 +2714,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 await Promise.all(snap.docs.map(d => deleteDoc(doc(db, 'study_plans', d.id))));
                 await deleteDoc(doc(db, 'users', user.uid)).catch(() => {});
 
+                // Mark this as an intentional auth deletion before Firebase
+                // removes the current user and fires onAuthStateChanged(null).
+                accountDeletionInProgress = true;
                 await deleteUser(user);
 
                 localStorage.removeItem('kairos_settings_cache');
@@ -2736,6 +2743,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         screen.classList.add('active');
+        screen.setAttribute('aria-hidden', 'false');
         document.body.classList.add('modal-open');
 
         const loginBtn = document.getElementById('account-deleted-login-btn');
@@ -2997,8 +3005,7 @@ document.addEventListener("DOMContentLoaded", () => {
     function isDuplicateScheduleEvent(ev) {
         return scheduleData.some(existing =>
             existing.day === ev.day &&
-            existing.start === ev.start &&
-            existing.end === ev.end &&
+            existing.start === ev.start &&            existing.end === ev.end &&
             String(existing.title).trim().toLowerCase() === String(ev.title).trim().toLowerCase()
         );
     }
@@ -3497,8 +3504,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             return `
                 <div class="achievement-category-block">
-                    <h3 class="achievement-category-title">${tr('achievement_category_' + cat)}</h3>
-                    <div class="badge-grid">${cardsHTML}</div>
+                    <h3 class="achievement-category-title">${tr('achievement_category_' + cat)}</h3>                    <div class="badge-grid">${cardsHTML}</div>
                 </div>
             `;
         }).join('');
