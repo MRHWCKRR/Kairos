@@ -18,6 +18,9 @@
         .verification-card h1 { margin:0 0 10px; color:#fff; font-size:1.75rem; }
         .verification-card p { margin:0 auto 20px; max-width:380px; color:#9d9da9; line-height:1.6; }
         .verification-email { display:block; max-width:100%; margin:0 auto 24px; padding:11px 13px; box-sizing:border-box; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; border:1px solid #30303e; border-radius:9px; background:#101017; color:#e6e6ed; font-size:.9rem; }
+        .verification-change-email { margin:-10px auto 24px !important; color:#858592 !important; font-size:.82rem; }
+        .verification-change-email a { color:#b56cff; font-weight:600; text-decoration:none; }
+        .verification-change-email a:hover { text-decoration:underline; }
         .verification-actions { display:flex; flex-direction:column; gap:10px; }
         .verification-btn { width:100%; padding:12px 14px; border-radius:9px; font-weight:600; cursor:pointer; box-sizing:border-box; }
         .verification-btn:disabled { opacity:.65; cursor:not-allowed; }
@@ -38,6 +41,7 @@
         <h1 id="verification-title">You're almost there.</h1>
         <p id="verification-message">We've sent a verification link to your email address. Click the link in that email to activate your Kairos account.</p>
         <span class="verification-email" id="verification-email" hidden></span>
+        <p class="verification-change-email">Wrong email? <a href="signup.html">Go back and change it</a></p>
         <div class="verification-actions">
             <button class="verification-btn verification-primary" id="check-btn" type="button">Continue to login</button>
             <button class="verification-btn verification-secondary" id="resend-btn" type="button">Resend verification email</button>

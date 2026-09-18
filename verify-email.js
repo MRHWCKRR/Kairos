@@ -10,6 +10,7 @@ const email = params.get('email') || '';
 const verified = params.get('verified') === '1';
 const resent = params.get('resent') === '1';
 const RESEND_COOLDOWN_SECONDS = 60;
+const RESEND_COOLDOWN_KEY = 'kairos_verification_resend_available_at';
 let resendCooldownTimer = null;
 
 const icon = document.getElementById('verification-icon');
@@ -53,13 +54,17 @@ function showPending() {
         : 'We sent you a verification link. Click the link in that email to activate your Kairos account.';
 }
 
-function startResendCooldown() {
+function startResendCooldown(durationSeconds = RESEND_COOLDOWN_SECONDS) {
     if (!resendBtn) return;
     clearInterval(resendCooldownTimer);
 
-    let remaining = RESEND_COOLDOWN_SECONDS;
-    resendBtn.disabled = true;
-    resendBtn.textContent = 'Resend verification email (' + remaining + 's)';
+    let remaining = Math.max(0, Math.ceil(durationSeconds));
+    resendBtn.disabled = remaining > 0;
+    resendBtn.textContent = remaining > 0
+        ? 'Resend verification email (' + remaining + 's)'
+        : 'Resend verification email';
+
+    if (remaining <= 0) return;
 
     resendCooldownTimer = setInterval(() => {
         remaining -= 1;
@@ -74,6 +79,14 @@ function startResendCooldown() {
     }, 1000);
 }
 
+function startStoredCooldown() {
+    try {
+        const availableAt = Number(sessionStorage.getItem(RESEND_COOLDOWN_KEY) || 0);
+        const remaining = Math.max(0, Math.ceil((availableAt - Date.now()) / 1000));
+        if (remaining > 0) startResendCooldown(remaining);
+    } catch (e) {}
+}
+
 async function resendVerificationEmail(user) {
     if (!user || user.emailVerified) return;
     resendBtn.disabled = true;
@@ -81,6 +94,7 @@ async function resendVerificationEmail(user) {
     try {
         await authProtectionReady;
         await sendEmailVerification(user, verificationActionSettings(user.email));
+        try { sessionStorage.setItem(RESEND_COOLDOWN_KEY, String(Date.now() + 60000)); } catch (e) {}
         status.textContent = 'A new verification email has been sent. Use the latest email.';
     } catch (error) {
         console.error('Verification resend error:', error);
@@ -96,7 +110,10 @@ async function resendVerificationEmail(user) {
 }
 
 if (verified) showVerified();
-else showPending();
+else {
+    showPending();
+    startStoredCooldown();
+}
 
 let currentUser = null;
 onAuthStateChanged(auth, async user => {
