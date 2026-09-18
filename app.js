@@ -2649,12 +2649,37 @@ document.addEventListener("DOMContentLoaded", () => {
     // Privacy: delete account
     const deleteBtn = document.getElementById('privacy-delete-btn');
     if (deleteBtn) {
-        deleteBtn.addEventListener('click', async () => {
+        deleteBtn.addEventListener('click', () => {
             const user = auth.currentUser;
             if (!user) return;
-            if (!confirm(tr('confirm_delete_account'))) return;
-            const typed = prompt(tr('prompt_type_delete'));
-            if (typed !== 'DELETE') return;
+            openDeleteAccountModal(user);
+        });
+    }
+
+    function openDeleteAccountModal(user) {
+        const overlay = document.getElementById('delete-account-modal');
+        if (!overlay) return;
+
+        const cancelBtn = document.getElementById('delete-account-cancel-btn');
+        const confirmBtn = document.getElementById('delete-account-confirm-btn');
+
+        overlay.classList.add('active');
+        document.body.classList.add('modal-open');
+
+        const closeModal = () => {
+            overlay.classList.remove('active');
+            document.body.classList.remove('modal-open');
+        };
+
+        cancelBtn?.addEventListener('click', closeModal, { once: true });
+        overlay.addEventListener('click', (event) => {
+            if (event.target === overlay) closeModal();
+        }, { once: true });
+
+        confirmBtn?.addEventListener('click', async () => {
+            if (confirmBtn.disabled) return;
+            confirmBtn.disabled = true;
+            confirmBtn.textContent = 'Deleting...';
 
             try {
                 const plansColRef = collection(db, 'study_plans');
@@ -2667,13 +2692,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 localStorage.removeItem('kairos_settings_cache');
                 localStorage.removeItem('kairos_bedtime_fired');
-                alert(tr('alert_account_deleted'));
                 window.location.href = 'login.html';
             } catch (error) {
                 console.error(error);
+                confirmBtn.disabled = false;
+                confirmBtn.textContent = 'Delete my account';
                 alert('Could not delete your account: ' + error.message + '\n\nFor security, Firebase may require a recent sign-in before allowing account deletion. Try logging out, logging back in, then retrying.');
             }
-        });
+        }, { once: true });
     }
 
     // --- 12 Notifications Engine (Firestore-synced) ---
