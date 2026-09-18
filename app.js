@@ -420,13 +420,24 @@ document.addEventListener("DOMContentLoaded", () => {
     applyAllSettings();
 
     // --- Auth Management ---
-    let accountDeletionInProgress = false;
+    const accountDeletionPendingKey = 'kairos_account_deletion_pending';
 
     onAuthStateChanged(auth, async (user) => {
-        // Account deletion intentionally signs the user out. Do not let the
-        // normal auth guard redirect to login before the goodbye screen appears.
-        if (!user && accountDeletionInProgress) {
-            console.log("Account deletion completed. Skipping auth redirect for goodbye screen.");
+        if (!user) {
+            let deletionPending = false;
+            try {
+                deletionPending = sessionStorage.getItem(accountDeletionPendingKey) === '1';
+            } catch (e) {}
+
+            if (deletionPending) {
+                console.log("Intentional account deletion detected. Showing goodbye screen.");
+                showAccountDeletedScreen();
+                return;
+            }
+
+            console.log("No user detected. Redirecting to login...");
+            if (unsubscribeNotifications) { unsubscribeNotifications(); unsubscribeNotifications = null; }
+            window.location.replace("login.html");
             return;
         }
 
@@ -434,14 +445,6 @@ document.addEventListener("DOMContentLoaded", () => {
         // initial data requests hangs or throws, the workspace must not be
         // trapped behind the loading screen forever.
         const loadingFallback = setTimeout(hideLoadingScreen, 8000);
-
-        if (!user) {
-            console.log("No user detected. Redirecting to login...");
-            if (unsubscribeNotifications) { unsubscribeNotifications(); unsubscribeNotifications = null; }
-            clearTimeout(loadingFallback);
-            window.location.replace("login.html");
-            return;
-        }
 
         // Firebase can restore a persisted session even when the email has
         // never been verified. Refresh the account state before allowing the
@@ -2712,11 +2715,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 const q = query(plansColRef, where('userID', '==', user.uid));
                 const snap = await getDocs(q);
                 await Promise.all(snap.docs.map(d => deleteDoc(doc(db, 'study_plans', d.id))));
-                await deleteDoc(doc(db, 'users', user.uid)).catch(() => {});
+                await deleteDoc(doc(db, 'users', user.uid));
 
-                // Mark this as an intentional auth deletion before Firebase
-                // removes the current user and fires onAuthStateChanged(null).
-                accountDeletionInProgress = true;
+                try { sessionStorage.setItem(accountDeletionPendingKey, '1'); } catch (e) {}
                 await deleteUser(user);
 
                 localStorage.removeItem('kairos_settings_cache');
@@ -2738,6 +2739,7 @@ document.addEventListener("DOMContentLoaded", () => {
     function showAccountDeletedScreen() {
         const screen = document.getElementById('account-deleted-screen');
         if (!screen) {
+            try { sessionStorage.removeItem(accountDeletionPendingKey); } catch (e) {}
             window.location.href = 'login.html';
             return;
         }
@@ -2748,10 +2750,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const loginBtn = document.getElementById('account-deleted-login-btn');
         loginBtn?.addEventListener('click', () => {
+            try { sessionStorage.removeItem(accountDeletionPendingKey); } catch (e) {}
             window.location.href = 'login.html';
         }, { once: true });
 
         window.setTimeout(() => {
+            try { sessionStorage.removeItem(accountDeletionPendingKey); } catch (e) {}
             window.location.href = 'login.html';
         }, 8000);
     }
