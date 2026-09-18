@@ -276,10 +276,7 @@
                         <button class="settings-tab" data-settings-tab="ai" data-i18n="settings_ai">AI Engine</button>
                         <button class="settings-tab" data-settings-tab="privacy" data-i18n="settings_privacy">Privacy & Data</button>
 
-                        <div class="settings-tablist-spacer"></div>
-
-                        <a href="https://github.com/MRHWCKRR/Kairos" target="_blank" class="settings-github-btn" data-i18n="github_repo">⭐ GitHub Repo</a>
-                        <button id="settings-logout-btn" class="settings-logout-btn" data-i18n="log_out">Log Out</button>
+                        <div class="settings-tablist-spacer"></div><button id="settings-logout-btn" class="settings-logout-btn" data-i18n="log_out">Log Out</button>
                         <p class="settings-version">Kairos v0.4.3-Pre Release</p>
                     </nav>
 
@@ -622,6 +619,24 @@
 
             <button id="schedule-event-save-btn" class="action-btn" style="margin-top: 16px; width: 100%;">Save Event</button>
             <button id="schedule-event-delete-btn" class="action-btn danger-btn" style="margin-top: 10px; width: 100%; display: none;">Delete Event</button>
+        </div>
+    </div>
+
+    <!-- Delete account confirmation modal -->
+    <div id="delete-account-modal" class="modal-overlay">
+        <div class="modal-content delete-account-modal-content" role="dialog" aria-modal="true" aria-labelledby="delete-account-modal-title">
+            <span class="close-modal" id="delete-account-modal-close">&times;</span>
+            <div class="delete-account-icon">⚠️</div>
+            <h2 id="delete-account-modal-title">Delete your account?</h2>
+            <p class="delete-account-warning">This will permanently delete your Kairos account and all associated data. This cannot be undone.</p>
+            <div class="delete-account-notice">
+                <strong>You won't be able to immediately create a new account with the same email.</strong>
+                <span>Firebase may take some time to fully release a recently deleted email address, so you may need to wait before signing up again.</span>
+            </div>
+            <div class="delete-account-actions">
+                <button id="delete-account-cancel-btn" class="settings-cancel-btn">Cancel</button>
+                <button id="delete-account-confirm-btn" class="action-btn danger-btn">Delete my account</button>
+            </div>
         </div>
     </div>
 
