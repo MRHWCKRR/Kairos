@@ -13,17 +13,13 @@ const emailInput = document.getElementById('email');
 const submit = document.getElementById('signup-submit');
 const googleBtn = document.getElementById('btn-google');
 const honeypot = document.getElementById('website');
-const verificationModal = document.getElementById('verification-modal');
-const verificationEmail = document.getElementById('verification-email');
-const continueVerificationBtn = document.getElementById('continue-verification-btn');
-const changeEmailBtn = document.getElementById('change-email-btn');
+const VERIFICATION_COOLDOWN_KEY = 'kairos_verification_resend_available_at';
 
 const SIGNUP_LIMIT_KEY = 'kairos_signup_attempts';
 const MAX_ATTEMPTS = 5;
 const WINDOW_MS = 60 * 60 * 1000;
 const MIN_FORM_AGE_MS = 1500;
 const formLoadedAt = Date.now();
-let verificationDestination = 'verify-email.html';
 
 function readSignupAttempts() {
     try {
@@ -69,25 +65,6 @@ function showSignupError(error) {
     };
     alert(messages[error?.code] || error?.message || 'Sign up failed. Please try again.');
 }
-function showVerificationModal(email) {
-    verificationEmail.textContent = email;
-    verificationDestination = `verify-email.html?email=${encodeURIComponent(email)}`;
-    verificationModal.classList.add('is-visible');
-    verificationModal.setAttribute('aria-hidden', 'false');
-    document.body.style.overflow = 'hidden';
-    continueVerificationBtn.focus();
-}
-function returnToSignupForm() {
-    verificationModal.classList.remove('is-visible');
-    verificationModal.setAttribute('aria-hidden', 'true');
-    document.body.style.overflow = '';
-    const currentEmail = verificationEmail.textContent || '';
-    emailInput.value = currentEmail;
-    emailInput.focus();
-    emailInput.select();
-    emailInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
-}
-
 async function createEmailAccount() {
     enforceSignupRateLimit();
     if (isLikelyBot()) throw new Error('Sign up could not be completed. Please refresh the page and try again.');
@@ -101,7 +78,8 @@ async function createEmailAccount() {
 
     await sendEmailVerification(newUser, verificationActionSettings(email));
     clearAccountScopedBrowserState();
-    showVerificationModal(email);
+    try { sessionStorage.setItem(VERIFICATION_COOLDOWN_KEY, String(Date.now() + 60000)); } catch (e) {}
+    window.location.replace(`verify-email.html?email=${encodeURIComponent(email)}&resent=0`);
 }
 
 form?.addEventListener('submit', async e => {
@@ -137,6 +115,3 @@ googleBtn?.addEventListener('click', async () => {
         googleBtn.disabled = false;
     }
 });
-
-changeEmailBtn?.addEventListener('click', returnToSignupForm);
-continueVerificationBtn?.addEventListener('click', () => window.location.assign(verificationDestination));
