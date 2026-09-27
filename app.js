@@ -1285,6 +1285,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // --- AI Chatbot (Hack Club free AI proxy) ---
     let aiChatMessages = []; // { role: 'user' | 'assistant', content: string }
+    let aiChatTitleOverride = '';
     let aiChatSending = false;
 
     const aiChatMessagesEl = document.getElementById('ai-chat-messages');
@@ -1292,6 +1293,12 @@ document.addEventListener("DOMContentLoaded", () => {
     const aiChatSendBtn = document.getElementById('ai-chat-send-btn');
     const aiChatNewBtn = document.getElementById('ai-chat-new-btn');
     const aiChatPlanBtn = document.getElementById('ai-chat-plan-btn');
+    const aiChatListEl = document.getElementById('ai-chat-list');
+    const aiChatTitleEl = document.getElementById('ai-chat-title');
+    const aiChatSidebarEl = document.getElementById('ai-chat-sidebar');
+    const aiChatSidebarToggleBtn = document.getElementById('ai-chat-sidebar-toggle');
+    const aiChatSidebarCloseBtn = document.getElementById('ai-chat-sidebar-close');
+    const aiChatMoreBtn = document.getElementById('ai-chat-more-btn');
 
     async function loadAiChatHistoryFromFirestore(user) {
         try {
@@ -1303,6 +1310,7 @@ document.addEventListener("DOMContentLoaded", () => {
         } catch (error) {
             console.error('Error loading AI chat history:', error);
         }
+        try { aiChatTitleOverride = sessionStorage.getItem('kairos_ai_chat_title') || ''; } catch (e) {}
         renderAiChatMessages();
     }
 
@@ -1316,13 +1324,36 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
+    function getAiChatDisplayTitle() {
+        if (aiChatTitleOverride.trim()) return aiChatTitleOverride.trim();
+        const firstUserMessage = aiChatMessages.find(m => m.role === 'user' && String(m.content || '').trim());
+        if (!firstUserMessage) return 'New chat';
+        const clean = String(firstUserMessage.content).replace(/\\s+/g, ' ').trim();
+        return clean.length > 42 ? clean.slice(0, 42).trimEnd() + '…' : clean;
+    }
+
+    function renderAiChatSidebar() {
+        if (!aiChatListEl) return;
+        const title = getAiChatDisplayTitle();
+        aiChatListEl.innerHTML = `
+            <button class="ai-chat-list-item active" type="button" data-chat-id="current" aria-current="page">
+                <span class="ai-chat-list-icon">✦</span>
+                <span class="ai-chat-list-title">${escapeHtml(title)}</span>
+                <span class="ai-chat-list-menu" aria-label="Chat options" role="button" tabindex="0">⋯</span>
+            </button>
+        `;
+        if (aiChatTitleEl) aiChatTitleEl.textContent = title;
+    }
+
     function renderAiChatMessages() {
         if (!aiChatMessagesEl) return;
+
+        renderAiChatSidebar();
 
         if (!aiChatMessages.length) {
             aiChatMessagesEl.innerHTML = `
                 <div class="ai-chat-empty-state">
-                    <div class="ai-chat-empty-icon">💬</div>
+                    <div class="ai-chat-empty-icon">✦</div>
                     <p>${tr('ai_chat_empty_state')}</p>
                 </div>
             `;
@@ -1416,6 +1447,62 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
+    function setAiChatSidebarOpen(open) {
+        if (!aiChatSidebarEl) return;
+        aiChatSidebarEl.classList.toggle('hidden', !open);
+        document.getElementById('ai-page')?.classList.toggle('sidebar-collapsed', !open);
+    }
+
+    if (aiChatSidebarToggleBtn) {
+        aiChatSidebarToggleBtn.addEventListener('click', () => {
+            const isHidden = aiChatSidebarEl?.classList.contains('hidden');
+            setAiChatSidebarOpen(!!isHidden);
+        });
+    }
+
+    if (aiChatSidebarCloseBtn) {
+        aiChatSidebarCloseBtn.addEventListener('click', () => setAiChatSidebarOpen(false));
+    }
+
+    if (aiChatListEl) {
+        aiChatListEl.addEventListener('click', (event) => {
+            const menu = event.target.closest('.ai-chat-list-menu');
+            if (!menu) return;
+            event.preventDefault();
+            event.stopPropagation();
+
+            const action = window.prompt(
+                'Chat options: type "rename" to rename this chat or "delete" to clear it.',
+                'rename'
+            );
+
+            if (action?.toLowerCase() === 'rename') {
+                const title = window.prompt('Chat name', getAiChatDisplayTitle());
+                if (title && title.trim()) {
+                    aiChatTitleOverride = title.trim();
+                    if (aiChatTitleEl) aiChatTitleEl.textContent = aiChatTitleOverride;
+                    const titleNode = aiChatListEl.querySelector('.ai-chat-list-title');
+                    if (titleNode) titleNode.textContent = aiChatTitleOverride;
+                    try { sessionStorage.setItem('kairos_ai_chat_title', aiChatTitleOverride); } catch (e) {}
+                }
+            } else if (action?.toLowerCase() === 'delete') {
+                if (!confirm('Delete this chat? This clears the current conversation.')) return;
+                aiChatMessages = [];
+                aiChatTitleOverride = '';
+                try { sessionStorage.removeItem('kairos_ai_chat_title'); } catch (e) {}
+                renderAiChatMessages();
+                saveAiChatHistoryToFirestore();
+            }
+        });
+    }
+
+    if (aiChatMoreBtn) {
+        aiChatMoreBtn.addEventListener('click', () => {
+            const menu = aiChatListEl?.querySelector('.ai-chat-list-menu');
+            if (menu) menu.focus();
+        });
+    }
+
     if (aiChatSendBtn) aiChatSendBtn.addEventListener('click', handleAiChatSend);
     if (aiChatInputEl) {
         aiChatInputEl.addEventListener('keydown', (e) => {
@@ -1434,6 +1521,8 @@ document.addEventListener("DOMContentLoaded", () => {
         aiChatNewBtn.addEventListener('click', () => {
             if (aiChatMessages.length && !confirm(tr('confirm_new_chat'))) return;
             aiChatMessages = [];
+            aiChatTitleOverride = '';
+            try { sessionStorage.removeItem('kairos_ai_chat_title'); } catch (e) {}
             renderAiChatMessages();
             saveAiChatHistoryToFirestore();
         });

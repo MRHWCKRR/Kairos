@@ -180,19 +180,75 @@
                 </div>
             </div>
 
-            <!-- AI Helper -->
+            <!-- AI Workspace -->
             <div id="ai-page" class="page-view ai-chat-page">
-                <div class="ai-chat-header">
-                    <h2 data-i18n="ai_helper_title" style="margin:0;">AI Helper</h2>
-                    <div style="display:flex; gap:10px;">
-                        <button id="ai-chat-plan-btn" class="action-btn small-btn" data-i18n="create_plan_from_chat">📋 Create Plan From Chat</button>
-                        <button id="ai-chat-new-btn" class="settings-cancel-btn" style="border:1px solid var(--border-subtle); border-radius:8px;" data-i18n="new_chat">New Chat</button>
-                    </div>
-                </div>
-                <div id="ai-chat-messages" class="ai-chat-messages"></div>
-                <div class="ai-chat-input-row">
-                    <textarea id="ai-chat-input" class="ai-chat-textarea" rows="1" placeholder="Ask anything..." data-i18n="ai_chat_placeholder" data-i18n-placeholder></textarea>
-                    <button id="ai-chat-send-btn" class="ai-chat-send-btn" title="Send">➤</button>
+                <div class="ai-workspace">
+                    <aside id="ai-chat-sidebar" class="ai-chat-sidebar" aria-label="AI chats">
+                        <div class="ai-chat-sidebar-header">
+                            <div>
+                                <div class="ai-workspace-kicker">Kairos AI</div>
+                                <h2>Chats</h2>
+                            </div>
+                            <button id="ai-chat-sidebar-close" class="ai-sidebar-close-btn" type="button" aria-label="Close chat sidebar">×</button>
+                        </div>
+
+                        <button id="ai-chat-new-btn" class="ai-new-chat-btn" type="button">
+                            <span>＋</span>
+                            <span>New chat</span>
+                        </button>
+
+                        <div class="ai-chat-sidebar-section">
+                            <div class="ai-chat-section-label">Chats</div>
+                            <div id="ai-chat-list" class="ai-chat-list">
+                                <button class="ai-chat-list-item active" type="button" data-chat-id="current">
+                                    <span class="ai-chat-list-icon">✦</span>
+                                    <span class="ai-chat-list-title">New chat</span>
+                                    <span class="ai-chat-list-menu" aria-hidden="true">⋯</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="ai-chat-sidebar-section ai-projects-section">
+                            <div class="ai-chat-section-heading">
+                                <span class="ai-chat-section-label">Projects</span>
+                                <button id="ai-project-add-btn" class="ai-project-add-btn" type="button" aria-label="Create project">＋</button>
+                            </div>
+                            <div id="ai-project-list" class="ai-project-list">
+                                <div class="ai-project-empty">Projects will live here.</div>
+                            </div>
+                        </div>
+
+                        <div class="ai-chat-sidebar-footer">
+                            <span>AI workspace</span>
+                            <span class="ai-chat-plan-badge">Free</span>
+                        </div>
+                    </aside>
+
+                    <section class="ai-chat-main">
+                        <header class="ai-chat-header">
+                            <div class="ai-chat-header-left">
+                                <button id="ai-chat-sidebar-toggle" class="ai-chat-icon-btn" type="button" aria-label="Open chat sidebar" title="Chats">☰</button>
+                                <div class="ai-chat-title-wrap">
+                                    <span class="ai-chat-title-kicker">Chat</span>
+                                    <h2 id="ai-chat-title">New chat</h2>
+                                </div>
+                            </div>
+                            <div class="ai-chat-header-actions">
+                                <button id="ai-chat-plan-btn" class="action-btn small-btn" data-i18n="create_plan_from_chat">📋 Create Plan From Chat</button>
+                                <button id="ai-chat-more-btn" class="ai-chat-icon-btn" type="button" aria-label="Chat options" title="Chat options">⋯</button>
+                            </div>
+                        </header>
+
+                        <div id="ai-chat-messages" class="ai-chat-messages"></div>
+
+                        <div class="ai-chat-composer-wrap">
+                            <div class="ai-chat-input-row">
+                                <textarea id="ai-chat-input" class="ai-chat-textarea" rows="1" placeholder="Ask anything..." data-i18n="ai_chat_placeholder" data-i18n-placeholder></textarea>
+                                <button id="ai-chat-send-btn" class="ai-chat-send-btn" title="Send" aria-label="Send">➤</button>
+                            </div>
+                            <div class="ai-chat-composer-hint">Kairos AI can help plan, organise, and work with your schedule.</div>
+                        </div>
+                    </section>
                 </div>
             </div>
 
