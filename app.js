@@ -1285,6 +1285,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // --- AI Chatbot (Hack Club free AI proxy) ---
     let aiChatMessages = []; // { role: 'user' | 'assistant', content: string }
+    let aiChatTitleOverride = '';
     let aiChatSending = false;
 
     const aiChatMessagesEl = document.getElementById('ai-chat-messages');
@@ -1309,6 +1310,7 @@ document.addEventListener("DOMContentLoaded", () => {
         } catch (error) {
             console.error('Error loading AI chat history:', error);
         }
+        try { aiChatTitleOverride = sessionStorage.getItem('kairos_ai_chat_title') || ''; } catch (e) {}
         renderAiChatMessages();
     }
 
@@ -1323,6 +1325,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function getAiChatDisplayTitle() {
+        if (aiChatTitleOverride.trim()) return aiChatTitleOverride.trim();
         const firstUserMessage = aiChatMessages.find(m => m.role === 'user' && String(m.content || '').trim());
         if (!firstUserMessage) return 'New chat';
         const clean = String(firstUserMessage.content).replace(/\\s+/g, ' ').trim();
@@ -1476,18 +1479,16 @@ document.addEventListener("DOMContentLoaded", () => {
             if (action?.toLowerCase() === 'rename') {
                 const title = window.prompt('Chat name', getAiChatDisplayTitle());
                 if (title && title.trim()) {
-                    const firstUserMessage = aiChatMessages.find(m => m.role === 'user');
-                    if (firstUserMessage) {
-                        firstUserMessage.content = String(firstUserMessage.content).replace(/^/, '');
-                    }
-                    if (aiChatTitleEl) aiChatTitleEl.textContent = title.trim();
+                    aiChatTitleOverride = title.trim();
+                    if (aiChatTitleEl) aiChatTitleEl.textContent = aiChatTitleOverride;
                     const titleNode = aiChatListEl.querySelector('.ai-chat-list-title');
-                    if (titleNode) titleNode.textContent = title.trim();
-                    try { sessionStorage.setItem('kairos_ai_chat_title', title.trim()); } catch (e) {}
+                    if (titleNode) titleNode.textContent = aiChatTitleOverride;
+                    try { sessionStorage.setItem('kairos_ai_chat_title', aiChatTitleOverride); } catch (e) {}
                 }
             } else if (action?.toLowerCase() === 'delete') {
                 if (!confirm('Delete this chat? This clears the current conversation.')) return;
                 aiChatMessages = [];
+                aiChatTitleOverride = '';
                 try { sessionStorage.removeItem('kairos_ai_chat_title'); } catch (e) {}
                 renderAiChatMessages();
                 saveAiChatHistoryToFirestore();
@@ -1520,6 +1521,7 @@ document.addEventListener("DOMContentLoaded", () => {
         aiChatNewBtn.addEventListener('click', () => {
             if (aiChatMessages.length && !confirm(tr('confirm_new_chat'))) return;
             aiChatMessages = [];
+            aiChatTitleOverride = '';
             try { sessionStorage.removeItem('kairos_ai_chat_title'); } catch (e) {}
             renderAiChatMessages();
             saveAiChatHistoryToFirestore();
