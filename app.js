@@ -7,7 +7,9 @@ import {
     updateEmail,
     updatePassword,
     reauthenticateWithCredential,
+    reauthenticateWithPopup,
     EmailAuthProvider,
+    GoogleAuthProvider,
     deleteUser
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import {
@@ -2671,8 +2673,16 @@ document.addEventListener("DOMContentLoaded", () => {
         const closeBtn = document.getElementById('delete-account-modal-close');
         const confirmBtn = document.getElementById('delete-account-confirm-btn');
         const deleteInput = document.getElementById('delete-account-input');
+        const reauthSection = document.getElementById('delete-account-reauth');
+        const passwordInput = document.getElementById('delete-account-password');
+        const googleNote = document.getElementById('delete-account-google-note');
+        const hasPasswordProvider = user.providerData.some(p => p.providerId === 'password');
+        const hasGoogleProvider = user.providerData.some(p => p.providerId === 'google.com');
 
         overlay.classList.add('active');
+        if (reauthSection) reauthSection.hidden = !hasPasswordProvider;
+        if (googleNote) googleNote.hidden = !hasGoogleProvider || hasPasswordProvider;
+        if (passwordInput) passwordInput.value = '';
         document.body.classList.add('modal-open');
         if (deleteInput) {
             deleteInput.value = '';
@@ -2684,6 +2694,7 @@ document.addEventListener("DOMContentLoaded", () => {
             overlay.classList.remove('active');
             document.body.classList.remove('modal-open');
             if (deleteInput) deleteInput.value = '';
+            if (passwordInput) passwordInput.value = '';
             if (confirmBtn) {
                 confirmBtn.disabled = true;
                 confirmBtn.textContent = 'Delete my account';
@@ -2696,13 +2707,17 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const handleInput = () => {
             if (!confirmBtn || !deleteInput) return;
-            confirmBtn.disabled = deleteInput.value !== 'DELETE';
+            const passwordReady = !hasPasswordProvider || Boolean(passwordInput?.value);
+            confirmBtn.disabled = deleteInput.value !== 'DELETE' || !passwordReady;
         };
+
+        const handlePasswordInput = () => handleInput();
 
         cancelBtn?.addEventListener('click', closeModal, { once: true });
         closeBtn?.addEventListener('click', closeModal, { once: true });
         overlay.addEventListener('click', handleOverlayClick);
         deleteInput?.addEventListener('input', handleInput);
+        passwordInput?.addEventListener('input', handlePasswordInput);
 
         const handleConfirm = async () => {
             if (!confirmBtn || confirmBtn.disabled) return;
@@ -2711,6 +2726,20 @@ document.addEventListener("DOMContentLoaded", () => {
             confirmBtn.textContent = 'Deleting...';
 
             try {
+                // Re-authenticate before touching any user data. Firebase requires
+                // a recent sign-in for account deletion, and doing this first prevents
+                // a stale session from leaving the account partially deleted.
+                if (hasPasswordProvider) {
+                    const currentPassword = passwordInput?.value || '';
+                    if (!currentPassword) throw new Error('Please enter your current password.');
+                    const credential = EmailAuthProvider.credential(user.email, currentPassword);
+                    await reauthenticateWithCredential(user, credential);
+                } else if (hasGoogleProvider) {
+                    await reauthenticateWithPopup(user, new GoogleAuthProvider());
+                } else {
+                    throw new Error('Please sign out and sign back in with your account provider before deleting your account.');
+                }
+
                 const plansColRef = collection(db, 'study_plans');
                 const q = query(plansColRef, where('userID', '==', user.uid));
                 const snap = await getDocs(q);
@@ -2727,6 +2756,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 showAccountDeletedScreen();
             } catch (error) {
                 console.error(error);
+                try { sessionStorage.removeItem(accountDeletionPendingKey); } catch (e) {}
                 confirmBtn.disabled = false;
                 confirmBtn.textContent = 'Delete my account';
                 alert('Could not delete your account: ' + error.message + '\n\nFor security, Firebase may require a recent sign-in before allowing account deletion. Try logging out, logging back in, then retrying.');

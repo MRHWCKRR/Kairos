@@ -633,6 +633,11 @@
                 <strong>You won't be able to immediately create a new account with the same email.</strong>
                 <span>Firebase may take some time to fully release a recently deleted email address, so you may need to wait before signing up again.</span>
             </div>
+            <div id="delete-account-reauth" class="delete-account-reauth" hidden>
+                <label for="delete-account-password" class="delete-account-confirm-label">For security, enter your current password.</label>
+                <input id="delete-account-password" class="settings-input delete-account-input" type="password" autocomplete="current-password" placeholder="Current password">
+            </div>
+            <p id="delete-account-google-note" class="delete-account-reauth-note" hidden>For security, Google will ask you to sign in again before your account is deleted.</p>
             <label for="delete-account-input" class="delete-account-confirm-label">Type <strong>DELETE</strong> to confirm.</label>
             <input id="delete-account-input" class="settings-input delete-account-input" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Type DELETE">
             <div class="delete-account-actions">
