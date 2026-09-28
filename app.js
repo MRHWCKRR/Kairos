@@ -1541,6 +1541,11 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
+    window.addEventListener('kairos-ai-create-plan', (event) => {
+        const text = event.detail?.text;
+        if (text) generatePlanFromText(text, null);
+    });
+
     // --- AI destination modal ---
     const aiDestinationModal = document.getElementById('ai-destination-modal');
     const aiDestinationNewName = document.getElementById('ai-destination-new-name');
