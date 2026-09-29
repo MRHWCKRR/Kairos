@@ -7,10 +7,12 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // The browser must never receive the relay secret. During the Vercel build,
 // point the client at the same-origin serverless relay instead of the public
 // Cloudflare Worker URL.
-const appPath = path.join(__dirname, 'app.js');
-let appContent = fs.readFileSync(appPath, 'utf8');
-appContent = appContent.replaceAll('https://kairos.kirosapp.workers.dev', '/api/ai');
-fs.writeFileSync(appPath, appContent);
+for (const name of ['app.js', 'ai-workspace.js']) {
+    const filePath = path.join(__dirname, name);
+    let fileContent = fs.readFileSync(filePath, 'utf8');
+    fileContent = fileContent.replaceAll('https://kairos.kirosapp.workers.dev', '/api/ai');
+    fs.writeFileSync(filePath, fileContent);
+}
 
 // Add the first-party privacy-minimised visitor tracker to public pages.
 // analytics.html is intentionally excluded because the admin dashboard does not
