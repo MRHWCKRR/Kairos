@@ -3,7 +3,7 @@ import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/fi
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
 const MAX_CHATS=12, MAX_MESSAGES=80, CONTEXT_MESSAGES=18;
-let user=null, chats=[], activeId=null, saving=null, menu=null, dialog=null;
+let user=null, chats=[], activeId=null, saving=null, saveTimer=null, saveRevision=0, savedRevision=0, menu=null, dialog=null;
 const pendingChats=new Set(), unreadChats=new Set(), finishedChats=new Set();
 const $=id=>document.getElementById(id);
 const esc=v=>{const d=document.createElement('div');d.textContent=String(v??'');return d.innerHTML};
@@ -13,8 +13,8 @@ function norm(c, fallbackOrder){return {id:String(c.id||id()),title:String(c.tit
 const current=()=>chats.find(c=>c.id===activeId);
 function sort(){chats.sort((a,b)=>a.order-b.order)}
 function prune(){chats=chats.map(norm).slice(0,MAX_CHATS);if(!chats.length)return;while(JSON.stringify(chats).length>700000&&chats.length>1)chats.pop();if(JSON.stringify(chats).length>700000){const c=current();c.messages=c.messages.slice(-40)}}
-async function save(){if(!user)return;prune();sort();await setDoc(doc(db,'users',user.uid),{aiWorkspace:{version:1,activeChatId:activeId,chats}},{merge:true})}
-function laterSave(){clearTimeout(saving);saving=setTimeout(()=>save().catch(console.error),450)}
+async function save(){if(!user)return;saveRevision++;if(saving)return saving;saving=(async()=>{try{while(savedRevision<saveRevision){prune();sort();const revision=saveRevision;const workspace={version:1,activeChatId:activeId,chats:chats.map(c=>({...c,messages:c.messages.map(m=>({...m}))}))};await setDoc(doc(db,'users',user.uid),{aiWorkspace:workspace},{merge:true});savedRevision=revision}}finally{saving=null}})();return saving}
+function laterSave(){clearTimeout(saveTimer);saveTimer=setTimeout(()=>save().catch(console.error),450)}
 async function load(){const s=await getDoc(doc(db,'users',user.uid));const d=s.exists()?s.data():{};if(d.aiWorkspace?.chats){chats=d.aiWorkspace.chats.map(norm);activeId=d.aiWorkspace.activeChatId}else if(Array.isArray(d.aiChatHistory)&&d.aiChatHistory.length){const c=norm({id:id(),messages:d.aiChatHistory});chats=[c];activeId=c.id;await save()}if(!chats.length)newChat(false);if(!chats.some(c=>c.id===activeId))activeId=chats[0].id;render()}
 function newChat(persist=true){const c=norm({id:id(),messages:[]});c.order=chats.length?Math.min(...chats.map(x=>x.order))-1:0;chats.unshift(c);activeId=c.id;render();if(persist)save();setTimeout(()=>$( 'ai-chat-input')?.focus(),0)}
 function closeMenu(){menu?.remove();menu=null;document.querySelectorAll('.ai-chat-list-menu.active').forEach(x=>x.classList.remove('active'))}
