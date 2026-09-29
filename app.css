@@ -1868,7 +1868,7 @@ body.cursor-spaceship, body.cursor-spaceship * { cursor: url('cursors/spaceship.
 .ai-chat-input-row {
     display: flex;
     gap: 10px;
-    align-items: flex-end;
+    align-items: center;
     background: var(--bg-card);
     border: 1px solid var(--border-subtle);
     border-radius: 14px;
@@ -1884,6 +1884,7 @@ body.cursor-spaceship, body.cursor-spaceship * { cursor: url('cursors/spaceship.
 
 .ai-chat-textarea {
     flex-grow: 1;
+    padding: 7px 0;
     min-width: 0;
     background: none;
     border: none;
