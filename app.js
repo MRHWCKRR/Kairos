@@ -476,7 +476,7 @@ document.addEventListener("DOMContentLoaded", () => {
         Promise.resolve().then(() => loadUserSettingsFromFirestore(user)).catch(err => console.error("Failed to load settings:", err));
         Promise.resolve().then(() => setupNotificationsSync(user)).catch(err => console.error("Failed to sync notifications:", err));
         Promise.resolve().then(() => loadUserProgressFromFirestore(user)).catch(err => console.error("Failed to load user progress:", err));
-        Promise.resolve().then(() => loadAiChatHistoryFromFirestore(user)).catch(err => console.error("Failed to load AI chat history:", err));
+        // AI chat state is owned by ai-workspace.js; do not load the legacy single-chat history here.
     });
     
     // --- 1 UI Nav & Clock ---
@@ -1464,37 +1464,7 @@ document.addEventListener("DOMContentLoaded", () => {
         aiChatSidebarCloseBtn.addEventListener('click', () => setAiChatSidebarOpen(false));
     }
 
-    if (aiChatListEl) {
-        aiChatListEl.addEventListener('click', (event) => {
-            const menu = event.target.closest('.ai-chat-list-menu');
-            if (!menu) return;
-            event.preventDefault();
-            event.stopPropagation();
-
-            const action = window.prompt(
-                'Chat options: type "rename" to rename this chat or "delete" to clear it.',
-                'rename'
-            );
-
-            if (action?.toLowerCase() === 'rename') {
-                const title = window.prompt('Chat name', getAiChatDisplayTitle());
-                if (title && title.trim()) {
-                    aiChatTitleOverride = title.trim();
-                    if (aiChatTitleEl) aiChatTitleEl.textContent = aiChatTitleOverride;
-                    const titleNode = aiChatListEl.querySelector('.ai-chat-list-title');
-                    if (titleNode) titleNode.textContent = aiChatTitleOverride;
-                    try { sessionStorage.setItem('kairos_ai_chat_title', aiChatTitleOverride); } catch (e) {}
-                }
-            } else if (action?.toLowerCase() === 'delete') {
-                if (!confirm('Delete this chat? This clears the current conversation.')) return;
-                aiChatMessages = [];
-                aiChatTitleOverride = '';
-                try { sessionStorage.removeItem('kairos_ai_chat_title'); } catch (e) {}
-                renderAiChatMessages();
-                saveAiChatHistoryToFirestore();
-            }
-        });
-    }
+    // Legacy AI chat-list click handling removed. ai-workspace.js owns chat menus and dialogs.
 
     if (aiChatMoreBtn) {
         aiChatMoreBtn.addEventListener('click', () => {
