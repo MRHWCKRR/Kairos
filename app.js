@@ -17,6 +17,7 @@ import {
     query, where, orderBy, limit, getDocs, updateDoc, deleteDoc
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { LANGUAGES, applyTranslations, getLocale, getLanguageName, t, ACHIEVEMENT_I18N } from './i18n.js';
+import { invalidateKairosContext } from './ai-context.js';
 console.log("APP.js is loaded and running");
 
 // ===========================================================
@@ -2391,7 +2392,8 @@ document.addEventListener("DOMContentLoaded", () => {
             if (userSettings.appearance.mode === 'light') triggerMiscAchievement('light_mode');
             localStorage.setItem('kairos_settings_cache', JSON.stringify(userSettings));
             applyAllSettings();
-            await saveUserSettingsToFirestore();
+            const settingsSaved = await saveUserSettingsToFirestore();
+            if (settingsSaved) invalidateKairosContext();
 
             const user = auth.currentUser;
             if (user) renderUserProfileMenu(user);
