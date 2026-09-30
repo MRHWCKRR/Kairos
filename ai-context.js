@@ -124,7 +124,7 @@ async function loadContextData(user) {
     const result = {
         timeZone,
         language: clean(accessibility.language, 20) || 'en',
-        displayName: clean(profile.displayName, 80),
+        displayName: clean(profile.displayName, 80) || clean(user.displayName, 80),
         birthday,
         age: calculateAge(birthday, now, timeZone),
         now,
