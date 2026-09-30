@@ -48,6 +48,23 @@ function normaliseBoards(plan) {
     return [];
 }
 
+function calculateAge(birthday, now, timeZone) {
+    if (!birthday) return '';
+    const match = String(birthday).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!match) return '';
+    const [, year, month, day] = match;
+    const parts = new Intl.DateTimeFormat('en-CA', {
+        timeZone, year: 'numeric', month: '2-digit', day: '2-digit'
+    }).formatToParts(new Date(now));
+    const current = {};
+    for (const part of parts) {
+        if (part.type !== 'literal') current[part.type] = Number(part.value);
+    }
+    let age = current.year - Number(year);
+    if (current.month < Number(month) || (current.month === Number(month) && current.day < Number(day))) age--;
+    return age >= 0 && age <= 130 ? String(age) : '';
+}
+
 async function loadContextData(user) {
     const now = Date.now();
     if (cached && cachedUid === user.uid && now - cachedAt < PLAN_CACHE_MS) return cached;
@@ -103,9 +120,13 @@ async function loadContextData(user) {
         }))
         : [];
 
+    const birthday = clean(profile.birthday, 20);
     const result = {
         timeZone,
         language: clean(accessibility.language, 20) || 'en',
+        displayName: clean(profile.displayName, 80),
+        birthday,
+        age: calculateAge(birthday, now, timeZone),
         now,
         tasks: tasks.slice(0, 120),
         scheduleEvents,
@@ -138,6 +159,17 @@ export async function getKairosContext() {
             'User timezone: ' + data.timeZone,
             'Kairos language setting: ' + data.language
         ];
+
+        if (data.displayName) {
+            lines.push('User name: ' + data.displayName);
+            lines.push('Address the user by name occasionally and naturally, but do not overuse it.');
+        }
+
+        if (data.birthday) {
+            lines.push('User birthday: ' + data.birthday);
+            if (data.age) lines.push('User age: ' + data.age);
+            lines.push('Use birthday/age only when relevant to recommendations, planning, or age-appropriate context. Do not mention the birthday unless it is relevant.');
+        }
 
         if (data.boards.length) {
             lines.push('Projects/boards and sections:');
