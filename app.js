@@ -1588,9 +1588,6 @@ document.addEventListener("DOMContentLoaded", () => {
         const tasksForDay = getTasksForDate(selectedCalendarDate);
         const completedCount = tasksForDay.filter(t => t.completed).length;
 
-        container.innerHTML = `<h3>${tr('goals_title')}</h3><p class="text-muted">${tr('goals_empty')}</p>`;
-            return;
-
         if (dayDetailTaskList) {
             dayDetailTaskList.innerHTML = tasksForDay.length
                 ? tasksForDay.map(task => createTaskHTML(task, task.sectionId)).join('')
