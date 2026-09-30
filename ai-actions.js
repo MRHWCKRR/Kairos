@@ -120,6 +120,23 @@ export async function executeKairosAction(action) {
 
     if (type === 'create_board') {
         const board = createBoard(plan.data, args.title);
+
+        // A common AI request is "put/move this task into a new board".
+        // Allow the model to express that as one atomic action so it cannot
+        // create the board without actually moving the referenced task.
+        const moveTaskId = clean(args.moveTaskId, 120);
+        const moveTaskTitle = clean(args.moveTaskTitle, 180);
+        if (moveTaskId || moveTaskTitle) {
+            const found = findTask(plan.data, {
+                taskId: moveTaskId,
+                title: moveTaskTitle
+            });
+            const section = board.sections[0];
+            found.section.tasks = found.section.tasks.filter(task => task.id !== found.task.id);
+            section.tasks = Array.isArray(section.tasks) ? section.tasks : [];
+            section.tasks.push(found.task);
+        }
+
         await writePlan(plan);
         return { type, board };
     }
