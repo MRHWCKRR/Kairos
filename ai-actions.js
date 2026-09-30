@@ -26,6 +26,7 @@ async function latestPlan(user) {
 
 async function writePlan(plan) {
     await setDoc(doc(db, 'study_plans', plan.id), plan.data, { merge: true });
+    window.dispatchEvent(new CustomEvent('kairos-data-changed'));
 }
 
 function allTasks(plan) {
