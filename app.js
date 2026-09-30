@@ -565,6 +565,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     <span class="checkmark"></span>
                 </label>
                 <input type="text" class="task-text" data-section="${sectionId}" data-task="${task.id}" value="${task.title}" style="text-decoration: ${task.completed ? 'line-through' : 'none'};">
+                ${task.startTime ? `<span class="task-scheduled-time">${task.startTime}${task.endTime ? '–' + task.endTime : ''}</span>` : ''}
                 ${showDatePicker ? `<input type="date" class="task-date-input" data-section="${sectionId}" data-task="${task.id}" value="${task.date || ''}" title="Schedule this task on the calendar">` : ''}
                 ${showDatePicker ? `<button type="button" class="task-delete-btn" data-section="${sectionId}" data-task="${task.id}" title="${tr('delete_task')}">✕</button>` : ''}
             </li>
@@ -1183,6 +1184,10 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
+    window.addEventListener('kairos-data-changed', () => {
+        if (auth.currentUser) loadLatestPlanFromFirestore(auth.currentUser);
+    });
+
     // --- 7 AI Plan Generator ---
     let pendingAiSections = null;
     let pendingAiRecurringEvents = [];
@@ -1587,9 +1592,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const tasksForDay = getTasksForDate(selectedCalendarDate);
         const completedCount = tasksForDay.filter(t => t.completed).length;
-
-        container.innerHTML = `<h3>${tr('goals_title')}</h3><p class="text-muted">${tr('goals_empty')}</p>`;
-            return;
 
         if (dayDetailTaskList) {
             dayDetailTaskList.innerHTML = tasksForDay.length

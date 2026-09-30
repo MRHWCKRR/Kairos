@@ -16,12 +16,17 @@ async function latestPlan(user) {
         const seconds = Number(data.createdAt?.seconds || 0);
         if (!latest || seconds > latest.seconds) latest = { id: item.id, data, seconds };
     }
-    if (!latest) throw new Error('No study plan exists yet.');
-    return latest;
+    if (latest) return latest;
+
+    const planRef = doc(collection(db, 'study_plans'));
+    const data = { boards: [], dayInsights: {}, scheduleEvents: [], userID: user.uid, createdAt: { seconds: Math.floor(Date.now() / 1000) } };
+    await setDoc(planRef, data);
+    return { id: planRef.id, data, seconds: data.createdAt.seconds };
 }
 
 async function writePlan(plan) {
     await setDoc(doc(db, 'study_plans', plan.id), plan.data, { merge: true });
+    window.dispatchEvent(new CustomEvent('kairos-data-changed'));
 }
 
 function allTasks(plan) {
@@ -60,10 +65,20 @@ function findSection(plan, args) {
     const boardName = clean(args.board, 100).toLowerCase();
     const sectionName = clean(args.section, 100).toLowerCase();
     const boards = Array.isArray(plan.boards) ? plan.boards : [];
-    const board = boards.find(b => !b.archived && (!boardName || clean(b.title, 100).toLowerCase() === boardName));
+    let board = boards.find(b => !b.archived && (!boardName || clean(b.title, 100).toLowerCase() === boardName));
+    if (!board && !boardName) {
+        board = { id: makeId('board'), title: 'AI Tasks', archived: false, sections: [] };
+        boards.push(board);
+        plan.boards = boards;
+    }
     if (!board) throw new Error('Board not found.');
     const sections = Array.isArray(board.sections) ? board.sections : [];
-    const section = sections.find(s => !s.archived && (!sectionName || clean(s.title, 100).toLowerCase() === sectionName));
+    let section = sections.find(s => !s.archived && (!sectionName || clean(s.title, 100).toLowerCase() === sectionName));
+    if (!section && !sectionName) {
+        section = { id: makeId('section'), title: 'General', archived: false, tasks: [] };
+        sections.push(section);
+        board.sections = sections;
+    }
     if (!section) throw new Error('Section not found.');
     return { board, section };
 }
@@ -90,7 +105,9 @@ export async function executeKairosAction(action) {
             title,
             completed: false,
             archived: false,
-            date: clean(args.date, 20) || null
+            date: clean(args.date, 20) || null,
+            startTime: clean(args.startTime, 5) || null,
+            endTime: clean(args.endTime, 5) || null
         };
         section.tasks = Array.isArray(section.tasks) ? section.tasks : [];
         section.tasks.push(task);
@@ -102,6 +119,8 @@ export async function executeKairosAction(action) {
         const found = findTask(plan.data, args);
         if (args.newTitle !== undefined) found.task.title = clean(args.newTitle, 180);
         if (args.date !== undefined) found.task.date = clean(args.date, 20) || null;
+        if (args.startTime !== undefined) found.task.startTime = clean(args.startTime, 5) || null;
+        if (args.endTime !== undefined) found.task.endTime = clean(args.endTime, 5) || null;
         if (args.completed !== undefined) found.task.completed = Boolean(args.completed);
         if (args.archived !== undefined) found.task.archived = Boolean(args.archived);
         await writePlan(plan);
