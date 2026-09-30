@@ -24,6 +24,7 @@ export default async function handler(req, res) {
             body: JSON.stringify({
                 model: 'qwen/qwen3-32b',
                 messages: req.body?.messages,
+                response_format: req.body?.response_format,
                 stream: false
             })
         });
