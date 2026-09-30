@@ -82,9 +82,28 @@ async function loadContextData(user) {
     }
 
     const userData = userSnap.exists() ? (userSnap.data() || {}) : {};
-    const settings = userData.settings || {};
-    const profile = settings.profile || {};
-    const accessibility = settings.accessibility || {};
+    const cloudSettings = userData.settings || {};
+    let cachedSettings = {};
+    try {
+        const local = JSON.parse(localStorage.getItem('kairos_settings_cache') || '{}');
+        if (local && typeof local === 'object') cachedSettings = local;
+    } catch {
+        // Ignore malformed local settings cache.
+    }
+
+    const cloudProfile = cloudSettings.profile || {};
+    const cachedProfile = cachedSettings.profile || {};
+    const profile = {
+        ...cachedProfile,
+        ...cloudProfile,
+        displayName: clean(cloudProfile.displayName, 80) || clean(cachedProfile.displayName, 80),
+        birthday: clean(cloudProfile.birthday, 20) || clean(cachedProfile.birthday, 20),
+        timezone: clean(cloudProfile.timezone, 80) || clean(cachedProfile.timezone, 80)
+    };
+    const accessibility = {
+        ...(cachedSettings.accessibility || {}),
+        ...(cloudSettings.accessibility || {})
+    };
     const timeZone = clean(profile.timezone, 80) || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
 
     const boards = normaliseBoards(latestPlan);
