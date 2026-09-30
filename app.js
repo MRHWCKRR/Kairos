@@ -1283,169 +1283,12 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    // --- AI Chatbot (Hack Club free AI proxy) ---
-    let aiChatMessages = []; // { role: 'user' | 'assistant', content: string }
-    let aiChatTitleOverride = '';
-    let aiChatSending = false;
-
-    const aiChatMessagesEl = document.getElementById('ai-chat-messages');
-    const aiChatInputEl = document.getElementById('ai-chat-input');
-    const aiChatSendBtn = document.getElementById('ai-chat-send-btn');
-    const aiChatNewBtn = document.getElementById('ai-chat-new-btn');
-    const aiChatPlanBtn = document.getElementById('ai-chat-plan-btn');
-    const aiChatListEl = document.getElementById('ai-chat-list');
-    const aiChatTitleEl = document.getElementById('ai-chat-title');
+    // --- AI workspace shell ---
+    // ai-workspace.js owns chat state, rendering, persistence, messaging, and chat controls.
+    // app.js only keeps the page-level sidebar controls and plan integration here.
     const aiChatSidebarEl = document.getElementById('ai-chat-sidebar');
     const aiChatSidebarToggleBtn = document.getElementById('ai-chat-sidebar-toggle');
     const aiChatSidebarCloseBtn = document.getElementById('ai-chat-sidebar-close');
-    const aiChatMoreBtn = document.getElementById('ai-chat-more-btn');
-
-    async function loadAiChatHistoryFromFirestore(user) {
-        try {
-            const ref = doc(db, 'users', user.uid);
-            const snap = await getDoc(ref);
-            if (snap.exists() && Array.isArray(snap.data().aiChatHistory)) {
-                aiChatMessages = snap.data().aiChatHistory;
-            }
-        } catch (error) {
-            console.error('Error loading AI chat history:', error);
-        }
-        try { aiChatTitleOverride = sessionStorage.getItem('kairos_ai_chat_title') || ''; } catch (e) {}
-        renderAiChatMessages();
-    }
-
-    async function saveAiChatHistoryToFirestore() {
-        const user = auth.currentUser;
-        if (!user) return;
-        try {
-            await setDoc(doc(db, 'users', user.uid), { aiChatHistory: aiChatMessages.slice(-60) }, { merge: true });
-        } catch (error) {
-            console.error('Error saving AI chat history:', error);
-        }
-    }
-
-    function getAiChatDisplayTitle() {
-        if (aiChatTitleOverride.trim()) return aiChatTitleOverride.trim();
-        const firstUserMessage = aiChatMessages.find(m => m.role === 'user' && String(m.content || '').trim());
-        if (!firstUserMessage) return 'New chat';
-        const clean = String(firstUserMessage.content).replace(/\\s+/g, ' ').trim();
-        return clean.length > 42 ? clean.slice(0, 42).trimEnd() + '…' : clean;
-    }
-
-    function renderAiChatSidebar() {
-        if (!aiChatListEl) return;
-        const title = getAiChatDisplayTitle();
-        aiChatListEl.innerHTML = `
-            <button class="ai-chat-list-item active" type="button" data-chat-id="current" aria-current="page">
-                <span class="ai-chat-list-icon">✦</span>
-                <span class="ai-chat-list-title">${escapeHtml(title)}</span>
-                <span class="ai-chat-list-menu" aria-label="Chat options" role="button" tabindex="0">⋯</span>
-            </button>
-        `;
-        if (aiChatTitleEl) aiChatTitleEl.textContent = title;
-    }
-
-    function renderAiChatMessages() {
-        if (!aiChatMessagesEl) return;
-
-        renderAiChatSidebar();
-
-        if (!aiChatMessages.length) {
-            aiChatMessagesEl.innerHTML = `
-                <div class="ai-chat-empty-state">
-                    <div class="ai-chat-empty-icon">✦</div>
-                    <p>${tr('ai_chat_empty_state')}</p>
-                </div>
-            `;
-            return;
-        }
-
-        aiChatMessagesEl.innerHTML = aiChatMessages.map(m => `
-            <div class="ai-chat-bubble-row ${m.role === 'user' ? 'user' : 'assistant'}">
-                <div class="ai-chat-bubble">${escapeHtml(m.content)}</div>
-            </div>
-        `).join('');
-
-        aiChatMessagesEl.scrollTop = aiChatMessagesEl.scrollHeight;
-    }
-
-    function escapeHtml(str) {
-        const div = document.createElement('div');
-        div.textContent = str;
-        return div.innerHTML;
-    }
-
-    function showAiChatTypingIndicator() {
-        if (!aiChatMessagesEl) return;
-        const row = document.createElement('div');
-        row.className = 'ai-chat-bubble-row assistant';
-        row.id = 'ai-chat-typing-row';
-        row.innerHTML = `<div class="ai-chat-bubble"><span class="ai-chat-typing-dots"><span></span><span></span><span></span></span></div>`;
-        aiChatMessagesEl.appendChild(row);
-        aiChatMessagesEl.scrollTop = aiChatMessagesEl.scrollHeight;
-    }
-
-    function hideAiChatTypingIndicator() {
-        const row = document.getElementById('ai-chat-typing-row');
-        if (row) row.remove();
-    }
-
-    async function sendHackClubChatMessage(messages) {
-        const response = await fetch('https://kairos.kirosapp.workers.dev', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ messages })
-        });
-
-        if (response.status === 429) {
-            throw new Error('rate_limited');
-        }
-        if (!response.ok) {
-            const errText = await response.text();
-            console.error('Chat proxy error:', errText);
-            throw new Error(`Chat proxy error ${response.status}`);
-        }
-
-        const data = await response.json();
-        return data.choices[0].message.content;
-    }
-
-    async function handleAiChatSend() {
-        if (aiChatSending || !aiChatInputEl) return;
-        const text = aiChatInputEl.value.trim();
-        if (!text) return;
-
-        aiChatMessages.push({ role: 'user', content: text });
-        aiChatInputEl.value = '';
-        aiChatInputEl.style.height = 'auto';
-        renderAiChatMessages();
-
-        aiChatSending = true;
-        if (aiChatSendBtn) aiChatSendBtn.disabled = true;
-        showAiChatTypingIndicator();
-
-        try {
-            const languageName = getLanguageName(userSettings.accessibility.language || 'en');
-            const apiMessages = [
-                { role: 'system', content: `You are a helpful, friendly assistant inside the Kairos productivity app. Always respond in ${languageName}, regardless of what language the user writes in, unless they explicitly ask you to reply in a different language.` },
-                ...aiChatMessages.map(m => ({ role: m.role, content: m.content }))
-            ];
-            const reply = await sendHackClubChatMessage(apiMessages);
-            aiChatMessages.push({ role: 'assistant', content: reply });
-        } catch (error) {
-            console.error(error);
-            const message = error.message === 'rate_limited' ? tr('ai_chat_rate_limited') : tr('ai_chat_error');
-            aiChatMessages.push({ role: 'assistant', content: message });
-        } finally {
-            hideAiChatTypingIndicator();
-            aiChatSending = false;
-            if (aiChatSendBtn) aiChatSendBtn.disabled = false;
-            renderAiChatMessages();
-            saveAiChatHistoryToFirestore();
-        }
-    }
 
     function setAiChatSidebarOpen(open) {
         if (!aiChatSidebarEl) return;
@@ -1453,63 +1296,11 @@ document.addEventListener("DOMContentLoaded", () => {
         document.getElementById('ai-page')?.classList.toggle('sidebar-collapsed', !open);
     }
 
-    if (aiChatSidebarToggleBtn) {
-        aiChatSidebarToggleBtn.addEventListener('click', () => {
-            const isHidden = aiChatSidebarEl?.classList.contains('hidden');
-            setAiChatSidebarOpen(!!isHidden);
-        });
-    }
-
-    if (aiChatSidebarCloseBtn) {
-        aiChatSidebarCloseBtn.addEventListener('click', () => setAiChatSidebarOpen(false));
-    }
-
-    // Legacy AI chat-list click handling removed. ai-workspace.js owns chat menus and dialogs.
-
-    if (aiChatMoreBtn) {
-        aiChatMoreBtn.addEventListener('click', () => {
-            const menu = aiChatListEl?.querySelector('.ai-chat-list-menu');
-            if (menu) menu.focus();
-        });
-    }
-
-    if (aiChatSendBtn) aiChatSendBtn.addEventListener('click', handleAiChatSend);
-    if (aiChatInputEl) {
-        aiChatInputEl.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                handleAiChatSend();
-            }
-        });
-        aiChatInputEl.addEventListener('input', () => {
-            aiChatInputEl.style.height = 'auto';
-            aiChatInputEl.style.height = Math.min(160, aiChatInputEl.scrollHeight) + 'px';
-        });
-    }
-
-    if (aiChatNewBtn) {
-        aiChatNewBtn.addEventListener('click', () => {
-            if (aiChatMessages.length && !confirm(tr('confirm_new_chat'))) return;
-            aiChatMessages = [];
-            aiChatTitleOverride = '';
-            try { sessionStorage.removeItem('kairos_ai_chat_title'); } catch (e) {}
-            renderAiChatMessages();
-            saveAiChatHistoryToFirestore();
-        });
-    }
-
-    if (aiChatPlanBtn) {
-        aiChatPlanBtn.addEventListener('click', () => {
-            if (!aiChatMessages.length) {
-                alert(tr('alert_empty_input'));
-                return;
-            }
-            const transcript = aiChatMessages
-                .map(m => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`)
-                .join('\n');
-            generatePlanFromText(transcript, aiChatPlanBtn);
-        });
-    }
+    aiChatSidebarToggleBtn?.addEventListener('click', () => {
+        const isHidden = aiChatSidebarEl?.classList.contains('hidden');
+        setAiChatSidebarOpen(!!isHidden);
+    });
+    aiChatSidebarCloseBtn?.addEventListener('click', () => setAiChatSidebarOpen(false));
 
     window.addEventListener('kairos-ai-create-plan', (event) => {
         const text = event.detail?.text;
