@@ -83,6 +83,28 @@ function findSection(plan, args) {
     return { board, section };
 }
 
+function createBoard(plan, title) {
+    const name = clean(title, 100);
+    if (!name) throw new Error('A board title is required.');
+    const boards = Array.isArray(plan.boards) ? plan.boards : [];
+    const existing = boards.find(b => !b.archived && clean(b.title, 100).toLowerCase() === name.toLowerCase());
+    if (existing) return existing;
+    const board = {
+        id: makeId('board'),
+        title: name,
+        archived: false,
+        sections: [{
+            id: makeId('section'),
+            title: 'General',
+            archived: false,
+            tasks: []
+        }]
+    };
+    boards.push(board);
+    plan.boards = boards;
+    return board;
+}
+
 export function actionNeedsConfirmation(action) {
     return ACTIONS_REQUIRING_CONFIRMATION.has(action?.type) || Number(action?.count || 1) > 1;
 }
@@ -95,6 +117,12 @@ export async function executeKairosAction(action) {
     const plan = await latestPlan(user);
     const args = action.args && typeof action.args === 'object' ? action.args : {};
     const type = action.type;
+
+    if (type === 'create_board') {
+        const board = createBoard(plan.data, args.title);
+        await writePlan(plan);
+        return { type, board };
+    }
 
     if (type === 'create_task') {
         const { board, section } = findSection(plan.data, args);
@@ -123,8 +151,26 @@ export async function executeKairosAction(action) {
         if (args.endTime !== undefined) found.task.endTime = clean(args.endTime, 5) || null;
         if (args.completed !== undefined) found.task.completed = Boolean(args.completed);
         if (args.archived !== undefined) found.task.archived = Boolean(args.archived);
+
+        if (args.board !== undefined || args.section !== undefined) {
+            const destination = findSection(plan.data, {
+                board: args.board,
+                section: args.section
+            });
+            if (destination.board.id !== found.board.id || destination.section.id !== found.section.id) {
+                found.section.tasks = found.section.tasks.filter(task => task.id !== found.task.id);
+                destination.section.tasks = Array.isArray(destination.section.tasks) ? destination.section.tasks : [];
+                destination.section.tasks.push(found.task);
+            }
+        }
+
         await writePlan(plan);
-        return { type, task: found.task };
+        return {
+            type,
+            task: found.task,
+            board: args.board !== undefined ? clean(args.board, 100) : found.board.title,
+            section: args.section !== undefined ? clean(args.section, 100) : found.section.title
+        };
     }
 
     if (type === 'complete_task') {
