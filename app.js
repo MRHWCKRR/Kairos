@@ -2292,7 +2292,7 @@ document.addEventListener("DOMContentLoaded", () => {
     ['settings-display-name', 'settings-birthday', 'settings-timezone', 'settings-avatar-url'].forEach(id => {
         const el = document.getElementById(id);
         if (!el) return;
-        el.addEventListener('input', () => {
+        const syncProfileField = () => {
             if (id === 'settings-display-name') pendingSettings.profile.displayName = el.value;
             if (id === 'settings-birthday') pendingSettings.profile.birthday = el.value;
             if (id === 'settings-timezone') pendingSettings.profile.timezone = el.value;
@@ -2302,7 +2302,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (preview && el.value.trim()) preview.src = el.value.trim();
             }
             checkDirty();
-        });
+        };
+        el.addEventListener('input', syncProfileField);
+        el.addEventListener('change', syncProfileField);
     });
 
     const avatarFileInput = document.getElementById('settings-avatar-file');
