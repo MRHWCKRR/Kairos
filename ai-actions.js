@@ -115,7 +115,7 @@ export async function executeKairosAction(action) {
     if (!action || typeof action !== 'object' || typeof action.type !== 'string') throw new Error('Invalid AI action.');
 
     const plan = await latestPlan(user);
-    const args = action.args && typeof action.args === 'object' ? action.args : {};
+    const args = action.args && typeof action.args === 'object' ? action.args : Object.fromEntries(Object.entries(action).filter(([key]) => key !== 'type'));
     const type = action.type;
 
     if (type === 'create_board') {
