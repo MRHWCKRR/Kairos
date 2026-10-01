@@ -41,12 +41,20 @@ function allTasks(plan) {
 function findTask(plan, args) {
     const wantedId = clean(args.taskId, 120);
     const wantedTitle = clean(args.title, 180).toLowerCase();
-    const matches = allTasks(plan).filter(({ task }) =>
+    const tasks = allTasks(plan);
+    const matches = tasks.filter(({ task }) =>
         (wantedId && String(task.id) === wantedId) ||
         (wantedTitle && clean(task.title, 180).toLowerCase() === wantedTitle)
     );
-    if (matches.length !== 1) throw new Error(matches.length ? 'Multiple tasks match. Please specify the task name more precisely.' : 'Task not found.');
-    return matches[0];
+    if (matches.length === 1) return matches[0];
+    if (!matches.length && wantedTitle) {
+        const related = tasks.filter(({ task }) => {
+            const actual = clean(task.title, 180).toLowerCase();
+            return actual.includes(wantedTitle) || wantedTitle.includes(actual);
+        });
+        if (related.length === 1) return related[0];
+    }
+    throw new Error(matches.length ? 'Multiple tasks match. Please specify the task name more precisely.' : 'Task not found.');
 }
 
 function findScheduleEvent(plan, args) {
