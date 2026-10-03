@@ -5,6 +5,7 @@ import { getKairosContext } from './ai-context.js';
 import { actionNeedsConfirmation, executeKairosAction } from './ai-actions.js';
 
 const MAX_CHATS=12, MAX_MESSAGES=80, CONTEXT_MESSAGES=18;
+const ACTION_INTENT=/\b(add|create|make|move|schedule|set|change|update|complete|finish|delete|remove|archive|organize|organise)\b/i;
 let user=null, chats=[], activeId=null, saving=null, saveTimer=null, saveRevision=0, savedRevision=0, menu=null, dialog=null;
 const pendingChats=new Set(), unreadChats=new Set(), finishedChats=new Set();
 const $=id=>document.getElementById(id);
@@ -35,6 +36,10 @@ if(pendingChats.has(c.id))m.insertAdjacentHTML('beforeend','<div id="ai-chat-typ
 async function send(){const i=$('ai-chat-input'),c=current(),t=i?.value.trim();if(!i||!c||!t||pendingChats.has(c.id))return;const chatId=c.id;pendingChats.add(chatId);c.messages.push({role:'user',content:t});c.updatedAt=Date.now();i.value='';i.style.height='auto';render();try{const result=await ask(await apiMessages(c));const reply=typeof result?.reply==='string'?result.reply.trim():'';
 const actions=Array.isArray(result?.actions)?result.actions.filter(a=>a&&typeof a.type==='string').map(a=>{const args=a.args&&typeof a.args==='object'?a.args:Object.fromEntries(Object.entries(a).filter(([key])=>key!=='type'));return {...a,args};}):[];
 const target=chats.find(x=>x.id===chatId);
+const actionRequested=ACTION_INTENT.test(t);
+if(actionRequested&&!actions.length){
+  throw new Error('no-action');
+}
 for(const action of actions){
   if(actionNeedsConfirmation(action)){await requestActionConfirmation(chatId,action);continue}
   await runAction(chatId,action);
@@ -44,7 +49,7 @@ if(target){
   target.updatedAt=Date.now();
   if(activeId!==chatId){unreadChats.add(chatId);finishedChats.add(chatId)}
   if(planLike(t)&&activeId===chatId)planSuggestion(target);
-}}catch(e){const target=chats.find(x=>x.id===chatId);if(target){target.messages.push({role:'assistant',content:e.message==='rate'?'Kairos AI is temporarily rate-limited. Please try again shortly.':'Something went wrong while contacting Kairos AI ('+e.message+'). Check the browser console for the relay error.'});target.updatedAt=Date.now()}}finally{pendingChats.delete(chatId);if(activeId===chatId){unreadChats.delete(chatId);finishedChats.delete(chatId);render()}else{finishedChats.add(chatId);render()}try{await save()}catch(e){console.error('Kairos AI chat save failed:',e)}}}
+}}catch(e){const target=chats.find(x=>x.id===chatId);if(target){target.messages.push({role:'assistant',content:e.message==='rate'?'Kairos AI is temporarily rate-limited. Please try again shortly.':e.message==='no-action'?'I understood that you wanted me to make a change, but Kairos did not return an executable action, so I did not claim that the change was made. Please try again.':e.message?.startsWith('relay-')||e.message?.startsWith('relay:')?'Something went wrong while contacting Kairos AI ('+e.message+'). Check the browser console for the relay error.':'I could not apply that change: '+e.message});target.updatedAt=Date.now()}}finally{pendingChats.delete(chatId);if(activeId===chatId){unreadChats.delete(chatId);finishedChats.delete(chatId);render()}else{finishedChats.add(chatId);render()}try{await save()}catch(e){console.error('Kairos AI chat save failed:',e)}}}
 async function runAction(chatId,action){return executeKairosAction(action)}
 async function requestActionConfirmation(chatId,action){const target=chats.find(x=>x.id===chatId);if(!target)return;const label=action.type.replace(/_/g,' ');const detail=action.args?.title||action.args?.taskId||action.args?.eventId||'';const d=dialogBox('<span class="close-modal" data-cancel>×</span><h2>Confirm action</h2><p>Kairos is ready to '+esc(label)+(detail?' for “'+esc(detail)+'”.':'')+' This change cannot be undone automatically.</p><div class="ai-chat-dialog-actions"><button class="settings-cancel-btn" data-cancel>Cancel</button><button class="action-btn ai-chat-dialog-danger" data-ok>Confirm</button></div>');d.querySelector('[data-ok]').onclick=async()=>{closeDialog();try{await runAction(chatId,action)}catch(e){target.messages.push({role:'assistant',content:'I could not complete that action: '+e.message});target.updatedAt=Date.now();render();}}}
 function replace(id){const x=$(id);if(!x)return null;const n=x.cloneNode(true);x.replaceWith(n);return n}
