@@ -127,18 +127,30 @@ export async function executeKairosAction(action) {
     const type = action.type;
 
     if (type === 'create_board') {
-        const board = createBoard(plan.data, args.title);
-
-        // A common AI request is "put/move this task into a new board".
-        // Allow the model to express that as one atomic action so it cannot
-        // create the board without actually moving the referenced task.
+        // Resolve the task first when this is a "move task to a new board"
+        // request. This lets us recover from malformed/low-quality board titles
+        // returned by the model instead of silently creating a board like "he".
         const moveTaskId = clean(args.moveTaskId, 120);
-        const moveTaskTitle = clean(args.moveTaskTitle, 180) || clean(board.title.replace(/ board$/i, ''), 180);
-        if (moveTaskId || moveTaskTitle) {
-            const found = findTask(plan.data, {
+        const requestedMoveTitle = clean(args.moveTaskTitle, 180);
+        let found = null;
+        if (moveTaskId || requestedMoveTitle) {
+            found = findTask(plan.data, {
                 taskId: moveTaskId,
-                title: moveTaskTitle
+                title: requestedMoveTitle
             });
+        }
+
+        let boardTitle = clean(args.title, 100);
+        const weakBoardTitle = !boardTitle || boardTitle.length < 3 || /^(new|new board|board|he|hey|hi)$/i.test(boardTitle);
+        if (found && weakBoardTitle) {
+            boardTitle = clean(found.task.title, 80) + ' Board';
+        }
+        if (!boardTitle) throw new Error('A board title is required.');
+
+        const board = createBoard(plan.data, boardTitle);
+
+        // Move the existing task into the board's first section.
+        if (found) {
             const section = board.sections[0];
             found.section.tasks = found.section.tasks.filter(task => task.id !== found.task.id);
             section.tasks = Array.isArray(section.tasks) ? section.tasks : [];
@@ -146,7 +158,7 @@ export async function executeKairosAction(action) {
         }
 
         await writePlan(plan);
-        return { type, board };
+        return { type, board, movedTask: found?.task || null };
     }
 
     if (type === 'create_task') {
