@@ -52,7 +52,11 @@ export const authProtectionReady = initializeRecaptchaConfig(auth).catch(error =
     // without another application-code change.
     console.warn("Kairos auth reCAPTCHA protection is not configured:", error);
 });
-// Prefer long polling when the browser/network blocks Firestore's WebChannel transport.\n// This keeps Firestore usable behind privacy extensions and restrictive proxies.\nexport const db = initializeFirestore(app, {\n    experimentalAutoDetectLongPolling: true\n});
+// Prefer long polling when the browser/network blocks Firestore's WebChannel transport.
+// This keeps Firestore usable behind privacy extensions and restrictive proxies.
+export const db = initializeFirestore(app, {
+    experimentalAutoDetectLongPolling: true
+});
 
 // Keep the real loading screen visible while the shared onboarding state is
 // being checked. app.js may try to hide it as soon as Firebase auth resolves;
