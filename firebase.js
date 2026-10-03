@@ -55,7 +55,9 @@ export const authProtectionReady = initializeRecaptchaConfig(auth).catch(error =
 // Prefer long polling when the browser/network blocks Firestore's WebChannel transport.
 // This keeps Firestore usable behind privacy extensions and restrictive proxies.
 export const db = initializeFirestore(app, {
-    experimentalAutoDetectLongPolling: true
+    // Force HTTP long polling instead of WebChannel. Some privacy extensions
+    // and browser filtering rules block Firestore's WebChannel requests.
+    experimentalForceLongPolling: true
 });
 
 // Keep the real loading screen visible while the shared onboarding state is
