@@ -132,7 +132,7 @@ export async function executeKairosAction(action) {
         // A common AI request is "put/move this task into a new board".
         // Allow the model to express that as one atomic action so it cannot
         // create the board without actually moving the referenced task.
-        const moveTaskId = clean(args.moveTaskId, 120); // board-move handling
+        const moveTaskId = clean(args.moveTaskId, 120);
         const moveTaskTitle = clean(args.moveTaskTitle, 180) || clean(name.replace(/ board$/i, ''), 180);
         if (moveTaskId || moveTaskTitle) {
             const found = findTask(plan.data, {
