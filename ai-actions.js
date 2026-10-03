@@ -38,15 +38,34 @@ function allTasks(plan) {
     );
 }
 
+function taskTitleBase(value) {
+    const title = clean(value, 180).toLowerCase();
+    const marker = title.lastIndexOf(' (');
+    return marker > 0 && title.endsWith(')') ? title.slice(0, marker).trim() : title;
+}
+
 function findTask(plan, args) {
     const wantedId = clean(args.taskId, 120);
     const wantedTitle = clean(args.title, 180).toLowerCase();
+    const wantedBase = taskTitleBase(args.title);
     const tasks = allTasks(plan);
     const matches = tasks.filter(({ task }) =>
         (wantedId && String(task.id) === wantedId) ||
         (wantedTitle && clean(task.title, 180).toLowerCase() === wantedTitle)
     );
     if (matches.length === 1) return matches[0];
+
+    if (wantedBase) {
+        const baseMatches = tasks.filter(({ task }) => taskTitleBase(task.title) === wantedBase);
+        if (baseMatches.length === 1) return baseMatches[0];
+
+        const related = tasks.filter(({ task }) => {
+            const actual = taskTitleBase(task.title);
+            return actual.includes(wantedBase) || wantedBase.includes(actual);
+        });
+        if (related.length === 1) return related[0];
+    }
+
     if (!matches.length && wantedTitle) {
         const related = tasks.filter(({ task }) => {
             const actual = clean(task.title, 180).toLowerCase();
