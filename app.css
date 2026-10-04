@@ -2226,3 +2226,16 @@ html.kairos-mobile-device body > #ambient-audio {
         height: 150px;
     }
 }
+
+/* Scheduled task time */
+.task-scheduled-time {
+    flex: 0 0 auto;
+    white-space: nowrap;
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    line-height: 1;
+    padding: 4px 8px;
+    border: 1px solid var(--border-subtle);
+    border-radius: 6px;
+    background: var(--bg-main);
+}
