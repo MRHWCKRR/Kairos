@@ -57,6 +57,8 @@ async function send(){const i=$('ai-chat-input'),c=current(),t=i?.value.trim();i
 const actions=Array.isArray(result?.actions)?result.actions.map(a=>{if(!a||typeof a!=='object')return null;const type=typeof a.type==='string'?a.type:(typeof a.action==='string'?a.action:'');if(!type)return null;const args=a.args&&typeof a.args==='object'?a.args:Object.fromEntries(Object.entries(a).filter(([key])=>key!=='type'&&key!=='action'));return {...a,type,args};}).filter(Boolean):[];
 console.log('[Kairos AI] Model result:', result);
 console.log('[Kairos AI] Parsed actions:', actions);
+const claimsChangeWithoutAction = !actions.length && /\\b(?:i(?:'ve| have)?|we|kairos)\\s+(?:have\\s+)?(?:created|scheduled|added|moved|updated|changed|completed|finished|deleted|removed|archived)\\b/i.test(reply);
+if(claimsChangeWithoutAction) throw new Error('no-action');
 const target=chats.find(x=>x.id===chatId);
 const actionRequested=ACTION_INTENT.test(requestText)||retry||followup;
 if(actionRequested&&!actions.length){
