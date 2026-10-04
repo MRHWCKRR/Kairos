@@ -160,7 +160,7 @@ export async function executeKairosAction(action) {
         }
 
         let boardTitle = clean(args.title, 100);
-        const weakBoardTitle = !boardTitle || boardTitle.length < 3 || /^(new|new board|board|he|hey|hi)$/i.test(boardTitle);
+        const weakBoardTitle = !boardTitle || boardTitle.length < 3 || /^(new|new board|board|hey|hi)$/i.test(boardTitle);
         if (found && weakBoardTitle) {
             boardTitle = clean(found.task.title, 80) + ' Board';
         }
