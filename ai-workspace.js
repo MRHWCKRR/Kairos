@@ -54,7 +54,37 @@ function actionResultReply(results){
 }
 function planLike(t){return /(make|create|build|plan|schedule|organize|organise|break down|tasks?)/i.test(t)&&/(assignment|exam|test|study|homework|project|deadline|week|today|tomorrow|task|schedule|plan|revision)/i.test(t)}
 function planSuggestion(c){if(activeId!==c.id)return;document.querySelector('.ai-chat-plan-suggestion')?.remove();const x=document.createElement('div');x.className='ai-chat-plan-suggestion';x.innerHTML='<p>This looks like something Kairos could turn into a plan.</p><button data-plan>Turn this into a plan</button>';x.querySelector('[data-plan]').onclick=()=>{dispatchEvent(new CustomEvent('kairos-ai-create-plan',{detail:{text:c.messages.map(m=>(m.role==='user'?'User: ':'Assistant: ')+m.content).join('\n')}}));x.remove()};$('ai-chat-messages')?.appendChild(x)}
-function render(){sort();const l=$('ai-chat-list'),c=current(),m=$('ai-chat-messages'),main=$('ai-chat-main-content'),home=$('ai-project-home');if(!l||!c||!m)return;const shownChats=visibleChats();l.innerHTML=shownChats.map(x=>{const p=pendingChats.has(x.id),u=unreadChats.has(x.id),f=finishedChats.has(x.id),pr=projectFor(x);return '<button class="ai-chat-list-item '+(x.id===activeId?'active ':'')+(p?'generating ':'')+(u?'unread ':'')+(f?'finished ':'')+'" draggable="true" data-id="'+esc(x.id)+'" aria-current="'+(x.id===activeId?'true':'false')+'"><span class="ai-chat-list-state" aria-hidden="true"></span><span class="ai-chat-list-title">'+esc(title(x))+'</span>'+(pr?'<span class="ai-chat-list-project">'+esc(pr.title)+'</span>':'')+(p?'<span class="ai-chat-list-status">Thinking…</span>':f?'<span class="ai-chat-list-status">New</span>':'')+'<span class="ai-chat-list-menu" data-menu="'+esc(x.id)+'">⋯</span></button>'}).join('');const pl=$('ai-project-list');if(pl)pl.innerHTML=projects.length?projects.map(p=>{const count=chats.filter(c=>c.projectId===p.id).length;return '<button class="ai-project-item" type="button" data-project-id="'+esc(p.id)+'"><span class="ai-project-folder">▰</span><span class="ai-project-title">'+esc(p.title)+'</span><span class="ai-project-count">'+count+'</span><span class="ai-project-menu" data-project-menu="'+esc(p.id)+'">⋯</span></button>'}).join(''):'<div class="ai-project-empty">Create a project to organise related chats.</div>';$('ai-chat-title').textContent=title(c);m.innerHTML=c.messages.length?c.messages.map(x=>'<div class="ai-chat-bubble-row '+x.role+'"><div class="ai-chat-bubble">'+esc(x.content)+'</div></div>').join(''):'<div class="ai-chat-empty-state"><div class="ai-chat-empty-icon">✦</div><p>Start a conversation. Kairos can help with study, planning, organisation, and ideas.</p></div>';if(pendingChats.has(c.id))m.insertAdjacentHTML('beforeend','<div id="ai-chat-typing-row" class="ai-chat-bubble-row assistant"><div class="ai-chat-bubble"><span class="ai-chat-typing-dots"><span></span><span></span><span></span></span></div></div>');requestAnimationFrame(()=>{m.scrollTop=m.scrollHeight})}
+function render(){
+  sort();
+  const l=$('ai-chat-list'),c=current(),m=$('ai-chat-messages'),home=$('ai-project-home'),composer=$('ai-chat-composer-wrap');
+  if(!l||!c||!m)return;
+  l.innerHTML=chats.map(x=>{
+    const p=pendingChats.has(x.id),u=unreadChats.has(x.id),f=finishedChats.has(x.id),pr=projectFor(x);
+    return '<button class="ai-chat-list-item '+(x.id===activeId?'active ':'')+(p?'generating ':'')+(u?'unread ':'')+(f?'finished ':'')+'" draggable="true" data-id="'+esc(x.id)+'" aria-current="'+(x.id===activeId?'true':'false')+'"><span class="ai-chat-list-state" aria-hidden="true"></span><span class="ai-chat-list-title">'+esc(title(x))+'</span>'+(pr?'<span class="ai-chat-list-project">'+esc(pr.title)+'</span>':'')+(p?'<span class="ai-chat-list-status">Thinking…</span>':f?'<span class="ai-chat-list-status">New</span>':'')+'<span class="ai-chat-list-menu" data-menu="'+esc(x.id)+'">⋯</span></button>'
+  }).join('');
+  const pl=$('ai-project-list');
+  if(pl)pl.innerHTML='<button class="ai-project-item '+(!activeProjectId?'active':'')+'" type="button" data-project-id=""><span class="ai-project-folder">▦</span><span class="ai-project-title">All chats</span><span class="ai-project-count">'+chats.length+'</span></button>'+
+    (projects.length?projects.map(p=>{const count=chats.filter(c=>c.projectId===p.id).length;return '<button class="ai-project-item '+(activeProjectId===p.id?'active':'')+'" type="button" data-project-id="'+esc(p.id)+'"><span class="ai-project-folder" style="color:'+esc(p.color||'var(--accent-glow)')+'">'+esc(p.icon||'▰')+'</span><span class="ai-project-title">'+esc(p.title)+'</span><span class="ai-project-count">'+count+'</span><span class="ai-project-menu" data-project-menu="'+esc(p.id)+'">⋯</span></button>'}).join(''):'<div class="ai-project-empty">Create a project to organise related chats.</div>');
+  if(activeProjectId){
+    const p=projects.find(x=>x.id===activeProjectId);
+    if(p&&home){
+      $('ai-chat-title').textContent=p.title;
+      m.hidden=true;
+      if(composer)composer.hidden=true;
+      home.hidden=false;
+      home.innerHTML=projectHomeMarkup(p);
+      return;
+    }
+    activeProjectId=null;
+  }
+  $('ai-chat-title').textContent=title(c);
+  m.hidden=false;
+  if(composer)composer.hidden=false;
+  if(home)home.hidden=true;
+  m.innerHTML=c.messages.length?c.messages.map(x=>'<div class="ai-chat-bubble-row '+x.role+'"><div class="ai-chat-bubble">'+esc(x.content)+'</div></div>').join(''):'<div class="ai-chat-empty-state"><div class="ai-chat-empty-icon">✦</div><p>Start a conversation. Kairos can help with study, planning, organisation, and ideas.</p></div>';
+  if(pendingChats.has(c.id))m.insertAdjacentHTML('beforeend','<div id="ai-chat-typing-row" class="ai-chat-bubble-row assistant"><div class="ai-chat-bubble"><span class="ai-chat-typing-dots"><span></span><span></span><span></span></span></div></div>');
+  requestAnimationFrame(()=>{m.scrollTop=m.scrollHeight});
+}
 function projectHomeMarkup(p){
   if(!p)return '';
   const projectChats=chats.filter(c=>c.projectId===p.id);
