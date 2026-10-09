@@ -64,3 +64,16 @@ test('scheduled move preserves duration across day change and clamps to day', ()
   const moved=applyScheduledMove({date:'2026-10-09',startTime:'16:00',endTime:'17:30'},'2026-10-10',18*60+7,15);
   assert.deepEqual(moved,{date:'2026-10-10',startTime:'18:00',endTime:'19:30'});
 });
+
+import { applyResize, clearScheduledFields } from '../schedule-utils.js';
+
+test('resize snaps end time and enforces 15 minute minimum',()=>{
+  assert.deepEqual(applyResize({startTime:'16:00',endTime:'17:00'},16*60+7,15),{endTime:'16:15'});
+  assert.deepEqual(applyResize({startTime:'16:00',endTime:'17:00'},17*60+38,15),{endTime:'17:45'});
+});
+
+test('unscheduling clears only schedule fields and preserves deadline metadata',()=>{
+  const task={date:'2026-10-09',startTime:'16:00',endTime:'17:00',dueDate:'2026-10-10',priority:'high'};
+  clearScheduledFields(task);
+  assert.deepEqual(task,{date:null,startTime:null,endTime:null,dueDate:'2026-10-10',priority:'high'});
+});
