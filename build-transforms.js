@@ -60,7 +60,12 @@ const BRIDGE=`
             }
             const candidates = Array.isArray(parsed?.proposals) ? parsed.proposals : [];
             const { validateScheduleProposals } = await import('./schedule-utils.js');
-            const tasksById = new Map((context?.tasks || []).map(task => [String(task.id), task]));
+            const tasksById = new Map();
+            for (const board of boardsData || []) {
+                for (const section of board?.sections || []) {
+                    for (const task of section?.tasks || []) tasksById.set(String(task.id), task);
+                }
+            }
             return validateScheduleProposals(candidates, tasksById, scheduleData);
         },
         refreshAppViews: () => {
