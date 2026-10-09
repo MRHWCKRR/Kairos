@@ -2994,108 +2994,82 @@ document.addEventListener("DOMContentLoaded", () => {
         return items.map(item => ({ ...item, colCount }));
     }
 
-    let scheduleViewMode = 'today';
-    function renderScheduleToday() {
-        const panel = document.getElementById('schedule-today-container');
-        if (!panel) return;
-        const today = new Date();
-        const key = toDateKey(today);
-        const day = today.getDay();
-        const tasks = getTasksForDate(key);
-        const escapeText = value => { const node = document.createElement('span'); node.textContent = String(value ?? ''); return node.innerHTML; };
-        const events = scheduleData.filter(ev => ev.day === day).map(ev => ({
-            title: ev.title, start: ev.start, end: ev.end, category: ev.category, kind: 'Recurring', id: ev.id
-        }));
-        const entries = [
-            ...events.map(ev => ({...ev, sort: scheduleTimeToMinutes(ev.start)})),
-            ...tasks.map(task => ({...task, kind: 'Task', sort: task.startTime ? scheduleTimeToMinutes(task.startTime) : 1440}))
-        ].sort((a,b) => a.sort-b.sort);
-        const completed = tasks.filter(t => t.completed).length;
-        panel.innerHTML = `
-            <div class="schedule-today-stats">
-                <div><strong>${tasks.length}</strong><span>Tasks today</span></div>
-                <div><strong>${completed}</strong><span>Completed</span></div>
-                <div><strong>${events.length}</strong><span>Recurring commitments</span></div>
-            </div>
-            <div class="schedule-today-heading"><h3>${today.toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric'})}</h3><span>Your day at a glance</span></div>
-            <div class="schedule-agenda">${entries.length ? entries.map(item => `
-                <div class="schedule-agenda-item ${item.kind==='Task'?'is-task':''}">
-                    <div class="schedule-agenda-time">${item.sort===1440?'Any time':escapeText(item.start||'All day')}</div>
-                    <div class="schedule-agenda-content"><strong>${escapeText(item.title)}</strong><span>${item.kind==='Task'?(item.completed?'Completed task':'Scheduled task'): 'Weekly · '+escapeText(item.category||'other')}${item.end?' · until '+escapeText(item.end):''}</span></div>
-                    ${item.kind==='Recurring'?'<button class="schedule-agenda-edit" data-schedule-edit="'+escapeText(item.id)+'" title="Edit recurring event">Edit</button>':''}
-                </div>`).join('') : '<div class="schedule-empty-agenda">Nothing scheduled today. Add a recurring event or assign a date to a task to start planning.</div>'}</div>`;
-        panel.querySelectorAll('[data-schedule-edit]').forEach(button => button.addEventListener('click', () => openScheduleModal(button.dataset.scheduleEdit)));
+    // Schedule 2.0: one source of truth — existing boardsData and scheduleData.
+    let scheduleViewMode = 'week';
+    let scheduleAnchor = new Date();
+    const scheduleEscape = value => { const node=document.createElement('span'); node.textContent=String(value??''); return node.innerHTML; };
+    const scheduleDate = offset => {const d=new Date(scheduleAnchor.getFullYear(),scheduleAnchor.getMonth(),scheduleAnchor.getDate());d.setDate(d.getDate()-d.getDay()+offset);return d;};
+    const scheduleTask = id => {for(const board of boardsData)for(const section of board.sections)for(const task of section.tasks)if(String(task.id)===String(id))return task;return null;};
+    const scheduleEntries = date => {
+        const key=toDateKey(date),day=date.getDay();
+        const tasks=getTasksForDate(key).map(t=>({...t,kind:'task',start:t.startTime||'',end:t.endTime||''}));
+        const events=scheduleData.filter(e=>e.day===day).map(e=>({...e,kind:'event'}));
+        const previous=scheduleData.filter(e=>e.day===(day+6)%7&&scheduleTimeToMinutes(e.end)<=scheduleTimeToMinutes(e.start)).map(e=>({...e,kind:'overflow',start:'00:00'}));
+        return [...events,...previous,...tasks];
+    };
+    function scheduleMoveTask(id,date,start){
+        const task=scheduleTask(id);if(!task)return;
+        task.date=toDateKey(date);task.startTime=start;
+        const minutes=scheduleTimeToMinutes(start),oldDuration=task.endTime&&task.startTime?60:60;
+        task.endTime=String(Math.floor((minutes+oldDuration)/60)%24).padStart(2,'0')+':'+String((minutes+oldDuration)%60).padStart(2,'0');
+        updatePlanInFirestore();renderScheduleWeek();renderCalendar();
     }
-    function renderScheduleView() {
-        const todayPanel = document.getElementById('schedule-today-container');
-        const weekPanel = document.getElementById('schedule-week-container');
-        if (!todayPanel || !weekPanel) return;
-        todayPanel.hidden = scheduleViewMode !== 'today';
-        weekPanel.hidden = scheduleViewMode !== 'week';
-        document.querySelectorAll('[data-schedule-view]').forEach(button => {
-            const active = button.dataset.scheduleView === scheduleViewMode;
-            button.classList.toggle('active',active);
-            button.setAttribute('aria-pressed',String(active));
-        });
-        if (scheduleViewMode === 'today') renderScheduleToday();
-        else scrollScheduleToDefault();
+    function scheduleCard(item,date,compact=false){
+        const start=item.start||'',end=item.end||'';
+        const timed=/^\\d{2}:\\d{2}$/.test(start);
+        const top=timed?Math.max(0,scheduleTimeToMinutes(start)/60*SCHEDULE_HOUR_HEIGHT):0;
+        const duration=timed&&/^\\d{2}:\\d{2}$/.test(end)?(scheduleTimeToMinutes(end)-scheduleTimeToMinutes(start)+1440)%1440:60;
+        const height=Math.max(26,Math.min(1440-scheduleTimeToMinutes(start||'00:00'),duration||60)/60*SCHEDULE_HOUR_HEIGHT);
+        const isTask=item.kind==='task';
+        const category=SCHEDULE_CATEGORIES[item.category]||SCHEDULE_CATEGORIES.other;
+        const color=isTask?'var(--accent-glow,#7c84ff)':category.color;
+        const attrs=isTask?'data-task-id="'+scheduleEscape(item.id)+'" draggable="true"':'data-event-id="'+scheduleEscape(item.id)+'"';
+        return '<div class="schedule-v2-block '+(isTask?'schedule-v2-task':'')+'" '+attrs+' style="top:'+top+'px;height:'+height+'px;--event-color:'+color+'" title="'+scheduleEscape(item.title)+'"><strong>'+scheduleEscape(item.title)+'</strong><small>'+scheduleEscape(start)+(end?' – '+scheduleEscape(end):'')+'</small></div>';
     }
-    document.querySelectorAll('[data-schedule-view]').forEach(button => button.addEventListener('click', () => {
-        scheduleViewMode = button.dataset.scheduleView;
-        renderScheduleView();
-    }));
-
-    function renderScheduleWeek() {
-        const container = document.getElementById('schedule-week-container');
-        if (!container) return;
-
-        const legendHTML = `
-            <div class="schedule-legend">
-                ${Object.keys(SCHEDULE_CATEGORIES).map(key => `
-                    <span class="schedule-legend-item">
-                        <span class="schedule-legend-dot" style="background:${SCHEDULE_CATEGORIES[key].color}"></span>${tr('cat_' + key)}
-                    </span>
-                `).join('')}
-            </div>
-        `;
-
-        let hourRowsHTML = '';
-        for (let h = 0; h < 24; h++) {
-            hourRowsHTML += `<div class="schedule-hour-row" style="height:${SCHEDULE_HOUR_HEIGHT}px;"><span class="schedule-hour-label">${scheduleMinutesToLabel(h * 60)}</span></div>`;
-        }
-
-        const daysHTML = getScheduleDayLabels().map((label, dayIndex) => {
-            const eventsForDay = scheduleData.filter(ev => ev.day === dayIndex);
-            const prevDay = (dayIndex + 6) % 7;
-            const overflowEvents = scheduleData.filter(ev => ev.day === prevDay && scheduleTimeToMinutes(ev.end) <= scheduleTimeToMinutes(ev.start));
-
-            const laidOut = layoutScheduleEventsForDay(eventsForDay, overflowEvents);
-            const eventsHTML = laidOut.map(item =>
-                item.isOverflow
-                    ? renderScheduleOverflowBlock(item.ev, item.col, item.colCount)
-                    : renderScheduleEventBlock(item.ev, item.col, item.colCount)
-            ).join('');
-
-            return `
-                <div class="schedule-day-col">
-                    <div class="schedule-day-header">${label}</div>
-                    <div class="schedule-day-body" style="height:${24 * SCHEDULE_HOUR_HEIGHT}px;">
-                        ${eventsHTML}
-                    </div>
-                </div>
-            `;
+    function renderScheduleToday(){
+        const panel=document.getElementById('schedule-today-container');if(!panel)return;
+        const date=new Date(scheduleAnchor),key=toDateKey(date),entries=scheduleEntries(date);
+        const tasks=getTasksForDate(key),completed=tasks.filter(t=>t.completed).length;
+        const ordered=entries.sort((a,b)=>scheduleTimeToMinutes(a.start||'23:59')-scheduleTimeToMinutes(b.start||'23:59'));
+        panel.innerHTML='<div class="schedule-v2-today-hero"><div><span class="schedule-eyebrow">YOUR DAY</span><h3>'+date.toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric'})+'</h3><p>Focus on what matters today.</p></div><div class="schedule-v2-progress"><strong>'+completed+' / '+tasks.length+'</strong><span>tasks completed</span></div></div>'+
+          '<div class="schedule-v2-today-columns"><section class="schedule-v2-agenda"><h3>Timeline</h3>'+
+          (ordered.length?ordered.map(item=>'<div class="schedule-v2-agenda-row"><time>'+scheduleEscape(item.start||'Anytime')+'</time><div class="schedule-v2-agenda-card '+(item.kind==='task'?'is-task':'')+'" '+(item.kind==='task'?'data-task-id="'+scheduleEscape(item.id)+'"':'data-event-id="'+scheduleEscape(item.id)+'"')+'><strong>'+scheduleEscape(item.title)+'</strong><span>'+(item.kind==='task'?(item.completed?'Completed':'Task'):'Repeats weekly')+(item.end?' · '+scheduleEscape(item.end):'')+'</span></div></div>').join(''):'<p class="schedule-empty-agenda">A clear day. Drag a task into the week view or add a recurring commitment.</p>')+
+          '</section><aside class="schedule-v2-focus"><h3>Tasks for today</h3>'+(tasks.length?tasks.map(t=>'<div class="schedule-v2-focus-task"><span class="'+(t.completed?'done':'')+'">'+scheduleEscape(t.title)+'</span><small>'+scheduleEscape(t.startTime||'Unscheduled')+'</small></div>').join(''):'<p>No tasks dated today.</p>')+'</aside></div>';
+    }
+    function renderScheduleView(){
+        const today=document.getElementById('schedule-today-container'),week=document.getElementById('schedule-week-container');
+        if(!today||!week)return;
+        today.hidden=scheduleViewMode!=='today';week.hidden=scheduleViewMode!=='week';
+        document.querySelectorAll('[data-schedule-view]').forEach(b=>{const active=b.dataset.scheduleView===scheduleViewMode;b.classList.toggle('active',active);b.setAttribute('aria-pressed',String(active))});
+        if(scheduleViewMode==='today')renderScheduleToday();
+    }
+    document.querySelectorAll('[data-schedule-view]').forEach(b=>b.addEventListener('click',()=>{scheduleViewMode=b.dataset.scheduleView;renderScheduleView()}));
+    function renderScheduleWeek(){
+        const container=document.getElementById('schedule-week-container');if(!container)return;
+        const start=scheduleDate(0),end=scheduleDate(6),todayKey=toDateKey(new Date());
+        const hours=Array.from({length:24},(_,h)=>'<div class="schedule-hour-row" style="height:'+SCHEDULE_HOUR_HEIGHT+'px"><span class="schedule-hour-label">'+scheduleMinutesToLabel(h*60)+'</span></div>').join('');
+        const days=Array.from({length:7},(_,index)=>{
+            const date=scheduleDate(index),key=toDateKey(date);
+            const entries=scheduleEntries(date);
+            const timed=entries.filter(item=>/^\\d{2}:\\d{2}$/.test(item.start||''));
+            const untimed=entries.filter(item=>!/^\\d{2}:\\d{2}$/.test(item.start||''));
+            return '<div class="schedule-day-col"><div class="schedule-day-header '+(key===todayKey?'is-today':'')+'"><span>'+date.toLocaleDateString(undefined,{weekday:'short'})+'</span><strong>'+date.getDate()+'</strong></div>'+
+            '<div class="schedule-v2-all-day">'+untimed.map(item=>'<div class="schedule-v2-undated" draggable="'+(item.kind==='task')+'" '+(item.kind==='task'?'data-task-id="'+scheduleEscape(item.id)+'"':'data-event-id="'+scheduleEscape(item.id)+'"')+'>'+scheduleEscape(item.title)+'</div>').join('')+'</div>'+
+            '<div class="schedule-day-body" data-schedule-date="'+key+'" style="height:'+(24*SCHEDULE_HOUR_HEIGHT)+'px">'+timed.map(item=>scheduleCard(item,date)).join('')+'</div></div>';
         }).join('');
-
-        container.innerHTML = `
-            ${legendHTML}
-            <div class="schedule-week-grid">
-                <div class="schedule-time-col">
-                    <div class="schedule-day-header"></div>
-                    <div class="schedule-time-rows" style="height:${24 * SCHEDULE_HOUR_HEIGHT}px;">${hourRowsHTML}</div>
-                </div>
-                ${daysHTML}
-            </div>
-        `;
+        const backlog=[];
+        boardsData.forEach(board=>board.sections.forEach(section=>section.tasks.forEach(t=>{if(!t.completed&&!t.archived&&!t.date)backlog.push(t)})));
+        container.innerHTML='<div class="schedule-v2-toolbar"><div class="schedule-v2-date-nav"><button type="button" data-week-nav="-7" aria-label="Previous week">‹</button><button type="button" data-week-nav="0">Today</button><button type="button" data-week-nav="7" aria-label="Next week">›</button><strong>'+start.toLocaleDateString(undefined,{month:'short',day:'numeric'})+' – '+end.toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'})+'</strong></div><span class="schedule-v2-help">Drag tasks into the calendar · Click events to edit</span></div>'+
+          '<div class="schedule-v2-layout"><div class="schedule-v2-main"><div class="schedule-week-grid"><div class="schedule-time-col"><div class="schedule-day-header"></div><div class="schedule-v2-all-day"></div><div class="schedule-time-rows">'+hours+'</div></div>'+days+'</div></div>'+
+          '<aside class="schedule-v2-sidebar"><div class="schedule-v2-sidebar-heading"><h3>Unscheduled tasks</h3><span>'+backlog.length+'</span></div><p>Drag a task onto a time slot to plan it.</p>'+
+          (backlog.length?backlog.slice(0,40).map(t=>'<div class="schedule-v2-backlog" draggable="true" data-task-id="'+scheduleEscape(t.id)+'"><span class="schedule-v2-drag-icon">⠿</span><span>'+scheduleEscape(t.title)+'</span></div>').join(''):'<div class="schedule-v2-sidebar-empty">All caught up. No unscheduled tasks.</div>')+'</aside></div>';
+        container.querySelectorAll('[data-week-nav]').forEach(b=>b.addEventListener('click',()=>{const n=Number(b.dataset.weekNav);scheduleAnchor=n===0?new Date():new Date(scheduleAnchor.getFullYear(),scheduleAnchor.getMonth(),scheduleAnchor.getDate()+n);renderScheduleWeek();renderScheduleToday()}));
+        container.querySelectorAll('[draggable="true"][data-task-id]').forEach(el=>el.addEventListener('dragstart',e=>{e.dataTransfer.setData('text/plain',el.dataset.taskId);e.dataTransfer.effectAllowed='move'}));
+        container.querySelectorAll('[data-schedule-date]').forEach(col=>{
+            col.addEventListener('dragover',e=>{e.preventDefault();e.dataTransfer.dropEffect='move';col.classList.add('drag-over')});
+            col.addEventListener('dragleave',()=>col.classList.remove('drag-over'));
+            col.addEventListener('drop',e=>{e.preventDefault();col.classList.remove('drag-over');const id=e.dataTransfer.getData('text/plain');if(!id)return;const rect=col.getBoundingClientRect();const minutes=Math.max(0,Math.min(23*60+30,Math.round(((e.clientY-rect.top)/SCHEDULE_HOUR_HEIGHT*60)/30)*30));const start=String(Math.floor(minutes/60)).padStart(2,'0')+':'+String(minutes%60).padStart(2,'0');scheduleMoveTask(id,new Date(col.dataset.scheduleDate+'T12:00:00'),start)});
+        });
         renderScheduleView();
     }
 
