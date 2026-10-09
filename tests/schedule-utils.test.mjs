@@ -133,3 +133,25 @@ test('AI proposal validator catches previous-day overnight recurring conflicts',
   const fixed=[{id:'sleep',day:1,start:'22:00',end:'06:00'}];
   assert.deepEqual(validateScheduleProposals(raw,new Map([['study',task]]),fixed),[]);
 });
+
+test('AI proposal validator rejects proposals after the task deadline',()=>{
+  const task={id:'essay',dueDate:'2026-10-12',scheduleLocked:false};
+  const raw=[{taskId:'essay',to:{date:'2026-10-13',startTime:'16:00',endTime:'17:00'}}];
+  assert.deepEqual(validateScheduleProposals(raw,new Map([['essay',task]]),[]),[]);
+});
+
+test('AI proposal validator rejects overlap with an existing scheduled task',()=>{
+  const science={id:'science',scheduleLocked:false};
+  const maths={id:'maths',date:'2026-10-12',startTime:'16:30',endTime:'17:30',scheduleLocked:false};
+  const raw=[{taskId:'science',to:{date:'2026-10-12',startTime:'16:00',endTime:'17:00'}}];
+  assert.deepEqual(validateScheduleProposals(raw,new Map([['science',science],['maths',maths]]),[]),[]);
+});
+
+test('AI proposal validator rejects mutually overlapping proposals',()=>{
+  const a={id:'a',scheduleLocked:false},b={id:'b',scheduleLocked:false};
+  const raw=[
+    {taskId:'a',to:{date:'2026-10-12',startTime:'16:00',endTime:'17:00'}},
+    {taskId:'b',to:{date:'2026-10-12',startTime:'16:30',endTime:'17:30'}}
+  ];
+  assert.deepEqual(validateScheduleProposals(raw,new Map([['a',a],['b',b]]),[]),[]);
+});
