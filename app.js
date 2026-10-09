@@ -2994,6 +2994,57 @@ document.addEventListener("DOMContentLoaded", () => {
         return items.map(item => ({ ...item, colCount }));
     }
 
+    let scheduleViewMode = 'today';
+    function renderScheduleToday() {
+        const panel = document.getElementById('schedule-today-container');
+        if (!panel) return;
+        const today = new Date();
+        const key = toDateKey(today);
+        const day = today.getDay();
+        const tasks = getTasksForDate(key);
+        const escapeText = value => { const node = document.createElement('span'); node.textContent = String(value ?? ''); return node.innerHTML; };
+        const events = scheduleData.filter(ev => ev.day === day).map(ev => ({
+            title: ev.title, start: ev.start, end: ev.end, category: ev.category, kind: 'Recurring', id: ev.id
+        }));
+        const entries = [
+            ...events.map(ev => ({...ev, sort: scheduleTimeToMinutes(ev.start)})),
+            ...tasks.map(task => ({...task, kind: 'Task', sort: task.startTime ? scheduleTimeToMinutes(task.startTime) : 1440}))
+        ].sort((a,b) => a.sort-b.sort);
+        const completed = tasks.filter(t => t.completed).length;
+        panel.innerHTML = `
+            <div class="schedule-today-stats">
+                <div><strong>${tasks.length}</strong><span>Tasks today</span></div>
+                <div><strong>${completed}</strong><span>Completed</span></div>
+                <div><strong>${events.length}</strong><span>Recurring commitments</span></div>
+            </div>
+            <div class="schedule-today-heading"><h3>${today.toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric'})}</h3><span>Your day at a glance</span></div>
+            <div class="schedule-agenda">${entries.length ? entries.map(item => `
+                <div class="schedule-agenda-item ${item.kind==='Task'?'is-task':''}">
+                    <div class="schedule-agenda-time">${item.sort===1440?'Any time':escapeText(item.start||'All day')}</div>
+                    <div class="schedule-agenda-content"><strong>${escapeText(item.title)}</strong><span>${item.kind==='Task'?(item.completed?'Completed task':'Scheduled task'): 'Weekly · '+escapeText(item.category||'other')}${item.end?' · until '+escapeText(item.end):''}</span></div>
+                    ${item.kind==='Recurring'?'<button class="schedule-agenda-edit" data-schedule-edit="'+escapeText(item.id)+'" title="Edit recurring event">Edit</button>':''}
+                </div>`).join('') : '<div class="schedule-empty-agenda">Nothing scheduled today. Add a recurring event or assign a date to a task to start planning.</div>'}</div>`;
+        panel.querySelectorAll('[data-schedule-edit]').forEach(button => button.addEventListener('click', () => openScheduleModal(button.dataset.scheduleEdit)));
+    }
+    function renderScheduleView() {
+        const todayPanel = document.getElementById('schedule-today-container');
+        const weekPanel = document.getElementById('schedule-week-container');
+        if (!todayPanel || !weekPanel) return;
+        todayPanel.hidden = scheduleViewMode !== 'today';
+        weekPanel.hidden = scheduleViewMode !== 'week';
+        document.querySelectorAll('[data-schedule-view]').forEach(button => {
+            const active = button.dataset.scheduleView === scheduleViewMode;
+            button.classList.toggle('active',active);
+            button.setAttribute('aria-pressed',String(active));
+        });
+        if (scheduleViewMode === 'today') renderScheduleToday();
+        else scrollScheduleToDefault();
+    }
+    document.querySelectorAll('[data-schedule-view]').forEach(button => button.addEventListener('click', () => {
+        scheduleViewMode = button.dataset.scheduleView;
+        renderScheduleView();
+    }));
+
     function renderScheduleWeek() {
         const container = document.getElementById('schedule-week-container');
         if (!container) return;
@@ -3045,6 +3096,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 ${daysHTML}
             </div>
         `;
+        renderScheduleView();
     }
 
     function scrollScheduleToDefault() {
