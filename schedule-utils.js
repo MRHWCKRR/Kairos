@@ -109,3 +109,23 @@ export function clearScheduledFields(task){
   task.endTime=null;
   return task;
 }
+
+export function normalizeTaskMetadata(task){
+  if(task.dueDate===undefined)task.dueDate=null;
+  if(task.estimatedMinutes===undefined)task.estimatedMinutes=null;
+  if(task.priority===undefined)task.priority=null;
+  if(task.notes===undefined)task.notes='';
+  if(task.reminderMinutes===undefined)task.reminderMinutes=null;
+  if(task.scheduleLocked===undefined)task.scheduleLocked=false;
+  if(task.schedulingPreference===undefined)task.schedulingPreference=null;
+  return task;
+}
+
+export function scheduleFieldsFromDuration(date,startTime,durationMinutes){
+  const dateValue=date||null;
+  const start=parseTime(startTime);
+  if(start===null)return {date:dateValue,startTime:null,endTime:null};
+  const duration=Math.max(15,Number(durationMinutes)||60);
+  const end=Math.min(1440,start+duration);
+  return {date:dateValue,startTime:formatTime(start,false),endTime:formatTime(end%1440,false)};
+}
