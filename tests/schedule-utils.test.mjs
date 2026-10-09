@@ -119,3 +119,17 @@ test('AI schedule proposals preserve prior schedule and normalise a valid propos
     conflictIds:['class-1']
   }]);
 });
+
+test('AI proposal validator rejects recurring fixed-event conflicts',()=>{
+  const task={id:'science',scheduleLocked:false};
+  const raw=[{taskId:'science',to:{date:'2026-10-12',startTime:'16:00',endTime:'17:00'}}];
+  const fixed=[{id:'class',day:1,start:'16:30',end:'17:30'}];
+  assert.deepEqual(validateScheduleProposals(raw,new Map([['science',task]]),fixed),[]);
+});
+
+test('AI proposal validator catches previous-day overnight recurring conflicts',()=>{
+  const task={id:'study',scheduleLocked:false};
+  const raw=[{taskId:'study',to:{date:'2026-10-13',startTime:'05:30',endTime:'06:30'}}];
+  const fixed=[{id:'sleep',day:1,start:'22:00',end:'06:00'}];
+  assert.deepEqual(validateScheduleProposals(raw,new Map([['study',task]]),fixed),[]);
+});
