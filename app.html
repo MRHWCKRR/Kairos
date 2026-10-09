@@ -270,13 +270,19 @@
 
             <!-- Schedule Page: recurring weekly commitments (sleep, classes, tutoring, training, etc.) -->
             <div id="schedule-page" class="page-view">
-            <h2 data-i18n="schedule_title">Schedule</h2>
-            <p data-i18n="schedule_desc">Recurring weekly commitments — sleep, classes, tutoring, training, and anything else that repeats every week.</p>
-
+            <div class="schedule-modern-header">
+                <div><span class="schedule-eyebrow">YOUR PLANNER</span><h2>Schedule</h2><p>Plan your day, see your week, and keep tasks and commitments together.</p></div>
+                <button id="add-schedule-event-btn" class="action-btn">+ Add recurring event</button>
+            </div>
+            <div class="schedule-view-tabs" role="group" aria-label="Schedule view">
+                <button type="button" data-schedule-view="today" class="active" aria-pressed="true">Today</button>
+                <button type="button" data-schedule-view="week" aria-pressed="false">Week</button>
+            </div>
+            <div id="schedule-today-container" class="schedule-today"></div>
             <div id="schedule-week-container" class="schedule-week">
                 <!-- Content injected by JavaScript -->
             </div>
-            <button id="add-schedule-event-btn" class="add-board-btn" data-i18n="add_recurring_event">+ Add Recurring Event</button>
+
         </div>
 
              <!-- Calendar and Routines -->
@@ -723,7 +729,7 @@
 
     <div id="achievement-toast-container" class="achievement-toast-container"></div>
     
-    <link rel="stylesheet" href="ai-workspace.css?v=1"><script type="module" src="app.js?v=8"></script><script type="module" src="ai-workspace.js?v=23"></script><script type="module" src="ai-markdown.js?v=1"></script>
+    <link rel="stylesheet" href="ai-workspace.css?v=1"><script type="module" src="app.js?v=9"></script><script type="module" src="ai-workspace.js?v=23"></script><script type="module" src="ai-markdown.js?v=1"></script>
 </body>
 </html>
 
