@@ -22,7 +22,18 @@ export function formatTime(minutes,hour12=true){
 }
 
 export function snapMinutes(minutes,interval=15){
-  return Math.max(0,Math.min(1439,Math.round(Number(minutes||0)/interval)*interval));
+  const safeInterval=Math.max(1,Number(interval)||15);
+  return Math.max(0,Math.min(1440,Math.round(Number(minutes||0)/safeInterval)*safeInterval));
+}
+
+export function blockGeometry(startMin,endMin,hourHeight=56,minHeightPx=22){
+  const start=Math.max(0,Math.min(1440,Number(startMin)||0));
+  const end=Math.max(start,Math.min(1440,Number(endMin)||start));
+  const pxPerMinute=(Number(hourHeight)||56)/60;
+  return {
+    topPx:start*pxPerMinute,
+    heightPx:Math.max(Number(minHeightPx)||0,(end-start)*pxPerMinute)
+  };
 }
 
 export function taskDurationMinutes(task={},fallback=60){
