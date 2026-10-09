@@ -17,6 +17,8 @@ test('injectScheduleAssets adds one stylesheet and module',()=>{
   const once=injectScheduleAssets(html),twice=injectScheduleAssets(once);
   assert.equal((twice.match(/schedule-workspace\.css/g)||[]).length,1);
   assert.equal((twice.match(/schedule-workspace\.js/g)||[]).length,1);
+  assert.equal((twice.match(/schedule-interactions\.css/g)||[]).length,1);
+  assert.equal((twice.match(/schedule-interactions\.js/g)||[]).length,1);
 });
 
 test('injectScheduleBridge adds bridge before bedtime engine marker once',()=>{
