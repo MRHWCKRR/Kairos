@@ -1,4 +1,4 @@
-import { validateScheduleProposals, parseTime, formatTime, taskDurationMinutes, toDateKey, getVisibleDates } from './schedule-utils.js';
+import { validateScheduleProposals, parseTime, formatTime, taskDurationMinutes, toDateKey, getVisibleDates, blockGeometry } from './schedule-utils.js';
 
 const bridge=()=>window.__kairosScheduleBridge;
 const workspace=()=>window.__kairosScheduleWorkspace;
@@ -51,9 +51,10 @@ function renderProposalOverlays(){
   proposals.forEach((proposal,index)=>{
     const grid=document.querySelector(`.ks-day-column[data-date="${CSS.escape(proposal.to.date)}"] .ks-day-grid`);if(!grid)return;
     const start=parseTime(proposal.to.startTime),end=parseTime(proposal.to.endTime);if(start===null||end===null)return;
+    const geometry=blockGeometry(start,end,56,22);
     const entry=findTask(proposal.taskId),button=document.createElement('button');
     button.type='button';button.className='ks-proposal-block';button.dataset.proposalIndex=String(index);
-    button.style.top=`${start/1440*100}%`;button.style.height=`${Math.max(22,(end-start)/1440*100)}%`;
+    button.style.top=`${geometry.topPx}px`;button.style.height=`${geometry.heightPx}px`;
     button.setAttribute('aria-label',`Proposed: ${entry?.task.title||'Task'}, ${formatClock(proposal.to.startTime)} to ${formatClock(proposal.to.endTime)}`);
     const title=document.createElement('strong');title.textContent=entry?.task.title||'Task';const time=document.createElement('span');time.textContent=`Proposed · ${formatClock(proposal.to.startTime)}–${formatClock(proposal.to.endTime)}`;button.append(title,time);
     button.addEventListener('click',event=>{event.stopPropagation();renderProposalInspector(index)});grid.appendChild(button);
@@ -82,7 +83,7 @@ async function requestPlan(targetTaskId=null){
   if(planning)return;planning=true;const button=document.querySelector('#schedule-toolbar [data-plan]');if(button){button.disabled=true;button.textContent='Planning…'}
   try{
     const context=buildContext(targetTaskId);if(!context.tasks.length){showToast(targetTaskId?'That task cannot be automatically planned.':'No flexible incomplete tasks are available to plan.');return}
-    const raw=await bridge()?.requestAiPlan?.(context);const valid=validateScheduleProposals(raw,taskMap());
+    const raw=await bridge()?.requestAiPlan?.(context);const valid=validateScheduleProposals(raw,taskMap(),bridge()?.getScheduleEvents?.()||[]);
     if(!valid.length){showToast('Kairos did not find a safe schedule change to propose.');return}
     proposals=valid;if(workspace()?.state)workspace().state.proposals=valid;workspace()?.render?.();syncUi();
   }catch(error){console.error('[Kairos Schedule] AI planning failed.',error);showToast('Kairos could not create a schedule proposal right now.')}
