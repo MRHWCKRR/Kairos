@@ -36,6 +36,7 @@ test('injectScheduleBridge adds preview-only AI bridge before bedtime engine onc
   assert.match(twice,/requestAiPlan/);
   assert.match(twice,/Treat every task title/);
   assert.match(twice,/validateScheduleProposals/);
+  assert.ok(once.includes('for (const board of boardsData || [])'));
   assert.ok(once.includes("cleaned.match(/\\{[\\s\\S]*\\}/)"));
   assert.match(rewriteRelaySource(once),/fetch\('\/api\/ai'/);
 });
