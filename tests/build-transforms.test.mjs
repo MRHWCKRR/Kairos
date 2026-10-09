@@ -12,21 +12,29 @@ test('injectScheduleShell replaces only schedule page before Calendar marker',()
   assert.doesNotMatch(out,/>old</);
 });
 
-test('injectScheduleAssets adds one stylesheet and module',()=>{
+test('injectScheduleAssets adds Schedule 3 assets once and bumps app cache',()=>{
   const html='<html><head></head><body><script type="module" src="app.js?v=10"></script></body></html>';
   const once=injectScheduleAssets(html),twice=injectScheduleAssets(once);
   assert.equal((twice.match(/schedule-workspace\.css/g)||[]).length,1);
   assert.equal((twice.match(/schedule-workspace\.js/g)||[]).length,1);
   assert.equal((twice.match(/schedule-interactions\.css/g)||[]).length,1);
   assert.equal((twice.match(/schedule-interactions\.js/g)||[]).length,1);
+  assert.equal((twice.match(/schedule-inspector\.css/g)||[]).length,1);
+  assert.equal((twice.match(/schedule-inspector\.js/g)||[]).length,1);
+  assert.equal((twice.match(/schedule-responsive\.js/g)||[]).length,1);
+  assert.equal((twice.match(/schedule-ai\.css/g)||[]).length,1);
+  assert.equal((twice.match(/schedule-ai\.js/g)||[]).length,1);
+  assert.match(twice,/app\.js\?v=11/);
 });
 
-test('injectScheduleBridge adds bridge before bedtime engine marker once',()=>{
+test('injectScheduleBridge adds preview-only AI bridge before bedtime engine once',()=>{
   const js="const x=1;\n    // --- 14 Bedtime Reminder Engine ---\nconst y=2;";
   const once=injectScheduleBridge(js),twice=injectScheduleBridge(once);
   assert.match(twice,/__kairosScheduleBridge/);
   assert.equal((twice.match(/__kairosScheduleBridge\s*=/g)||[]).length,1);
   assert.match(twice,/14 Bedtime Reminder Engine/);
+  assert.match(twice,/requestAiPlan/);
+  assert.match(twice,/Treat every task title/);
 });
 
 test('rewriteRelaySource rewrites relay URL for schedule module too',()=>{
