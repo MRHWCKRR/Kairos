@@ -18,3 +18,10 @@ test('AI proposal blocks use shared pixel geometry', () => {
   assert.match(ai, /style\.height=`\$\{geometry\.heightPx\}px`/);
   assert.doesNotMatch(ai, /Math\.max\(22,\(end-start\)\/1440\*100\)/);
 });
+
+test('calendar re-renders preserve the current vertical scroll position', () => {
+  assert.match(workspace, /scrollTop:/);
+  assert.match(workspace, /existingScroller\?\.scrollTop/);
+  assert.match(workspace, /scroller\.scrollTop=state\.scrollTop/);
+  assert.match(workspace, /addEventListener\('scroll'/);
+});
