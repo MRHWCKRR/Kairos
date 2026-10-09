@@ -52,7 +52,9 @@ export function injectScheduleShell(html){
 export function injectScheduleAssets(html){
   let out=html;
   if(!out.includes('schedule-workspace.css')) out=out.replace('</head>','    <link rel="stylesheet" href="schedule-workspace.css?v=1">\n</head>');
+  if(!out.includes('schedule-interactions.css')) out=out.replace('</head>','    <link rel="stylesheet" href="schedule-interactions.css?v=1">\n</head>');
   if(!out.includes('schedule-workspace.js')) out=out.replace('</body>','    <script type="module" src="schedule-workspace.js?v=1"></script>\n</body>');
+  if(!out.includes('schedule-interactions.js')) out=out.replace('</body>','    <script type="module" src="schedule-interactions.js?v=1"></script>\n</body>');
   return out;
 }
 
