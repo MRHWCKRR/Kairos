@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import {
   toDateKey, parseTime, formatTime, snapMinutes, taskDurationMinutes,
   getVisibleDates, shiftAnchor, layoutOverlaps, findConflicts, splitOvernightInterval,
-  applyScheduledMove
+  applyScheduledMove, applyResize, clearScheduledFields, normalizeTaskMetadata,
+  scheduleFieldsFromDuration, validateScheduleProposals
 } from '../schedule-utils.js';
 
 test('three-day range stays in local calendar dates across month boundary', () => {
@@ -65,8 +66,6 @@ test('scheduled move preserves duration across day change and clamps to day', ()
   assert.deepEqual(moved,{date:'2026-10-10',startTime:'18:00',endTime:'19:30'});
 });
 
-import { applyResize, clearScheduledFields } from '../schedule-utils.js';
-
 test('resize snaps end time and enforces 15 minute minimum',()=>{
   assert.deepEqual(applyResize({startTime:'16:00',endTime:'17:00'},16*60+7,15),{endTime:'16:15'});
   assert.deepEqual(applyResize({startTime:'16:00',endTime:'17:00'},17*60+38,15),{endTime:'17:45'});
@@ -77,8 +76,6 @@ test('unscheduling clears only schedule fields and preserves deadline metadata',
   clearScheduledFields(task);
   assert.deepEqual(task,{date:null,startTime:null,endTime:null,dueDate:'2026-10-10',priority:'high'});
 });
-
-import { normalizeTaskMetadata, scheduleFieldsFromDuration } from '../schedule-utils.js';
 
 test('task metadata normalization adds safe defaults without overwriting values',()=>{
   const task={title:'Essay',priority:'high',notes:'Keep me'};
@@ -95,4 +92,30 @@ test('task metadata normalization adds safe defaults without overwriting values'
 test('scheduleFieldsFromDuration creates keyboard-equivalent start and end fields',()=>{
   assert.deepEqual(scheduleFieldsFromDuration('2026-10-12','16:10',90),{date:'2026-10-12',startTime:'16:10',endTime:'17:40'});
   assert.deepEqual(scheduleFieldsFromDuration('2026-10-12','',90),{date:'2026-10-12',startTime:null,endTime:null});
+});
+
+test('AI schedule proposals reject unknown, locked and invalid task moves',()=>{
+  const tasks=new Map([
+    ['open',{id:'open',date:null,startTime:null,endTime:null,scheduleLocked:false}],
+    ['locked',{id:'locked',date:null,startTime:null,endTime:null,scheduleLocked:true}]
+  ]);
+  const raw=[
+    {taskId:'missing',to:{date:'2026-10-12',startTime:'16:00',endTime:'17:00'}},
+    {taskId:'locked',to:{date:'2026-10-12',startTime:'16:00',endTime:'17:00'}},
+    {taskId:'open',to:{date:'bad-date',startTime:'16:00',endTime:'17:00'}},
+    {taskId:'open',to:{date:'2026-10-12',startTime:'16:00',endTime:'16:10'}}
+  ];
+  assert.deepEqual(validateScheduleProposals(raw,tasks),[]);
+});
+
+test('AI schedule proposals preserve prior schedule and normalise a valid proposal',()=>{
+  const task={id:'science',date:'2026-10-10',startTime:'15:00',endTime:'16:00',scheduleLocked:false};
+  const proposals=validateScheduleProposals([{taskId:'science',to:{date:'2026-10-12',startTime:'16:00',endTime:'17:30'},reason:'Best free block',conflictIds:['class-1']}],new Map([['science',task]]));
+  assert.deepEqual(proposals,[{
+    taskId:'science',
+    from:{date:'2026-10-10',startTime:'15:00',endTime:'16:00'},
+    to:{date:'2026-10-12',startTime:'16:00',endTime:'17:30'},
+    reason:'Best free block',
+    conflictIds:['class-1']
+  }]);
 });
