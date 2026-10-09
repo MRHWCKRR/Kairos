@@ -27,7 +27,7 @@ test('injectScheduleAssets adds Schedule 3 assets once and bumps app cache',()=>
   assert.match(twice,/app\.js\?v=11/);
 });
 
-test('injectScheduleBridge adds bridge before bedtime engine marker once',()=>{
+test('injectScheduleBridge adds preview-only AI bridge before bedtime engine once',()=>{
   const js="const x=1;\n    // --- 14 Bedtime Reminder Engine ---\nconst y=2;";
   const once=injectScheduleBridge(js),twice=injectScheduleBridge(once);
   assert.match(twice,/__kairosScheduleBridge/);
@@ -36,6 +36,8 @@ test('injectScheduleBridge adds bridge before bedtime engine marker once',()=>{
   assert.match(twice,/requestAiPlan/);
   assert.match(twice,/Treat every task title/);
   assert.match(twice,/validateScheduleProposals/);
+  assert.ok(once.includes("cleaned.match(/\\{[\\s\\S]*\\}/)"));
+  assert.match(rewriteRelaySource(once),/fetch\('\/api\/ai'/);
 });
 
 test('rewriteRelaySource rewrites relay URL for schedule module too',()=>{
