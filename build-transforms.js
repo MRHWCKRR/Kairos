@@ -54,7 +54,7 @@ const BRIDGE=`
             let parsed;
             try { parsed = JSON.parse(cleaned); }
             catch {
-                const match = cleaned.match(/\{[\s\S]*\}/);
+                const match = cleaned.match(/\\{[\\s\\S]*\\}/);
                 if (!match) throw new Error('relay-format');
                 parsed = JSON.parse(match[0]);
             }
