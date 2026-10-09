@@ -77,3 +77,22 @@ test('unscheduling clears only schedule fields and preserves deadline metadata',
   clearScheduledFields(task);
   assert.deepEqual(task,{date:null,startTime:null,endTime:null,dueDate:'2026-10-10',priority:'high'});
 });
+
+import { normalizeTaskMetadata, scheduleFieldsFromDuration } from '../schedule-utils.js';
+
+test('task metadata normalization adds safe defaults without overwriting values',()=>{
+  const task={title:'Essay',priority:'high',notes:'Keep me'};
+  normalizeTaskMetadata(task);
+  assert.equal(task.dueDate,null);
+  assert.equal(task.estimatedMinutes,null);
+  assert.equal(task.priority,'high');
+  assert.equal(task.notes,'Keep me');
+  assert.equal(task.reminderMinutes,null);
+  assert.equal(task.scheduleLocked,false);
+  assert.equal(task.schedulingPreference,null);
+});
+
+test('scheduleFieldsFromDuration creates keyboard-equivalent start and end fields',()=>{
+  assert.deepEqual(scheduleFieldsFromDuration('2026-10-12','16:10',90),{date:'2026-10-12',startTime:'16:10',endTime:'17:40'});
+  assert.deepEqual(scheduleFieldsFromDuration('2026-10-12','',90),{date:'2026-10-12',startTime:null,endTime:null});
+});
