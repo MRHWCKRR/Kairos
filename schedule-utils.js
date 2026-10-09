@@ -154,22 +154,42 @@ function proposalConflictsWithRecurring(date,startMin,endMin,fixedEvents=[]){
 
 export function validateScheduleProposals(raw,tasksById,fixedEvents=[]){
   if(!Array.isArray(raw))return [];
-  const out=[],seen=new Set();
+  const preliminary=[],seen=new Set();
   for(const item of raw){
     const taskId=String(item?.taskId??'');
     const task=tasksById?.get?.(taskId);
-    if(!task||task.scheduleLocked||seen.has(taskId))continue;
+    if(!task||task.scheduleLocked||task.completed||task.archived||seen.has(taskId))continue;
     const date=item?.to?.date,start=item?.to?.startTime,end=item?.to?.endTime;
     const startMin=parseTime(start),endMin=parseTime(end);
-    if(!validDateKey(date)||startMin===null||endMin===null||endMin-startMin<15||proposalConflictsWithRecurring(date,startMin,endMin,fixedEvents))continue;
+    if(!validDateKey(date)||startMin===null||endMin===null||endMin-startMin<15)continue;
+    if(validDateKey(task.dueDate)&&date>task.dueDate)continue;
+    if(proposalConflictsWithRecurring(date,startMin,endMin,fixedEvents))continue;
     seen.add(taskId);
-    out.push({
+    preliminary.push({
       taskId,
       from:{date:item?.from?.date??task.date??null,startTime:item?.from?.startTime??task.startTime??null,endTime:item?.from?.endTime??task.endTime??null},
       to:{date,startTime:formatTime(startMin,false),endTime:formatTime(endMin,false)},
       reason:String(item?.reason||'Fits the available time.').trim().slice(0,500),
-      conflictIds:Array.isArray(item?.conflictIds)?item.conflictIds.map(String).slice(0,20):[]
+      conflictIds:Array.isArray(item?.conflictIds)?item.conflictIds.map(String).slice(0,20):[],
+      _interval:{date,startMin,endMin}
     });
   }
-  return out;
+  const proposedById=new Map(preliminary.map(p=>[p.taskId,p]));
+  const finalIntervals=[];
+  for(const [id,task] of tasksById||[]){
+    if(task?.completed||task?.archived)continue;
+    const proposal=proposedById.get(String(id));
+    if(proposal){finalIntervals.push({taskId:String(id),...proposal._interval});continue;}
+    if(!validDateKey(task?.date))continue;
+    const startMin=parseTime(task?.startTime),rawEnd=parseTime(task?.endTime);
+    if(startMin===null||rawEnd===null)continue;
+    const endMin=rawEnd>startMin?rawEnd:1440;
+    finalIntervals.push({taskId:String(id),date:task.date,startMin,endMin});
+  }
+  return preliminary.filter(proposal=>{
+    const blocked=finalIntervals.some(other=>other.taskId!==proposal.taskId&&other.date===proposal._interval.date&&overlaps(proposal._interval,other));
+    if(blocked)return false;
+    delete proposal._interval;
+    return true;
+  }).map(proposal=>{delete proposal._interval;return proposal});
 }
