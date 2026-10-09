@@ -94,3 +94,18 @@ export function applyScheduledMove(task,dateKey,targetMinutes,interval=15){
   const end=Math.min(1440,start+duration);
   return {date:dateKey,startTime:formatTime(start,false),endTime:formatTime(end%1440,false)};
 }
+
+export function applyResize(task,targetEndMinutes,interval=15){
+  const start=parseTime(task.startTime);
+  if(start===null) return {endTime:task.endTime||null};
+  let end=snapMinutes(targetEndMinutes,interval);
+  end=Math.max(start+15,Math.min(1440,end));
+  return {endTime:formatTime(end%1440,false)};
+}
+
+export function clearScheduledFields(task){
+  task.date=null;
+  task.startTime=null;
+  task.endTime=null;
+  return task;
+}
