@@ -58,7 +58,10 @@ const BRIDGE=`
                 if (!match) throw new Error('relay-format');
                 parsed = JSON.parse(match[0]);
             }
-            return Array.isArray(parsed?.proposals) ? parsed.proposals : [];
+            const candidates = Array.isArray(parsed?.proposals) ? parsed.proposals : [];
+            const { validateScheduleProposals } = await import('./schedule-utils.js');
+            const tasksById = new Map((context?.tasks || []).map(task => [String(task.id), task]));
+            return validateScheduleProposals(candidates, tasksById, scheduleData);
         },
         refreshAppViews: () => {
             renderBoardsGrid();
