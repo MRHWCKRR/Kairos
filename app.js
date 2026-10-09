@@ -3009,8 +3009,10 @@ document.addEventListener("DOMContentLoaded", () => {
     };
     function scheduleMoveTask(id,date,start){
         const task=scheduleTask(id);if(!task)return;
+        const previousStart=task.startTime,previousEnd=task.endTime;
+        const oldDuration=previousStart&&previousEnd?Math.max(30,(scheduleTimeToMinutes(previousEnd)-scheduleTimeToMinutes(previousStart)+1440)%1440):60;
         task.date=toDateKey(date);task.startTime=start;
-        const minutes=scheduleTimeToMinutes(start),oldDuration=task.endTime&&task.startTime?60:60;
+        const minutes=scheduleTimeToMinutes(start);
         task.endTime=String(Math.floor((minutes+oldDuration)/60)%24).padStart(2,'0')+':'+String((minutes+oldDuration)%60).padStart(2,'0');
         updatePlanInFirestore();renderScheduleWeek();renderCalendar();
     }
@@ -3035,6 +3037,7 @@ document.addEventListener("DOMContentLoaded", () => {
           '<div class="schedule-v2-today-columns"><section class="schedule-v2-agenda"><h3>Timeline</h3>'+
           (ordered.length?ordered.map(item=>'<div class="schedule-v2-agenda-row"><time>'+scheduleEscape(item.start||'Anytime')+'</time><div class="schedule-v2-agenda-card '+(item.kind==='task'?'is-task':'')+'" '+(item.kind==='task'?'data-task-id="'+scheduleEscape(item.id)+'"':'data-event-id="'+scheduleEscape(item.id)+'"')+'><strong>'+scheduleEscape(item.title)+'</strong><span>'+(item.kind==='task'?(item.completed?'Completed':'Task'):'Repeats weekly')+(item.end?' · '+scheduleEscape(item.end):'')+'</span></div></div>').join(''):'<p class="schedule-empty-agenda">A clear day. Drag a task into the week view or add a recurring commitment.</p>')+
           '</section><aside class="schedule-v2-focus"><h3>Tasks for today</h3>'+(tasks.length?tasks.map(t=>'<div class="schedule-v2-focus-task"><span class="'+(t.completed?'done':'')+'">'+scheduleEscape(t.title)+'</span><small>'+scheduleEscape(t.startTime||'Unscheduled')+'</small></div>').join(''):'<p>No tasks dated today.</p>')+'</aside></div>';
+        panel.querySelectorAll('[data-event-id]').forEach(el=>el.addEventListener('click',()=>openScheduleModal(el.dataset.eventId)));
     }
     function renderScheduleView(){
         const today=document.getElementById('schedule-today-container'),week=document.getElementById('schedule-week-container');
@@ -3063,6 +3066,7 @@ document.addEventListener("DOMContentLoaded", () => {
           '<div class="schedule-v2-layout"><div class="schedule-v2-main"><div class="schedule-week-grid"><div class="schedule-time-col"><div class="schedule-day-header"></div><div class="schedule-v2-all-day"></div><div class="schedule-time-rows">'+hours+'</div></div>'+days+'</div></div>'+
           '<aside class="schedule-v2-sidebar"><div class="schedule-v2-sidebar-heading"><h3>Unscheduled tasks</h3><span>'+backlog.length+'</span></div><p>Drag a task onto a time slot to plan it.</p>'+
           (backlog.length?backlog.slice(0,40).map(t=>'<div class="schedule-v2-backlog" draggable="true" data-task-id="'+scheduleEscape(t.id)+'"><span class="schedule-v2-drag-icon">⠿</span><span>'+scheduleEscape(t.title)+'</span></div>').join(''):'<div class="schedule-v2-sidebar-empty">All caught up. No unscheduled tasks.</div>')+'</aside></div>';
+        container.querySelectorAll('.schedule-v2-block[data-event-id],.schedule-v2-undated[data-event-id]').forEach(el=>el.addEventListener('click',()=>openScheduleModal(el.dataset.eventId)));
         container.querySelectorAll('[data-week-nav]').forEach(b=>b.addEventListener('click',()=>{const n=Number(b.dataset.weekNav);scheduleAnchor=n===0?new Date():new Date(scheduleAnchor.getFullYear(),scheduleAnchor.getMonth(),scheduleAnchor.getDate()+n);renderScheduleWeek();renderScheduleToday()}));
         container.querySelectorAll('[draggable="true"][data-task-id]').forEach(el=>el.addEventListener('dragstart',e=>{e.dataTransfer.setData('text/plain',el.dataset.taskId);e.dataTransfer.effectAllowed='move'}));
         container.querySelectorAll('[data-schedule-date]').forEach(col=>{
