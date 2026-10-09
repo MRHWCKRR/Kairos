@@ -88,8 +88,16 @@ export function injectScheduleAssets(html){
   let out=html.replace(/app\.js\?v=\d+/,'app.js?v=12');
   const css=['schedule-workspace.css','schedule-interactions.css','schedule-inspector.css','schedule-ai.css'];
   const js=['schedule-workspace.js','schedule-interactions.js','schedule-inspector.js','schedule-responsive.js','schedule-ai.js'];
-  for(const name of css) if(!out.includes(name)) out=out.replace('</head>',`    <link rel="stylesheet" href="${name}?v=3">\n</head>`);
-  for(const name of js) if(!out.includes(name)) out=out.replace('</body>',`    <script type="module" src="${name}?v=3"></script>\n</body>`);
+  for(const name of css){
+    const versioned=new RegExp(name.replace('.', '\\.')+'\\?v=\\d+','g');
+    out=out.replace(versioned,`${name}?v=3`);
+    if(!out.includes(name)) out=out.replace('</head>',`    <link rel="stylesheet" href="${name}?v=3">\n</head>`);
+  }
+  for(const name of js){
+    const versioned=new RegExp(name.replace('.', '\\.')+'\\?v=\\d+','g');
+    out=out.replace(versioned,`${name}?v=3`);
+    if(!out.includes(name)) out=out.replace('</body>',`    <script type="module" src="${name}?v=3"></script>\n</body>`);
+  }
   return out;
 }
 
