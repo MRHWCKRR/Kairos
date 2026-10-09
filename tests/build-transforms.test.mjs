@@ -24,7 +24,10 @@ test('injectScheduleAssets adds Schedule 3 assets once and bumps app cache',()=>
   assert.equal((twice.match(/schedule-responsive\.js/g)||[]).length,1);
   assert.equal((twice.match(/schedule-ai\.css/g)||[]).length,1);
   assert.equal((twice.match(/schedule-ai\.js/g)||[]).length,1);
-  assert.match(twice,/app\.js\?v=11/);
+  assert.match(twice,/app\.js\?v=12/);
+  assert.match(twice,/schedule-workspace\.css\?v=3/);
+  assert.match(twice,/schedule-workspace\.js\?v=3/);
+  assert.match(twice,/schedule-ai\.js\?v=3/);
 });
 
 test('injectScheduleBridge adds preview-only AI bridge before bedtime engine once',()=>{
