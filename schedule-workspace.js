@@ -1,6 +1,6 @@
 import {
   getVisibleDates, shiftAnchor, toDateKey, parseTime, formatTime,
-  taskDurationMinutes, layoutOverlaps, findConflicts, splitOvernightInterval
+  taskDurationMinutes, layoutOverlaps, findConflicts, splitOvernightInterval, blockGeometry
 } from './schedule-utils.js';
 
 const HOUR_HEIGHT = 56;
@@ -98,17 +98,16 @@ export function initScheduleWorkspace(options){
   }
 
   function itemMarkup(item,dateKey){
-    const top=item.startMin/DAY_MINUTES*100;
-    const height=Math.max(20,(item.endMin-item.startMin)/DAY_MINUTES*100);
+    const geometry=blockGeometry(item.startMin,item.endMin,HOUR_HEIGHT,20);
     const width=100/item.columnCount;
     const left=width*item.column;
     const selected=state.selected.type===item.kind&&String(state.selected.id)===String(item.sourceId);
     if(item.kind==='task'){
       const label=`${item.title}, ${formatClock(item.startMin)} to ${formatClock(item.endMin)}, flexible task${item.conflicts.length?', conflicts with fixed commitment':''}`;
-      return `<button type="button" class="ks-block ks-task-block ${selected?'is-selected':''} ${item.task.completed?'is-completed':''} ${item.conflicts.length?'is-conflicting':''}" data-task-id="${esc(item.sourceId)}" data-date="${dateKey}" aria-label="${esc(label)}" style="top:${top}%;height:${height}%;left:calc(${left}% + 3px);width:calc(${width}% - 6px)"><span class="ks-block-title">${esc(item.title)}</span><span class="ks-block-time">${esc(formatClock(item.startMin))}–${esc(formatClock(item.endMin))}</span>${item.conflicts.length?'<span class="ks-conflict-mark" aria-hidden="true">!</span>':''}</button>`;
+      return `<button type="button" class="ks-block ks-task-block ${selected?'is-selected':''} ${item.task.completed?'is-completed':''} ${item.conflicts.length?'is-conflicting':''}" data-task-id="${esc(item.sourceId)}" data-date="${dateKey}" aria-label="${esc(label)}" style="top:${geometry.topPx}px;height:${geometry.heightPx}px;left:calc(${left}% + 3px);width:calc(${width}% - 6px)"><span class="ks-block-title">${esc(item.title)}</span><span class="ks-block-time">${esc(formatClock(item.startMin))}–${esc(formatClock(item.endMin))}</span>${item.conflicts.length?'<span class="ks-conflict-mark" aria-hidden="true">!</span>':''}</button>`;
     }
     const category=categories()[item.category]||{color:'#64748b'};
-    return `<button type="button" class="ks-block ks-fixed-block ${selected?'is-selected':''}" data-event-id="${esc(item.sourceId)}" aria-label="${esc(`${item.title}, ${formatClock(item.startMin)} to ${formatClock(item.endMin)}, fixed recurring event`)}" style="--ks-event:${esc(category.color||'#64748b')};top:${top}%;height:${height}%;left:calc(${left}% + 3px);width:calc(${width}% - 6px)"><span class="ks-block-title">${esc(item.title)}${item.continued?' · continued':''}</span><span class="ks-block-time">${esc(formatClock(item.startMin))}–${esc(formatClock(item.endMin))}</span></button>`;
+    return `<button type="button" class="ks-block ks-fixed-block ${selected?'is-selected':''}" data-event-id="${esc(item.sourceId)}" aria-label="${esc(`${item.title}, ${formatClock(item.startMin)} to ${formatClock(item.endMin)}, fixed recurring event`)}" style="--ks-event:${esc(category.color||'#64748b')};top:${geometry.topPx}px;height:${geometry.heightPx}px;left:calc(${left}% + 3px);width:calc(${width}% - 6px)"><span class="ks-block-title">${esc(item.title)}${item.continued?' · continued':''}</span><span class="ks-block-time">${esc(formatClock(item.startMin))}–${esc(formatClock(item.endMin))}</span></button>`;
   }
 
   function deadlineMarkup(date){
