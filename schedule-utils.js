@@ -129,3 +129,32 @@ export function scheduleFieldsFromDuration(date,startTime,durationMinutes){
   const end=Math.min(1440,start+duration);
   return {date:dateValue,startTime:formatTime(start,false),endTime:formatTime(end%1440,false)};
 }
+
+function validDateKey(value){
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(String(value||'')))return false;
+  const [y,m,d]=String(value).split('-').map(Number);
+  const parsed=new Date(y,m-1,d,12);
+  return parsed.getFullYear()===y&&parsed.getMonth()===m-1&&parsed.getDate()===d;
+}
+
+export function validateScheduleProposals(raw,tasksById){
+  if(!Array.isArray(raw))return [];
+  const out=[],seen=new Set();
+  for(const item of raw){
+    const taskId=String(item?.taskId??'');
+    const task=tasksById?.get?.(taskId);
+    if(!task||task.scheduleLocked||seen.has(taskId))continue;
+    const date=item?.to?.date,start=item?.to?.startTime,end=item?.to?.endTime;
+    const startMin=parseTime(start),endMin=parseTime(end);
+    if(!validDateKey(date)||startMin===null||endMin===null||endMin-startMin<15)continue;
+    seen.add(taskId);
+    out.push({
+      taskId,
+      from:{date:item?.from?.date??task.date??null,startTime:item?.from?.startTime??task.startTime??null,endTime:item?.from?.endTime??task.endTime??null},
+      to:{date,startTime:formatTime(startMin,false),endTime:formatTime(endMin,false)},
+      reason:String(item?.reason||'Fits the available time.').trim().slice(0,500),
+      conflictIds:Array.isArray(item?.conflictIds)?item.conflictIds.map(String).slice(0,20):[]
+    });
+  }
+  return out;
+}
