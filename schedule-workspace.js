@@ -16,7 +16,7 @@ export function initScheduleWorkspace(options){
   const calendar=document.getElementById('schedule-calendar');
   const inspector=document.getElementById('schedule-inspector');
   const review=document.getElementById('schedule-ai-review');
-  const state={view:'three-day',anchor:new Date(),selected:{type:null,id:null},backlogCollapsed:false,inspectorOpen:false,proposals:[],interaction:null};
+  const state={view:'three-day',anchor:new Date(),selected:{type:null,id:null},backlogCollapsed:false,inspectorOpen:false,proposals:[],interaction:null,scrollTop:null};
   let clockTimer=null;
 
   const locale=()=>options.getLocale?.()||document.documentElement.lang||'en';
@@ -117,6 +117,9 @@ export function initScheduleWorkspace(options){
   }
 
   function renderCalendar(){
+    const existingScroller=calendar.querySelector('.ks-timeline-scroll');
+    const previousScroll=existingScroller?.scrollTop;
+    if(Number.isFinite(previousScroll))state.scrollTop=previousScroll;
     const dates=visibleDates();
     const hours=Array.from({length:24},(_,h)=>`<div class="ks-hour-label" style="top:${h*HOUR_HEIGHT}px">${esc(formatClock(h*60))}</div>`).join('');
     const headers=dates.map(date=>{const key=toDateKey(date),today=key===toDateKey(new Date());return `<div class="ks-day-head ${today?'is-today':''}" data-date="${key}"><span>${esc(date.toLocaleDateString(locale(),{weekday:'short'}))}</span><strong>${date.getDate()}</strong><div class="ks-deadline-lane">${deadlineMarkup(date)}</div></div>`}).join('');
@@ -129,7 +132,13 @@ export function initScheduleWorkspace(options){
     calendar.querySelectorAll('[data-event-id]').forEach(el=>el.addEventListener('click',e=>{e.stopPropagation();selectItem('event',el.dataset.eventId)}));
     calendar.querySelectorAll('.ks-day-grid').forEach(el=>el.addEventListener('click',()=>clearSelection()));
     updateNowLine();
-    requestAnimationFrame(()=>{const scroller=calendar.querySelector('.ks-timeline-scroll');if(scroller&&!scroller.dataset.initialScroll){scroller.scrollTop=7*HOUR_HEIGHT;scroller.dataset.initialScroll='1'}});
+    const scroller=calendar.querySelector('.ks-timeline-scroll');
+    scroller?.addEventListener('scroll',()=>{state.scrollTop=scroller.scrollTop},{passive:true});
+    requestAnimationFrame(()=>{
+      if(!scroller)return;
+      if(Number.isFinite(state.scrollTop))scroller.scrollTop=state.scrollTop;
+      else{state.scrollTop=7*HOUR_HEIGHT;scroller.scrollTop=state.scrollTop}
+    });
   }
 
   function updateNowLine(){
