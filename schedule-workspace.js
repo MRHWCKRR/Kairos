@@ -1,10 +1,16 @@
-import { getVisibleDates, shiftAnchor, toDateKey } from './schedule-utils.js';
+import {
+  getVisibleDates, shiftAnchor, toDateKey, parseTime, formatTime,
+  taskDurationMinutes, layoutOverlaps, findConflicts, splitOvernightInterval
+} from './schedule-utils.js';
 
 const HOUR_HEIGHT = 56;
+const DAY_MINUTES = 1440;
+const esc=value=>String(value??'').replace(/[&<>'"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[ch]));
 
 export function initScheduleWorkspace(options){
   const root=document.getElementById('schedule-page');
   if(!root) return null;
+  const shell=root.querySelector('.schedule-workspace-shell');
   const toolbar=document.getElementById('schedule-toolbar');
   const backlog=document.getElementById('schedule-backlog');
   const calendar=document.getElementById('schedule-calendar');
@@ -14,17 +20,46 @@ export function initScheduleWorkspace(options){
   let clockTimer=null;
 
   const locale=()=>options.getLocale?.()||document.documentElement.lang||'en';
+  const hour12=()=>options.getTimeFormat?.()!=='24';
   const visibleDates=()=>getVisibleDates(state.anchor,state.view);
-  const rangeLabel=()=>{
-    const dates=visibleDates();
-    const first=dates[0],last=dates.at(-1);
+  const boards=()=>Array.isArray(options.getBoards?.())?options.getBoards():[];
+  const events=()=>Array.isArray(options.getScheduleEvents?.())?options.getScheduleEvents():[];
+  const categories=()=>options.getScheduleCategories?.()||{};
+
+  function allTasks(){
+    const out=[];
+    for(const board of boards()){
+      if(board?.archived) continue;
+      for(const section of Array.isArray(board?.sections)?board.sections:[]){
+        if(section?.archived) continue;
+        for(const task of Array.isArray(section?.tasks)?section.tasks:[]){
+          if(task?.archived) continue;
+          out.push({task,board,section});
+        }
+      }
+    }
+    return out;
+  }
+
+  function findTask(id){ return allTasks().find(x=>String(x.task.id)===String(id))||null; }
+  function findEvent(id){ return events().find(x=>String(x.id)===String(id))||null; }
+  function rangeLabel(){
+    const dates=visibleDates(),first=dates[0],last=dates.at(-1);
     if(dates.length===1) return first.toLocaleDateString(locale(),{weekday:'short',month:'short',day:'numeric',year:'numeric'});
     if(first.getFullYear()===last.getFullYear()&&first.getMonth()===last.getMonth()) return `${first.toLocaleDateString(locale(),{month:'short',day:'numeric'})}–${last.getDate()}, ${last.getFullYear()}`;
     return `${first.toLocaleDateString(locale(),{month:'short',day:'numeric'})} – ${last.toLocaleDateString(locale(),{month:'short',day:'numeric',year:'numeric'})}`;
-  };
+  }
+
+  function formatClock(minutes){ return formatTime(minutes,hour12()); }
+  function taskMeta(entry){
+    const bits=[entry.board?.title,entry.section?.title].filter(Boolean);
+    if(entry.task.dueDate) bits.push(`Due ${new Date(entry.task.dueDate+'T12:00:00').toLocaleDateString(locale(),{month:'short',day:'numeric'})}`);
+    if(entry.task.estimatedMinutes) bits.push(`${entry.task.estimatedMinutes} min`);
+    return bits.join(' · ');
+  }
 
   function renderToolbar(){
-    toolbar.innerHTML=`<div class="ks-toolbar-nav"><button type="button" data-nav="prev" aria-label="Previous period">‹</button><button type="button" data-nav="today">Today</button><button type="button" data-nav="next" aria-label="Next period">›</button><strong>${rangeLabel()}</strong></div><div class="ks-toolbar-actions"><div class="ks-view-switch" role="group" aria-label="Schedule view"><button data-view="day" aria-pressed="${state.view==='day'}">Day</button><button data-view="three-day" aria-pressed="${state.view==='three-day'}">3 Day</button><button data-view="week" aria-pressed="${state.view==='week'}">Week</button></div><button type="button" data-filter>Filter</button><button type="button" data-plan class="ks-plan-btn">Plan</button><button type="button" data-event>+ Event</button></div>`;
+    toolbar.innerHTML=`<div class="ks-toolbar-nav"><button type="button" data-nav="prev" aria-label="Previous period">‹</button><button type="button" data-nav="today">Today</button><button type="button" data-nav="next" aria-label="Next period">›</button><strong>${esc(rangeLabel())}</strong></div><div class="ks-toolbar-actions"><div class="ks-view-switch" role="group" aria-label="Schedule view"><button data-view="day" aria-pressed="${state.view==='day'}">Day</button><button data-view="three-day" aria-pressed="${state.view==='three-day'}">3 Day</button><button data-view="week" aria-pressed="${state.view==='week'}">Week</button></div><button type="button" data-filter>Filter</button><button type="button" data-plan class="ks-plan-btn">Plan</button><button type="button" data-event>+ Event</button></div>`;
     toolbar.querySelector('[data-nav="prev"]').onclick=()=>{state.anchor=shiftAnchor(state.anchor,state.view,-1);render()};
     toolbar.querySelector('[data-nav="today"]').onclick=()=>{state.anchor=new Date();render()};
     toolbar.querySelector('[data-nav="next"]').onclick=()=>{state.anchor=shiftAnchor(state.anchor,state.view,1);render()};
@@ -32,32 +67,115 @@ export function initScheduleWorkspace(options){
     toolbar.querySelector('[data-event]').onclick=()=>options.openRecurringEventEditor?.();
   }
 
-  function render(){
-    renderToolbar();
-    backlog.innerHTML='<div class="ks-panel-title"><strong>Unscheduled</strong><span>0</span></div><p class="ks-panel-empty">Loading tasks…</p>';
-    calendar.innerHTML='<div class="ks-calendar-loading" aria-label="Loading schedule"></div>';
-    inspector.hidden=true;
-    review.hidden=true;
+  function renderBacklog(){
+    const tasks=allTasks().filter(({task})=>!task.completed&&(!task.date||!task.startTime));
+    backlog.classList.toggle('is-collapsed',state.backlogCollapsed);
+    backlog.innerHTML=`<div class="ks-panel-title"><strong>${state.backlogCollapsed?'U':'Unscheduled'}</strong><span>${tasks.length}</span><button type="button" data-backlog-toggle aria-label="${state.backlogCollapsed?'Expand':'Collapse'} unscheduled tasks">${state.backlogCollapsed?'›':'‹'}</button></div>${state.backlogCollapsed?'':(tasks.length?`<div class="ks-backlog-list">${tasks.map(({task,board,section})=>`<button type="button" class="ks-backlog-row ${state.selected.type==='task'&&String(state.selected.id)===String(task.id)?'is-selected':''}" data-task-id="${esc(task.id)}"><span class="ks-grab" aria-hidden="true">⋮⋮</span><span class="ks-backlog-copy"><strong>${esc(task.title)}</strong><small>${esc(taskMeta({task,board,section}))}</small></span></button>`).join('')}</div>`:'<p class="ks-panel-empty">No unscheduled tasks.</p>')}`;
+    backlog.querySelector('[data-backlog-toggle]')?.addEventListener('click',()=>{state.backlogCollapsed=!state.backlogCollapsed;render()});
+    backlog.querySelectorAll('[data-task-id]').forEach(el=>el.addEventListener('click',()=>selectItem('task',el.dataset.taskId)));
   }
 
-  function activate(){
-    render();
+  function recurringSegmentsForDate(date){
+    const day=date.getDay(),previous=(day+6)%7,out=[];
+    for(const ev of events().filter(x=>Number(x.day)===day)){
+      for(const p of splitOvernightInterval(ev)) if(p.part!=='end') out.push({kind:'event',id:`event-${ev.id}-${p.part}`,sourceId:ev.id,title:ev.title,startMin:p.startMin,endMin:p.endMin,category:ev.category,fixed:true});
+    }
+    for(const ev of events().filter(x=>Number(x.day)===previous)){
+      const tail=splitOvernightInterval(ev).find(x=>x.part==='end');
+      if(tail) out.push({kind:'event',id:`event-${ev.id}-end`,sourceId:ev.id,title:ev.title,startMin:tail.startMin,endMin:tail.endMin,category:ev.category,fixed:true,continued:true});
+    }
+    return out;
+  }
+
+  function taskSegmentsForDate(date){
+    const key=toDateKey(date),fixed=recurringSegmentsForDate(date);
+    return allTasks().filter(({task})=>task.date===key&&task.startTime&&!task.archived).map(({task,board,section})=>{
+      const start=parseTime(task.startTime); if(start===null) return null;
+      const duration=taskDurationMinutes(task); const end=Math.min(DAY_MINUTES,start+duration);
+      const conflicts=findConflicts({startMin:start,endMin:end},fixed);
+      return {kind:'task',id:`task-${task.id}`,sourceId:task.id,title:task.title,startMin:start,endMin:end,task,board,section,conflicts};
+    }).filter(Boolean);
+  }
+
+  function itemMarkup(item,dateKey){
+    const top=item.startMin/DAY_MINUTES*100;
+    const height=Math.max(20,(item.endMin-item.startMin)/DAY_MINUTES*100);
+    const width=100/item.columnCount;
+    const left=width*item.column;
+    const selected=state.selected.type===item.kind&&String(state.selected.id)===String(item.sourceId);
+    if(item.kind==='task'){
+      const label=`${item.title}, ${formatClock(item.startMin)} to ${formatClock(item.endMin)}, flexible task${item.conflicts.length?', conflicts with fixed commitment':''}`;
+      return `<button type="button" class="ks-block ks-task-block ${selected?'is-selected':''} ${item.task.completed?'is-completed':''} ${item.conflicts.length?'is-conflicting':''}" data-task-id="${esc(item.sourceId)}" data-date="${dateKey}" aria-label="${esc(label)}" style="top:${top}%;height:${height}%;left:calc(${left}% + 3px);width:calc(${width}% - 6px)"><span class="ks-block-title">${esc(item.title)}</span><span class="ks-block-time">${esc(formatClock(item.startMin))}–${esc(formatClock(item.endMin))}</span>${item.conflicts.length?'<span class="ks-conflict-mark" aria-hidden="true">!</span>':''}</button>`;
+    }
+    const category=categories()[item.category]||{color:'#64748b'};
+    return `<button type="button" class="ks-block ks-fixed-block ${selected?'is-selected':''}" data-event-id="${esc(item.sourceId)}" aria-label="${esc(`${item.title}, ${formatClock(item.startMin)} to ${formatClock(item.endMin)}, fixed recurring event`)}" style="--ks-event:${esc(category.color||'#64748b')};top:${top}%;height:${height}%;left:calc(${left}% + 3px);width:calc(${width}% - 6px)"><span class="ks-block-title">${esc(item.title)}${item.continued?' · continued':''}</span><span class="ks-block-time">${esc(formatClock(item.startMin))}–${esc(formatClock(item.endMin))}</span></button>`;
+  }
+
+  function deadlineMarkup(date){
+    const key=toDateKey(date),deadlines=allTasks().filter(({task})=>!task.completed&&task.dueDate===key);
+    const visible=deadlines.slice(0,2);
+    return `${visible.map(({task})=>`<button type="button" class="ks-deadline" data-task-id="${esc(task.id)}" title="${esc(task.title)} due">${esc(task.title)} due</button>`).join('')}${deadlines.length>2?`<span class="ks-deadline-more">+${deadlines.length-2} deadlines</span>`:''}`;
+  }
+
+  function renderCalendar(){
+    const dates=visibleDates();
+    const hours=Array.from({length:24},(_,h)=>`<div class="ks-hour-label" style="top:${h*HOUR_HEIGHT}px">${esc(formatClock(h*60))}</div>`).join('');
+    const headers=dates.map(date=>{const key=toDateKey(date),today=key===toDateKey(new Date());return `<div class="ks-day-head ${today?'is-today':''}" data-date="${key}"><span>${esc(date.toLocaleDateString(locale(),{weekday:'short'}))}</span><strong>${date.getDate()}</strong><div class="ks-deadline-lane">${deadlineMarkup(date)}</div></div>`}).join('');
+    const cols=dates.map(date=>{
+      const key=toDateKey(date),items=layoutOverlaps([...recurringSegmentsForDate(date),...taskSegmentsForDate(date)]);
+      return `<div class="ks-day-column" data-date="${key}"><div class="ks-day-grid" style="height:${24*HOUR_HEIGHT}px">${items.map(x=>itemMarkup(x,key)).join('')}<div class="ks-now-line" data-now-date="${key}" hidden><span></span></div></div></div>`;
+    }).join('');
+    calendar.innerHTML=`<div class="ks-calendar-frame"><div class="ks-calendar-head" style="--ks-days:${dates.length}"><div class="ks-time-head"></div>${headers}</div><div class="ks-timeline-scroll"><div class="ks-time-rail" style="height:${24*HOUR_HEIGHT}px">${hours}</div><div class="ks-days" style="--ks-days:${dates.length}">${cols}</div></div></div>`;
+    calendar.querySelectorAll('[data-task-id]').forEach(el=>el.addEventListener('click',e=>{e.stopPropagation();selectItem('task',el.dataset.taskId)}));
+    calendar.querySelectorAll('[data-event-id]').forEach(el=>el.addEventListener('click',e=>{e.stopPropagation();selectItem('event',el.dataset.eventId)}));
+    calendar.querySelectorAll('.ks-day-grid').forEach(el=>el.addEventListener('click',()=>clearSelection()));
+    updateNowLine();
     requestAnimationFrame(()=>{const scroller=calendar.querySelector('.ks-timeline-scroll');if(scroller&&!scroller.dataset.initialScroll){scroller.scrollTop=7*HOUR_HEIGHT;scroller.dataset.initialScroll='1'}});
   }
 
+  function updateNowLine(){
+    const now=new Date(),key=toDateKey(now),top=(now.getHours()*60+now.getMinutes())/60*HOUR_HEIGHT;
+    calendar.querySelectorAll('[data-now-date]').forEach(line=>{const active=line.dataset.nowDate===key;line.hidden=!active;if(active){line.style.top=`${top}px`;line.firstElementChild.textContent=formatClock(now.getHours()*60+now.getMinutes())}});
+  }
+
+  function renderInspector(){
+    const {type,id}=state.selected;
+    shell.classList.toggle('inspector-open',!!type);
+    if(!type){inspector.hidden=true;inspector.innerHTML='';return}
+    inspector.hidden=false;
+    if(type==='task'){
+      const found=findTask(id); if(!found){clearSelection();return}
+      const {task,board,section}=found;
+      inspector.innerHTML=`<div class="ks-inspector-head"><span>Task</span><button type="button" data-close aria-label="Close inspector">×</button></div><div class="ks-inspector-body"><h3>${esc(task.title)}</h3><p>${esc([board.title,section.title].filter(Boolean).join(' / '))}</p><dl><div><dt>Scheduled</dt><dd>${task.date?esc(task.date):'Unscheduled'}${task.startTime?` · ${esc(task.startTime)}${task.endTime?`–${esc(task.endTime)}`:''}`:''}</dd></div><div><dt>Duration</dt><dd>${task.startTime?`${taskDurationMinutes(task)} min`:(task.estimatedMinutes?`${task.estimatedMinutes} min`:'Not estimated')}</dd></div><div><dt>Due</dt><dd>${esc(task.dueDate||'No deadline')}</dd></div></dl><div class="ks-inspector-actions"><button type="button" data-complete>${task.completed?'Mark incomplete':'Complete'}</button><button type="button" data-reschedule>Reschedule</button><button type="button" data-ask-ai>Ask AI</button></div></div>`;
+    }else{
+      const ev=findEvent(id); if(!ev){clearSelection();return}
+      inspector.innerHTML=`<div class="ks-inspector-head"><span>Fixed event</span><button type="button" data-close aria-label="Close inspector">×</button></div><div class="ks-inspector-body"><h3>${esc(ev.title)}</h3><p>Repeats weekly · ${esc(ev.start)}–${esc(ev.end)}</p><div class="ks-inspector-actions"><button type="button" data-edit-event>Edit event</button></div></div>`;
+      inspector.querySelector('[data-edit-event]')?.addEventListener('click',()=>options.openRecurringEventEditor?.(ev.id));
+    }
+    inspector.querySelector('[data-close]')?.addEventListener('click',clearSelection);
+  }
+
+  function selectItem(type,id){ state.selected={type,id}; state.inspectorOpen=true; renderBacklog(); renderCalendar(); renderInspector(); }
+  function clearSelection(){ state.selected={type:null,id:null};state.inspectorOpen=false;renderBacklog();renderCalendar();renderInspector(); }
+
+  function render(){ renderToolbar();renderBacklog();renderCalendar();renderInspector();review.hidden=!state.proposals.length; }
+  function activate(){ render(); }
   function destroy(){ if(clockTimer) clearInterval(clockTimer); }
+
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&root.classList.contains('active')) clearSelection()});
+  clockTimer=setInterval(updateNowLine,60000);
   render();
-  return {render,activate,destroy,state};
+  return {render,activate,destroy,state,selectItem,clearSelection};
 }
 
 function boot(){
   if(window.__kairosMobileDevice||document.documentElement.classList.contains('kairos-mobile-blocked')) return;
   const bridge=window.__kairosScheduleBridge;
-  if(!bridge) return;
-  if(window.__kairosScheduleWorkspace) return;
+  if(!bridge||window.__kairosScheduleWorkspace) return;
   window.__kairosScheduleWorkspace=initScheduleWorkspace(bridge);
+  document.querySelector('[data-target="schedule-page"]')?.addEventListener('click',()=>window.__kairosScheduleWorkspace?.activate());
 }
 
 window.addEventListener('kairos-schedule-bridge-ready',boot);
-window.addEventListener('kairos-data-changed',()=>setTimeout(()=>window.__kairosScheduleWorkspace?.render(),0));
+window.addEventListener('kairos-data-changed',()=>setTimeout(()=>window.__kairosScheduleWorkspace?.render(),25));
 if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot,{once:true}); else boot();
