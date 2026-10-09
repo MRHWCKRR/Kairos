@@ -137,7 +137,22 @@ function validDateKey(value){
   return parsed.getFullYear()===y&&parsed.getMonth()===m-1&&parsed.getDate()===d;
 }
 
-export function validateScheduleProposals(raw,tasksById){
+function proposalConflictsWithRecurring(date,startMin,endMin,fixedEvents=[]){
+  if(!validDateKey(date))return true;
+  const [y,m,d]=String(date).split('-').map(Number),day=new Date(y,m-1,d,12).getDay(),previous=(day+6)%7;
+  for(const event of fixedEvents){
+    const eventStart=parseTime(event?.start),eventEnd=parseTime(event?.end),eventDay=Number(event?.day);
+    if(eventStart===null||eventEnd===null||eventDay<0||eventDay>6)continue;
+    if(eventDay===day){
+      const interval=eventEnd>eventStart?{startMin:eventStart,endMin:eventEnd}:{startMin:eventStart,endMin:1440};
+      if(overlaps({startMin,endMin},interval))return true;
+    }
+    if(eventDay===previous&&eventEnd<=eventStart&&eventEnd>0&&overlaps({startMin,endMin},{startMin:0,endMin:eventEnd}))return true;
+  }
+  return false;
+}
+
+export function validateScheduleProposals(raw,tasksById,fixedEvents=[]){
   if(!Array.isArray(raw))return [];
   const out=[],seen=new Set();
   for(const item of raw){
@@ -146,7 +161,7 @@ export function validateScheduleProposals(raw,tasksById){
     if(!task||task.scheduleLocked||seen.has(taskId))continue;
     const date=item?.to?.date,start=item?.to?.startTime,end=item?.to?.endTime;
     const startMin=parseTime(start),endMin=parseTime(end);
-    if(!validDateKey(date)||startMin===null||endMin===null||endMin-startMin<15)continue;
+    if(!validDateKey(date)||startMin===null||endMin===null||endMin-startMin<15||proposalConflictsWithRecurring(date,startMin,endMin,fixedEvents))continue;
     seen.add(taskId);
     out.push({
       taskId,
