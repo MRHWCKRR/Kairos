@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { injectScheduleShell, injectScheduleAssets, injectScheduleBridge, rewriteRelaySource } from '../build-transforms.js';
+import { injectScheduleShell, injectScheduleAssets, injectScheduleBridge, rewriteRelaySource, rewriteScheduleRecurrenceImports } from '../build-transforms.js';
 
 test('injectScheduleShell replaces only schedule page before Calendar marker',()=>{
   const html='<main><!-- Schedule Page: old --><div id="schedule-page">old</div><!-- Calendar and Routines --><div id="calendar-page"></div></main>';
@@ -45,6 +45,14 @@ test('injectScheduleAssets normalizes stale Schedule query versions on repeated 
   assert.match(out,/schedule-workspace\.js\?v=10/);
   assert.match(out,/schedule-ai\.js\?v=10/);
   assert.doesNotMatch(out,/schedule-(?:workspace|ai)\.(?:css|js)\?v=[123456789](?:[^0-9]|$)/);
+});
+
+test('recurrence module imports are cache-busted with the Schedule v10 graph',()=>{
+  const source="import { x } from './recurrence-utils.js';\nimport { y } from './schedule-recurrence-ui.js';";
+  const out=rewriteScheduleRecurrenceImports(source);
+  assert.match(out,/recurrence-utils\.js\?v=10/);
+  assert.match(out,/schedule-recurrence-ui\.js\?v=10/);
+  assert.equal(rewriteScheduleRecurrenceImports(out),out);
 });
 
 test('injectScheduleBridge gives the planner deterministic rules, recurrence constraints and malformed JSON recovery',()=>{
