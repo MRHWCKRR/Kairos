@@ -21,7 +21,7 @@ function showToast(message){
   document.querySelector('.ks-toast')?.remove();const el=document.createElement('div');el.className='ks-toast';el.setAttribute('role','status');el.textContent=message;document.body.appendChild(el);requestAnimationFrame(()=>el.classList.add('is-visible'));setTimeout(()=>{el.classList.remove('is-visible');setTimeout(()=>el.remove(),180)},2800);
 }
 function snapshotTask(task){
-  const fields=['title','completed','date','startTime','endTime','dueDate','estimatedMinutes','priority','notes','reminderMinutes','scheduleLocked','schedulingPreference','color'];
+  const fields=['title','completed','date','startTime','endTime','dueDate','estimatedMinutes','lastScheduledMinutes','priority','notes','reminderMinutes','scheduleLocked','schedulingPreference','color'];
   return Object.fromEntries(fields.map(k=>[k,task[k]??(k==='notes'?'':k==='scheduleLocked'?false:null)]));
 }
 async function persistTask(task,before,successMessage='Saved task changes.'){
@@ -34,7 +34,7 @@ function sectionOptions(board,currentId){return (board?.sections||[]).filter(s=>
 
 function richMarkup(found){
   const {task,board,section}=found;normalizeTaskMetadata(task);
-  const duration=task.startTime?taskDurationMinutes(task):(task.estimatedMinutes||60),color=validTaskColor(task.color)||'#a855f7';
+  const duration=taskDurationMinutes(task),color=validTaskColor(task.color)||'#a855f7';
   return `<div class="ks-inspector-head"><span>Task</span><button type="button" data-close aria-label="Close inspector">×</button></div>
   <form class="ks-inspector-form" data-ks-rich-inspector>
     <label>Title<input name="title" maxlength="180" value="${esc(task.title)}"></label>
