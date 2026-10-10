@@ -4,6 +4,8 @@ This branch prepares Workers with Static Assets as a replacement for Vercel. Fir
 
 Verified preparation on 10 October 2026: [draft PR #30](https://github.com/MRHWCKRR/Kairos/pull/30), [isolated preview](https://kairos-web-preview.kirosapp.workers.dev), 141 passing tests, 18 passing live HTTP checks, and successful GitHub build checks. The deployed preview has only the ASSETS binding and zero cron schedules. A fresh read-only reviewer found no blocking defects. Authenticated features remain pending secure configuration and live acceptance. Initial preview publication used Wrangler; automatic Cloudflare Builds repository integration is still pending.
 
+Follow-up on 10 October 2026: Firebase owner login completed. Confirmed the existing `(default)` Standard database in `australia-southeast1`, the matching registered web app, enabled email/password and Google sign-in, and matching reCAPTCHA Enterprise App Check registration. Both analytics REST queries were accepted read-only with a one-result limit; no document contents were retained. With explicit owner approval, added only `kairos-web-preview.kirosapp.workers.dev` to Firebase Authentication and the existing reCAPTCHA key's allowed domains, then verified the additions and preservation of existing settings. Authentication App Check remains enforced; Firestore and OAuth App Check retain their existing unenforced state. No backend credentials have been transferred and no live user login/save/delete or AI acceptance has been claimed.
+
 ## Build and verify
 
 Use Node 22 or newer and install the lockfile with `npm ci`.
@@ -42,7 +44,7 @@ npx wrangler secret put FIREBASE_PRIVATE_KEY --env preview
 
 Repeat for the other bindings. Do not put secret values into shell arguments, PRs, logs, or chat. The service account uses the datastore OAuth scope; server access uses IAM, so browser Firestore rules must continue to deny public analytics access. This implementation restricts its own REST operations to `kairosAnalytics`; IAM still controls the account's actual privileges.
 
-Before live Firebase requests, authenticate to Firebase, confirm the existing database edition and `(default)` database, check service-account access and required query indexes, and verify the existing browser configuration still points to `kairos-1a`. The account and edition could not be verified through the unauthenticated Firebase connector during preparation.
+The owner account, existing Standard `(default)` database, browser app identity and required query compatibility are now verified. Service-account key access and the deployed Worker identity still require secure runtime configuration and verification before backend acceptance.
 
 ## Preview deployment
 
