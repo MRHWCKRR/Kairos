@@ -175,6 +175,7 @@ function proposalConflictsWithRecurring(date,startMin,endMin,fixedEvents=[]){
 export function validateScheduleProposals(raw,tasksById,fixedEvents=[],constraints={}){
   if(!Array.isArray(raw))return [];
   const minimumDate=validDateKey(constraints?.minDate)?constraints.minDate:null;
+  const minimumTime=parseTime(constraints?.minTime);
   const preliminary=[],seen=new Set();
   for(const item of raw){
     const taskId=String(item?.taskId??'');
@@ -182,8 +183,9 @@ export function validateScheduleProposals(raw,tasksById,fixedEvents=[],constrain
     if(!task||task.scheduleLocked||task.completed||task.archived||seen.has(taskId))continue;
     const date=item?.to?.date,start=item?.to?.startTime,end=item?.to?.endTime;
     const startMin=parseTime(start),endMin=parseTime(end);
-    if(!validDateKey(date)||startMin===null||endMin===null||endMin-startMin<15)continue;
+    if(!validDateKey(date)||startMin===null||endMin===null||endMin-startMin<1)continue;
     if(minimumDate&&date<minimumDate)continue;
+    if(minimumDate&&date===minimumDate&&minimumTime!==null&&startMin<minimumTime)continue;
     if(validDateKey(task.dueDate)&&date>task.dueDate)continue;
     if(proposalConflictsWithRecurring(date,startMin,endMin,fixedEvents))continue;
     seen.add(taskId);
