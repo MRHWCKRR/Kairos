@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { normalizeRecurrence, validateRecurrence, occurrenceId } from '../recurrence-utils.js';
+import { normalizeRecurrence, validateRecurrence, occurrenceId, generateOccurrenceDates, nextOccurrenceDate } from '../recurrence-utils.js';
 
 test('normalizes daily and weekday recurrence presets',()=>{
   const daily=normalizeRecurrence({enabled:true,frequency:'daily',interval:1,startDate:'2026-10-10',mode:'flexible'});
@@ -62,4 +62,41 @@ test('accepts task objects, validates canonical rules, and creates stable occurr
   assert.equal(validateRecurrence({...rule,interval:0}),false);
   assert.equal(validateRecurrence({...rule,startDate:'not-a-date'}),false);
   assert.equal(occurrenceId('task-abc','2026-10-14'),'task-abc::2026-10-14');
+});
+
+test('generates daily intervals and respects count/end-date limits',()=>{
+  const every3=normalizeRecurrence({enabled:true,frequency:'daily',interval:3,startDate:'2026-10-10'});
+  assert.deepEqual(generateOccurrenceDates(every3,'2026-10-10','2026-10-21'),['2026-10-10','2026-10-13','2026-10-16','2026-10-19']);
+  const counted=normalizeRecurrence({enabled:true,frequency:'daily',startDate:'2026-10-10',endType:'count',count:3});
+  assert.deepEqual(generateOccurrenceDates(counted,'2026-10-01','2026-11-01'),['2026-10-10','2026-10-11','2026-10-12']);
+  const dated=normalizeRecurrence({enabled:true,frequency:'daily',startDate:'2026-10-10',endType:'date',endDate:'2026-10-12'});
+  assert.deepEqual(generateOccurrenceDates(dated,'2026-10-01','2026-11-01'),['2026-10-10','2026-10-11','2026-10-12']);
+});
+
+test('generates selected weekdays anchored to every-N-week cadence',()=>{
+  const rule=normalizeRecurrence({enabled:true,frequency:'weekly',interval:2,weekdays:[1,3],startDate:'2026-10-12'});
+  assert.deepEqual(generateOccurrenceDates(rule,'2026-10-12','2026-11-08'),['2026-10-12','2026-10-14','2026-10-26','2026-10-28']);
+});
+
+test('monthly date recurrence skips months that do not contain the requested date',()=>{
+  const rule=normalizeRecurrence({enabled:true,frequency:'monthly',monthlyMode:'date',monthDay:31,startDate:'2026-01-31'});
+  assert.deepEqual(generateOccurrenceDates(rule,'2026-01-01','2026-06-30'),['2026-01-31','2026-03-31','2026-05-31']);
+});
+
+test('generates monthly first and last weekday positions',()=>{
+  const firstMonday=normalizeRecurrence({enabled:true,frequency:'monthly',monthlyMode:'weekdayPosition',weekdayPosition:'first',weekday:1,startDate:'2026-10-05'});
+  assert.deepEqual(generateOccurrenceDates(firstMonday,'2026-10-01','2026-12-31'),['2026-10-05','2026-11-02','2026-12-07']);
+  const lastFriday=normalizeRecurrence({enabled:true,frequency:'monthly',monthlyMode:'weekdayPosition',weekdayPosition:'last',weekday:5,startDate:'2026-10-30'});
+  assert.deepEqual(generateOccurrenceDates(lastFriday,'2026-10-01','2026-12-31'),['2026-10-30','2026-11-27','2026-12-25']);
+});
+
+test('yearly Feb 29 recurrence occurs only in leap years',()=>{
+  const leap=normalizeRecurrence({enabled:true,frequency:'yearly',month:2,monthDay:29,startDate:'2024-02-29'});
+  assert.deepEqual(generateOccurrenceDates(leap,'2024-01-01','2033-12-31'),['2024-02-29','2028-02-29','2032-02-29']);
+});
+
+test('finds the next generated occurrence strictly after the supplied date',()=>{
+  const rule=normalizeRecurrence({enabled:true,frequency:'weekly',weekdays:[3],startDate:'2026-10-14'});
+  assert.equal(nextOccurrenceDate(rule,'2026-10-14'),'2026-10-21');
+  assert.equal(nextOccurrenceDate(rule,'2026-10-20'),'2026-10-21');
 });
