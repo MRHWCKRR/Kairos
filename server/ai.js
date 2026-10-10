@@ -2,7 +2,7 @@ import { readBoundedText } from './http-body.js';
 
 const AI_URL = 'https://ai.hackclub.com/proxy/v1/chat/completions';
 
-export function createHandler({ env, adminAuth, appCheck, rateLimiter, fetchImpl = fetch }) {
+export function createHandler({ env, adminAuth, appCheck, rateLimiter, dailyBudget, fetchImpl = fetch }) {
   return async function handler(req, res) {
     if (req.method !== 'POST') {
         res.setHeader('Allow', 'POST');
@@ -42,6 +42,22 @@ export function createHandler({ env, adminAuth, appCheck, rateLimiter, fetchImpl
     if (!apiKey) {
         console.error('KAIROS_RELAY_SECRET is not configured.');
         return res.status(503).json({ error: 'AI relay is not configured' });
+    }
+
+    // Reserve before contacting the provider. Attempts count even if it fails;
+    // refunding failures would permit unlimited upstream requests during outages.
+    try {
+        const budget = await dailyBudget?.reserve(user.uid);
+        if (budget?.allowed !== true) {
+            if (budget?.allowed !== false || !['account', 'site'].includes(budget.reason) ||
+                !Number.isFinite(Date.parse(budget.resetsAt)) || !Number.isInteger(budget.retryAfter) || budget.retryAfter < 1) throw Error('Invalid daily allowance');
+            res.setHeader('Retry-After', String(budget.retryAfter));
+            return res.status(429).json({ code: `daily-${budget.reason}`, resetsAt: budget.resetsAt,
+                error: budget.reason === 'account' ? 'You have reached your daily Kairos AI allowance.' : 'Kairos has reached its daily AI allowance.' });
+        }
+    } catch {
+        console.error(JSON.stringify({ event: 'kairos_ai_budget_unavailable' }));
+        return res.status(503).json({ error: 'Kairos AI is temporarily unavailable.' });
     }
 
     try {

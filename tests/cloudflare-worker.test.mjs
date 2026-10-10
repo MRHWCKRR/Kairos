@@ -5,6 +5,8 @@ import { fixtureDb, aiHeaders } from './helpers/server-fixtures.mjs';
 
 function setup() {
   const db = fixtureDb();
+  db.reserveAiUsage = async () => ({ allowed: true });
+  db.clearExpiredAiUsage = async () => 0;
   const worker = createWorker({ createServices: () => ({ db, appCheck: { async verifyToken() {} }, adminAuth: { async verifyIdToken(token) { if (token === 'bad') throw Error('bad signature'); return { uid: token, email_verified: true }; } } }), fetchImpl: async () => Response.json({ choices: [{ message: { content: 'hello' } }] }) });
   const env = { AI_RATE_LIMITER: { async limit() { return { success: true }; } }, ASSETS: { async fetch(request) { return new Response(new URL(request.url).pathname, { status: 200 }); } }, ANALYTICS_ADMIN_UID: 'admin', ANALYTICS_HASH_SECRET: 'hash', CRON_SECRET: 'cron', KAIROS_RELAY_SECRET: 'relay' };
   return { db, worker, env };

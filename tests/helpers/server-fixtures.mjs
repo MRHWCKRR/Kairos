@@ -37,7 +37,8 @@ export function fixtureDb(initial = []) {
 export const aiIdentity = {
   adminAuth: { async verifyIdToken() { return { uid: 'fixture-user', email_verified: true }; } },
   appCheck: { async verifyToken() {} },
-  rateLimiter: { async limit() { return { success: true }; } }
+  rateLimiter: { async limit() { return { success: true }; } },
+  dailyBudget: { async reserve() { return { allowed: true }; } }
 };
 export const aiHeaders = { authorization: 'Bearer fixture-token', 'x-firebase-appcheck': 'fixture-app' };
 export const aiBody = { messages: [{ role: 'user', content: 'hello' }] };

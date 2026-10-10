@@ -12,6 +12,7 @@ function setup({ user = { uid: 'user-one', email_verified: true }, app = true, a
     adminAuth: { async verifyIdToken(token) { if (token !== 'signed-user') throw Error('invalid'); return user; } },
     appCheck: { async verifyToken(token) { if (!app || token !== 'signed-app') throw Error('invalid'); } },
     rateLimiter: limiter ? { async limit({ key }) { keys.push(key); return { success: allowed }; } } : undefined,
+    dailyBudget: { async reserve() { return { allowed: true }; } },
     fetchImpl: async (url, options) => { sent.push(JSON.parse(options.body)); return Response.json({ choices: [{ message: { content: 'Hello' } }] }); }
   });
   return { sent, keys, async request(patch = {}) { const res = responseRecorder(); await handler({ method: 'POST', headers, body, ...patch }, res); return res; } };
