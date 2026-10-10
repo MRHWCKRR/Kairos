@@ -8,6 +8,7 @@ The initial trial policy is **100 provider requests per verified account per day
 - The backend reserves a request before calling the AI provider. Failed provider attempts count, preventing unlimited retries during outages. Requests rejected before reservation do not count.
 - Account and site counters advance together in one conditional Firestore commit. New processes, multiple devices and concurrent chats share the same counters. Conflicting commits reread and retry a bounded number of times; unavailable or malformed counters fail closed.
 - Account and site limits return separate `daily-account` and `daily-site` codes, `resetsAt` and `Retry-After`. All existing AI flows show daily reset guidance through the shared transport. Existing short-term rate-limit guidance remains.
+- Transport notices stay visible in saved chat history but are excluded from subsequent model context, automatic summaries and plan suggestions. A previous daily-limit notice cannot make the AI keep repeating a limit after access resumes.
 - Preview has a separate budget and cannot spend production credits.
 
 ## Configuration and storage

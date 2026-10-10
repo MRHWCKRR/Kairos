@@ -2,6 +2,14 @@ function protectionError(message) {
   return Object.assign(new Error(message), { code: 'ai-protection' });
 }
 
+export function aiConversationMessages(messages) {
+  // Keep transport notices in the visible/persisted chat, never in model input.
+  // Recognize the daily notice from the initial rollout before it was tagged.
+  const legacyDailyNotice = /^(?:You have reached your daily Kairos AI allowance\.|Kairos has reached its daily AI allowance\.)(?: Resets at .+ Brisbane time\.| Please try again after the next daily reset\.)?$/;
+  return messages.filter(message => message.notice !== true &&
+    !(message.role === 'assistant' && legacyDailyNotice.test(message.content)));
+}
+
 export function createAiRequester({ getUser, getAppToken, fetchImpl = fetch }) {
   return async function aiFetch(options) {
     const user = getUser();
