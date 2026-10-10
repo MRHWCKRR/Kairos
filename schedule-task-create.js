@@ -83,7 +83,7 @@ async function createTask(form){
     scheduleLocked:form.elements.locked.checked,
     schedulingPreference:form.elements.preference.value||null,
     color:form.dataset.colorCustom==='1'?validTaskColor(form.elements.color.value):null,
-    ...(recurrence?{recurrence}:{})
+    recurrence:recurrence||null
   };
   targetSection.tasks=Array.isArray(targetSection.tasks)?targetSection.tasks:[];targetSection.tasks.push(task);workspace()?.render?.();
   try{
