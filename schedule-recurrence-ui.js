@@ -21,6 +21,7 @@ export function recurrenceFieldsMarkup(input={},context={}){
   const fallback=context.fallbackDate||input?.date||null,rule=normalizeRecurrence(input,fallback),preset=presetFor(rule),unit=unitFor(rule);
   const weekdays=rule.weekdays||[],month=rule.month||Number(String(fallback||'').slice(5,7))||new Date().getMonth()+1,monthDay=rule.monthDay||Number(String(fallback||'').slice(8,10))||new Date().getDate();
   return `<div class="ks-recurrence-fields" data-recurrence-fields>
+    <input type="hidden" data-recurrence-exceptions value="${esc(JSON.stringify(rule.exceptions||{}))}">
     <label>Repeat<select data-recurrence-preset name="recurrencePreset">
       <option value="never" ${selected(preset,'never')}>Never</option><option value="daily" ${selected(preset,'daily')}>Daily</option><option value="weekdays" ${selected(preset,'weekdays')}>Every weekday</option><option value="weekly" ${selected(preset,'weekly')}>Weekly</option><option value="monthly" ${selected(preset,'monthly')}>Monthly</option><option value="yearly" ${selected(preset,'yearly')}>Yearly</option><option value="custom" ${selected(preset,'custom')}>Custom…</option>
     </select></label>
@@ -76,7 +77,10 @@ export function readRecurrenceFields(form,fallbackDate=null){
   const unit=preset==='daily'?'days':preset==='weekly'||preset==='weekdays'?'weeks':preset==='monthly'?'months':preset==='yearly'?'years':form.querySelector('[data-recurrence-unit]')?.value||'days';
   const frequency=unitFrequency(unit),startDate=form.elements?.date?.value||fallbackDate||localDateKey();
   const weekdays=preset==='weekdays'?[1,2,3,4,5]:[...form.querySelectorAll('[data-recurrence-weekday]:checked')].map(el=>Number(el.value));
-  const rule={enabled:true,frequency,interval:preset==='custom'?Math.max(1,Number(form.querySelector('[data-recurrence-interval]')?.value)||1):1,weekdays,startDate,mode:form.querySelector('[data-recurrence-mode]')?.value||'flexible',endType:form.querySelector('[data-recurrence-end-type]')?.value||'never',endDate:form.querySelector('[data-recurrence-end-date]')?.value||null,count:Math.max(1,Number(form.querySelector('[data-recurrence-count]')?.value)||1),monthlyMode:form.querySelector('[data-recurrence-monthly-mode]')?.value||'date',monthDay:Number(frequency==='yearly'?form.querySelector('[data-recurrence-year-day]')?.value:form.querySelector('[data-recurrence-month-day]')?.value)||1,weekdayPosition:form.querySelector('[data-recurrence-position]')?.value||'first',weekday:Number(form.querySelector('[data-recurrence-position-weekday]')?.value)||0,month:Number(form.querySelector('[data-recurrence-year-month]')?.value)||1,exceptions:{}};
+  let sourceExceptions={};
+  try{sourceExceptions=JSON.parse(form.querySelector('[data-recurrence-exceptions]')?.value||'{}')}catch{sourceExceptions={}}
+  const preservedExceptions=structuredClone(sourceExceptions);
+  const rule={enabled:true,frequency,interval:preset==='custom'?Math.max(1,Number(form.querySelector('[data-recurrence-interval]')?.value)||1):1,weekdays,startDate,mode:form.querySelector('[data-recurrence-mode]')?.value||'flexible',endType:form.querySelector('[data-recurrence-end-type]')?.value||'never',endDate:form.querySelector('[data-recurrence-end-date]')?.value||null,count:Math.max(1,Number(form.querySelector('[data-recurrence-count]')?.value)||1),monthlyMode:form.querySelector('[data-recurrence-monthly-mode]')?.value||'date',monthDay:Number(frequency==='yearly'?form.querySelector('[data-recurrence-year-day]')?.value:form.querySelector('[data-recurrence-month-day]')?.value)||1,weekdayPosition:form.querySelector('[data-recurrence-position]')?.value||'first',weekday:Number(form.querySelector('[data-recurrence-position-weekday]')?.value)||0,month:Number(form.querySelector('[data-recurrence-year-month]')?.value)||1,exceptions:preservedExceptions};
   return normalizeRecurrence(rule,startDate);
 }
 
