@@ -1,18 +1,16 @@
 const workspace=()=>window.__kairosScheduleWorkspace;
-let sidebarAutoCollapsed=false;
 let forcedView=null;
 let resizeObserver=null;
 
 function scheduleActive(){return document.getElementById('schedule-page')?.classList.contains('active')}
-function sidebar(){return document.getElementById('sidebar')}
 
 function applyResponsive(){
   const root=document.getElementById('schedule-page'),ws=workspace();if(!root||!ws||!scheduleActive())return;
   const width=root.getBoundingClientRect().width||window.innerWidth;
-  const nav=sidebar();
-  if(width<1320&&nav&&!nav.classList.contains('collapsed')){nav.classList.add('collapsed');sidebarAutoCollapsed=true}
-  if(width>=1380&&sidebarAutoCollapsed&&nav?.classList.contains('collapsed')){nav.classList.remove('collapsed');sidebarAutoCollapsed=false}
 
+  // Schedule adapts its own workspace only. It must never force the global
+  // Kairos sidebar open/closed: changing the sidebar changes this width and
+  // can create a resize feedback loop at browser zoom boundaries.
   if(width<720&&ws.state.view!=='day'){
     if(!forcedView)forcedView=ws.state.view;
     ws.state.view='day';ws.render();return;
@@ -22,19 +20,12 @@ function applyResponsive(){
   }
 }
 
-function leaveSchedule(){
-  const nav=sidebar();
-  if(sidebarAutoCollapsed&&nav?.classList.contains('collapsed'))nav.classList.remove('collapsed');
-  sidebarAutoCollapsed=false;forcedView=null;
-}
-
 function boot(){
   if(window.__kairosScheduleResponsiveBooted||!workspace())return;window.__kairosScheduleResponsiveBooted=true;
   const root=document.getElementById('schedule-page');if(!root)return;
   resizeObserver=new ResizeObserver(()=>applyResponsive());resizeObserver.observe(root);
   document.addEventListener('click',event=>{
-    const nav=event.target.closest?.('[data-target]');if(!nav)return;
-    if(nav.dataset.target==='schedule-page')setTimeout(applyResponsive,0);else if(scheduleActive())setTimeout(leaveSchedule,0);
+    const nav=event.target.closest?.('[data-target]');if(nav?.dataset.target==='schedule-page')setTimeout(applyResponsive,0);
   },true);
   root.addEventListener('click',event=>{const view=event.target.closest?.('[data-view]');if(view?.dataset.view==='day'&&forcedView)forcedView=null},true);
   const eventModal=document.getElementById('schedule-event-modal');
