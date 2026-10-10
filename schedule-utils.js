@@ -42,7 +42,7 @@ export function taskDurationMinutes(task={},fallback=60){
   if(start!==null&&end!==null){ duration=(end-start+1440)%1440; if(duration===0) duration=1440; }
   if(duration===null&&Number.isFinite(Number(task.estimatedMinutes))) duration=Number(task.estimatedMinutes);
   if(duration===null) duration=fallback;
-  return Math.max(15,Math.round(duration));
+  return Math.max(1,Math.round(duration));
 }
 
 function localDate(date){ return new Date(date.getFullYear(),date.getMonth(),date.getDate(),12); }
@@ -110,7 +110,7 @@ export function applyResize(task,targetEndMinutes,interval=15){
   const start=parseTime(task.startTime);
   if(start===null) return {endTime:task.endTime||null};
   let end=snapMinutes(targetEndMinutes,interval);
-  end=Math.max(start+15,Math.min(1440,end));
+  end=Math.max(start+1,Math.min(1440,end));
   return {endTime:formatTime(end%1440,false)};
 }
 
@@ -136,7 +136,7 @@ export function scheduleFieldsFromDuration(date,startTime,durationMinutes){
   const dateValue=date||null;
   const start=parseTime(startTime);
   if(start===null)return {date:dateValue,startTime:null,endTime:null};
-  const duration=Math.max(15,Number(durationMinutes)||60);
+  const duration=Math.max(1,Number(durationMinutes)||60);
   const end=Math.min(1440,start+duration);
   return {date:dateValue,startTime:formatTime(start,false),endTime:formatTime(end%1440,false)};
 }
