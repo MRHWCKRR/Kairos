@@ -75,10 +75,12 @@ test('custom task colors feed task blocks, backlog markers and AI previews',()=>
   assert.match(ai,/--ks-task-color/);
 });
 
-test('Plan loading state survives workspace rerenders and validates against currentDate',()=>{
+test('Plan loading state survives workspace rerenders and validates against the current date and time',()=>{
   assert.match(ai,/function syncPlanButton/);
   assert.match(ai,/aria-busy/);
+  assert.match(ai,/currentTime:formatTime/);
   assert.match(ai,/minDate:context\.currentDate/);
+  assert.match(ai,/minTime:context\.currentTime/);
   assert.match(ai,/notes:String\(task\.notes\|\|''\)/);
 });
 
