@@ -1,5 +1,5 @@
 import {
-  getVisibleDates, shiftAnchor, toDateKey, parseTime, formatTime,
+  getVisibleDates, shiftAnchor, toDateKey, parseTime, formatTime, addDays,
   taskDurationMinutes, layoutOverlaps, findConflicts, splitOvernightInterval, blockGeometry
 } from './schedule-utils.js';
 
@@ -161,6 +161,18 @@ export function initScheduleWorkspace(options){
 
   function selectItem(type,id){ state.selected={type,id}; state.inspectorOpen=true; renderBacklog(); renderCalendar(); renderInspector(); }
   function clearSelection(){ state.selected={type:null,id:null};state.inspectorOpen=false;renderBacklog();renderCalendar();renderInspector(); }
+  function focusDateTime(dateKey,timeValue){
+    const parts=String(dateKey||'').split('-').map(Number);if(parts.length!==3||parts.some(x=>!Number.isFinite(x)))return;
+    const target=new Date(parts[0],parts[1]-1,parts[2],12);if(target.getFullYear()!==parts[0]||target.getMonth()!==parts[1]-1||target.getDate()!==parts[2])return;
+    state.anchor=state.view==='three-day'?addDays(target,-1):target;
+    const minutes=typeof timeValue==='number'?timeValue:parseTime(timeValue),targetMinutes=minutes===null?8*60:Math.max(0,Math.min(1439,minutes));
+    render();
+    requestAnimationFrame(()=>{
+      const scroller=calendar.querySelector('.ks-timeline-scroll'),column=calendar.querySelector(`.ks-day-column[data-date="${CSS.escape(String(dateKey))}"]`);if(!scroller||!column)return;
+      const top=Math.max(0,targetMinutes/60*HOUR_HEIGHT-scroller.clientHeight*.35),left=Math.max(0,64+column.offsetLeft+column.offsetWidth/2-scroller.clientWidth/2),reduced=window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+      state.scrollTop=top;scroller.scrollTo({top,left,behavior:reduced?'auto':'smooth'});
+    });
+  }
 
   function render(){ renderToolbar();renderBacklog();renderCalendar();renderInspector();review.hidden=!state.proposals.length; }
   function activate(){ render(); }
@@ -170,7 +182,7 @@ export function initScheduleWorkspace(options){
   document.addEventListener('keydown',e=>{if(e.key!=='Escape'||!root.classList.contains('active'))return;if(state.filterOpen){state.filterOpen=false;renderToolbar();return}clearSelection()});
   clockTimer=setInterval(updateNowLine,60000);
   render();
-  return {render,activate,destroy,state,selectItem,clearSelection};
+  return {render,activate,destroy,state,selectItem,clearSelection,focusDateTime};
 }
 
 function boot(){
