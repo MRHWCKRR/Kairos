@@ -25,20 +25,20 @@ test('injectScheduleAssets adds Schedule 3 assets once and bumps app cache',()=>
   assert.equal((twice.match(/schedule-ai\.css/g)||[]).length,1);
   assert.equal((twice.match(/schedule-ai\.js/g)||[]).length,1);
   assert.match(twice,/app\.js\?v=12/);
-  assert.match(twice,/schedule-workspace\.css\?v=3/);
-  assert.match(twice,/schedule-workspace\.js\?v=3/);
-  assert.match(twice,/schedule-ai\.js\?v=3/);
+  assert.match(twice,/schedule-workspace\.css\?v=4/);
+  assert.match(twice,/schedule-workspace\.js\?v=4/);
+  assert.match(twice,/schedule-ai\.js\?v=4/);
 });
 
 test('injectScheduleAssets normalizes stale Schedule query versions on repeated builds',()=>{
   const html='<html><head><link rel="stylesheet" href="schedule-workspace.css?v=2"><link rel="stylesheet" href="schedule-ai.css?v=1"></head><body><script type="module" src="app.js?v=11"></script><script type="module" src="schedule-workspace.js?v=2"></script><script type="module" src="schedule-ai.js?v=1"></script></body></html>';
   const out=injectScheduleAssets(html);
   assert.match(out,/app\.js\?v=12/);
-  assert.match(out,/schedule-workspace\.css\?v=3/);
-  assert.match(out,/schedule-ai\.css\?v=3/);
-  assert.match(out,/schedule-workspace\.js\?v=3/);
-  assert.match(out,/schedule-ai\.js\?v=3/);
-  assert.doesNotMatch(out,/schedule-(?:workspace|ai)\.(?:css|js)\?v=[12]/);
+  assert.match(out,/schedule-workspace\.css\?v=4/);
+  assert.match(out,/schedule-ai\.css\?v=4/);
+  assert.match(out,/schedule-workspace\.js\?v=4/);
+  assert.match(out,/schedule-ai\.js\?v=4/);
+  assert.doesNotMatch(out,/schedule-(?:workspace|ai)\.(?:css|js)\?v=[123]/);
 });
 
 test('injectScheduleBridge adds preview-only AI bridge before bedtime engine once',()=>{
