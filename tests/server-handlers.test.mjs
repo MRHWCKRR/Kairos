@@ -5,18 +5,18 @@ import { createHandler as createAi } from '../server/ai.js';
 import { createHandler as createTrack } from '../server/track.js';
 import { createHandler as createAnalytics } from '../server/analytics.js';
 import { createHandler as createCleanup, clearExpiredAnalytics } from '../server/cleanup-analytics.js';
-import { fixtureDb, responseRecorder } from './helpers/server-fixtures.mjs';
+import { fixtureDb, responseRecorder, aiIdentity, aiHeaders, aiBody } from './helpers/server-fixtures.mjs';
 
 test('AI retains model and payload contract, without forwarding browser keys', async () => {
   let sent;
-  const handler = createAi({ env: { KAIROS_RELAY_SECRET: 'backend-test-key' }, fetchImpl: async (url, options) => {
+  const handler = createAi({ ...aiIdentity, env: { KAIROS_RELAY_SECRET: 'backend-test-key' }, fetchImpl: async (url, options) => {
     assert.equal(url, 'https://ai.hackclub.com/proxy/v1/chat/completions'); sent = options;
     return Response.json({ choices: [{ message: { content: 'hello' } }] });
   } });
   const res = responseRecorder();
-  await handler({ method: 'POST', body: { messages: [{ role: 'user', content: 'hi' }], response_format: { type: 'json_object' }, model: 'other', apiKey: 'browser-key' } }, res);
+  await handler({ method: 'POST', headers: aiHeaders, body: { messages: [{ role: 'user', content: 'hi' }], response_format: { type: 'json_object' }, model: 'other', apiKey: 'browser-key' } }, res);
   assert.equal(sent.headers.Authorization, 'Bearer backend-test-key');
-  assert.deepEqual(JSON.parse(sent.body), { model: 'qwen/qwen3-32b', messages: [{ role: 'user', content: 'hi' }], response_format: { type: 'json_object' }, stream: false });
+  assert.deepEqual(JSON.parse(sent.body), { model: 'qwen/qwen3-32b', messages: [{ role: 'user', content: 'hi' }], response_format: { type: 'json_object' }, max_tokens: 8192, stream: false });
   assert.equal(res.body.choices[0].message.content, 'hello');
 });
 
@@ -26,7 +26,7 @@ test('AI method, configuration and upstream failures preserve status codes', asy
     ['POST', { KAIROS_RELAY_SECRET: 'test' }, async () => { throw Error('private upstream failure'); }, 502],
     ['POST', { KAIROS_RELAY_SECRET: 'test' }, async () => new Response('{"error":"busy"}', { status: 429 }), 429]
   ]) {
-    const res = responseRecorder(); await createAi({ env, fetchImpl })({ method, body: {} }, res);
+    const res = responseRecorder(); await createAi({ ...aiIdentity, env, fetchImpl })({ method, headers: aiHeaders, body: aiBody }, res);
     assert.equal(res.statusCode, status); assert.doesNotMatch(JSON.stringify(res.body), /private upstream/);
   }
 });
@@ -81,7 +81,7 @@ test('Interrupted cleanup fails explicitly and can be resumed safely', async () 
 test('Concurrent configurations never mix AI keys or admin identities', async () => {
   const keys = [];
   const fetchImpl = async (_, options) => { await Promise.resolve(); keys.push(options.headers.Authorization); return Response.json({ choices: [] }); };
-  await Promise.all(['one', 'two'].map(key => createAi({ env: { KAIROS_RELAY_SECRET: key }, fetchImpl })({ method: 'POST', body: {} }, responseRecorder())));
+  await Promise.all(['one', 'two'].map(key => createAi({ ...aiIdentity, env: { KAIROS_RELAY_SECRET: key }, fetchImpl })({ method: 'POST', headers: aiHeaders, body: aiBody }, responseRecorder())));
   assert.deepEqual(keys.sort(), ['Bearer one', 'Bearer two']);
   const db = fixtureDb(); const adminAuth = { async verifyIdToken(token) { return { uid: token }; } };
   const responses = await Promise.all(['one', 'two'].map(async uid => { const res = responseRecorder(); await createAnalytics({ db, adminAuth, env: { ANALYTICS_ADMIN_UID: uid } })({ method: 'GET', headers: { authorization: 'Bearer one' }, query: {} }, res); return res.statusCode; }));

@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { generateKeyPair, exportJWK, createLocalJWKSet, SignJWT } from 'jose';
 import { createFirebaseAuth } from '../cloudflare/firebase-auth.js';
+import * as verifiers from '../cloudflare/firebase-auth.js';
 
 const { privateKey, publicKey } = await generateKeyPair('RS256');
 const jwk = { ...await exportJWK(publicKey), kid: 'fixture-key', alg: 'RS256', use: 'sig' };
@@ -35,4 +36,17 @@ test('Firebase verifier rejects wrong project, invalid subjects and invalid time
 
 test('Firebase verifier fails closed without a project id', () => {
   assert.throws(() => createFirebaseAuth({ projectId: '', keySet: keys }), /project/i);
+});
+
+test('App Check accepts only signed tokens for the configured project and web app', async () => {
+  const verifier = verifiers.createFirebaseAppCheck({ projectNumber: '1234', appId: 'web-app', keySet: keys });
+  const payload = { sub: 'web-app', aud: ['projects/1234'], iss: 'https://firebaseappcheck.googleapis.com/1234', iat: now - 5, exp: now + 3600 };
+  const header = { alg: 'RS256', kid: 'fixture-key', typ: 'JWT' };
+  assert.equal((await verifier.verifyToken(await sign(payload, privateKey, header))).sub, 'web-app');
+  for (const patch of [{ sub: 'other-app' }, { aud: ['projects/9999'] }, { iss: 'https://firebaseappcheck.googleapis.com/9999' }, { exp: now - 10 }, { exp: undefined }, { iat: now + 3600 }]) {
+    await assert.rejects(verifier.verifyToken(await sign({ ...payload, ...patch }, privateKey, header)));
+  }
+  await assert.rejects(verifier.verifyToken(await sign(payload)));
+  const other = await generateKeyPair('RS256');
+  await assert.rejects(verifier.verifyToken(await sign(payload, other.privateKey, header)));
 });

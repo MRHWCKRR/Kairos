@@ -1,12 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createWorker } from '../cloudflare/worker.js';
-import { fixtureDb } from './helpers/server-fixtures.mjs';
+import { fixtureDb, aiHeaders } from './helpers/server-fixtures.mjs';
 
 function setup() {
   const db = fixtureDb();
-  const worker = createWorker({ createServices: () => ({ db, adminAuth: { async verifyIdToken(token) { if (token === 'bad') throw Error('bad signature'); return { uid: token }; } } }), fetchImpl: async () => Response.json({ choices: [{ message: { content: 'hello' } }] }) });
-  const env = { ASSETS: { async fetch(request) { return new Response(new URL(request.url).pathname, { status: 200 }); } }, ANALYTICS_ADMIN_UID: 'admin', ANALYTICS_HASH_SECRET: 'hash', CRON_SECRET: 'cron', KAIROS_RELAY_SECRET: 'relay' };
+  const worker = createWorker({ createServices: () => ({ db, appCheck: { async verifyToken() {} }, adminAuth: { async verifyIdToken(token) { if (token === 'bad') throw Error('bad signature'); return { uid: token, email_verified: true }; } } }), fetchImpl: async () => Response.json({ choices: [{ message: { content: 'hello' } }] }) });
+  const env = { AI_RATE_LIMITER: { async limit() { return { success: true }; } }, ASSETS: { async fetch(request) { return new Response(new URL(request.url).pathname, { status: 200 }); } }, ANALYTICS_ADMIN_UID: 'admin', ANALYTICS_HASH_SECRET: 'hash', CRON_SECRET: 'cron', KAIROS_RELAY_SECRET: 'relay' };
   return { db, worker, env };
 }
 const request = (path, options) => new Request(`https://fixture.example${path}`, options);
@@ -18,11 +18,11 @@ test('Worker delegates static pages, returns API 404, and preserves methods', as
   const method = await worker.fetch(request('/api/ai'), env, {}); assert.equal(method.status, 405); assert.equal(method.headers.get('allow'), 'POST'); assert.equal(method.headers.get('access-control-allow-origin'), null);
 });
 
-test('Worker handles AI replies and absent configuration without requiring Firebase credentials', async () => {
+test('Worker handles AI replies and absent configuration with verified identity and attestation', async () => {
   const { worker, env } = setup();
-  const response = await worker.fetch(request('/api/ai', { method: 'POST', body: '{"messages":[{"role":"user","content":"hi"}]}' }), env, {});
+  const response = await worker.fetch(request('/api/ai', { method: 'POST', headers: aiHeaders, body: '{"messages":[{"role":"user","content":"hi"}]}' }), env, {});
   assert.equal(response.status, 200); assert.equal((await response.json()).choices[0].message.content, 'hello'); assert.equal(response.headers.get('cache-control'), 'no-store');
-  const unavailable = await createWorker().fetch(request('/api/ai', { method: 'POST', body: '{}' }), {}, {}); assert.equal(unavailable.status, 503);
+  const unavailable = await createWorker().fetch(request('/api/ai', { method: 'POST', body: '{}' }), {}, {}); assert.equal(unavailable.status, 401);
 });
 
 test('Worker rejects malformed JSON and limits chunked bodies without Content-Length', async () => {

@@ -54,7 +54,7 @@ test('Kairos serves static assets and rejects unauthorised APIs in the real Work
   }
   for (const privateAsset of ['/analytics.html', '/analytics-dashboard.js']) assert.match((await fetch(origin + privateAsset)).headers.get('cache-control'), /no-store/);
   const method = await fetch(origin + '/api/ai'); assert.equal(method.status, 405); assert.equal(method.headers.get('allow'), 'POST');
-  assert.equal((await fetch(origin + '/api/ai', { method: 'POST', body: '{}' })).status, 503);
+  assert.equal((await fetch(origin + '/api/ai', { method: 'POST', body: '{}' })).status, 401);
   assert.equal((await fetch(origin + '/api/analytics')).status, 401);
   assert.equal((await fetch(origin + '/api/cleanup-analytics')).status, 401);
   assert.equal((await fetch(origin + '/api/track', { method: 'POST', body: '{' })).status, 400);
