@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createAiRequester } from '../ai-request.js';
+import * as aiTransport from '../ai-request.js';
+const { createAiRequester } = aiTransport;
 
 async function client(overrides = {}) {
   // The transport is independent of the browser-only Firebase wrapper.
@@ -33,4 +34,17 @@ test('account changes while obtaining tokens cannot send the previous user reque
 test('provider failures retain the HTTP status without exposing its response body', async () => {
   const c = await client({ fetchImpl: async () => Response.json({ error: 'private upstream detail' }, { status: 502 }) });
   await assert.rejects(c.request({}), error => error.status === 502 && !error.message.includes('private'));
+});
+
+test('daily notices stay out of AI context after reload while ordinary messages remain', () => {
+  const messages = JSON.parse(JSON.stringify([
+    {role:'user',content:'Hello'},
+    {role:'assistant',content:'Hi'},
+    {role:'assistant',content:'You have reached your daily Kairos AI allowance. Resets at 12 Oct, 12:00 am Brisbane time.'},
+    {role:'assistant',content:'Storage unavailable',notice:true},
+    {role:'user',content:'What does the daily Kairos AI allowance mean?'}
+  ]));
+  const filtered = aiTransport.aiConversationMessages?.(messages);
+  assert.deepEqual(filtered?.map(m=>m.content), ['Hello','Hi','What does the daily Kairos AI allowance mean?']);
+  assert.equal(messages.length,5);
 });

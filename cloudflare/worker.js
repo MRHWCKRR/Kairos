@@ -27,7 +27,8 @@ export function createWorker({ createServices = createFirebaseServices, fetchImp
       let maxBodyBytes = 1024 * 1024;
       const clientMetadata = { ip: request.headers.get('cf-connecting-ip') || 'unknown', country: request.cf?.country || '' };
       switch (path) {
-        case '/api/ai': handler = createAi({ env, adminAuth, appCheck, rateLimiter: env.AI_RATE_LIMITER, fetchImpl }); maxBodyBytes = 128 * 1024; break;
+        case '/api/ai': handler = createAi({ env, adminAuth, appCheck, rateLimiter: env.AI_RATE_LIMITER,
+          dailyBudget: { reserve(uid) { return createServices(env).db.reserveAiUsage(uid); } }, fetchImpl }); maxBodyBytes = 128 * 1024; break;
         case '/api/track':
           handler = createTrack({ env, db, getClientMetadata: req => req.clientMetadata }); maxBodyBytes = 2048; break;
         case '/api/analytics': handler = createAnalytics({ env, db, adminAuth }); break;
@@ -44,6 +45,7 @@ export function createWorker({ createServices = createFirebaseServices, fetchImp
     async scheduled(_controller, env) {
       // Reject on failure so the platform reports an unsuccessful scheduled run.
       await clearExpiredAnalytics(createServices(env).db, { deadlineMs: Date.now() + 10 * 60000 });
+      await createServices(env).db.clearExpiredAiUsage();
     }
   };
 }
