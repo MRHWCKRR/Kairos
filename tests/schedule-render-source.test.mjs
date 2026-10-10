@@ -33,9 +33,10 @@ test('Schedule responsive code never controls the global sidebar',()=>{
 });
 
 test('manual drag and resize use one-minute precision with a visible placement preview',()=>{
-  assert.match(interactions,/const SNAP=1/);
-  assert.match(interactions,/ks-interaction-preview/);
-  assert.match(interactions,/data-preview-label/);
+  assert.match(interactions,/const SNAP_MINUTES=1/);
+  assert.match(interactions,/ks-drag-preview/);
+  assert.match(interactions,/function placePreview/);
+  assert.match(interactions,/querySelector\('span'\)\.textContent/);
 });
 
 test('task inspector exposes Unschedule, task color and a functional hidden move panel',()=>{
