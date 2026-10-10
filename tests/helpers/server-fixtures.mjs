@@ -33,3 +33,11 @@ export function fixtureDb(initial = []) {
     batch() { const ids = []; return { delete(ref) { ids.push(ref.id); }, async commit() { commits.push(ids.length); ids.forEach(id => rows.delete(id)); } }; }
   };
 }
+
+export const aiIdentity = {
+  adminAuth: { async verifyIdToken() { return { uid: 'fixture-user', email_verified: true }; } },
+  appCheck: { async verifyToken() {} },
+  rateLimiter: { async limit() { return { success: true }; } }
+};
+export const aiHeaders = { authorization: 'Bearer fixture-token', 'x-firebase-appcheck': 'fixture-app' };
+export const aiBody = { messages: [{ role: 'user', content: 'hello' }] };

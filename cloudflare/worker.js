@@ -22,11 +22,12 @@ export function createWorker({ createServices = createFirebaseServices, fetchImp
         batch() { return createServices(env).db.batch(); }
       };
       const adminAuth = { verifyIdToken(token) { return createServices(env).adminAuth.verifyIdToken(token); } };
+      const appCheck = { verifyToken(token) { return createServices(env).appCheck.verifyToken(token); } };
       let handler;
       let maxBodyBytes = 1024 * 1024;
       const clientMetadata = { ip: request.headers.get('cf-connecting-ip') || 'unknown', country: request.cf?.country || '' };
       switch (path) {
-        case '/api/ai': handler = createAi({ env, fetchImpl }); break;
+        case '/api/ai': handler = createAi({ env, adminAuth, appCheck, rateLimiter: env.AI_RATE_LIMITER, fetchImpl }); maxBodyBytes = 128 * 1024; break;
         case '/api/track':
           handler = createTrack({ env, db, getClientMetadata: req => req.clientMetadata }); maxBodyBytes = 2048; break;
         case '/api/analytics': handler = createAnalytics({ env, db, adminAuth }); break;

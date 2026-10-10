@@ -1,5 +1,7 @@
 {
   "files": [
+    "ai-client.js",
+    "ai-request.js",
     "ai-actions.js",
     "ai-context.js",
     "ai-markdown.js",

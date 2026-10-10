@@ -55,7 +55,7 @@ test('recurrence module imports are cache-busted with the Schedule v10 graph',()
   assert.equal(rewriteScheduleRecurrenceImports(out),out);
 });
 
-test('injectScheduleBridge gives the planner deterministic rules, recurrence constraints and malformed JSON recovery',()=>{
+test('injectScheduleBridge gives the planner deterministic rules, recurrence constraints and malformed JSON recovery',async()=>{
   const js="const x=1;\n    // --- 14 Bedtime Reminder Engine ---\nconst y=2;";
   const once=injectScheduleBridge(js),twice=injectScheduleBridge(once);
   assert.match(twice,/__kairosScheduleBridge/);
@@ -78,7 +78,13 @@ test('injectScheduleBridge gives the planner deterministic rules, recurrence con
   assert.match(twice,/minTime: context\?\.currentTime/);
   assert.match(twice,/validateScheduleProposals/);
   assert.ok(once.includes('for (const board of boardsData || [])'));
-  assert.match(rewriteRelaySource(once),/fetch\('\/api\/ai'/);
+  let sent;
+  const window = { dispatchEvent() {} };
+  const executable = once.replace('./schedule-ai-parser.js?v=10', new URL('../schedule-ai-parser.js', import.meta.url).href);
+  new Function('window', 'CustomEvent', 'aiFetch', executable)(window, class {}, async options => { sent = JSON.parse(options.body); throw Error('rate'); });
+  await assert.rejects(window.__kairosScheduleBridge.requestAiPlan({ tasks: [] }), /rate/);
+  assert.equal(sent.messages[0].role, 'system');
+  assert.equal(sent.messages[1].content, '{"tasks":[]}');
 });
 
 test('rewriteRelaySource rewrites relay URL for schedule module too',()=>{

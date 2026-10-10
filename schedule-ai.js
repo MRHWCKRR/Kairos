@@ -1,5 +1,6 @@
 import { validateScheduleProposals, parseTime, formatTime, taskDurationMinutes, toDateKey, getVisibleDates, blockGeometry, addDays } from './schedule-utils.js';
 import { generateTaskOccurrences, generateTaskOccurrencesThrough, applyOccurrenceOverride } from './recurrence-utils.js';
+import { aiErrorMessage } from './ai-request.js';
 
 const bridge=()=>window.__kairosScheduleBridge;
 const workspace=()=>window.__kairosScheduleWorkspace;
@@ -141,7 +142,7 @@ function queueSync(){if(syncQueued)return;syncQueued=true;requestAnimationFrame(
 async function requestPlan(target=null){
   if(planning)return;planning=true;syncPlanButton();
   try{const context=buildContext(target);if(!context.tasks.length){showToast(target?'That task cannot be automatically planned.':'No unscheduled flexible tasks are available to plan.');return}const raw=await bridge()?.requestAiPlan?.(context),valid=validateGeneratedProposals(raw,context);if(!valid.length){showToast('Kairos did not find a safe future schedule change to propose.');return}proposals=valid.sort((a,b)=>a.to.date.localeCompare(b.to.date)||String(a.to.startTime).localeCompare(String(b.to.startTime)));reviewIndex=null;if(workspace()?.state)workspace().state.proposals=[...proposals];workspace()?.render?.();syncUi()}
-  catch(error){console.error('[Kairos Schedule] AI planning failed.',error);showToast('Kairos could not create a schedule proposal right now.')}
+  catch(error){console.error('[Kairos Schedule] AI planning failed.',error);showToast(error.code==='ai-protection'?aiErrorMessage(error):'Kairos could not create a schedule proposal right now.')}
   finally{planning=false;syncPlanButton()}
 }
 function snapshotsFor(items){

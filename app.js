@@ -1,3 +1,4 @@
+import { aiFetch, aiErrorMessage } from './ai-client.js';
 import { auth, db } from './firebase.js';
 import {
     signInWithEmailAndPassword,
@@ -1241,7 +1242,7 @@ document.addEventListener("DOMContentLoaded", () => {
         `;
 
         try {
-            const response = await fetch('https://kairos.kirosapp.workers.dev', {
+            const response = await aiFetch( {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ messages: [{ role: "user", content: systemPrompt }] })
@@ -1278,7 +1279,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         } catch (error) {
             console.error(error);
-            alert(tr('alert_ai_generation_error'));
+            alert(error.code === 'ai-protection' ? aiErrorMessage(error) : tr('alert_ai_generation_error'));
         } finally {
             isGeneratingPlan = false;
             if (triggerBtn) {
@@ -1641,7 +1642,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const prompt = `You are a supportive productivity coach. Here is a user's task list for ${dateKey}:\n${taskSummary}${scheduleSummary}${userContext}\n\nWrite a short, encouraging 1-2 sentence comment about their day in ${languageName}, since that is the user's chosen app language. Be specific about what they've completed or still need to do, and gently flag if their workload looks like it's cutting into sleep or rest time. Do not use markdown formatting.`;
 
         try {
-            const response = await fetch('https://kairos.kirosapp.workers.dev', {
+            const response = await aiFetch( {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ messages: [{ role: "user", content: prompt }] })
@@ -1665,7 +1666,7 @@ document.addEventListener("DOMContentLoaded", () => {
         } catch (error) {
             console.error(error);
             if (selectedCalendarDate === dateKey && dayDetailAiContent) {
-                dayDetailAiContent.innerHTML = `<p class="text-muted">${tr('insight_error')}</p>`;
+                dayDetailAiContent.textContent = error.code === 'ai-protection' ? aiErrorMessage(error) : tr('insight_error');
             }
         } finally {
             if (dayDetailAiBtn) dayDetailAiBtn.disabled = false;
