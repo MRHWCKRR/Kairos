@@ -115,7 +115,7 @@ test('scheduleFieldsFromDuration creates minute-precise keyboard-equivalent star
   assert.deepEqual(scheduleFieldsFromDuration('2026-10-12','',90),{date:'2026-10-12',startTime:null,endTime:null});
 });
 
-test('AI schedule proposals reject unknown, locked and invalid task moves',()=>{
+test('AI schedule proposals reject unknown, locked and zero-length task moves',()=>{
   const tasks=new Map([
     ['open',{id:'open',date:null,startTime:null,endTime:null,scheduleLocked:false}],
     ['locked',{id:'locked',date:null,startTime:null,endTime:null,scheduleLocked:true}]
@@ -124,9 +124,15 @@ test('AI schedule proposals reject unknown, locked and invalid task moves',()=>{
     {taskId:'missing',to:{date:'2026-10-12',startTime:'16:00',endTime:'17:00'}},
     {taskId:'locked',to:{date:'2026-10-12',startTime:'16:00',endTime:'17:00'}},
     {taskId:'open',to:{date:'bad-date',startTime:'16:00',endTime:'17:00'}},
-    {taskId:'open',to:{date:'2026-10-12',startTime:'16:00',endTime:'16:10'}}
+    {taskId:'open',to:{date:'2026-10-12',startTime:'16:00',endTime:'16:00'}}
   ];
   assert.deepEqual(validateScheduleProposals(raw,tasks),[]);
+});
+
+test('AI proposal validator accepts a one-minute task block',()=>{
+  const task={id:'quick',scheduleLocked:false};
+  const raw=[{taskId:'quick',to:{date:'2026-10-12',startTime:'16:00',endTime:'16:01'}}];
+  assert.equal(validateScheduleProposals(raw,new Map([['quick',task]]),[]).length,1);
 });
 
 test('AI schedule proposals preserve prior schedule and normalise a valid proposal',()=>{
@@ -147,10 +153,16 @@ test('AI proposal validator rejects a proposal before the authoritative current 
   assert.deepEqual(validateScheduleProposals(raw,new Map([['science',task]]),[],{minDate:'2026-10-10'}),[]);
 });
 
-test('AI proposal validator accepts today or a future date when otherwise valid',()=>{
+test('AI proposal validator rejects an earlier time on the current date',()=>{
   const task={id:'science',scheduleLocked:false};
-  const raw=[{taskId:'science',to:{date:'2026-10-10',startTime:'16:00',endTime:'17:00'}}];
-  assert.equal(validateScheduleProposals(raw,new Map([['science',task]]),[],{minDate:'2026-10-10'}).length,1);
+  const raw=[{taskId:'science',to:{date:'2026-10-10',startTime:'09:59',endTime:'10:30'}}];
+  assert.deepEqual(validateScheduleProposals(raw,new Map([['science',task]]),[],{minDate:'2026-10-10',minTime:'10:00'}),[]);
+});
+
+test('AI proposal validator accepts today at or after the current time',()=>{
+  const task={id:'science',scheduleLocked:false};
+  const raw=[{taskId:'science',to:{date:'2026-10-10',startTime:'10:00',endTime:'10:01'}}];
+  assert.equal(validateScheduleProposals(raw,new Map([['science',task]]),[],{minDate:'2026-10-10',minTime:'10:00'}).length,1);
 });
 
 test('AI proposal validator rejects recurring fixed-event conflicts',()=>{
