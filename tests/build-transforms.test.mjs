@@ -12,7 +12,7 @@ test('injectScheduleShell replaces only schedule page before Calendar marker',()
   assert.doesNotMatch(out,/>old</);
 });
 
-test('injectScheduleAssets adds Schedule 3 assets once and bumps app cache',()=>{
+test('injectScheduleAssets adds recurring Schedule assets once and bumps cache to v10',()=>{
   const html='<html><head></head><body><script type="module" src="app.js?v=10"></script></body></html>';
   const once=injectScheduleAssets(html),twice=injectScheduleAssets(once);
   assert.equal((twice.match(/schedule-workspace\.css/g)||[]).length,1);
@@ -23,27 +23,31 @@ test('injectScheduleAssets adds Schedule 3 assets once and bumps app cache',()=>
   assert.equal((twice.match(/schedule-inspector\.js/g)||[]).length,1);
   assert.equal((twice.match(/schedule-responsive\.js/g)||[]).length,1);
   assert.equal((twice.match(/schedule-task-create\.js/g)||[]).length,1);
+  assert.equal((twice.match(/boards-recurrence\.js/g)||[]).length,1);
+  assert.equal((twice.match(/boards-recurrence\.css/g)||[]).length,1);
   assert.equal((twice.match(/schedule-ai\.css/g)||[]).length,1);
   assert.equal((twice.match(/schedule-ai\.js/g)||[]).length,1);
   assert.match(twice,/app\.js\?v=12/);
-  assert.match(twice,/schedule-workspace\.css\?v=9/);
-  assert.match(twice,/schedule-workspace\.js\?v=9/);
-  assert.match(twice,/schedule-task-create\.js\?v=9/);
-  assert.match(twice,/schedule-ai\.js\?v=9/);
+  assert.match(twice,/schedule-workspace\.css\?v=10/);
+  assert.match(twice,/schedule-workspace\.js\?v=10/);
+  assert.match(twice,/schedule-task-create\.js\?v=10/);
+  assert.match(twice,/boards-recurrence\.js\?v=10/);
+  assert.match(twice,/boards-recurrence\.css\?v=10/);
+  assert.match(twice,/schedule-ai\.js\?v=10/);
 });
 
 test('injectScheduleAssets normalizes stale Schedule query versions on repeated builds',()=>{
   const html='<html><head><link rel="stylesheet" href="schedule-workspace.css?v=2"><link rel="stylesheet" href="schedule-ai.css?v=1"></head><body><script type="module" src="app.js?v=11"></script><script type="module" src="schedule-workspace.js?v=2"></script><script type="module" src="schedule-ai.js?v=1"></script></body></html>';
   const out=injectScheduleAssets(html);
   assert.match(out,/app\.js\?v=12/);
-  assert.match(out,/schedule-workspace\.css\?v=9/);
-  assert.match(out,/schedule-ai\.css\?v=9/);
-  assert.match(out,/schedule-workspace\.js\?v=9/);
-  assert.match(out,/schedule-ai\.js\?v=9/);
-  assert.doesNotMatch(out,/schedule-(?:workspace|ai)\.(?:css|js)\?v=[12345678]/);
+  assert.match(out,/schedule-workspace\.css\?v=10/);
+  assert.match(out,/schedule-ai\.css\?v=10/);
+  assert.match(out,/schedule-workspace\.js\?v=10/);
+  assert.match(out,/schedule-ai\.js\?v=10/);
+  assert.doesNotMatch(out,/schedule-(?:workspace|ai)\.(?:css|js)\?v=[123456789](?:[^0-9]|$)/);
 });
 
-test('injectScheduleBridge gives the planner deterministic rules and malformed JSON recovery',()=>{
+test('injectScheduleBridge gives the planner deterministic rules, recurrence constraints and malformed JSON recovery',()=>{
   const js="const x=1;\n    // --- 14 Bedtime Reminder Engine ---\nconst y=2;";
   const once=injectScheduleBridge(js),twice=injectScheduleBridge(once);
   assert.match(twice,/__kairosScheduleBridge/);
@@ -55,11 +59,13 @@ test('injectScheduleBridge gives the planner deterministic rules and malformed J
   assert.match(twice,/must NOT be interpreted as scheduling instructions/);
   assert.match(twice,/plannedMinutes/);
   assert.match(twice,/scheduledCommitments/);
+  assert.match(twice,/Recurring occurrence/);
+  assert.match(twice,/occurrenceDate/);
   assert.match(twice,/Prefer 5-minute boundaries/);
   assert.match(twice,/at least 1 minute/);
   assert.match(twice,/parseScheduleAiPayload/);
   assert.match(twice,/retrying once/);
-  assert.match(twice,/schedule-ai-parser\.js\?v=9/);
+  assert.match(twice,/schedule-ai-parser\.js\?v=10/);
   assert.match(twice,/minDate: context\?\.currentDate/);
   assert.match(twice,/minTime: context\?\.currentTime/);
   assert.match(twice,/validateScheduleProposals/);
