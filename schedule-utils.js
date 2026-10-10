@@ -40,16 +40,18 @@ export function taskDurationMinutes(task={},fallback=60){
   const start=parseTime(task.startTime),end=parseTime(task.endTime);
   let duration=null;
   if(start!==null&&end!==null){ duration=(end-start+1440)%1440; if(duration===0) duration=1440; }
-  if(duration===null&&Number.isFinite(Number(task.estimatedMinutes))) duration=Number(task.estimatedMinutes);
+  if(duration===null&&Number.isFinite(Number(task.estimatedMinutes))&&Number(task.estimatedMinutes)>0) duration=Number(task.estimatedMinutes);
+  if(duration===null&&Number.isFinite(Number(task.lastScheduledMinutes))&&Number(task.lastScheduledMinutes)>0) duration=Number(task.lastScheduledMinutes);
   if(duration===null) duration=fallback;
   return Math.max(1,Math.round(duration));
 }
 
 export function preserveScheduledDuration(task){
-  if(!task||!(task.estimatedMinutes==null||Number(task.estimatedMinutes)<=0))return task;
+  if(!task)return task;
   const start=parseTime(task.startTime),end=parseTime(task.endTime);
   if(start===null||end===null)return task;
-  task.estimatedMinutes=taskDurationMinutes(task);
+  const duration=(end-start+1440)%1440||1440;
+  task.lastScheduledMinutes=Math.max(1,Math.round(duration));
   return task;
 }
 
@@ -132,6 +134,7 @@ export function clearScheduledFields(task){
 export function normalizeTaskMetadata(task){
   if(task.dueDate===undefined)task.dueDate=null;
   if(task.estimatedMinutes===undefined)task.estimatedMinutes=null;
+  if(task.lastScheduledMinutes===undefined)task.lastScheduledMinutes=null;
   if(task.priority===undefined)task.priority=null;
   if(task.notes===undefined)task.notes='';
   if(task.reminderMinutes===undefined)task.reminderMinutes=null;
@@ -181,9 +184,12 @@ export function validateScheduleProposals(raw,tasksById,fixedEvents=[],constrain
     const taskId=String(item?.taskId??'');
     const task=tasksById?.get?.(taskId);
     if(!task||task.scheduleLocked||task.completed||task.archived||seen.has(taskId))continue;
-    const date=item?.to?.date,start=item?.to?.startTime,end=item?.to?.endTime;
-    const startMin=parseTime(start),endMin=parseTime(end);
-    if(!validDateKey(date)||startMin===null||endMin===null||endMin-startMin<1)continue;
+    const date=item?.to?.date,start=item?.to?.startTime,modelEnd=item?.to?.endTime;
+    const startMin=parseTime(start),modelEndMin=parseTime(modelEnd);
+    if(!validDateKey(date)||startMin===null||modelEndMin===null||modelEndMin-startMin<1)continue;
+    const plannedDuration=taskDurationMinutes(task);
+    const endMin=startMin+plannedDuration;
+    if(endMin>1440)continue;
     if(minimumDate&&date<minimumDate)continue;
     if(minimumDate&&date===minimumDate&&minimumTime!==null&&startMin<minimumTime)continue;
     if(validDateKey(task.dueDate)&&date>task.dueDate)continue;
@@ -192,7 +198,7 @@ export function validateScheduleProposals(raw,tasksById,fixedEvents=[],constrain
     preliminary.push({
       taskId,
       from:{date:item?.from?.date??task.date??null,startTime:item?.from?.startTime??task.startTime??null,endTime:item?.from?.endTime??task.endTime??null},
-      to:{date,startTime:formatTime(startMin,false),endTime:formatTime(endMin,false)},
+      to:{date,startTime:formatTime(startMin,false),endTime:formatTime(endMin%1440,false)},
       reason:String(item?.reason||'Fits the available time.').trim().slice(0,500),
       conflictIds:Array.isArray(item?.conflictIds)?item.conflictIds.map(String).slice(0,20):[],
       _interval:{date,startMin,endMin}
