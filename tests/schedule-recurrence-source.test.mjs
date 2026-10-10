@@ -37,15 +37,14 @@ test('editing or deleting a recurring occurrence asks for one of three scopes',(
   assert.match(inspector,/showRecurrenceScopeDialog/);assert.match(inspector,/scope==='occurrence'/);assert.match(inspector,/scope==='future'/);assert.match(inspector,/scope==='series'/);assert.match(inspector,/splitRecurringSeries/);assert.match(inspector,/applyOccurrenceOverride/);assert.match(inspector,/persistPlan/);
 });
 
-test('Schedule expands recurring series into virtual occurrence blocks instead of base task blocks',()=>{
-  assert.match(workspace,/generateTaskOccurrences/);
-  assert.match(workspace,/RECURRENCE_LOOKBACK_DAYS/);
+test('Schedule expands recurring series into all pending virtual occurrences through the visible range',()=>{
+  assert.match(workspace,/generateTaskOccurrencesThrough/);
+  assert.doesNotMatch(workspace,/RECURRENCE_LOOKBACK_DAYS/);
   assert.match(workspace,/recurrence\?\.enabled/);
   assert.match(workspace,/data-occurrence-id/);
   assert.match(workspace,/data-series-id/);
   assert.match(workspace,/data-occurrence-date/);
   assert.match(workspace,/↻/);
-  assert.match(workspace,/status==='pending'/);
   assert.match(workspace,/displayDate/);
 });
 
