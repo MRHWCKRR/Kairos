@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "build": "node build.js",
-    "test:schedule": "node --test tests/schedule-utils.test.mjs tests/schedule-geometry.test.mjs tests/schedule-render-source.test.mjs tests/build-transforms.test.mjs"
+    "test:schedule": "node --test tests/schedule-utils.test.mjs tests/schedule-geometry.test.mjs tests/schedule-render-source.test.mjs tests/schedule-bugfixes.test.mjs tests/build-transforms.test.mjs"
   },
   "dependencies": {
     "firebase-admin": "^13.5.0"
