@@ -155,3 +155,9 @@ export function injectScheduleBridge(js){
 export function rewriteRelaySource(source){
   return source.replaceAll('https://kairos.kirosapp.workers.dev','/api/ai');
 }
+
+export function rewriteScheduleRecurrenceImports(source){
+  return source
+    .replaceAll("'./recurrence-utils.js'","'./recurrence-utils.js?v=10'")
+    .replaceAll("'./schedule-recurrence-ui.js'","'./schedule-recurrence-ui.js?v=10'");
+}
