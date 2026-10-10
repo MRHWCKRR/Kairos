@@ -26,7 +26,6 @@ function dateFromKey(key){const [y,m,d]=String(key).split('-').map(Number);retur
 function dateKey(date){return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`}
 function addDays(key,days){const d=dateFromKey(key);d.setDate(d.getDate()+days);return dateKey(d)}
 function dayDiff(a,b){return Math.round((dateFromKey(b)-dateFromKey(a))/86400000)}
-function monthDiff(a,b){const x=dateFromKey(a),y=dateFromKey(b);return (y.getFullYear()-x.getFullYear())*12+y.getMonth()-x.getMonth()}
 function validCandidate(y,m,d){const dt=new Date(y,m-1,d,12);return dt.getFullYear()===y&&dt.getMonth()===m-1&&dt.getDate()===d?dateKey(dt):null}
 function weekdayPositionDate(year,month,weekday,position){
   if(position==='last'){
@@ -35,6 +34,16 @@ function weekdayPositionDate(year,month,weekday,position){
   const order={first:1,second:2,third:3,fourth:4}[position]||1;
   const first=new Date(year,month-1,1,12),offset=(weekday-first.getDay()+7)%7,day=1+offset+(order-1)*7;
   return validCandidate(year,month,day);
+}
+function parseMinutes(value){
+  const match=/^(\d{1,2}):(\d{2})$/.exec(String(value||''));if(!match)return null;
+  const h=Number(match[1]),m=Number(match[2]);return h>=0&&h<24&&m>=0&&m<60?h*60+m:null;
+}
+function formatMinutes(value){const n=Math.max(0,Math.min(1440,Math.round(value)));return `${String(Math.floor(n/60)%24).padStart(2,'0')}:${String(n%60).padStart(2,'0')}`}
+function taskDuration(task){
+  const start=parseMinutes(task?.startTime),end=parseMinutes(task?.endTime);
+  if(start!==null&&end!==null&&end>start)return end-start;
+  const estimate=Math.round(Number(task?.estimatedMinutes));return Number.isFinite(estimate)&&estimate>0?estimate:60;
 }
 
 export function normalizeRecurrence(input={},fallbackDate=null){
@@ -149,4 +158,56 @@ export function nextOccurrenceDate(input,afterDate){
   const dates=candidateStream(rule,maxEnd);
   const limited=rule.endType==='count'?dates.slice(0,rule.count):dates;
   return limited.find(key=>key>afterDate)||null;
+}
+
+export function generateTaskOccurrences(task,rangeStart,rangeEnd,options={}){
+  const rule=normalizeRecurrence(task,task?.date||rangeStart),today=validDateKey(options.today)?options.today:dateKey(new Date());
+  if(!rule.enabled)return [];
+  const logicalDates=generateOccurrenceDates(rule,rangeStart,rangeEnd),seriesId=String(task?.id??'');
+  return logicalDates.map(occurrenceDate=>{
+    const exception=rule.exceptions?.[occurrenceDate]&&typeof rule.exceptions[occurrenceDate]==='object'?rule.exceptions[occurrenceDate]:null;
+    const override=exception?.override&&typeof exception.override==='object'?exception.override:{};
+    const effectiveTask={...task,...override,recurrence:task.recurrence};
+    const displayDate=validDateKey(override.date)?override.date:occurrenceDate;
+    const status=['completed','skipped','deleted'].includes(exception?.status)?exception.status:'pending';
+    const duration=override.durationMinutes?Math.max(1,Math.round(Number(override.durationMinutes))):taskDuration(effectiveTask);
+    let startTime=null,endTime=null;
+    if(rule.mode==='fixed'){
+      startTime=effectiveTask.startTime||null;endTime=effectiveTask.endTime||null;
+      const start=parseMinutes(startTime);if(start!==null&&(!endTime||parseMinutes(endTime)===null))endTime=formatMinutes(start+duration);
+    }else if(Object.prototype.hasOwnProperty.call(override,'startTime')){
+      startTime=override.startTime||null;endTime=override.endTime||null;
+      const start=parseMinutes(startTime);if(start!==null&&(!endTime||parseMinutes(endTime)===null))endTime=formatMinutes(start+duration);
+    }
+    return {
+      occurrenceId:occurrenceId(seriesId,occurrenceDate),seriesId,occurrenceDate,displayDate,startTime,endTime,durationMinutes:duration,status,
+      isOverdue:status==='pending'&&displayDate<today,
+      isException:!!exception,
+      mode:rule.mode,
+      task:{...effectiveTask,date:displayDate,startTime,endTime}
+    };
+  });
+}
+
+const DAY_LONG=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const DAY_SHORT=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const MONTH_SHORT=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function ordinal(value){const n=Number(value),mod100=n%100;if(mod100>=11&&mod100<=13)return `${n}th`;return `${n}${n%10===1?'st':n%10===2?'nd':n%10===3?'rd':'th'}`}
+function capital(value){const s=String(value||'');return s?s[0].toUpperCase()+s.slice(1):s}
+
+export function formatRecurrenceSummary(input,options={}){
+  const rule=normalizeRecurrence(input,options.fallbackDate||input?.date||null);if(!rule.enabled)return 'Does not repeat';
+  let text='';
+  if(rule.frequency==='daily')text=rule.interval===1?'Daily':`Every ${rule.interval} days`;
+  else if(rule.frequency==='weekly'){
+    if(rule.interval===1&&rule.weekdays.length===1)text=`Every ${DAY_LONG[rule.weekdays[0]]}`;
+    else text=`Every ${rule.interval===1?'week':`${rule.interval} weeks`} on ${rule.weekdays.map(day=>DAY_SHORT[day]).join('/')}`;
+  }else if(rule.frequency==='monthly'){
+    if(rule.monthlyMode==='weekdayPosition')text=`${capital(rule.weekdayPosition)} ${DAY_LONG[rule.weekday]} monthly`;
+    else text=rule.interval===1?`Monthly on the ${ordinal(rule.monthDay)}`:`Every ${rule.interval} months on the ${ordinal(rule.monthDay)}`;
+  }else if(rule.frequency==='yearly')text=`${rule.interval===1?'Yearly':`Every ${rule.interval} years`} on ${MONTH_SHORT[(rule.month||1)-1]} ${rule.monthDay}`;
+  text+=rule.mode==='fixed'?' · Fixed time':' · Flexible';
+  if(rule.endType==='date')text+=` · Ends ${rule.endDate}`;
+  if(rule.endType==='count')text+=` · ${rule.count} occurrence${rule.count===1?'':'s'}`;
+  return text;
 }
