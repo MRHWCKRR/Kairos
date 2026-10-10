@@ -5,13 +5,12 @@ import { readFileSync } from 'node:fs';
 const ai=readFileSync(new URL('../schedule-ai.js',import.meta.url),'utf8');
 const transforms=readFileSync(new URL('../build-transforms.js',import.meta.url),'utf8');
 
-test('AI planning expands recurring series into occurrence-aware candidates and commitments',()=>{
-  assert.match(ai,/generateTaskOccurrences/);
+test('AI planning expands recurring series into all pending occurrence-aware candidates and commitments',()=>{
+  assert.match(ai,/generateTaskOccurrencesThrough/);
   assert.match(ai,/occurrenceId/);
   assert.match(ai,/seriesId/);
   assert.match(ai,/occurrenceDate/);
   assert.match(ai,/mode==='fixed'/);
-  assert.match(ai,/status==='pending'/);
   assert.match(ai,/isOverdue/);
   assert.match(ai,/scheduledCommitments/);
 });
