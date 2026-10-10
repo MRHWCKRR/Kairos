@@ -1,4 +1,5 @@
 import { scheduleFieldsFromDuration } from './schedule-utils.js';
+import { recurrenceFieldsMarkup, bindRecurrenceFields, readRecurrenceFields } from './schedule-recurrence-ui.js';
 
 const bridge=()=>window.__kairosScheduleBridge;
 const workspace=()=>window.__kairosScheduleWorkspace;
@@ -34,6 +35,7 @@ function openCreator(){
     <div class="ks-form-grid"><label>Board<select name="board" ${boards.length?'':'disabled'}>${boards.length?boardOptions(firstBoard?.id):'<option value="">No boards available</option>'}</select></label><label>Section<select name="section" ${firstBoard?'':'disabled'}>${firstBoard?sectionOptions(firstBoard,firstSection?.id):'<option value="">No section</option>'}</select></label></div>
     <div class="ks-form-grid"><label>Date<input name="date" type="date"></label><label>Start<input name="start" type="time" step="60"></label></div>
     <div class="ks-form-grid"><label>Duration (min)<input name="duration" type="number" min="1" step="1" value="60"></label><label>Due date<input name="dueDate" type="date"></label></div>
+    ${recurrenceFieldsMarkup({}, {})}
     <div class="ks-form-grid"><label>Priority<select name="priority"><option value="">None</option><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></label><label>Estimate (min)<input name="estimate" type="number" min="1" step="1" placeholder="Optional"></label></div>
     <div class="ks-form-grid"><label>Preferred time<select name="preference"><option value="">No preference</option><option value="morning">Morning</option><option value="afternoon">Afternoon</option><option value="evening">Evening</option></select></label><label>Reminder<select name="reminder"><option value="">None</option><option value="5">5 min before</option><option value="15">15 min before</option><option value="30">30 min before</option><option value="60">1 hour before</option></select></label></div>
     <label>Task color<div class="ks-color-control"><input name="color" type="color" value="#a855f7" aria-label="Task color"><button type="button" data-create-reset-color>Use theme color</button></div></label>
@@ -42,7 +44,7 @@ function openCreator(){
     <div class="ks-inspector-actions ks-inspector-primary"><button type="submit" class="ks-primary" ${boards.length?'':'disabled'}>Create task</button><button type="button" data-create-cancel>Cancel</button></div>
   </form>`;
   const form=inspector.querySelector('[data-ks-create-task]');if(!form)return;
-  form.dataset.colorCustom='0';
+  form.dataset.colorCustom='0';bindRecurrenceFields(form);
   inspector.querySelector('[data-create-close]')?.addEventListener('click',closeCreator);
   inspector.querySelector('[data-create-cancel]')?.addEventListener('click',closeCreator);
   form.elements.board?.addEventListener('change',()=>{
@@ -67,7 +69,8 @@ async function createTask(form){
   const title=form.elements.title.value.trim();if(!title){showToast('Enter a task title.');return}
   const date=form.elements.date.value||'',start=form.elements.start.value||'',duration=Math.max(1,Math.round(Number(form.elements.duration.value)||60));
   if(start&&!date){showToast('Choose a date when setting a start time.');return}
-  const schedule=scheduleFieldsFromDuration(date,start,duration),estimateValue=form.elements.estimate.value||'';
+  const schedule=scheduleFieldsFromDuration(date,start,duration),estimateValue=form.elements.estimate.value||'',recurrence=readRecurrenceFields(form,date||null);
+  if(recurrence?.mode==='fixed'&&!start){showToast('Fixed recurring tasks need a start time.');return}
   const task={
     id:makeId('task'),title,completed:false,archived:false,
     ...schedule,
@@ -79,7 +82,8 @@ async function createTask(form){
     reminderMinutes:form.elements.reminder.value?Number(form.elements.reminder.value):null,
     scheduleLocked:form.elements.locked.checked,
     schedulingPreference:form.elements.preference.value||null,
-    color:form.dataset.colorCustom==='1'?validTaskColor(form.elements.color.value):null
+    color:form.dataset.colorCustom==='1'?validTaskColor(form.elements.color.value):null,
+    ...(recurrence?{recurrence}:{})
   };
   targetSection.tasks=Array.isArray(targetSection.tasks)?targetSection.tasks:[];targetSection.tasks.push(task);workspace()?.render?.();
   try{
