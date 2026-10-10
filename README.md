@@ -5,6 +5,8 @@
 
 # Kairos
 
+Cloudflare migration preparation, preview setup and rollback: [deployment guide](docs/cloudflare-migration.md).
+
 *Everyone has 24 hours a day. The elite are the elite because time is utilised properly.*
 
 A smart, personalised and practical solution to school/work stress and last minute tasks.

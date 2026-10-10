@@ -20,5 +20,13 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: Install dependencies
+        run: npm ci
+      - name: Run Cloudflare tests and build
+        run: npm run build:cloudflare
+      - name: Verify Cloudflare runtime and bundle
+        run: |
+          npm run test:runtime
+          npx wrangler deploy --dry-run --env preview
       - name: Run Schedule tests and build
         run: npm run build
