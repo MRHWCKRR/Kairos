@@ -1,4 +1,5 @@
 import { normalizeTaskMetadata, scheduleFieldsFromDuration, taskDurationMinutes, clearScheduledFields, preserveScheduledDuration, toDateKey } from './schedule-utils.js';
+import { recurrenceFieldsMarkup, bindRecurrenceFields, readRecurrenceFields } from './schedule-recurrence-ui.js';
 
 const bridge=()=>window.__kairosScheduleBridge;
 const workspace=()=>window.__kairosScheduleWorkspace;
@@ -21,8 +22,8 @@ function showToast(message){
   document.querySelector('.ks-toast')?.remove();const el=document.createElement('div');el.className='ks-toast';el.setAttribute('role','status');el.textContent=message;document.body.appendChild(el);requestAnimationFrame(()=>el.classList.add('is-visible'));setTimeout(()=>{el.classList.remove('is-visible');setTimeout(()=>el.remove(),180)},2800);
 }
 function snapshotTask(task){
-  const fields=['title','completed','date','startTime','endTime','dueDate','estimatedMinutes','lastScheduledMinutes','priority','notes','reminderMinutes','scheduleLocked','schedulingPreference','color'];
-  return Object.fromEntries(fields.map(k=>[k,task[k]??(k==='notes'?'':k==='scheduleLocked'?false:null)]));
+  const fields=['title','completed','date','startTime','endTime','dueDate','estimatedMinutes','lastScheduledMinutes','priority','notes','reminderMinutes','scheduleLocked','schedulingPreference','color','recurrence'];
+  return Object.fromEntries(fields.map(k=>[k,k==='recurrence'&&task[k]?structuredClone(task[k]):task[k]??(k==='notes'?'':k==='scheduleLocked'?false:null)]));
 }
 async function persistTask(task,before,successMessage='Saved task changes.'){
   workspace()?.render?.();
@@ -40,6 +41,7 @@ function richMarkup(found){
     <label>Title<input name="title" maxlength="180" value="${esc(task.title)}"></label>
     <div class="ks-form-grid"><label>Date<input name="date" type="date" value="${esc(task.date||'')}"></label><label>Start<input name="start" type="time" step="60" value="${esc(task.startTime||'')}"></label></div>
     <div class="ks-form-grid"><label>Duration (min)<input name="duration" type="number" min="1" step="1" value="${duration}"></label><label>Due date<input name="dueDate" type="date" value="${esc(task.dueDate||'')}"></label></div>
+    ${recurrenceFieldsMarkup(task,{fallbackDate:task.date||null})}
     <div class="ks-inspector-location"><span>${esc(board.title)} / ${esc(section.title)}</span><button type="button" data-toggle-move>Move</button></div>
     <div class="ks-move-fields" hidden><label>Board<select name="board">${boardOptions(board.id)}</select></label><label>Section<select name="section">${sectionOptions(board,section.id)}</select></label><button type="button" data-move>Move task</button></div>
     <details><summary>More details</summary><div class="ks-details-body">
@@ -60,7 +62,7 @@ function enhance(){
   const found=findTask(selected.id);if(!found)return;
   if(inspector.dataset.enhancedFor===String(selected.id)&&inspector.querySelector('[data-ks-rich-inspector]'))return;
   inspector.dataset.enhancedFor=String(selected.id);inspector.innerHTML=richMarkup(found);
-  const form=inspector.querySelector('form');const {task,board,section}=found;form.dataset.colorCustom=validTaskColor(task.color)?'1':'0';
+  const form=inspector.querySelector('form');const {task,board,section}=found;form.dataset.colorCustom=validTaskColor(task.color)?'1':'0';bindRecurrenceFields(form,{fallbackDate:task.date||task.recurrence?.startDate||null});
   inspector.querySelector('[data-close]')?.addEventListener('click',()=>workspace()?.clearSelection?.());
   form.elements.board?.addEventListener('change',()=>{const target=(bridge()?.getBoards?.()||[]).find(b=>String(b.id)===String(form.elements.board.value));form.elements.section.innerHTML=sectionOptions(target,'')});
   inspector.querySelector('[data-toggle-move]')?.addEventListener('click',()=>{const box=inspector.querySelector('.ks-move-fields');box.hidden=!box.hidden});
@@ -74,8 +76,8 @@ function enhance(){
   inspector.querySelector('[data-delete]')?.addEventListener('click',()=>void deleteTask());
 
   async function saveForm(){
-    const before=snapshotTask(task);
-    const duration=Math.max(1,Number(form.elements.duration.value)||60);
+    const before=snapshotTask(task),duration=Math.max(1,Number(form.elements.duration.value)||60),recurrence=readRecurrenceFields(form,form.elements.date.value||task.recurrence?.startDate||null);
+    if(recurrence?.mode==='fixed'&&!form.elements.start.value){showToast('Fixed recurring tasks need a start time.');return}
     Object.assign(task,scheduleFieldsFromDuration(form.elements.date.value,form.elements.start.value,duration),{
       title:form.elements.title.value.trim()||before.title,
       dueDate:form.elements.dueDate.value||null,
@@ -85,7 +87,8 @@ function enhance(){
       reminderMinutes:form.elements.reminder.value?Number(form.elements.reminder.value):null,
       schedulingPreference:form.elements.preference.value||null,
       scheduleLocked:form.elements.locked.checked,
-      color:form.dataset.colorCustom==='1'?validTaskColor(form.elements.color.value):null
+      color:form.dataset.colorCustom==='1'?validTaskColor(form.elements.color.value):null,
+      recurrence
     });
     await persistTask(task,before);
   }
