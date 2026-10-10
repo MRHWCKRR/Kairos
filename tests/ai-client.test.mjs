@@ -1,11 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import fs from 'node:fs/promises';
+import { createAiRequester } from '../ai-request.js';
 
 async function client(overrides = {}) {
-  // Load the transport without loading browser-only Firebase modules.
-  const source = await fs.readFile(new URL('../ai-request.js', import.meta.url), 'utf8');
-  const { createAiRequester } = await import('data:text/javascript,' + encodeURIComponent(source));
+  // The transport is independent of the browser-only Firebase wrapper.
   let sent;
   const user = { uid: 'one', emailVerified: true, async getIdToken() { return 'user-token'; } };
   const request = createAiRequester({ getUser: () => user, getAppToken: async () => 'app-token', fetchImpl: async (url, options) => { sent = { url, options }; return Response.json({ choices: [] }); }, ...overrides });
@@ -31,4 +29,8 @@ test('account changes while obtaining tokens cannot send the previous user reque
   const user = { uid: 'one', emailVerified: true, async getIdToken() { return 'token'; } }; let current = user;
   const c = await client({ getUser: () => current, getAppToken: async () => { current = null; return 'token'; } });
   await assert.rejects(c.request({}), /sign in/i); assert.equal(c.sent, undefined);
+});
+test('provider failures retain the HTTP status without exposing its response body', async () => {
+  const c = await client({ fetchImpl: async () => Response.json({ error: 'private upstream detail' }, { status: 502 }) });
+  await assert.rejects(c.request({}), error => error.status === 502 && !error.message.includes('private'));
 });

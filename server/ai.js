@@ -61,6 +61,7 @@ export function createHandler({ env, adminAuth, appCheck, rateLimiter, fetchImpl
             })
         });
 
+        if (!upstream.ok) console.warn(JSON.stringify({ event: 'kairos_ai_upstream_status', status: upstream.status }));
         const text = await readBoundedText(upstream, 1024 * 1024);
         let data;
         try {
@@ -71,7 +72,7 @@ export function createHandler({ env, adminAuth, appCheck, rateLimiter, fetchImpl
 
         return res.status(upstream.status).json(data);
     } catch (error) {
-        console.error('AI relay request failed.');
+        console.error(JSON.stringify({ event: 'kairos_ai_upstream_failed', reason: error?.name === 'TimeoutError' ? 'timeout' : 'request-failed' }));
         return res.status(502).json({ error: 'AI relay unavailable' });
     }
 }

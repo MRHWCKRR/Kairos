@@ -22,7 +22,10 @@ export function createAiRequester({ getUser, getAppToken, fetchImpl = fetch }) {
     if (response.status === 401) throw protectionError('Please sign in again to use Kairos AI.');
     if (response.status === 403) throw protectionError('Verify your email, then refresh Kairos and try again.');
     if (response.status === 413) throw protectionError('This AI request is too large. Try a shorter message or a smaller plan.');
-    if (!response.ok) throw protectionError('Kairos AI is temporarily unavailable. Please try again shortly.');
+    if (!response.ok) {
+      console.warn('Kairos AI returned HTTP status:', response.status);
+      throw Object.assign(protectionError('Kairos AI is temporarily unavailable. Please try again shortly.'), { status: response.status });
+    }
     return response;
   };
 }
