@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { normalizeRecurrence, validateRecurrence, occurrenceId, generateOccurrenceDates, nextOccurrenceDate, generateTaskOccurrences, formatRecurrenceSummary } from '../recurrence-utils.js';
+import { normalizeRecurrence, validateRecurrence, occurrenceId, generateOccurrenceDates, nextOccurrenceDate, generateTaskOccurrences, generateTaskOccurrencesThrough, formatRecurrenceSummary } from '../recurrence-utils.js';
 
 test('normalizes daily and weekday recurrence presets',()=>{
   const daily=normalizeRecurrence({enabled:true,frequency:'daily',interval:1,startDate:'2026-10-10',mode:'flexible'});
@@ -133,6 +133,25 @@ test('multiple overdue flexible occurrences coexist with the current occurrence'
   const task={id:'revision',title:'Revision',estimatedMinutes:60,recurrence:{enabled:true,frequency:'weekly',weekdays:[3],startDate:'2026-10-07',mode:'flexible'}};
   const items=generateTaskOccurrences(task,'2026-10-07','2026-10-21',{today:'2026-10-21'});
   assert.deepEqual(items.map(x=>[x.occurrenceDate,x.isOverdue]),[['2026-10-07',true],['2026-10-14',true],['2026-10-21',false]]);
+});
+
+test('through-range generation keeps all unfinished overdue occurrences, not an arbitrary lookback window',()=>{
+  const task={id:'revision',title:'Revision',estimatedMinutes:60,recurrence:{enabled:true,frequency:'weekly',weekdays:[3],startDate:'2026-07-01',mode:'flexible',exceptions:{'2026-07-08':{status:'completed'},'2026-07-15':{status:'skipped'}}}};
+  const items=generateTaskOccurrencesThrough(task,'2026-10-21',{today:'2026-10-21'});
+  assert.equal(items[0].occurrenceDate,'2026-07-01');
+  assert.equal(items[0].isOverdue,true);
+  assert.ok(items.some(item=>item.occurrenceDate==='2026-10-21'));
+  assert.ok(items.every(item=>item.status==='pending'));
+  assert.ok(!items.some(item=>item.occurrenceDate==='2026-07-08'||item.occurrenceDate==='2026-07-15'));
+});
+
+test('through-range generation includes a future logical occurrence moved into the requested display range',()=>{
+  const task={id:'revision',title:'Revision',estimatedMinutes:60,recurrence:{enabled:true,frequency:'weekly',weekdays:[3],startDate:'2026-10-07',mode:'flexible',exceptions:{'2026-10-28':{override:{date:'2026-10-20',startTime:'16:00',endTime:'17:00'}}}}};
+  const items=generateTaskOccurrencesThrough(task,'2026-10-21',{today:'2026-10-21'});
+  const moved=items.find(item=>item.occurrenceId==='revision::2026-10-28');
+  assert.ok(moved);
+  assert.equal(moved.occurrenceDate,'2026-10-28');
+  assert.equal(moved.displayDate,'2026-10-20');
 });
 
 test('formats stable recurrence summaries',()=>{
