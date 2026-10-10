@@ -1,3 +1,5 @@
+import { readBoundedText } from './http-body.js';
+
 const AI_URL = 'https://ai.hackclub.com/proxy/v1/chat/completions';
 
 export function createHandler({ env, fetchImpl = fetch }) {
@@ -21,6 +23,7 @@ export function createHandler({ env, fetchImpl = fetch }) {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${apiKey}`
             },
+            signal: AbortSignal.timeout(90000),
             body: JSON.stringify({
                 model: 'qwen/qwen3-32b',
                 messages: req.body?.messages,
@@ -29,7 +32,7 @@ export function createHandler({ env, fetchImpl = fetch }) {
             })
         });
 
-        const text = await upstream.text();
+        const text = await readBoundedText(upstream, 1024 * 1024);
         let data;
         try {
             data = JSON.parse(text);

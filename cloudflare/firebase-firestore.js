@@ -1,4 +1,5 @@
 import { importPKCS8, SignJWT } from 'jose';
+import { readBoundedText } from '../server/http-body.js';
 
 const OAUTH_URL = 'https://oauth2.googleapis.com/token';
 const FIELDS = new Set(['visitorId', 'day', 'timestamp', 'expiresAt', 'page', 'referrer', 'country', 'device', 'os', 'browser']);
@@ -57,7 +58,7 @@ export function createFirestore({ env, fetchImpl = fetch, now = Date.now }) {
       signal: AbortSignal.timeout(15000)
     });
     if (!response.ok) throw new Error(`Firebase credential exchange failed (${response.status}).`);
-    const data = await response.json();
+    const data = JSON.parse(await readBoundedText(response, 65536));
     if (typeof data.access_token !== 'string' || !data.access_token || !Number.isFinite(data.expires_in) || data.expires_in <= 60) {
       throw new Error('Firebase credential exchange returned an invalid token.');
     }
@@ -71,7 +72,7 @@ export function createFirestore({ env, fetchImpl = fetch, now = Date.now }) {
       body: JSON.stringify(body), signal: AbortSignal.timeout(30000)
     });
     if (!response.ok) throw new Error(`Firebase analytics request failed (${response.status}).`);
-    return response.json();
+    return JSON.parse(await readBoundedText(response, 16 * 1024 * 1024));
   }
 
   function query({ filter, order, count = 400 } = {}) {
