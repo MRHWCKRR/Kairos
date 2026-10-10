@@ -6,6 +6,7 @@ import {
 const HOUR_HEIGHT = 56;
 const DAY_MINUTES = 1440;
 const esc=value=>String(value??'').replace(/[&<>'"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[ch]));
+const validTaskColor=value=>/^#[0-9a-f]{6}$/i.test(String(value||''))?String(value):null;
 
 export function initScheduleWorkspace(options){
   const root=document.getElementById('schedule-page');
@@ -16,7 +17,7 @@ export function initScheduleWorkspace(options){
   const calendar=document.getElementById('schedule-calendar');
   const inspector=document.getElementById('schedule-inspector');
   const review=document.getElementById('schedule-ai-review');
-  const state={view:'three-day',anchor:new Date(),selected:{type:null,id:null},backlogCollapsed:false,inspectorOpen:false,proposals:[],interaction:null,scrollTop:null};
+  const state={view:'three-day',anchor:new Date(),selected:{type:null,id:null},backlogCollapsed:false,inspectorOpen:false,proposals:[],interaction:null,scrollTop:null,filterOpen:false,filters:{tasks:true,events:true,completed:true}};
   let clockTimer=null;
 
   const locale=()=>options.getLocale?.()||document.documentElement.lang||'en';
@@ -51,6 +52,7 @@ export function initScheduleWorkspace(options){
   }
 
   function formatClock(minutes){ return formatTime(minutes,hour12()); }
+  function displayClock(minutes){return formatClock(minutes>=DAY_MINUTES?0:minutes)}
   function taskMeta(entry){
     const bits=[entry.board?.title,entry.section?.title].filter(Boolean);
     if(entry.task.dueDate) bits.push(`Due ${new Date(entry.task.dueDate+'T12:00:00').toLocaleDateString(locale(),{month:'short',day:'numeric'})}`);
@@ -59,18 +61,23 @@ export function initScheduleWorkspace(options){
   }
 
   function renderToolbar(){
-    toolbar.innerHTML=`<div class="ks-toolbar-nav"><button type="button" data-nav="prev" aria-label="Previous period">‹</button><button type="button" data-nav="today">Today</button><button type="button" data-nav="next" aria-label="Next period">›</button><strong>${esc(rangeLabel())}</strong></div><div class="ks-toolbar-actions"><div class="ks-view-switch" role="group" aria-label="Schedule view"><button data-view="day" aria-pressed="${state.view==='day'}">Day</button><button data-view="three-day" aria-pressed="${state.view==='three-day'}">3 Day</button><button data-view="week" aria-pressed="${state.view==='week'}">Week</button></div><button type="button" data-filter>Filter</button><button type="button" data-plan class="ks-plan-btn">Plan</button><button type="button" data-event>+ Event</button></div>`;
+    const changedFilters=Number(!state.filters.tasks)+Number(!state.filters.events)+Number(!state.filters.completed);
+    const filterMenu=state.filterOpen?`<div class="ks-filter-menu" role="group" aria-label="Schedule filters"><label><input type="checkbox" data-filter-key="tasks" ${state.filters.tasks?'checked':''}> Flexible tasks</label><label><input type="checkbox" data-filter-key="events" ${state.filters.events?'checked':''}> Fixed events</label><label><input type="checkbox" data-filter-key="completed" ${state.filters.completed?'checked':''}> Completed tasks</label></div>`:'';
+    toolbar.innerHTML=`<div class="ks-toolbar-nav"><button type="button" data-nav="prev" aria-label="Previous period">‹</button><button type="button" data-nav="today">Today</button><button type="button" data-nav="next" aria-label="Next period">›</button><strong>${esc(rangeLabel())}</strong></div><div class="ks-toolbar-actions"><div class="ks-view-switch" role="group" aria-label="Schedule view"><button data-view="day" aria-pressed="${state.view==='day'}">Day</button><button data-view="three-day" aria-pressed="${state.view==='three-day'}">3 Day</button><button data-view="week" aria-pressed="${state.view==='week'}">Week</button></div><div class="ks-filter-wrap"><button type="button" data-filter aria-expanded="${state.filterOpen}">Filter${changedFilters?` · ${changedFilters}`:''}</button>${filterMenu}</div><button type="button" data-plan class="ks-plan-btn">Plan</button><button type="button" data-event>+ Event</button></div>`;
     toolbar.querySelector('[data-nav="prev"]').onclick=()=>{state.anchor=shiftAnchor(state.anchor,state.view,-1);render()};
     toolbar.querySelector('[data-nav="today"]').onclick=()=>{state.anchor=new Date();render()};
     toolbar.querySelector('[data-nav="next"]').onclick=()=>{state.anchor=shiftAnchor(state.anchor,state.view,1);render()};
     toolbar.querySelectorAll('[data-view]').forEach(btn=>btn.onclick=()=>{state.view=btn.dataset.view;render()});
+    toolbar.querySelector('[data-filter]')?.addEventListener('click',event=>{event.stopPropagation();state.filterOpen=!state.filterOpen;renderToolbar()});
+    toolbar.querySelectorAll('[data-filter-key]').forEach(input=>input.addEventListener('change',()=>{state.filters[input.dataset.filterKey]=input.checked;renderToolbar();renderCalendar()}));
+    toolbar.querySelector('.ks-filter-menu')?.addEventListener('click',event=>event.stopPropagation());
     toolbar.querySelector('[data-event]').onclick=()=>options.openRecurringEventEditor?.();
   }
 
   function renderBacklog(){
     const tasks=allTasks().filter(({task})=>!task.completed&&(!task.date||!task.startTime));
     backlog.classList.toggle('is-collapsed',state.backlogCollapsed);
-    backlog.innerHTML=`<div class="ks-panel-title"><strong>${state.backlogCollapsed?'U':'Unscheduled'}</strong><span>${tasks.length}</span><button type="button" data-backlog-toggle aria-label="${state.backlogCollapsed?'Expand':'Collapse'} unscheduled tasks">${state.backlogCollapsed?'›':'‹'}</button></div>${state.backlogCollapsed?'':(tasks.length?`<div class="ks-backlog-list">${tasks.map(({task,board,section})=>`<button type="button" class="ks-backlog-row ${state.selected.type==='task'&&String(state.selected.id)===String(task.id)?'is-selected':''}" data-task-id="${esc(task.id)}"><span class="ks-grab" aria-hidden="true">⋮⋮</span><span class="ks-backlog-copy"><strong>${esc(task.title)}</strong><small>${esc(taskMeta({task,board,section}))}</small></span></button>`).join('')}</div>`:'<p class="ks-panel-empty">No unscheduled tasks.</p>')}`;
+    backlog.innerHTML=`<div class="ks-panel-title"><strong>${state.backlogCollapsed?'U':'Unscheduled'}</strong><span>${tasks.length}</span><button type="button" data-backlog-toggle aria-label="${state.backlogCollapsed?'Expand':'Collapse'} unscheduled tasks">${state.backlogCollapsed?'›':'‹'}</button></div>${state.backlogCollapsed?'':(tasks.length?`<div class="ks-backlog-list">${tasks.map(({task,board,section})=>{const color=validTaskColor(task.color);return `<button type="button" class="ks-backlog-row ${state.selected.type==='task'&&String(state.selected.id)===String(task.id)?'is-selected':''}" data-task-id="${esc(task.id)}" ${color?`style="--ks-task-color:${color}"`:''}><span class="ks-grab" aria-hidden="true">⋮⋮</span><span class="ks-task-color-dot" aria-hidden="true"></span><span class="ks-backlog-copy"><strong>${esc(task.title)}</strong><small>${esc(taskMeta({task,board,section}))}</small></span></button>`}).join('')}</div>`:'<p class="ks-panel-empty">No unscheduled tasks.</p>')}`;
     backlog.querySelector('[data-backlog-toggle]')?.addEventListener('click',()=>{state.backlogCollapsed=!state.backlogCollapsed;render()});
     backlog.querySelectorAll('[data-task-id]').forEach(el=>el.addEventListener('click',()=>selectItem('task',el.dataset.taskId)));
   }
@@ -89,7 +96,7 @@ export function initScheduleWorkspace(options){
 
   function taskSegmentsForDate(date){
     const key=toDateKey(date),fixed=recurringSegmentsForDate(date);
-    return allTasks().filter(({task})=>task.date===key&&task.startTime&&!task.archived).map(({task,board,section})=>{
+    return allTasks().filter(({task})=>task.date===key&&task.startTime&&!task.archived&&(state.filters.completed||!task.completed)).map(({task,board,section})=>{
       const start=parseTime(task.startTime); if(start===null) return null;
       const duration=taskDurationMinutes(task); const end=Math.min(DAY_MINUTES,start+duration);
       const conflicts=findConflicts({startMin:start,endMin:end},fixed);
@@ -98,47 +105,39 @@ export function initScheduleWorkspace(options){
   }
 
   function itemMarkup(item,dateKey){
-    const geometry=blockGeometry(item.startMin,item.endMin,HOUR_HEIGHT,20);
-    const width=100/item.columnCount;
-    const left=width*item.column;
-    const selected=state.selected.type===item.kind&&String(state.selected.id)===String(item.sourceId);
+    const geometry=blockGeometry(item.startMin,item.endMin,HOUR_HEIGHT,20),compact=geometry.heightPx<34;
+    const width=100/item.columnCount,left=width*item.column,selected=state.selected.type===item.kind&&String(state.selected.id)===String(item.sourceId);
     if(item.kind==='task'){
-      const label=`${item.title}, ${formatClock(item.startMin)} to ${formatClock(item.endMin)}, flexible task${item.conflicts.length?', conflicts with fixed commitment':''}`;
-      return `<button type="button" class="ks-block ks-task-block ${selected?'is-selected':''} ${item.task.completed?'is-completed':''} ${item.conflicts.length?'is-conflicting':''}" data-task-id="${esc(item.sourceId)}" data-date="${dateKey}" aria-label="${esc(label)}" style="top:${geometry.topPx}px;height:${geometry.heightPx}px;left:calc(${left}% + 3px);width:calc(${width}% - 6px)"><span class="ks-block-title">${esc(item.title)}</span><span class="ks-block-time">${esc(formatClock(item.startMin))}–${esc(formatClock(item.endMin))}</span>${item.conflicts.length?'<span class="ks-conflict-mark" aria-hidden="true">!</span>':''}</button>`;
+      const color=validTaskColor(item.task.color),label=`${item.title}, ${displayClock(item.startMin)} to ${displayClock(item.endMin)}, flexible task${item.conflicts.length?', conflicts with fixed commitment':''}`;
+      return `<button type="button" class="ks-block ks-task-block ${compact?'is-compact':''} ${selected?'is-selected':''} ${item.task.completed?'is-completed':''} ${item.conflicts.length?'is-conflicting':''}" data-task-id="${esc(item.sourceId)}" data-date="${dateKey}" aria-label="${esc(label)}" style="${color?`--ks-task-color:${color};`:''}top:${geometry.topPx}px;height:${geometry.heightPx}px;left:calc(${left}% + 3px);width:calc(${width}% - 6px)"><span class="ks-block-title">${esc(item.title)}</span><span class="ks-block-time">${esc(displayClock(item.startMin))}–${esc(displayClock(item.endMin))}</span>${item.conflicts.length?'<span class="ks-conflict-mark" aria-hidden="true">!</span>':''}</button>`;
     }
     const category=categories()[item.category]||{color:'#64748b'};
-    return `<button type="button" class="ks-block ks-fixed-block ${selected?'is-selected':''}" data-event-id="${esc(item.sourceId)}" aria-label="${esc(`${item.title}, ${formatClock(item.startMin)} to ${formatClock(item.endMin)}, fixed recurring event`)}" style="--ks-event:${esc(category.color||'#64748b')};top:${geometry.topPx}px;height:${geometry.heightPx}px;left:calc(${left}% + 3px);width:calc(${width}% - 6px)"><span class="ks-block-title">${esc(item.title)}${item.continued?' · continued':''}</span><span class="ks-block-time">${esc(formatClock(item.startMin))}–${esc(formatClock(item.endMin))}</span></button>`;
+    return `<button type="button" class="ks-block ks-fixed-block ${compact?'is-compact':''} ${selected?'is-selected':''}" data-event-id="${esc(item.sourceId)}" aria-label="${esc(`${item.title}, ${displayClock(item.startMin)} to ${displayClock(item.endMin)}, fixed recurring event`)}" style="--ks-event:${esc(category.color||'#64748b')};top:${geometry.topPx}px;height:${geometry.heightPx}px;left:calc(${left}% + 3px);width:calc(${width}% - 6px)"><span class="ks-block-title">${esc(item.title)}${item.continued?' · continued':''}</span><span class="ks-block-time">${esc(displayClock(item.startMin))}–${esc(displayClock(item.endMin))}</span></button>`;
   }
 
   function deadlineMarkup(date){
-    const key=toDateKey(date),deadlines=allTasks().filter(({task})=>!task.completed&&task.dueDate===key);
-    const visible=deadlines.slice(0,2);
+    const key=toDateKey(date),deadlines=allTasks().filter(({task})=>!task.completed&&task.dueDate===key),visible=deadlines.slice(0,2);
     return `${visible.map(({task})=>`<button type="button" class="ks-deadline" data-task-id="${esc(task.id)}" title="${esc(task.title)} due">${esc(task.title)} due</button>`).join('')}${deadlines.length>2?`<span class="ks-deadline-more">+${deadlines.length-2} deadlines</span>`:''}`;
   }
 
   function renderCalendar(){
-    const existingScroller=calendar.querySelector('.ks-timeline-scroll');
-    const previousScroll=existingScroller?.scrollTop;
+    const existingScroller=calendar.querySelector('.ks-timeline-scroll'),previousScroll=existingScroller?.scrollTop;
     if(Number.isFinite(previousScroll))state.scrollTop=previousScroll;
     const dates=visibleDates();
-    const hours=Array.from({length:24},(_,h)=>`<div class="ks-hour-label" style="top:${h*HOUR_HEIGHT}px">${esc(formatClock(h*60))}</div>`).join('');
+    const hours=Array.from({length:24},(_,h)=>`<div class="ks-hour-label ${h===0?'is-midnight':''}" style="top:${h===0?8:h*HOUR_HEIGHT}px">${esc(formatClock(h*60))}</div>`).join('');
     const headers=dates.map(date=>{const key=toDateKey(date),today=key===toDateKey(new Date());return `<div class="ks-day-head ${today?'is-today':''}" data-date="${key}"><span>${esc(date.toLocaleDateString(locale(),{weekday:'short'}))}</span><strong>${date.getDate()}</strong><div class="ks-deadline-lane">${deadlineMarkup(date)}</div></div>`}).join('');
     const cols=dates.map(date=>{
-      const key=toDateKey(date),items=layoutOverlaps([...recurringSegmentsForDate(date),...taskSegmentsForDate(date)]);
+      const key=toDateKey(date),fixed=recurringSegmentsForDate(date),tasks=state.filters.tasks?taskSegmentsForDate(date):[],items=layoutOverlaps([...(state.filters.events?fixed:[]),...tasks]);
       return `<div class="ks-day-column" data-date="${key}"><div class="ks-day-grid" style="height:${24*HOUR_HEIGHT}px">${items.map(x=>itemMarkup(x,key)).join('')}<div class="ks-now-line" data-now-date="${key}" hidden><span></span></div></div></div>`;
     }).join('');
-    calendar.innerHTML=`<div class="ks-calendar-frame"><div class="ks-calendar-head" style="--ks-days:${dates.length}"><div class="ks-time-head"></div>${headers}</div><div class="ks-timeline-scroll"><div class="ks-time-rail" style="height:${24*HOUR_HEIGHT}px">${hours}</div><div class="ks-days" style="--ks-days:${dates.length}">${cols}</div></div></div>`;
+    calendar.innerHTML=`<div class="ks-calendar-frame"><div class="ks-timeline-scroll"><div class="ks-calendar-content" style="--ks-days:${dates.length}"><div class="ks-calendar-head"><div class="ks-time-head"></div>${headers}</div><div class="ks-calendar-body"><div class="ks-time-rail" style="height:${24*HOUR_HEIGHT}px">${hours}</div><div class="ks-days">${cols}</div></div></div></div></div>`;
     calendar.querySelectorAll('[data-task-id]').forEach(el=>el.addEventListener('click',e=>{e.stopPropagation();selectItem('task',el.dataset.taskId)}));
     calendar.querySelectorAll('[data-event-id]').forEach(el=>el.addEventListener('click',e=>{e.stopPropagation();selectItem('event',el.dataset.eventId)}));
     calendar.querySelectorAll('.ks-day-grid').forEach(el=>el.addEventListener('click',()=>clearSelection()));
     updateNowLine();
     const scroller=calendar.querySelector('.ks-timeline-scroll');
     scroller?.addEventListener('scroll',()=>{state.scrollTop=scroller.scrollTop},{passive:true});
-    requestAnimationFrame(()=>{
-      if(!scroller)return;
-      if(Number.isFinite(state.scrollTop))scroller.scrollTop=state.scrollTop;
-      else{state.scrollTop=7*HOUR_HEIGHT;scroller.scrollTop=state.scrollTop}
-    });
+    requestAnimationFrame(()=>{if(!scroller)return;if(Number.isFinite(state.scrollTop))scroller.scrollTop=state.scrollTop;else{state.scrollTop=7*HOUR_HEIGHT;scroller.scrollTop=state.scrollTop}});
   }
 
   function updateNowLine(){
@@ -147,13 +146,10 @@ export function initScheduleWorkspace(options){
   }
 
   function renderInspector(){
-    const {type,id}=state.selected;
-    shell.classList.toggle('inspector-open',!!type);
-    if(!type){inspector.hidden=true;inspector.innerHTML='';return}
-    inspector.hidden=false;
+    const {type,id}=state.selected;shell.classList.toggle('inspector-open',!!type);
+    if(!type){inspector.hidden=true;inspector.innerHTML='';return}inspector.hidden=false;
     if(type==='task'){
-      const found=findTask(id); if(!found){clearSelection();return}
-      const {task,board,section}=found;
+      const found=findTask(id); if(!found){clearSelection();return}const {task,board,section}=found;
       inspector.innerHTML=`<div class="ks-inspector-head"><span>Task</span><button type="button" data-close aria-label="Close inspector">×</button></div><div class="ks-inspector-body"><h3>${esc(task.title)}</h3><p>${esc([board.title,section.title].filter(Boolean).join(' / '))}</p><dl><div><dt>Scheduled</dt><dd>${task.date?esc(task.date):'Unscheduled'}${task.startTime?` · ${esc(task.startTime)}${task.endTime?`–${esc(task.endTime)}`:''}`:''}</dd></div><div><dt>Duration</dt><dd>${task.startTime?`${taskDurationMinutes(task)} min`:(task.estimatedMinutes?`${task.estimatedMinutes} min`:'Not estimated')}</dd></div><div><dt>Due</dt><dd>${esc(task.dueDate||'No deadline')}</dd></div></dl><div class="ks-inspector-actions"><button type="button" data-complete>${task.completed?'Mark incomplete':'Complete'}</button><button type="button" data-reschedule>Reschedule</button><button type="button" data-ask-ai>Ask AI</button></div></div>`;
     }else{
       const ev=findEvent(id); if(!ev){clearSelection();return}
@@ -170,7 +166,8 @@ export function initScheduleWorkspace(options){
   function activate(){ render(); }
   function destroy(){ if(clockTimer) clearInterval(clockTimer); }
 
-  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&root.classList.contains('active')) clearSelection()});
+  document.addEventListener('click',event=>{if(state.filterOpen&&!event.target.closest?.('.ks-filter-wrap')){state.filterOpen=false;renderToolbar()}},true);
+  document.addEventListener('keydown',e=>{if(e.key!=='Escape'||!root.classList.contains('active'))return;if(state.filterOpen){state.filterOpen=false;renderToolbar();return}clearSelection()});
   clockTimer=setInterval(updateNowLine,60000);
   render();
   return {render,activate,destroy,state,selectItem,clearSelection};
