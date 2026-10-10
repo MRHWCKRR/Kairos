@@ -2,11 +2,10 @@ import {
   getVisibleDates, shiftAnchor, toDateKey, parseTime, formatTime, addDays,
   taskDurationMinutes, layoutOverlaps, findConflicts, splitOvernightInterval, blockGeometry
 } from './schedule-utils.js';
-import { generateTaskOccurrences } from './recurrence-utils.js';
+import { generateTaskOccurrencesThrough } from './recurrence-utils.js';
 
 const HOUR_HEIGHT = 56;
 const DAY_MINUTES = 1440;
-const RECURRENCE_LOOKBACK_DAYS = 28;
 const esc=value=>String(value??'').replace(/[&<>'"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[ch]));
 const validTaskColor=value=>/^#[0-9a-f]{6}$/i.test(String(value||''))?String(value):null;
 
@@ -61,15 +60,11 @@ export function initScheduleWorkspace(options){
     if(entry.task.estimatedMinutes) bits.push(`${entry.task.estimatedMinutes} min`);
     return bits.join(' · ');
   }
-  function recurrenceRange(){
-    const dates=visibleDates(),first=dates[0],last=dates.at(-1);
-    return {start:toDateKey(addDays(first,-RECURRENCE_LOOKBACK_DAYS)),end:toDateKey(last)};
-  }
   function recurringOccurrences(){
-    const {start,end}=recurrenceRange(),today=toDateKey(new Date()),out=[];
+    const dates=visibleDates(),end=toDateKey(dates.at(-1)),today=toDateKey(new Date()),out=[];
     for(const {task,board,section} of allTasks()){
       if(!task.recurrence?.enabled)continue;
-      for(const occurrence of generateTaskOccurrences(task,start,end,{today})) out.push({...occurrence,board,section});
+      for(const occurrence of generateTaskOccurrencesThrough(task,end,{today})) out.push({...occurrence,board,section});
     }
     return out;
   }
