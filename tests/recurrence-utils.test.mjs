@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { normalizeRecurrence, validateRecurrence, occurrenceId, generateOccurrenceDates, nextOccurrenceDate } from '../recurrence-utils.js';
+import { normalizeRecurrence, validateRecurrence, occurrenceId, generateOccurrenceDates, nextOccurrenceDate, generateTaskOccurrences, formatRecurrenceSummary } from '../recurrence-utils.js';
 
 test('normalizes daily and weekday recurrence presets',()=>{
   const daily=normalizeRecurrence({enabled:true,frequency:'daily',interval:1,startDate:'2026-10-10',mode:'flexible'});
@@ -99,4 +99,45 @@ test('finds the next generated occurrence strictly after the supplied date',()=>
   const rule=normalizeRecurrence({enabled:true,frequency:'weekly',weekdays:[3],startDate:'2026-10-14'});
   assert.equal(nextOccurrenceDate(rule,'2026-10-14'),'2026-10-21');
   assert.equal(nextOccurrenceDate(rule,'2026-10-20'),'2026-10-21');
+});
+
+test('fixed occurrences inherit schedule while flexible occurrences remain unscheduled',()=>{
+  const fixed={id:'gym',title:'Gym',startTime:'17:30',endTime:'18:30',estimatedMinutes:60,priority:'medium',recurrence:{enabled:true,frequency:'weekly',weekdays:[3],startDate:'2026-10-14',mode:'fixed'}};
+  const a=generateTaskOccurrences(fixed,'2026-10-14','2026-10-21',{today:'2026-10-14'});
+  assert.deepEqual(a.map(x=>[x.occurrenceId,x.startTime,x.endTime,x.durationMinutes]),[['gym::2026-10-14','17:30','18:30',60],['gym::2026-10-21','17:30','18:30',60]]);
+  const flexible={...fixed,id:'study',startTime:null,endTime:null,recurrence:{...fixed.recurrence,mode:'flexible'}};
+  const b=generateTaskOccurrences(flexible,'2026-10-14','2026-10-14',{today:'2026-10-14'});
+  assert.equal(b[0].startTime,null);assert.equal(b[0].endTime,null);assert.equal(b[0].durationMinutes,60);
+});
+
+test('occurrence exceptions preserve logical identity when moved and merge only supplied overrides',()=>{
+  const task={id:'study',title:'Study',priority:'low',notes:'base',estimatedMinutes:45,recurrence:{enabled:true,frequency:'weekly',weekdays:[3],startDate:'2026-10-14',mode:'flexible',exceptions:{'2026-10-14':{override:{date:'2026-10-15',startTime:'16:10',endTime:'16:55',priority:'high'}}}}};
+  const items=generateTaskOccurrences(task,'2026-10-14','2026-10-15',{today:'2026-10-14'});
+  assert.equal(items.length,1);
+  const item=items[0];
+  assert.equal(item.occurrenceId,'study::2026-10-14');
+  assert.equal(item.occurrenceDate,'2026-10-14');
+  assert.equal(item.displayDate,'2026-10-15');
+  assert.equal(item.task.priority,'high');
+  assert.equal(item.task.notes,'base');
+  assert.equal(item.isException,true);
+});
+
+test('completed skipped and deleted exceptions keep status but are not pending',()=>{
+  const task={id:'habit',title:'Habit',estimatedMinutes:20,recurrence:{enabled:true,frequency:'daily',startDate:'2026-10-10',mode:'flexible',exceptions:{'2026-10-10':{status:'completed'},'2026-10-11':{status:'skipped'},'2026-10-12':{status:'deleted'}}}};
+  const items=generateTaskOccurrences(task,'2026-10-10','2026-10-13',{today:'2026-10-13'});
+  assert.deepEqual(items.map(x=>[x.occurrenceDate,x.status,x.isOverdue]),[['2026-10-10','completed',false],['2026-10-11','skipped',false],['2026-10-12','deleted',false],['2026-10-13','pending',false]]);
+});
+
+test('multiple overdue flexible occurrences coexist with the current occurrence',()=>{
+  const task={id:'revision',title:'Revision',estimatedMinutes:60,recurrence:{enabled:true,frequency:'weekly',weekdays:[3],startDate:'2026-10-07',mode:'flexible'}};
+  const items=generateTaskOccurrences(task,'2026-10-07','2026-10-21',{today:'2026-10-21'});
+  assert.deepEqual(items.map(x=>[x.occurrenceDate,x.isOverdue]),[['2026-10-07',true],['2026-10-14',true],['2026-10-21',false]]);
+});
+
+test('formats stable recurrence summaries',()=>{
+  assert.equal(formatRecurrenceSummary({enabled:true,frequency:'weekly',weekdays:[3],startDate:'2026-10-14',mode:'flexible'}),'Every Wednesday · Flexible');
+  assert.equal(formatRecurrenceSummary({enabled:true,frequency:'weekly',interval:2,weekdays:[1,3],startDate:'2026-10-12',mode:'fixed'}),'Every 2 weeks on Mon/Wed · Fixed time');
+  assert.equal(formatRecurrenceSummary({enabled:true,frequency:'monthly',monthlyMode:'weekdayPosition',weekdayPosition:'first',weekday:1,startDate:'2026-10-05',mode:'flexible'}),'First Monday monthly · Flexible');
+  assert.equal(formatRecurrenceSummary({enabled:true,frequency:'yearly',month:10,monthDay:10,startDate:'2026-10-10',mode:'fixed',endType:'count',count:5}),'Yearly on Oct 10 · Fixed time · 5 occurrences');
 });
