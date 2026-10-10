@@ -1,5 +1,15 @@
 # Kairos on Cloudflare
 
+## Production cutover completed — 10 October 2026
+
+The owner approved the production cutover after confirming the protected preview worked. Kairos is now published at **https://kairos-web.kirosapp.workers.dev**. The Vercel-owned hostname cannot be transferred to Cloudflare, so the owner selected this free address. Existing users will need to sign in on the new origin.
+
+All seven production bindings are configured and verified as secrets on Worker `kairos-web`. The exact production hostname was appended to Firebase Authentication and the existing reCAPTCHA allowlists without changing prior domains or protection settings. Live checks passed for the app/login/signup assets, excluded backend/secret paths, anonymous admin rejection, AI completion and authenticated Firebase cleanup (zero expired events). Production version: `882a7e64-02d9-45a9-b05e-9ea02fb0a51a`. The Cloudflare daily schedule is `0 3 * * *` UTC, or 13:00 Brisbane. Vercel's duplicate schedule was disabled and verified; the protected preview has no schedule. The first automatic scheduled execution has not yet been observed.
+
+Vercel Git deployments are disabled in `vercel.json` so future commits no longer trigger the old host. The old deployment remains available for rollback: `dpl_GKYLDFmhDiCXmCjEX642ifzXFzKp`, https://kairos-3ucvm3r5t-mrhwckrrs-projects.vercel.app, with alias https://kairos-xi-two.vercel.app. Rollback requires restoring Vercel cleanup and disabling Cloudflare cleanup; re-enable Git deployments if Vercel becomes the active host again.
+
+Cloudflare deployment currently uses Wrangler. Automatic Cloudflare Builds repository integration is still pending. The notes below retain preparation history and operating instructions; statements about pre-cutover status describe earlier checkpoints.
+
 This branch prepares Workers with Static Assets as a replacement for Vercel. Firebase Auth, Firestore, App Check, the waitlist, and the browser app stay on their existing services. The old `kairos` relay Worker is separate; do not overwrite it. Vercel remains the production host until the owner reviews the preview and approves the domain cutover.
 
 Verified preparation on 10 October 2026: [draft PR #30](https://github.com/MRHWCKRR/Kairos/pull/30), [isolated preview](https://kairos-web-preview.kirosapp.workers.dev), 141 passing tests, 18 passing live HTTP checks, and successful GitHub build checks. The deployed preview has only the ASSETS binding and zero cron schedules. A fresh read-only reviewer found no blocking defects. Authenticated features remain pending secure configuration and live acceptance. Initial preview publication used Wrangler; automatic Cloudflare Builds repository integration is still pending.
