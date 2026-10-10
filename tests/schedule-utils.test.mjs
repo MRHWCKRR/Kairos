@@ -29,27 +29,30 @@ test('time parsing, formatting and snapping are deterministic', () => {
   assert.equal(formatTime(555, false), '09:15');
 });
 
-test('task duration uses explicit interval then estimate then fallback with one minute minimum', () => {
+test('task duration uses explicit interval then estimate then last scheduled duration then fallback', () => {
   assert.equal(taskDurationMinutes({startTime:'16:00',endTime:'17:30'}), 90);
-  assert.equal(taskDurationMinutes({estimatedMinutes:45}), 45);
+  assert.equal(taskDurationMinutes({estimatedMinutes:45,lastScheduledMinutes:95}), 45);
+  assert.equal(taskDurationMinutes({lastScheduledMinutes:95}), 95);
   assert.equal(taskDurationMinutes({estimatedMinutes:5}), 5);
   assert.equal(taskDurationMinutes({estimatedMinutes:1}), 1);
   assert.equal(taskDurationMinutes({}), 60);
 });
 
-test('preserveScheduledDuration stores the prior block length before unscheduling',()=>{
+test('preserveScheduledDuration stores the prior block length without inventing an estimate',()=>{
   const task={title:'Science',date:'2026-10-10',startTime:'14:07',endTime:'15:42',estimatedMinutes:null,notes:'Chapter 4'};
   preserveScheduledDuration(task);
   clearScheduledFields(task);
-  assert.equal(task.estimatedMinutes,95);
+  assert.equal(task.lastScheduledMinutes,95);
+  assert.equal(task.estimatedMinutes,null);
   assert.equal(task.notes,'Chapter 4');
   assert.equal(task.date,null);
 });
 
-test('preserveScheduledDuration keeps an explicit estimate instead of overwriting it',()=>{
+test('preserveScheduledDuration keeps an explicit estimate while remembering the latest block length',()=>{
   const task={startTime:'14:00',endTime:'16:00',estimatedMinutes:45};
   preserveScheduledDuration(task);
   assert.equal(task.estimatedMinutes,45);
+  assert.equal(task.lastScheduledMinutes,120);
 });
 
 test('touching intervals do not overlap but simultaneous intervals receive columns', () => {
@@ -101,6 +104,7 @@ test('task metadata normalization adds safe defaults without overwriting values'
   normalizeTaskMetadata(task);
   assert.equal(task.dueDate,null);
   assert.equal(task.estimatedMinutes,null);
+  assert.equal(task.lastScheduledMinutes,null);
   assert.equal(task.priority,'high');
   assert.equal(task.notes,'Keep me');
   assert.equal(task.reminderMinutes,null);
@@ -129,19 +133,21 @@ test('AI schedule proposals reject unknown, locked and zero-length task moves',(
   assert.deepEqual(validateScheduleProposals(raw,tasks),[]);
 });
 
-test('AI proposal validator accepts a one-minute task block',()=>{
-  const task={id:'quick',scheduleLocked:false};
+test('AI proposal validator accepts a one-minute task when the task planned duration is one minute',()=>{
+  const task={id:'quick',estimatedMinutes:1,scheduleLocked:false};
   const raw=[{taskId:'quick',to:{date:'2026-10-12',startTime:'16:00',endTime:'16:01'}}];
-  assert.equal(validateScheduleProposals(raw,new Map([['quick',task]]),[]).length,1);
+  const result=validateScheduleProposals(raw,new Map([['quick',task]]),[]);
+  assert.equal(result.length,1);
+  assert.deepEqual(result[0].to,{date:'2026-10-12',startTime:'16:00',endTime:'16:01'});
 });
 
-test('AI schedule proposals preserve prior schedule and normalise a valid proposal',()=>{
+test('AI schedule proposals preserve prior schedule and enforce the task current duration',()=>{
   const task={id:'science',date:'2026-10-10',startTime:'15:00',endTime:'16:00',scheduleLocked:false};
   const proposals=validateScheduleProposals([{taskId:'science',to:{date:'2026-10-12',startTime:'16:00',endTime:'17:30'},reason:'Best free block',conflictIds:['class-1']}],new Map([['science',task]]));
   assert.deepEqual(proposals,[{
     taskId:'science',
     from:{date:'2026-10-10',startTime:'15:00',endTime:'16:00'},
-    to:{date:'2026-10-12',startTime:'16:00',endTime:'17:30'},
+    to:{date:'2026-10-12',startTime:'16:00',endTime:'17:00'},
     reason:'Best free block',
     conflictIds:['class-1']
   }]);
@@ -160,21 +166,21 @@ test('AI proposal validator rejects an earlier time on the current date',()=>{
 });
 
 test('AI proposal validator accepts today at or after the current time',()=>{
-  const task={id:'science',scheduleLocked:false};
+  const task={id:'science',estimatedMinutes:1,scheduleLocked:false};
   const raw=[{taskId:'science',to:{date:'2026-10-10',startTime:'10:00',endTime:'10:01'}}];
   assert.equal(validateScheduleProposals(raw,new Map([['science',task]]),[],{minDate:'2026-10-10',minTime:'10:00'}).length,1);
 });
 
 test('AI proposal validator rejects recurring fixed-event conflicts',()=>{
-  const task={id:'science',scheduleLocked:false};
-  const raw=[{taskId:'science',to:{date:'2026-10-12',startTime:'16:00',endTime:'17:00'}}];
+  const task={id:'science',estimatedMinutes:60,scheduleLocked:false};
+  const raw=[{taskId:'science',to:{date:'2026-10-12',startTime:'16:00',endTime:'16:15'}}];
   const fixed=[{id:'class',day:1,start:'16:30',end:'17:30'}];
   assert.deepEqual(validateScheduleProposals(raw,new Map([['science',task]]),fixed),[]);
 });
 
 test('AI proposal validator catches previous-day overnight recurring conflicts',()=>{
-  const task={id:'study',scheduleLocked:false};
-  const raw=[{taskId:'study',to:{date:'2026-10-13',startTime:'05:30',endTime:'06:30'}}];
+  const task={id:'study',estimatedMinutes:60,scheduleLocked:false};
+  const raw=[{taskId:'study',to:{date:'2026-10-13',startTime:'05:30',endTime:'05:45'}}];
   const fixed=[{id:'sleep',day:1,start:'22:00',end:'06:00'}];
   assert.deepEqual(validateScheduleProposals(raw,new Map([['study',task]]),fixed),[]);
 });
@@ -186,17 +192,17 @@ test('AI proposal validator rejects proposals after the task deadline',()=>{
 });
 
 test('AI proposal validator rejects overlap with an existing scheduled task',()=>{
-  const science={id:'science',scheduleLocked:false};
+  const science={id:'science',estimatedMinutes:60,scheduleLocked:false};
   const maths={id:'maths',date:'2026-10-12',startTime:'16:30',endTime:'17:30',scheduleLocked:false};
-  const raw=[{taskId:'science',to:{date:'2026-10-12',startTime:'16:00',endTime:'17:00'}}];
+  const raw=[{taskId:'science',to:{date:'2026-10-12',startTime:'16:00',endTime:'16:15'}}];
   assert.deepEqual(validateScheduleProposals(raw,new Map([['science',science],['maths',maths]]),[]),[]);
 });
 
 test('AI proposal validator rejects mutually overlapping proposals',()=>{
-  const a={id:'a',scheduleLocked:false},b={id:'b',scheduleLocked:false};
+  const a={id:'a',estimatedMinutes:60,scheduleLocked:false},b={id:'b',estimatedMinutes:60,scheduleLocked:false};
   const raw=[
-    {taskId:'a',to:{date:'2026-10-12',startTime:'16:00',endTime:'17:00'}},
-    {taskId:'b',to:{date:'2026-10-12',startTime:'16:30',endTime:'17:30'}}
+    {taskId:'a',to:{date:'2026-10-12',startTime:'16:00',endTime:'16:15'}},
+    {taskId:'b',to:{date:'2026-10-12',startTime:'16:30',endTime:'16:45'}}
   ];
   assert.deepEqual(validateScheduleProposals(raw,new Map([['a',a],['b',b]]),[]),[]);
 });
