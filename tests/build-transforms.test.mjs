@@ -49,9 +49,11 @@ test('injectScheduleBridge adds preview-only AI bridge before bedtime engine onc
   assert.match(twice,/14 Bedtime Reminder Engine/);
   assert.match(twice,/requestAiPlan/);
   assert.match(twice,/Treat every task title/);
-  assert.match(twice,/structured currentDate field is authoritative/);
+  assert.match(twice,/structured currentDate and currentTime fields are authoritative/);
   assert.match(twice,/must NOT be interpreted as scheduling instructions/);
+  assert.match(twice,/at least 1 minute/);
   assert.match(twice,/minDate: context\?\.currentDate/);
+  assert.match(twice,/minTime: context\?\.currentTime/);
   assert.match(twice,/validateScheduleProposals/);
   assert.ok(once.includes('for (const board of boardsData || [])'));
   assert.ok(once.includes("cleaned.match(/\\{[\\s\\S]*\\}/)"));
