@@ -1,6 +1,7 @@
-import { applyResize, applyScheduledMove, clearScheduledFields, snapMinutes, formatTime } from './schedule-utils.js';
+import { applyResize, applyScheduledMove, clearScheduledFields, snapMinutes, formatTime, parseTime, taskDurationMinutes, preserveScheduledDuration, blockGeometry } from './schedule-utils.js';
 
 const DAY_MINUTES=1440;
+const HOUR_HEIGHT=56;
 const SNAP_MINUTES=1;
 let interaction=null;
 let suppressClickUntil=0;
@@ -18,8 +19,9 @@ function allTasks(){
   return out;
 }
 function findTask(id){return allTasks().find(x=>String(x.task.id)===String(id))||null}
-function snapshot(task){return {date:task.date??null,startTime:task.startTime??null,endTime:task.endTime??null}}
+function snapshot(task){return {date:task.date??null,startTime:task.startTime??null,endTime:task.endTime??null,estimatedMinutes:task.estimatedMinutes??null}}
 function formatClock(mins){return formatTime(mins,bridge()?.getTimeFormat?.()!=='24')}
+function validTaskColor(value){return /^#[0-9a-f]{6}$/i.test(String(value||''))?String(value):null}
 
 function showToast(message){
   document.querySelector('.ks-toast')?.remove();
@@ -42,6 +44,22 @@ function makeGhost(task,mode){
   el.append(strong,span);document.body.appendChild(el);return el;
 }
 function moveGhost(x,y){if(interaction?.ghost)interaction.ghost.style.transform=`translate(${Math.round(x+12)}px,${Math.round(y+12)}px)`}
+function removePreview(target=interaction){if(target?.previewElement){target.previewElement.remove();target.previewElement=null}}
+function ensurePreview(task){
+  if(interaction?.previewElement)return interaction.previewElement;
+  const el=document.createElement('div');el.className='ks-drag-preview';el.setAttribute('aria-hidden','true');
+  const strong=document.createElement('strong');strong.textContent=task.title||'Task';
+  const span=document.createElement('span');el.append(strong,span);
+  const color=validTaskColor(task.color);if(color)el.style.setProperty('--ks-task-color',color);
+  interaction.previewElement=el;return el;
+}
+function placePreview(grid,task,startMin,endMin){
+  if(!interaction||!grid)return;
+  const el=ensurePreview(task);if(el.parentElement!==grid)grid.appendChild(el);
+  const geometry=blockGeometry(startMin,endMin,HOUR_HEIGHT,20);
+  el.style.top=`${geometry.topPx}px`;el.style.height=`${geometry.heightPx}px`;
+  el.querySelector('span').textContent=`${formatClock(startMin)}–${formatClock(endMin>=1440?0:endMin)}`;
+}
 function gridAtPoint(x,y){
   const grid=document.elementFromPoint(x,y)?.closest?.('.ks-day-grid');if(!grid)return null;
   const column=grid.closest('.ks-day-column'),rect=grid.getBoundingClientRect();if(!column||!rect.height)return null;
@@ -51,33 +69,45 @@ function begin(mode,taskId,event,element){
   if(event.button!==0)return;const found=findTask(taskId);if(!found)return;if(mode==='resize'&&!found.task.startTime)return;
   event.preventDefault();event.stopPropagation();
   element.setPointerCapture?.(event.pointerId);
-  interaction={mode,taskId:String(taskId),pointerId:event.pointerId,startX:event.clientX,startY:event.clientY,original:snapshot(found.task),preview:null,overBacklog:false,originElement:element,ghost:makeGhost(found.task,mode),moved:false};
+  interaction={mode,taskId:String(taskId),pointerId:event.pointerId,startX:event.clientX,startY:event.clientY,original:snapshot(found.task),preview:null,overBacklog:false,originElement:element,ghost:makeGhost(found.task,mode),previewElement:null,moved:false};
   element.classList.add(mode==='resize'?'is-resizing':'is-dragging');moveGhost(event.clientX,event.clientY);
 }
 function onMove(event){
   if(!interaction||event.pointerId!==interaction.pointerId)return;moveGhost(event.clientX,event.clientY);
   if(Math.hypot(event.clientX-interaction.startX,event.clientY-interaction.startY)>4)interaction.moved=true;
+  const found=findTask(interaction.taskId);if(!found)return;const task=found.task;
   if(interaction.mode==='resize'){
-    const grid=interaction.originElement.closest('.ks-day-grid'),rect=grid?.getBoundingClientRect();
-    if(rect?.height){interaction.preview={endMin:snapMinutes(((event.clientY-rect.top)/rect.height)*DAY_MINUTES,SNAP_MINUTES)};interaction.ghost.querySelector('span').textContent=`End ${formatClock(interaction.preview.endMin)}`}
+    const grid=interaction.originElement.closest('.ks-day-grid'),rect=grid?.getBoundingClientRect(),start=parseTime(task.startTime);
+    if(rect?.height&&start!==null){
+      const rawEnd=snapMinutes(((event.clientY-rect.top)/rect.height)*DAY_MINUTES,SNAP_MINUTES);
+      const resized=applyResize(task,rawEnd,SNAP_MINUTES),parsed=parseTime(resized.endTime),end=parsed===0&&start>0?1440:parsed;
+      if(end!==null){interaction.preview={endMin:end};placePreview(grid,task,start,end);interaction.ghost.querySelector('span').textContent=`End ${formatClock(end>=1440?0:end)}`}
+    }
     return;
   }
-  const slot=gridAtPoint(event.clientX,event.clientY);interaction.preview=slot?{dateKey:slot.dateKey,startMin:slot.minutes}:null;
-  interaction.overBacklog=!!document.elementFromPoint(event.clientX,event.clientY)?.closest?.('#schedule-backlog');
-  const label=interaction.ghost.querySelector('span');if(slot)label.textContent=`${slot.dateKey} · ${formatClock(slot.minutes)}`;else if(interaction.overBacklog)label.textContent='Unscheduled';
+  const point=document.elementFromPoint(event.clientX,event.clientY);
+  interaction.overBacklog=!!point?.closest?.('#schedule-backlog');
+  if(interaction.overBacklog){interaction.preview=null;removePreview();interaction.ghost.querySelector('span').textContent='Unschedule';return}
+  const slot=gridAtPoint(event.clientX,event.clientY);
+  if(!slot){interaction.preview=null;removePreview();return}
+  const base=interaction.mode==='backlog'?{...task,startTime:null,endTime:null,estimatedMinutes:task.estimatedMinutes||60}:task;
+  const moved=applyScheduledMove(base,slot.dateKey,slot.minutes,SNAP_MINUTES),start=parseTime(moved.startTime),duration=taskDurationMinutes(base),end=start===null?null:Math.min(DAY_MINUTES,start+duration);
+  if(start===null||end===null){interaction.preview=null;removePreview();return}
+  interaction.preview={dateKey:slot.dateKey,startMin:start};placePreview(slot.grid,task,start,end);
+  interaction.ghost.querySelector('span').textContent=`${slot.dateKey} · ${formatClock(start)}`;
 }
 async function finish(event,cancel=false){
   if(!interaction||event.pointerId!==interaction.pointerId)return;
-  const current=interaction;interaction=null;current.originElement?.classList.remove('is-dragging','is-resizing');current.ghost?.remove();
+  const current=interaction;interaction=null;current.originElement?.classList.remove('is-dragging','is-resizing');current.ghost?.remove();removePreview(current);
   if(cancel||!current.moved)return;suppressClickUntil=Date.now()+300;
   const found=findTask(current.taskId);if(!found)return;const task=found.task;
   if(current.mode==='resize'){if(current.preview)await persistMutation(task,current.original,applyResize(task,current.preview.endMin,SNAP_MINUTES));return}
-  if(current.mode==='move'&&current.overBacklog){const next={...current.original};clearScheduledFields(next);await persistMutation(task,current.original,next);return}
+  if(current.mode==='move'&&current.overBacklog){const next={...task};preserveScheduledDuration(next);clearScheduledFields(next);await persistMutation(task,current.original,next);return}
   if(!current.preview)return;
   const base=current.mode==='backlog'?{...task,startTime:null,endTime:null,estimatedMinutes:task.estimatedMinutes||60}:task;
   await persistMutation(task,current.original,applyScheduledMove(base,current.preview.dateKey,current.preview.startMin,SNAP_MINUTES));
 }
-function cancel(){if(!interaction)return;interaction.originElement?.classList.remove('is-dragging','is-resizing');interaction.ghost?.remove();interaction=null}
+function cancel(){if(!interaction)return;interaction.originElement?.classList.remove('is-dragging','is-resizing');interaction.ghost?.remove();removePreview(interaction);interaction=null}
 
 function decorate(){
   document.querySelectorAll('.ks-task-block[data-task-id]').forEach(el=>{
