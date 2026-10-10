@@ -20,5 +20,9 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: Install dependencies
+        run: npm ci
+      - name: Run Cloudflare tests and build
+        run: npm run build:cloudflare
       - name: Run Schedule tests and build
         run: npm run build

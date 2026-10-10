@@ -4,7 +4,12 @@
   "type": "module",
   "scripts": {
     "build": "npm run test:schedule && node build.js",
-    "test:schedule": "node --test tests/schedule-utils.test.mjs tests/schedule-geometry.test.mjs tests/schedule-render-source.test.mjs tests/schedule-bugfixes.test.mjs tests/schedule-planning.test.mjs tests/schedule-ai-review-source.test.mjs tests/schedule-proposal-editor.test.mjs tests/schedule-ai-recovery-and-create.test.mjs tests/schedule-ai-parser.test.mjs tests/recurrence-utils.test.mjs tests/recurrence-mutations.test.mjs tests/schedule-recurrence-source.test.mjs tests/boards-recurrence-source.test.mjs tests/schedule-ai-recurrence-source.test.mjs tests/build-transforms.test.mjs"
+    "test:schedule": "node --test tests/schedule-utils.test.mjs tests/schedule-geometry.test.mjs tests/schedule-render-source.test.mjs tests/schedule-bugfixes.test.mjs tests/schedule-planning.test.mjs tests/schedule-ai-review-source.test.mjs tests/schedule-proposal-editor.test.mjs tests/schedule-ai-recovery-and-create.test.mjs tests/schedule-ai-parser.test.mjs tests/recurrence-utils.test.mjs tests/recurrence-mutations.test.mjs tests/schedule-recurrence-source.test.mjs tests/boards-recurrence-source.test.mjs tests/schedule-ai-recurrence-source.test.mjs tests/build-transforms.test.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "test:cloudflare": "node --test tests/server-handlers.test.mjs tests/server-body-limits.test.mjs tests/cloudflare-firebase-auth.test.mjs tests/cloudflare-firestore.test.mjs tests/cloudflare-worker.test.mjs tests/cloudflare-build.test.mjs",
+    "build:cloudflare": "npm run test:schedule && npm run test:cloudflare && node cloudflare/build.js",
+    "dev:cloudflare": "npm run build:cloudflare && wrangler dev --env preview",
+    "deploy:cloudflare": "npm run build:cloudflare && wrangler deploy --env preview"
   },
   "dependencies": {
     "firebase-admin": "^13.5.0",
