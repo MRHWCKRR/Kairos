@@ -8,6 +8,10 @@ Follow-up on 10 October 2026: Firebase owner login completed. Confirmed the exis
 
 ## Build and verify
 
+Additional acceptance on 10 October 2026: the owner supplied a valid service-account JSON through a local file. Its RSA key, project and service identity were validated before import into ignored `.dev.vars.preview`. Firebase OAuth and both bounded analytics reads succeeded; the configured admin exists. In the real local Workers runtime, Firebase reads, anonymous/invalid-token admin rejection, bot tracking exclusion and an AI completion passed. No database writes or deletions were performed.
+
+With explicit owner approval, enabled Zero Trust and email-code login, then configured the `Kairos migration preview` Access application to protect only Worker `kairos-web-preview`, including its version URLs. Its sole Allow rule matches the owner's connected email. Anonymous requests to the app and every API route redirect to Access login. Uploaded all seven backend settings with explicit owner approval and verified their `secret_text` bindings on deployed version `b96e3e64-7d5d-44c5-aaf5-94354acc46a8`; preview still has no cron schedules. An unintended CLI-created draft with a duplicated environment suffix had no public routes or references and was removed. Hosted authenticated backend acceptance remains pending owner login. Production remains on Vercel.
+
 Use Node 22 or newer and install the lockfile with `npm ci`.
 
 ```sh
@@ -44,7 +48,7 @@ npx wrangler secret put FIREBASE_PRIVATE_KEY --env preview
 
 Repeat for the other bindings. Do not put secret values into shell arguments, PRs, logs, or chat. The service account uses the datastore OAuth scope; server access uses IAM, so browser Firestore rules must continue to deny public analytics access. This implementation restricts its own REST operations to `kairosAnalytics`; IAM still controls the account's actual privileges.
 
-The owner account, existing Standard `(default)` database, browser app identity and required query compatibility are now verified. Service-account key access and the deployed Worker identity still require secure runtime configuration and verification before backend acceptance.
+The owner account, existing Standard `(default)` database, browser app identity, service-account key access and required query compatibility are now verified. Preview runtime bindings are configured behind owner-only Access. Authorised hosted backend responses still require verification before backend acceptance.
 
 ## Preview deployment
 
