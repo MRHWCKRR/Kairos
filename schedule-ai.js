@@ -29,10 +29,11 @@ function syncPlanButton(){
 }
 
 function buildContext(targetTaskId=null){
-  const ws=workspace(),dates=getVisibleDates(ws?.state?.anchor||new Date(),ws?.state?.view||'three-day');
+  const now=new Date(),ws=workspace(),dates=getVisibleDates(ws?.state?.anchor||now,ws?.state?.view||'three-day');
   const eligible=taskEntries().filter(({task})=>!task.completed&&!task.scheduleLocked&&(!targetTaskId||String(task.id)===String(targetTaskId)));
   return {
-    currentDate:toDateKey(new Date()),
+    currentDate:toDateKey(now),
+    currentTime:formatTime(now.getHours()*60+now.getMinutes(),false),
     visibleRange:{start:toDateKey(dates[0]),end:toDateKey(dates.at(-1))},
     planningHorizonDays:7,
     targetTaskId:targetTaskId||null,
@@ -88,7 +89,7 @@ async function requestPlan(targetTaskId=null){
   if(planning)return;planning=true;syncPlanButton();
   try{
     const context=buildContext(targetTaskId);if(!context.tasks.length){showToast(targetTaskId?'That task cannot be automatically planned.':'No flexible incomplete tasks are available to plan.');return}
-    const raw=await bridge()?.requestAiPlan?.(context);const valid=validateScheduleProposals(raw,taskMap(),bridge()?.getScheduleEvents?.()||[],{minDate:context.currentDate});
+    const raw=await bridge()?.requestAiPlan?.(context);const valid=validateScheduleProposals(raw,taskMap(),bridge()?.getScheduleEvents?.()||[],{minDate:context.currentDate,minTime:context.currentTime});
     if(!valid.length){showToast('Kairos did not find a safe future schedule change to propose.');return}
     proposals=valid;if(workspace()?.state)workspace().state.proposals=valid;workspace()?.render?.();syncUi();
   }catch(error){console.error('[Kairos Schedule] AI planning failed.',error);showToast('Kairos could not create a schedule proposal right now.')}
