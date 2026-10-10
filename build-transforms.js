@@ -90,13 +90,13 @@ export function injectScheduleAssets(html){
   const js=['schedule-workspace.js','schedule-interactions.js','schedule-inspector.js','schedule-responsive.js','schedule-ai.js'];
   for(const name of css){
     const versioned=new RegExp(name.replace('.', '\\.')+'\\?v=\\d+','g');
-    out=out.replace(versioned,`${name}?v=7`);
-    if(!out.includes(name)) out=out.replace('</head>',`    <link rel="stylesheet" href="${name}?v=7">\n</head>`);
+    out=out.replace(versioned,`${name}?v=8`);
+    if(!out.includes(name)) out=out.replace('</head>',`    <link rel="stylesheet" href="${name}?v=8">\n</head>`);
   }
   for(const name of js){
     const versioned=new RegExp(name.replace('.', '\\.')+'\\?v=\\d+','g');
-    out=out.replace(versioned,`${name}?v=7`);
-    if(!out.includes(name)) out=out.replace('</body>',`    <script type="module" src="${name}?v=7"></script>\n</body>`);
+    out=out.replace(versioned,`${name}?v=8`);
+    if(!out.includes(name)) out=out.replace('</body>',`    <script type="module" src="${name}?v=8"></script>\n</body>`);
   }
   return out;
 }
