@@ -45,6 +45,14 @@ export function taskDurationMinutes(task={},fallback=60){
   return Math.max(1,Math.round(duration));
 }
 
+export function preserveScheduledDuration(task){
+  if(!task||!(task.estimatedMinutes==null||Number(task.estimatedMinutes)<=0))return task;
+  const start=parseTime(task.startTime),end=parseTime(task.endTime);
+  if(start===null||end===null)return task;
+  task.estimatedMinutes=taskDurationMinutes(task);
+  return task;
+}
+
 function localDate(date){ return new Date(date.getFullYear(),date.getMonth(),date.getDate(),12); }
 export function addDays(date,days){ const d=localDate(date); d.setDate(d.getDate()+days); return d; }
 
@@ -129,6 +137,7 @@ export function normalizeTaskMetadata(task){
   if(task.reminderMinutes===undefined)task.reminderMinutes=null;
   if(task.scheduleLocked===undefined)task.scheduleLocked=false;
   if(task.schedulingPreference===undefined)task.schedulingPreference=null;
+  if(task.color===undefined)task.color=null;
   return task;
 }
 
@@ -163,8 +172,9 @@ function proposalConflictsWithRecurring(date,startMin,endMin,fixedEvents=[]){
   return false;
 }
 
-export function validateScheduleProposals(raw,tasksById,fixedEvents=[]){
+export function validateScheduleProposals(raw,tasksById,fixedEvents=[],constraints={}){
   if(!Array.isArray(raw))return [];
+  const minimumDate=validDateKey(constraints?.minDate)?constraints.minDate:null;
   const preliminary=[],seen=new Set();
   for(const item of raw){
     const taskId=String(item?.taskId??'');
@@ -173,6 +183,7 @@ export function validateScheduleProposals(raw,tasksById,fixedEvents=[]){
     const date=item?.to?.date,start=item?.to?.startTime,end=item?.to?.endTime;
     const startMin=parseTime(start),endMin=parseTime(end);
     if(!validDateKey(date)||startMin===null||endMin===null||endMin-startMin<15)continue;
+    if(minimumDate&&date<minimumDate)continue;
     if(validDateKey(task.dueDate)&&date>task.dueDate)continue;
     if(proposalConflictsWithRecurring(date,startMin,endMin,fixedEvents))continue;
     seen.add(taskId);
