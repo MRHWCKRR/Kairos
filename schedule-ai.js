@@ -1,5 +1,5 @@
 import { validateScheduleProposals, parseTime, formatTime, taskDurationMinutes, toDateKey, getVisibleDates, blockGeometry, addDays } from './schedule-utils.js';
-import { generateTaskOccurrences, applyOccurrenceOverride } from './recurrence-utils.js';
+import { generateTaskOccurrences, generateTaskOccurrencesThrough, applyOccurrenceOverride } from './recurrence-utils.js';
 
 const bridge=()=>window.__kairosScheduleBridge;
 const workspace=()=>window.__kairosScheduleWorkspace;
@@ -90,7 +90,7 @@ function buildContext(target=null){
   const horizonEnd=toDateKey(addDays(now,PLANNING_HORIZON_DAYS)),recurring=[];
   for(const entry of all){
     if(!entry.task.recurrence?.enabled)continue;
-    const generated=generateTaskOccurrences(entry.task,currentDate,horizonEnd,{today:currentDate});
+    const generated=generateTaskOccurrencesThrough(entry.task,horizonEnd,{today:currentDate});
     for(const occurrence of generated)recurring.push({...occurrence,board:entry.board,section:entry.section});
   }
   if(targetOccurrenceId&&!recurring.some(item=>item.occurrenceId===targetOccurrenceId)){
