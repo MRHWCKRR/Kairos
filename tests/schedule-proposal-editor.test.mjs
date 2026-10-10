@@ -30,3 +30,23 @@ test('proposal overlay previews draft color before Apply', () => {
   assert.match(ai, /hasOwnProperty\.call\(proposal\.metadata,'color'\)/);
   assert.match(ai, /--ks-task-color/);
 });
+
+test('manual proposal duration survives validation instead of being replaced by task duration', () => {
+  assert.match(ai, /validationTasks/);
+  assert.match(ai, /estimatedMinutes:duration/);
+  assert.match(ai, /startTime:null/);
+  assert.match(ai, /endTime:null/);
+});
+
+test('manual proposal edits preserve the original AI placement reason', () => {
+  assert.doesNotMatch(ai, /reason:'Adjusted by you\.'/);
+  assert.match(ai, /reason:proposal\.reason/);
+});
+
+test('Save change is disabled until the proposal form becomes dirty', () => {
+  assert.match(ai, /data-save-proposal-change[^>]*disabled/);
+  assert.match(ai, /initialProposalEditState/);
+  assert.match(ai, /syncProposalSaveState/);
+  assert.match(ai, /addEventListener\('input'/);
+  assert.match(ai, /addEventListener\('change'/);
+});
