@@ -2,6 +2,8 @@
 
 This branch prepares Workers with Static Assets as a replacement for Vercel. Firebase Auth, Firestore, App Check, the waitlist, and the browser app stay on their existing services. The old `kairos` relay Worker is separate; do not overwrite it. Vercel remains the production host until the owner reviews the preview and approves the domain cutover.
 
+Verified preparation on 10 October 2026: [draft PR #30](https://github.com/MRHWCKRR/Kairos/pull/30), [isolated preview](https://kairos-web-preview.kirosapp.workers.dev), 141 passing tests, 18 passing live HTTP checks, and successful GitHub build checks. The deployed preview has only the ASSETS binding and zero cron schedules. A fresh read-only reviewer found no blocking defects. Authenticated features remain pending secure configuration and live acceptance. Initial preview publication used Wrangler; automatic Cloudflare Builds repository integration is still pending.
+
 ## Build and verify
 
 Use Node 22 or newer and install the lockfile with `npm ci`.
