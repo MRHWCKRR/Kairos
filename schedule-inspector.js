@@ -37,12 +37,12 @@ function richMarkup(found){
   return `<div class="ks-inspector-head"><span>Task</span><button type="button" data-close aria-label="Close inspector">×</button></div>
   <form class="ks-inspector-form" data-ks-rich-inspector>
     <label>Title<input name="title" maxlength="180" value="${esc(task.title)}"></label>
-    <div class="ks-form-grid"><label>Date<input name="date" type="date" value="${esc(task.date||'')}"></label><label>Start<input name="start" type="time" step="900" value="${esc(task.startTime||'')}"></label></div>
-    <div class="ks-form-grid"><label>Duration (min)<input name="duration" type="number" min="15" step="15" value="${duration}"></label><label>Due date<input name="dueDate" type="date" value="${esc(task.dueDate||'')}"></label></div>
+    <div class="ks-form-grid"><label>Date<input name="date" type="date" value="${esc(task.date||'')}"></label><label>Start<input name="start" type="time" step="60" value="${esc(task.startTime||'')}"></label></div>
+    <div class="ks-form-grid"><label>Duration (min)<input name="duration" type="number" min="1" step="1" value="${duration}"></label><label>Due date<input name="dueDate" type="date" value="${esc(task.dueDate||'')}"></label></div>
     <div class="ks-inspector-location"><span>${esc(board.title)} / ${esc(section.title)}</span><button type="button" data-toggle-move>Move</button></div>
     <div class="ks-move-fields" hidden><label>Board<select name="board">${boardOptions(board.id)}</select></label><label>Section<select name="section">${sectionOptions(board,section.id)}</select></label><button type="button" data-move>Move task</button></div>
     <details><summary>More details</summary><div class="ks-details-body">
-      <div class="ks-form-grid"><label>Priority<select name="priority"><option value="">None</option><option value="low" ${task.priority==='low'?'selected':''}>Low</option><option value="medium" ${task.priority==='medium'?'selected':''}>Medium</option><option value="high" ${task.priority==='high'?'selected':''}>High</option></select></label><label>Estimate (min)<input name="estimate" type="number" min="15" step="15" value="${task.estimatedMinutes??''}"></label></div>
+      <div class="ks-form-grid"><label>Priority<select name="priority"><option value="">None</option><option value="low" ${task.priority==='low'?'selected':''}>Low</option><option value="medium" ${task.priority==='medium'?'selected':''}>Medium</option><option value="high" ${task.priority==='high'?'selected':''}>High</option></select></label><label>Estimate (min)<input name="estimate" type="number" min="1" step="1" value="${task.estimatedMinutes??''}"></label></div>
       <label>Notes<textarea name="notes" rows="4" maxlength="3000">${esc(task.notes||'')}</textarea></label>
       <div class="ks-form-grid"><label>Reminder<select name="reminder"><option value="">None</option><option value="5" ${task.reminderMinutes===5?'selected':''}>5 min before</option><option value="15" ${task.reminderMinutes===15?'selected':''}>15 min before</option><option value="30" ${task.reminderMinutes===30?'selected':''}>30 min before</option><option value="60" ${task.reminderMinutes===60?'selected':''}>1 hour before</option></select></label><label>Preferred time<select name="preference"><option value="">No preference</option><option value="morning" ${task.schedulingPreference==='morning'?'selected':''}>Morning</option><option value="afternoon" ${task.schedulingPreference==='afternoon'?'selected':''}>Afternoon</option><option value="evening" ${task.schedulingPreference==='evening'?'selected':''}>Evening</option></select></label></div>
       <label class="ks-check-row"><input name="locked" type="checkbox" ${task.scheduleLocked?'checked':''}> Keep this time fixed for AI planning</label>
@@ -71,12 +71,12 @@ function enhance(){
 
   async function saveForm(){
     const before=snapshotTask(task);
-    const duration=Math.max(15,Number(form.elements.duration.value)||60);
+    const duration=Math.max(1,Number(form.elements.duration.value)||60);
     Object.assign(task,scheduleFieldsFromDuration(form.elements.date.value,form.elements.start.value,duration),{
       title:form.elements.title.value.trim()||before.title,
       dueDate:form.elements.dueDate.value||null,
       priority:form.elements.priority.value||null,
-      estimatedMinutes:form.elements.estimate.value?Math.max(15,Number(form.elements.estimate.value)):null,
+      estimatedMinutes:form.elements.estimate.value?Math.max(1,Number(form.elements.estimate.value)):null,
       notes:form.elements.notes.value.trim(),
       reminderMinutes:form.elements.reminder.value?Number(form.elements.reminder.value):null,
       schedulingPreference:form.elements.preference.value||null,
@@ -88,7 +88,8 @@ function enhance(){
   async function unschedule(){const before=snapshotTask(task);clearScheduledFields(task);await persistTask(task,before,'Task moved to Unscheduled.')}
   async function moveTask(){
     const boards=bridge()?.getBoards?.()||[],destBoard=boards.find(b=>String(b.id)===String(form.elements.board.value)),destSection=destBoard?.sections?.find(s=>String(s.id)===String(form.elements.section.value));
-    if(!destSection||destSection===section)return;
+    if(!destSection){showToast('Choose a destination section.');return}
+    if(destSection===section){showToast('Task is already in that section.');return}
     const oldIndex=section.tasks.indexOf(task);section.tasks.splice(oldIndex,1);destSection.tasks=destSection.tasks||[];destSection.tasks.push(task);workspace()?.render?.();
     try{await bridge()?.persistPlan?.();bridge()?.refreshAppViews?.();showToast('Task moved.')}
     catch(error){destSection.tasks=destSection.tasks.filter(t=>t!==task);section.tasks.splice(Math.max(0,oldIndex),0,task);workspace()?.render?.();showToast("Couldn't move the task. Restored its previous location.");console.error(error)}
