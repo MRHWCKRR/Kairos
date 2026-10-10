@@ -96,7 +96,7 @@ async function createTask(form){
 function decorateToolbar(){
   const toolbar=document.getElementById('schedule-toolbar');if(!toolbar)return;
   const existing=toolbar.querySelector('[data-event]');if(!existing)return;
-  const button=existing.cloneNode(true);button.removeAttribute('data-event');button.dataset.addTask='';button.textContent='+ Task';button.setAttribute('aria-label','Add task');
+  const button=existing.cloneNode(true);button.removeAttribute('data-event');button.setAttribute('data-add-task','');button.textContent='+ Task';button.setAttribute('aria-label','Add task');
   button.addEventListener('click',event=>{event.preventDefault();openCreator()});existing.replaceWith(button);
 }
 
