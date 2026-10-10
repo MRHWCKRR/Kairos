@@ -19,6 +19,10 @@ test('creation and inspector share recurrence markup binding and parsing',()=>{
   assert.match(create,/task\.recurrence|recurrence:/);assert.match(inspector,/task\.recurrence/);
 });
 
+test('editing a base recurring series preserves completed skipped and overridden occurrence history',()=>{
+  assert.match(inspector,/recurrence\.exceptions\s*=\s*structuredClone\(task\.recurrence\?\.exceptions\|\|\{\}\)/);
+});
+
 test('recurrence UI provides a reusable edit-scope dialog contract',()=>{
   assert.match(ui,/showRecurrenceScopeDialog/);assert.match(ui,/This occurrence/);assert.match(ui,/This and future/);assert.match(ui,/Entire series/);assert.match(ui,/occurrence/);assert.match(ui,/future/);assert.match(ui,/series/);assert.match(ui,/cancel/);
 });
