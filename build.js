@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { injectScheduleAssets, injectScheduleBridge, injectScheduleShell, rewriteRelaySource } from './build-transforms.js';
+import { injectScheduleAssets, injectScheduleBridge, injectScheduleShell, rewriteRelaySource, rewriteScheduleRecurrenceImports } from './build-transforms.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -14,6 +14,24 @@ for (const name of ['app.js', 'ai-workspace.js', 'schedule-workspace.js']) {
     let fileContent = fs.readFileSync(filePath, 'utf8');
     if (name === 'app.js') fileContent = injectScheduleBridge(fileContent);
     fileContent = rewriteRelaySource(fileContent);
+    fs.writeFileSync(filePath, fileContent);
+}
+
+// Schedule's recurring-task helpers are nested ES modules. Cache-bust their
+// import graph with the same Schedule version as the top-level scripts so a
+// deployment cannot mix old recurrence logic with new UI/rendering modules.
+for (const name of [
+    'schedule-workspace.js',
+    'schedule-interactions.js',
+    'schedule-inspector.js',
+    'schedule-task-create.js',
+    'schedule-ai.js',
+    'schedule-recurrence-ui.js',
+    'boards-recurrence.js'
+]) {
+    const filePath = path.join(__dirname, name);
+    if (!fs.existsSync(filePath)) continue;
+    const fileContent = rewriteScheduleRecurrenceImports(fs.readFileSync(filePath, 'utf8'));
     fs.writeFileSync(filePath, fileContent);
 }
 
