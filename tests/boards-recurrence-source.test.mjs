@@ -14,8 +14,9 @@ test('Boards decorates one stored recurring series row without generating occurr
   assert.match(source,/data-recurrence-series-meta/);
 });
 
-test('Boards does not expose whole-series completion as an ordinary checkbox action',()=>{
+test('Boards does not expose whole-series completion or one-off date changes',()=>{
   assert.match(source,/checkbox\.disabled\s*=\s*true/);
+  assert.match(source,/dateInput\.disabled\s*=\s*true/);
   assert.match(source,/Recurring series/);
 });
 
