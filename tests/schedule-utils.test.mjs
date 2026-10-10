@@ -4,7 +4,7 @@ import {
   toDateKey, parseTime, formatTime, snapMinutes, taskDurationMinutes,
   getVisibleDates, shiftAnchor, layoutOverlaps, findConflicts, splitOvernightInterval,
   applyScheduledMove, applyResize, clearScheduledFields, normalizeTaskMetadata,
-  scheduleFieldsFromDuration, validateScheduleProposals
+  scheduleFieldsFromDuration, validateScheduleProposals, preserveScheduledDuration
 } from '../schedule-utils.js';
 
 test('three-day range stays in local calendar dates across month boundary', () => {
@@ -35,6 +35,21 @@ test('task duration uses explicit interval then estimate then fallback with one 
   assert.equal(taskDurationMinutes({estimatedMinutes:5}), 5);
   assert.equal(taskDurationMinutes({estimatedMinutes:1}), 1);
   assert.equal(taskDurationMinutes({}), 60);
+});
+
+test('preserveScheduledDuration stores the prior block length before unscheduling',()=>{
+  const task={title:'Science',date:'2026-10-10',startTime:'14:07',endTime:'15:42',estimatedMinutes:null,notes:'Chapter 4'};
+  preserveScheduledDuration(task);
+  clearScheduledFields(task);
+  assert.equal(task.estimatedMinutes,95);
+  assert.equal(task.notes,'Chapter 4');
+  assert.equal(task.date,null);
+});
+
+test('preserveScheduledDuration keeps an explicit estimate instead of overwriting it',()=>{
+  const task={startTime:'14:00',endTime:'16:00',estimatedMinutes:45};
+  preserveScheduledDuration(task);
+  assert.equal(task.estimatedMinutes,45);
 });
 
 test('touching intervals do not overlap but simultaneous intervals receive columns', () => {
@@ -91,6 +106,7 @@ test('task metadata normalization adds safe defaults without overwriting values'
   assert.equal(task.reminderMinutes,null);
   assert.equal(task.scheduleLocked,false);
   assert.equal(task.schedulingPreference,null);
+  assert.equal(task.color,null);
 });
 
 test('scheduleFieldsFromDuration creates minute-precise keyboard-equivalent start and end fields',()=>{
@@ -123,6 +139,18 @@ test('AI schedule proposals preserve prior schedule and normalise a valid propos
     reason:'Best free block',
     conflictIds:['class-1']
   }]);
+});
+
+test('AI proposal validator rejects a proposal before the authoritative current date',()=>{
+  const task={id:'science',scheduleLocked:false};
+  const raw=[{taskId:'science',to:{date:'2026-10-09',startTime:'16:00',endTime:'17:00'}}];
+  assert.deepEqual(validateScheduleProposals(raw,new Map([['science',task]]),[],{minDate:'2026-10-10'}),[]);
+});
+
+test('AI proposal validator accepts today or a future date when otherwise valid',()=>{
+  const task={id:'science',scheduleLocked:false};
+  const raw=[{taskId:'science',to:{date:'2026-10-10',startTime:'16:00',endTime:'17:00'}}];
+  assert.equal(validateScheduleProposals(raw,new Map([['science',task]]),[],{minDate:'2026-10-10'}).length,1);
 });
 
 test('AI proposal validator rejects recurring fixed-event conflicts',()=>{
