@@ -45,7 +45,14 @@ function proposalMetadata(proposal,task){
   };
 }
 function validateProposalDrafts(items){
-  const valid=validateScheduleProposals(items,taskMap(),bridge()?.getScheduleEvents?.()||[],planningConstraints());
+  const validationTasks=new Map([...taskMap()].map(([id,task])=>[id,{...task}]));
+  for(const item of items){
+    const id=String(item?.taskId??''),task=validationTasks.get(id);if(!task)continue;
+    const start=parseTime(item?.to?.startTime),end=parseTime(item?.to?.endTime);
+    const duration=start!==null&&end!==null&&end>start?end-start:taskDurationMinutes(task);
+    validationTasks.set(id,{...task,startTime:null,endTime:null,estimatedMinutes:duration,lastScheduledMinutes:duration});
+  }
+  const valid=validateScheduleProposals(items,validationTasks,bridge()?.getScheduleEvents?.()||[],planningConstraints());
   if(valid.length!==items.length)return null;
   const drafts=new Map(items.map(item=>[String(item.taskId),item]));
   return valid.map(item=>{
@@ -129,14 +136,32 @@ function focusProposal(index){
   renderProposalOverlays();renderProposalInspector(safeIndex);markReviewedProposal();
   requestAnimationFrame(()=>document.querySelector(`.ks-proposal-block[data-proposal-index="${safeIndex}"]`)?.focus({preventScroll:true}));
 }
+function proposalEditState(form){
+  if(!form)return '';
+  const theme=form.querySelector('[data-proposal-theme-color]')?.checked;
+  return JSON.stringify({
+    date:form.querySelector('[data-proposal-date]')?.value||'',
+    start:form.querySelector('[data-proposal-start]')?.value||'',
+    duration:form.querySelector('[data-proposal-duration]')?.value||'',
+    priority:form.querySelector('[data-proposal-priority]')?.value||'',
+    estimate:form.querySelector('[data-proposal-estimate]')?.value||'',
+    preference:form.querySelector('[data-proposal-preference]')?.value||'',
+    color:theme?'theme':(form.querySelector('[data-proposal-color]')?.value||'')
+  });
+}
 function changeProposal(index){
   const proposal=proposals[index],entry=findTask(proposal?.taskId),inspector=document.getElementById('schedule-inspector');
   if(!proposal||!entry||!inspector)return;
   reviewIndex=index;
   const metadata=proposalMetadata(proposal,entry.task),duration=proposalDurationMinutes(proposal,entry.task),color=validTaskColor(metadata.color)||'#a855f7',customColor=!!validTaskColor(metadata.color);
-  inspector.innerHTML=`<div class="ks-inspector-head"><span>Change proposal</span><button type="button" data-close aria-label="Close proposal">×</button></div><form class="ks-proposal-inspector ks-proposal-edit" data-proposal-edit>${proposalNavMarkup(index)}<h3>${escapeHtml(entry.task.title)}</h3><div class="ks-proposal-edit-grid"><label>Date<input type="date" data-proposal-date value="${escapeHtml(proposal.to.date)}"></label><label>Start<input type="time" step="60" data-proposal-start value="${escapeHtml(proposal.to.startTime)}"></label><label>Duration (min)<input type="number" min="1" step="1" data-proposal-duration value="${duration}"></label><label>Importance<select data-proposal-priority><option value="" ${!metadata.priority?'selected':''}>None</option><option value="low" ${metadata.priority==='low'?'selected':''}>Low</option><option value="medium" ${metadata.priority==='medium'?'selected':''}>Medium</option><option value="high" ${metadata.priority==='high'?'selected':''}>High</option></select></label><label>Estimate (min)<input type="number" min="1" step="1" data-proposal-estimate value="${metadata.estimatedMinutes??''}" placeholder="None"></label><label>Preferred time<select data-proposal-preference><option value="" ${!metadata.schedulingPreference?'selected':''}>No preference</option><option value="morning" ${metadata.schedulingPreference==='morning'?'selected':''}>Morning</option><option value="afternoon" ${metadata.schedulingPreference==='afternoon'?'selected':''}>Afternoon</option><option value="evening" ${metadata.schedulingPreference==='evening'?'selected':''}>Evening</option></select></label></div><label>Task color<div class="ks-proposal-color-row"><input type="color" data-proposal-color value="${color}" aria-label="Task color"><label class="ks-proposal-theme-color"><input type="checkbox" data-proposal-theme-color ${customColor?'':'checked'}> Use theme color</label></div></label><p class="ks-proposal-edit-note">These changes stay in this proposal until you press Apply.</p><div class="ks-inspector-actions"><button type="submit" class="ks-primary" data-save-proposal-change>Save change</button><button type="button" data-cancel-proposal-change>Cancel</button></div></form>`;
+  inspector.innerHTML=`<div class="ks-inspector-head"><span>Change proposal</span><button type="button" data-close aria-label="Close proposal">×</button></div><form class="ks-proposal-inspector ks-proposal-edit" data-proposal-edit>${proposalNavMarkup(index)}<h3>${escapeHtml(entry.task.title)}</h3><div class="ks-proposal-edit-grid"><label>Date<input type="date" data-proposal-date value="${escapeHtml(proposal.to.date)}"></label><label>Start<input type="time" step="60" data-proposal-start value="${escapeHtml(proposal.to.startTime)}"></label><label>Duration (min)<input type="number" min="1" step="1" data-proposal-duration value="${duration}"></label><label>Importance<select data-proposal-priority><option value="" ${!metadata.priority?'selected':''}>None</option><option value="low" ${metadata.priority==='low'?'selected':''}>Low</option><option value="medium" ${metadata.priority==='medium'?'selected':''}>Medium</option><option value="high" ${metadata.priority==='high'?'selected':''}>High</option></select></label><label>Estimate (min)<input type="number" min="1" step="1" data-proposal-estimate value="${metadata.estimatedMinutes??''}" placeholder="None"></label><label>Preferred time<select data-proposal-preference><option value="" ${!metadata.schedulingPreference?'selected':''}>No preference</option><option value="morning" ${metadata.schedulingPreference==='morning'?'selected':''}>Morning</option><option value="afternoon" ${metadata.schedulingPreference==='afternoon'?'selected':''}>Afternoon</option><option value="evening" ${metadata.schedulingPreference==='evening'?'selected':''}>Evening</option></select></label></div><label>Task color<div class="ks-proposal-color-row"><input type="color" data-proposal-color value="${color}" aria-label="Task color"><label class="ks-proposal-theme-color"><input type="checkbox" data-proposal-theme-color ${customColor?'':'checked'}> Use theme color</label></div></label><p class="ks-proposal-edit-note">These changes stay in this proposal until you press Apply.</p><div class="ks-inspector-actions"><button type="submit" class="ks-primary" data-save-proposal-change disabled>Save change</button><button type="button" data-cancel-proposal-change>Cancel</button></div></form>`;
+  const form=inspector.querySelector('[data-proposal-edit]'),saveButton=inspector.querySelector('[data-save-proposal-change]');
+  const initialProposalEditState=proposalEditState(form);
+  const syncProposalSaveState=()=>{if(saveButton)saveButton.disabled=proposalEditState(form)===initialProposalEditState};
   inspector.querySelector('[data-close]').onclick=closeProposalInspector;inspector.querySelector('[data-cancel-proposal-change]').onclick=()=>renderProposalInspector(index);bindProposalNavigation(inspector,index);
-  inspector.querySelector('[data-proposal-edit]')?.addEventListener('submit',event=>{event.preventDefault();saveProposalChange(index)});
+  form?.addEventListener('input',syncProposalSaveState);form?.addEventListener('change',syncProposalSaveState);
+  form?.addEventListener('submit',event=>{event.preventDefault();if(saveButton?.disabled)return;saveProposalChange(index)});
+  syncProposalSaveState();
 }
 function saveProposalChange(index){
   const proposal=proposals[index],entry=findTask(proposal?.taskId),inspector=document.getElementById('schedule-inspector');if(!proposal||!entry||!inspector)return;
@@ -149,7 +174,7 @@ function saveProposalChange(index){
     schedulingPreference:inspector.querySelector('[data-proposal-preference]')?.value||null,
     color:inspector.querySelector('[data-proposal-theme-color]')?.checked?null:validTaskColor(inspector.querySelector('[data-proposal-color]')?.value)
   };
-  const candidate={...proposal,to:{date,startTime:formatTime(start,false),endTime:formatTime(start+duration,false)},metadata,reason:'Adjusted by you.'};
+  const candidate={...proposal,to:{date,startTime:formatTime(start,false),endTime:formatTime(start+duration,false)},metadata,reason:proposal.reason};
   const raw=proposals.map((item,i)=>i===index?candidate:item),valid=validateProposalDrafts(raw);
   if(!valid){showToast('That time conflicts with another task or commitment.');return}
   proposals=valid;if(workspace()?.state)workspace().state.proposals=[...valid];workspace()?.render?.();syncUi();focusProposal(Math.min(index,proposals.length-1));
