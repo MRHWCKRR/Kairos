@@ -73,6 +73,22 @@ export function generateTaskOccurrences(task,rangeStart,rangeEnd,options={}){
   });
 }
 
+export function generateTaskOccurrencesThrough(task,rangeEnd,options={}){
+  const rule=normalizeRecurrence(task,task?.date||rangeEnd),today=validDateKey(options.today)?options.today:dateKey(new Date());
+  if(!rule.enabled||!validDateKey(rule.startDate)||!validDateKey(rangeEnd)||rangeEnd<rule.startDate)return [];
+  const byId=new Map();
+  for(const item of generateTaskOccurrences(task,rule.startDate,rangeEnd,{today})){
+    if(item.status==='pending'&&item.displayDate<=rangeEnd)byId.set(item.occurrenceId,item);
+  }
+  for(const [logicalDate,exception] of Object.entries(rule.exceptions||{})){
+    const movedDate=exception?.override?.date;
+    if(!validDateKey(logicalDate)||logicalDate<=rangeEnd||!validDateKey(movedDate)||movedDate>rangeEnd)continue;
+    const item=generateTaskOccurrences(task,logicalDate,logicalDate,{today})[0];
+    if(item?.status==='pending'&&item.displayDate<=rangeEnd)byId.set(item.occurrenceId,item);
+  }
+  return [...byId.values()].sort((a,b)=>a.displayDate.localeCompare(b.displayDate)||a.occurrenceDate.localeCompare(b.occurrenceDate));
+}
+
 const DAY_LONG=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'],DAY_SHORT=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'],MONTH_SHORT=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 function ordinal(value){const n=Number(value),mod100=n%100;if(mod100>=11&&mod100<=13)return `${n}th`;return `${n}${n%10===1?'st':n%10===2?'nd':n%10===3?'rd':'th'}`}
 function capital(value){const s=String(value||'');return s?s[0].toUpperCase()+s.slice(1):s}
