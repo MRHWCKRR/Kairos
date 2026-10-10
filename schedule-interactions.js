@@ -1,6 +1,7 @@
 import { applyResize, applyScheduledMove, clearScheduledFields, snapMinutes, formatTime } from './schedule-utils.js';
 
 const DAY_MINUTES=1440;
+const SNAP_MINUTES=1;
 let interaction=null;
 let suppressClickUntil=0;
 
@@ -44,7 +45,7 @@ function moveGhost(x,y){if(interaction?.ghost)interaction.ghost.style.transform=
 function gridAtPoint(x,y){
   const grid=document.elementFromPoint(x,y)?.closest?.('.ks-day-grid');if(!grid)return null;
   const column=grid.closest('.ks-day-column'),rect=grid.getBoundingClientRect();if(!column||!rect.height)return null;
-  return {dateKey:column.dataset.date,minutes:snapMinutes(((y-rect.top)/rect.height)*DAY_MINUTES,15),grid,rect};
+  return {dateKey:column.dataset.date,minutes:snapMinutes(((y-rect.top)/rect.height)*DAY_MINUTES,SNAP_MINUTES),grid,rect};
 }
 function begin(mode,taskId,event,element){
   if(event.button!==0)return;const found=findTask(taskId);if(!found)return;if(mode==='resize'&&!found.task.startTime)return;
@@ -58,7 +59,7 @@ function onMove(event){
   if(Math.hypot(event.clientX-interaction.startX,event.clientY-interaction.startY)>4)interaction.moved=true;
   if(interaction.mode==='resize'){
     const grid=interaction.originElement.closest('.ks-day-grid'),rect=grid?.getBoundingClientRect();
-    if(rect?.height){interaction.preview={endMin:snapMinutes(((event.clientY-rect.top)/rect.height)*DAY_MINUTES,15)};interaction.ghost.querySelector('span').textContent=`End ${formatClock(interaction.preview.endMin)}`}
+    if(rect?.height){interaction.preview={endMin:snapMinutes(((event.clientY-rect.top)/rect.height)*DAY_MINUTES,SNAP_MINUTES)};interaction.ghost.querySelector('span').textContent=`End ${formatClock(interaction.preview.endMin)}`}
     return;
   }
   const slot=gridAtPoint(event.clientX,event.clientY);interaction.preview=slot?{dateKey:slot.dateKey,startMin:slot.minutes}:null;
@@ -70,11 +71,11 @@ async function finish(event,cancel=false){
   const current=interaction;interaction=null;current.originElement?.classList.remove('is-dragging','is-resizing');current.ghost?.remove();
   if(cancel||!current.moved)return;suppressClickUntil=Date.now()+300;
   const found=findTask(current.taskId);if(!found)return;const task=found.task;
-  if(current.mode==='resize'){if(current.preview)await persistMutation(task,current.original,applyResize(task,current.preview.endMin,15));return}
+  if(current.mode==='resize'){if(current.preview)await persistMutation(task,current.original,applyResize(task,current.preview.endMin,SNAP_MINUTES));return}
   if(current.mode==='move'&&current.overBacklog){const next={...current.original};clearScheduledFields(next);await persistMutation(task,current.original,next);return}
   if(!current.preview)return;
   const base=current.mode==='backlog'?{...task,startTime:null,endTime:null,estimatedMinutes:task.estimatedMinutes||60}:task;
-  await persistMutation(task,current.original,applyScheduledMove(base,current.preview.dateKey,current.preview.startMin,15));
+  await persistMutation(task,current.original,applyScheduledMove(base,current.preview.dateKey,current.preview.startMin,SNAP_MINUTES));
 }
 function cancel(){if(!interaction)return;interaction.originElement?.classList.remove('is-dragging','is-resizing');interaction.ghost?.remove();interaction=null}
 
