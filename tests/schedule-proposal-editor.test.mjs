@@ -27,5 +27,6 @@ test('proposal apply snapshots metadata so rollback restores task details', () =
 });
 
 test('proposal overlay previews draft color before Apply', () => {
-  assert.match(ai, /proposal\.metadata\?\.color/);
+  assert.match(ai, /hasOwnProperty\.call\(proposal\.metadata,'color'\)/);
+  assert.match(ai, /--ks-task-color/);
 });
