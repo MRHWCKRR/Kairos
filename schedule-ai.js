@@ -23,6 +23,10 @@ function formatClock(value){const mins=parseTime(value);return mins===null?Strin
 function showToast(message){
   document.querySelector('.ks-toast')?.remove();const el=document.createElement('div');el.className='ks-toast';el.setAttribute('role','status');el.textContent=message;document.body.appendChild(el);requestAnimationFrame(()=>el.classList.add('is-visible'));setTimeout(()=>{el.classList.remove('is-visible');setTimeout(()=>el.remove(),180)},3200);
 }
+function syncPlanButton(){
+  const button=document.querySelector('#schedule-toolbar [data-plan]');if(!button)return;
+  button.disabled=planning;button.setAttribute('aria-busy',planning?'true':'false');button.textContent=planning?'Planning…':'Plan';
+}
 
 function buildContext(targetTaskId=null){
   const ws=workspace(),dates=getVisibleDates(ws?.state?.anchor||new Date(),ws?.state?.view||'three-day');
@@ -33,10 +37,10 @@ function buildContext(targetTaskId=null){
     planningHorizonDays:7,
     targetTaskId:targetTaskId||null,
     tasks:eligible.map(({task,board,section})=>({
-      id:String(task.id),title:String(task.title||''),board:String(board.title||''),section:String(section.title||''),
+      id:String(task.id),title:String(task.title||''),notes:String(task.notes||''),board:String(board.title||''),section:String(section.title||''),
       dueDate:task.dueDate||null,estimatedMinutes:task.estimatedMinutes||taskDurationMinutes(task),priority:task.priority||null,
       schedulingPreference:task.schedulingPreference||null,date:task.date||null,startTime:task.startTime||null,endTime:task.endTime||null,
-      scheduleLocked:!!task.scheduleLocked
+      scheduleLocked:!!task.scheduleLocked,color:task.color||null
     })),
     fixedCommitments:(bridge()?.getScheduleEvents?.()||[]).map(ev=>({id:String(ev.id),title:String(ev.title||''),day:Number(ev.day),start:ev.start,end:ev.end,category:ev.category||'other'}))
   };
@@ -55,6 +59,7 @@ function renderProposalOverlays(){
     const entry=findTask(proposal.taskId),button=document.createElement('button');
     button.type='button';button.className='ks-proposal-block';button.dataset.proposalIndex=String(index);
     button.style.top=`${geometry.topPx}px`;button.style.height=`${geometry.heightPx}px`;
+    if(/^#[0-9a-f]{6}$/i.test(String(entry?.task?.color||'')))button.style.setProperty('--ks-task-color',entry.task.color);
     button.setAttribute('aria-label',`Proposed: ${entry?.task.title||'Task'}, ${formatClock(proposal.to.startTime)} to ${formatClock(proposal.to.endTime)}`);
     const title=document.createElement('strong');title.textContent=entry?.task.title||'Task';const time=document.createElement('span');time.textContent=`Proposed · ${formatClock(proposal.to.startTime)}–${formatClock(proposal.to.endTime)}`;button.append(title,time);
     button.addEventListener('click',event=>{event.stopPropagation();renderProposalInspector(index)});grid.appendChild(button);
@@ -76,18 +81,18 @@ function renderProposalInspector(index){
 }
 function escapeHtml(value){return String(value??'').replace(/[&<>'"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[ch]))}
 function closeProposalInspector(){const inspector=document.getElementById('schedule-inspector'),shell=document.querySelector('.schedule-workspace-shell');if(inspector){inspector.hidden=true;inspector.innerHTML=''}shell?.classList.remove('inspector-open')}
-function syncUi(){syncQueued=false;renderReview();renderProposalOverlays()}
+function syncUi(){syncQueued=false;syncPlanButton();renderReview();renderProposalOverlays()}
 function queueSync(){if(syncQueued)return;syncQueued=true;requestAnimationFrame(syncUi)}
 
 async function requestPlan(targetTaskId=null){
-  if(planning)return;planning=true;const button=document.querySelector('#schedule-toolbar [data-plan]');if(button){button.disabled=true;button.textContent='Planning…'}
+  if(planning)return;planning=true;syncPlanButton();
   try{
     const context=buildContext(targetTaskId);if(!context.tasks.length){showToast(targetTaskId?'That task cannot be automatically planned.':'No flexible incomplete tasks are available to plan.');return}
-    const raw=await bridge()?.requestAiPlan?.(context);const valid=validateScheduleProposals(raw,taskMap(),bridge()?.getScheduleEvents?.()||[]);
-    if(!valid.length){showToast('Kairos did not find a safe schedule change to propose.');return}
+    const raw=await bridge()?.requestAiPlan?.(context);const valid=validateScheduleProposals(raw,taskMap(),bridge()?.getScheduleEvents?.()||[],{minDate:context.currentDate});
+    if(!valid.length){showToast('Kairos did not find a safe future schedule change to propose.');return}
     proposals=valid;if(workspace()?.state)workspace().state.proposals=valid;workspace()?.render?.();syncUi();
   }catch(error){console.error('[Kairos Schedule] AI planning failed.',error);showToast('Kairos could not create a schedule proposal right now.')}
-  finally{planning=false;const next=document.querySelector('#schedule-toolbar [data-plan]');if(next){next.disabled=false;next.textContent='Plan'}}
+  finally{planning=false;syncPlanButton()}
 }
 function snapshotsFor(items){const map=new Map();items.forEach(p=>{const task=findTask(p.taskId)?.task;if(task&&!map.has(String(task.id)))map.set(String(task.id),{task,date:task.date??null,startTime:task.startTime??null,endTime:task.endTime??null})});return map}
 async function applySet(items){
@@ -105,6 +110,7 @@ function boot(){
   const root=document.getElementById('schedule-page');if(root)new MutationObserver(queueSync).observe(root,{subtree:true,childList:true});
   document.addEventListener('click',event=>{if(event.target.closest?.('#schedule-toolbar [data-plan]')){event.preventDefault();void requestPlan()}},true);
   window.addEventListener('kairos-schedule-ai-task',event=>void requestPlan(event.detail?.taskId||null));
+  syncPlanButton();
 }
 window.addEventListener('kairos-schedule-bridge-ready',boot);
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
