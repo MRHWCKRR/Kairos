@@ -21,17 +21,19 @@ test('shiftAnchor crosses year boundary for three-day view', () => {
   assert.equal(toDateKey(shiftAnchor(new Date(2026,11,31,12),'three-day',1)), '2027-01-03');
 });
 
-test('time parsing, formatting and 15 minute snapping are deterministic', () => {
+test('time parsing, formatting and snapping are deterministic', () => {
   assert.equal(parseTime('09:07'), 547);
   assert.equal(snapMinutes(parseTime('09:07')), 540);
   assert.equal(snapMinutes(parseTime('09:08')), 555);
+  assert.equal(snapMinutes(parseTime('09:08'), 1), 548);
   assert.equal(formatTime(555, false), '09:15');
 });
 
-test('task duration uses explicit interval then estimate then fallback with 15 minute minimum', () => {
+test('task duration uses explicit interval then estimate then fallback with one minute minimum', () => {
   assert.equal(taskDurationMinutes({startTime:'16:00',endTime:'17:30'}), 90);
   assert.equal(taskDurationMinutes({estimatedMinutes:45}), 45);
-  assert.equal(taskDurationMinutes({estimatedMinutes:5}), 15);
+  assert.equal(taskDurationMinutes({estimatedMinutes:5}), 5);
+  assert.equal(taskDurationMinutes({estimatedMinutes:1}), 1);
   assert.equal(taskDurationMinutes({}), 60);
 });
 
@@ -64,10 +66,12 @@ test('overnight interval splits into before and after midnight pieces', () => {
 test('scheduled move preserves duration across day change and clamps to day', () => {
   const moved=applyScheduledMove({date:'2026-10-09',startTime:'16:00',endTime:'17:30'},'2026-10-10',18*60+7,15);
   assert.deepEqual(moved,{date:'2026-10-10',startTime:'18:00',endTime:'19:30'});
+  const minuteMove=applyScheduledMove({date:'2026-10-09',startTime:'16:00',endTime:'17:30'},'2026-10-10',18*60+7,1);
+  assert.deepEqual(minuteMove,{date:'2026-10-10',startTime:'18:07',endTime:'19:37'});
 });
 
-test('resize snaps end time and enforces 15 minute minimum',()=>{
-  assert.deepEqual(applyResize({startTime:'16:00',endTime:'17:00'},16*60+7,15),{endTime:'16:15'});
+test('resize supports one-minute minimum while retaining requested snap interval',()=>{
+  assert.deepEqual(applyResize({startTime:'16:00',endTime:'17:00'},16*60+1,1),{endTime:'16:01'});
   assert.deepEqual(applyResize({startTime:'16:00',endTime:'17:00'},17*60+38,15),{endTime:'17:45'});
 });
 
@@ -89,8 +93,9 @@ test('task metadata normalization adds safe defaults without overwriting values'
   assert.equal(task.schedulingPreference,null);
 });
 
-test('scheduleFieldsFromDuration creates keyboard-equivalent start and end fields',()=>{
+test('scheduleFieldsFromDuration creates minute-precise keyboard-equivalent start and end fields',()=>{
   assert.deepEqual(scheduleFieldsFromDuration('2026-10-12','16:10',90),{date:'2026-10-12',startTime:'16:10',endTime:'17:40'});
+  assert.deepEqual(scheduleFieldsFromDuration('2026-10-12','16:10',1),{date:'2026-10-12',startTime:'16:10',endTime:'16:11'});
   assert.deepEqual(scheduleFieldsFromDuration('2026-10-12','',90),{date:'2026-10-12',startTime:null,endTime:null});
 });
 
