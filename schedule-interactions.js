@@ -19,7 +19,7 @@ function allTasks(){
   return out;
 }
 function findTask(id){return allTasks().find(x=>String(x.task.id)===String(id))||null}
-function snapshot(task){return {date:task.date??null,startTime:task.startTime??null,endTime:task.endTime??null,estimatedMinutes:task.estimatedMinutes??null}}
+function snapshot(task){return {date:task.date??null,startTime:task.startTime??null,endTime:task.endTime??null,estimatedMinutes:task.estimatedMinutes??null,lastScheduledMinutes:task.lastScheduledMinutes??null}}
 function formatClock(mins){return formatTime(mins,bridge()?.getTimeFormat?.()!=='24')}
 function validTaskColor(value){return /^#[0-9a-f]{6}$/i.test(String(value||''))?String(value):null}
 
@@ -90,7 +90,7 @@ function onMove(event){
   if(interaction.overBacklog){interaction.preview=null;removePreview();interaction.ghost.querySelector('span').textContent='Unschedule';return}
   const slot=gridAtPoint(event.clientX,event.clientY);
   if(!slot){interaction.preview=null;removePreview();return}
-  const base=interaction.mode==='backlog'?{...task,startTime:null,endTime:null,estimatedMinutes:task.estimatedMinutes||60}:task;
+  const base=interaction.mode==='backlog'?{...task,startTime:null,endTime:null}:task;
   const moved=applyScheduledMove(base,slot.dateKey,slot.minutes,SNAP_MINUTES),start=parseTime(moved.startTime),duration=taskDurationMinutes(base),end=start===null?null:Math.min(DAY_MINUTES,start+duration);
   if(start===null||end===null){interaction.preview=null;removePreview();return}
   interaction.preview={dateKey:slot.dateKey,startMin:start};placePreview(slot.grid,task,start,end);
@@ -104,7 +104,7 @@ async function finish(event,cancel=false){
   if(current.mode==='resize'){if(current.preview)await persistMutation(task,current.original,applyResize(task,current.preview.endMin,SNAP_MINUTES));return}
   if(current.mode==='move'&&current.overBacklog){const next={...task};preserveScheduledDuration(next);clearScheduledFields(next);await persistMutation(task,current.original,next);return}
   if(!current.preview)return;
-  const base=current.mode==='backlog'?{...task,startTime:null,endTime:null,estimatedMinutes:task.estimatedMinutes||60}:task;
+  const base=current.mode==='backlog'?{...task,startTime:null,endTime:null}:task;
   await persistMutation(task,current.original,applyScheduledMove(base,current.preview.dateKey,current.preview.startMin,SNAP_MINUTES));
 }
 function cancel(){if(!interaction)return;interaction.originElement?.classList.remove('is-dragging','is-resizing');interaction.ghost?.remove();removePreview(interaction);interaction=null}
