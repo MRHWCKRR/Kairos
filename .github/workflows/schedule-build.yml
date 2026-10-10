@@ -24,5 +24,9 @@ jobs:
         run: npm ci
       - name: Run Cloudflare tests and build
         run: npm run build:cloudflare
+      - name: Verify Cloudflare runtime and bundle
+        run: |
+          npm run test:runtime
+          npx wrangler deploy --dry-run --env preview
       - name: Run Schedule tests and build
         run: npm run build

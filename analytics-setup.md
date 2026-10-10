@@ -1,5 +1,7 @@
 # Kairos private analytics setup
 
+For the Cloudflare preview and migration, use [the Cloudflare deployment guide](docs/cloudflare-migration.md). The Vercel instructions below remain the production/rollback path until cutover is approved.
+
 This analytics system is first-party and privacy-minimised.
 
 ## Vercel environment variables

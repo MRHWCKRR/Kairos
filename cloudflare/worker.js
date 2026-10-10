@@ -9,7 +9,13 @@ export function createWorker({ createServices = createFirebaseServices, fetchImp
   return {
     async fetch(request, env) {
       const path = new URL(request.url).pathname;
-      if (path !== '/api' && !path.startsWith('/api/')) return env.ASSETS.fetch(request);
+      if (path !== '/api' && !path.startsWith('/api/')) {
+        if (path === '/') {
+          const url = new URL(request.url); url.pathname = '/index.html';
+          return env.ASSETS.fetch(new Request(url, request));
+        }
+        return env.ASSETS.fetch(request);
+      }
       // Lazy services let static pages and method/auth errors work without secrets.
       const db = {
         collection(name) { return createServices(env).db.collection(name); },
