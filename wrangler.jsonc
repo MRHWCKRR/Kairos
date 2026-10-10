@@ -16,6 +16,10 @@
   },
   "observability": { "enabled": true, "head_sampling_rate": 0.1 },
   "triggers": { "crons": ["0 3 * * *"] },
+  "previews": {
+    "vars": { "FIREBASE_PROJECT_NUMBER": "63554361", "FIREBASE_WEB_APP_ID": "1:63554361:web:59b6e3a71ab30274411ee8", "AI_DAILY_ACCOUNT_LIMIT": "100", "AI_DAILY_SITE_LIMIT": "1000", "AI_BUDGET_SCOPE": "preview" },
+    "ratelimits": [{ "name": "AI_RATE_LIMITER", "namespace_id": "2026101003", "simple": { "limit": 10, "period": 60 } }]
+  },
   "env": {
     "preview": {
       "name": "kairos-web-preview",
