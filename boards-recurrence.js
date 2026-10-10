@@ -36,8 +36,8 @@ function decorate(){
     const checkbox=row.querySelector(`input[type="checkbox"][data-task="${CSS.escape(id)}"]`);
     if(checkbox){checkbox.disabled = true;checkbox.title='Recurring series — complete individual occurrences from Schedule';checkbox.setAttribute('aria-label','Recurring series. Complete individual occurrences from Schedule.')}
     const summary=formatRecurrenceSummary(entry.task),next=nextOccurrenceDate(entry.task,yesterdayKey());
-    const meta=document.createElement('span');meta.dataset.recurrenceSeriesMeta='';meta.className='task-recurrence-meta';meta.textContent=`↻ ${summary} · Next: ${formatNext(next)}`;
-    const edit=document.createElement('button');edit.type='button';edit.dataset.editRecurrence='';edit.className='task-recurrence-edit-btn';edit.textContent='Repeat';edit.title='Edit recurring series';edit.addEventListener('click',event=>{event.preventDefault();event.stopPropagation();openSeriesEditor(id)});
+    const meta=document.createElement('span');meta.setAttribute('data-recurrence-series-meta','');meta.className='task-recurrence-meta';meta.textContent=`↻ ${summary} · Next: ${formatNext(next)}`;
+    const edit=document.createElement('button');edit.type='button';edit.setAttribute('data-edit-recurrence','');edit.className='task-recurrence-edit-btn';edit.textContent='Repeat';edit.title='Edit recurring series';edit.addEventListener('click',event=>{event.preventDefault();event.stopPropagation();openSeriesEditor(id)});
     row.append(meta,edit);
   }
 }
