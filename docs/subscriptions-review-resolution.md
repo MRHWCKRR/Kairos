@@ -29,3 +29,13 @@ The reviewer declined to judge test-to-live data migration and actual sandbox/pr
 8. Use Firebase's nonpersistent Rules API when Java/emulator is unavailable. Cost: live client context must still be validated before launch.
 9. Reserve production for first live billing data; do not migrate test mappings implicitly. Cost if wrong: mode/customer conflicts.
 10. Treat external sandbox and preview checks as a separate acceptance gate. Cost: merge waits for that evidence.
+# Real sandbox acceptance follow-up
+
+The claimed sandbox `acct_1UPE7HCnHPgNmVuW` passed hosted Checkout using synthetic Stripe card details, a 25% promotion, signed local webhook delivery into preview-scoped Firestore, replay of two lock-contended events and duplicate-event handling. Already subscribed Checkout routes to the account-owned Portal; an unmapped identity cannot create a Portal.
+
+The real Portal scheduled cancellation using `cancel_at` while `cancel_at_period_end` remained false. This behavior is documented for flexible billing in [Stripe's portal integration guide](https://docs.stripe.com/customer-management/integrate-customer-portal). A new regression first failed, then passed after the snapshot recognized either cancellation signal. Reactivation clears the signal without removing paid coverage. A fresh real Stripe update confirmed the corrected persisted state.
+
+Real Firestore checks passed owner-only issue, two-month redemption, retry without extending expiry, revocation and rejection of invented features. A real Stripe test clock produced `past_due` with an unpaid open renewal invoice; resolving at the advanced clock gave Free with no future paid coverage. The final test subscription was canceled. Synthetic A$5/month is not an approved launch price.
+
+Protected authenticated browser acceptance remains outstanding. Stripe and redemption secrets have only been saved locally; transferring them to the protected preview needs separate explicit approval. Production remains disabled and retains its trial limits.
+

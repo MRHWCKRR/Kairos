@@ -126,7 +126,9 @@ export function createStripeClient(env,{store,fetchImpl=fetch,clock=Date.now}={}
         else paidThrough=Math.max(paidThrough,end);
       }
       if(selected.status==='canceled')paidThrough=Math.min(paidThrough,Number.isSafeInteger(selected.ended_at)?selected.ended_at*1000:clock());
-      return {status:selected.status,paymentRisk:risk,paidThrough:paidThrough||null,cancelAtPeriodEnd:selected.cancel_at_period_end===true,subscriptionId:selected.id};
+      // Flexible portal cancellations use cancel_at while the classic flag stays false.
+      const cancellationScheduled=selected.cancel_at_period_end===true || (Number.isSafeInteger(selected.cancel_at) && selected.cancel_at>0);
+      return {status:selected.status,paymentRisk:risk,paidThrough:paidThrough||null,cancelAtPeriodEnd:cancellationScheduled,subscriptionId:selected.id};
     },
     async cancelAccountSubscriptions(customerId) {
       const open=await requireSdk().checkout.sessions.list({customer:customerId,status:'open',limit:100});
