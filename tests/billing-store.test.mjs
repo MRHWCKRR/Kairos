@@ -1,6 +1,17 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fixture } from './billing-store-fixture.mjs';
+test('an expired lease cannot overwrite a newer authoritative snapshot',async()=>{
+  const f=fixture();let resume,started;
+  const ready=new Promise(r=>started=r),wait=new Promise(r=>resume=r);
+  const stale=f.store.withAccountLease('a',async leased=>{started();await wait;
+    await (leased||f.store).applyBillingSnapshot({uid:'a',snapshot:{status:'active',paidThrough:f.now()+86400000},eventId:'evt_stale'});
+  });
+  await ready;f.setTime(f.now()+90001);
+  await f.store.withAccountLease('a',async leased=>(leased||f.store).applyBillingSnapshot({uid:'a',snapshot:{status:'canceled',paidThrough:f.now()},eventId:'evt_new'}));
+  resume();await assert.rejects(()=>stale,/lease/i);
+  assert.equal((await f.store.readAccount('a')).billing.status,'canceled');
+});
 test('scoped account mappings and delayed events cannot overwrite a deleting account',async()=>{
   const f=fixture();
   await f.store.applyBillingSnapshot({uid:'a',snapshot:{status:'active',paidThrough:f.now()+1},eventId:'evt'});

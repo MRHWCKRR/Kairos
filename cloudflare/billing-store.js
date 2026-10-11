@@ -106,10 +106,14 @@ export function createBillingStore({env,transport,clock=Date.now}) {
     },
     async customerUid(customerId) {
       const doc=await get(path('kairosBillingCustomers',customerId));
-      if(!doc) return null;
+      if(!doc || doc.data.deleted===true) return null;
       const mapping=await this.readMapping(doc.data.uid);
       if(mapping?.customerId!==customerId) throw Error('Invalid billing ownership');
       return doc.data.uid;
+    },
+    async isDeletedCustomer(customerId) {
+      const doc=await get(path('kairosBillingCustomers',customerId));
+      return doc?.data.deleted===true;
     },
     async issueCode({digest,definition,ownerUid}) {
       owner(ownerUid);validateCodeDefinition(definition,catalog,scope);
@@ -144,7 +148,7 @@ export function createBillingStore({env,transport,clock=Date.now}) {
         const loaded=await loadAccount(uid);
         // Use the reloaded version to include revocation checks in the same commit.
         const current=loaded.account;
-        if(current.deleting) throw Error('Account unavailable');
+        if(current.deleting || current.grants.length>=256) throw Error('Account unavailable');
         let startsAt=now;
         if(definition.kind==='plan') for(const grant of current.grants) {
           if(grant.kind==='plan' && grant.planId===definition.planId && grant.revokedAt===null && grant.expiresAt>now) startsAt=Math.max(startsAt,grant.expiresAt);
@@ -154,8 +158,9 @@ export function createBillingStore({env,transport,clock=Date.now}) {
           startsAt,expiresAt:addCalendarMonths(startsAt,definition.months),revokedAt:null};
         const result={grant,alreadyRedeemed:false,billingContinues:['active','past_due'].includes(current.billing?.status)};
         const writes=loaded.versions.filter(w=>w.path!==cp && w.path!==ap);
+        const updated=accountData({...current,grants:[...current.grants,grant]});
         writes.push(write(cp,code,{...code.data,uses:code.data.uses+1}),{path:rp,version:null,data:result},
-          {...loaded.versions[0],data:{...current,grants:[...current.grants,grant]}});
+          {...loaded.versions[0],data:updated});
         await transport.commit(writes);
         return result;
       });
@@ -183,7 +188,8 @@ export function createBillingStore({env,transport,clock=Date.now}) {
         if(doc) {
           const cp=path('kairosBillingCustomers',doc.data.customerId),reverse=await get(cp);
           writes.push(write(p,doc,null));
-          if(reverse)writes.push(write(cp,reverse,null));
+          // Opaque tombstone routes delayed Checkout completion to cancellation.
+          if(reverse)writes.push(write(cp,reverse,{deleted:true,accountKey:identity(uid)}));
         }
         await transport.commit(writes);
         return {safeToDelete:true};
@@ -196,7 +202,13 @@ export function createBillingStore({env,transport,clock=Date.now}) {
         if(doc && (!Number.isSafeInteger(doc.data.until) || doc.data.until>clock())) throw Error('Billing busy; retry shortly');
         await transport.commit([write(p,doc,{id,until:clock()+90000})]);
       });
-      try { return await operation(); }
+      const guardedTransport={get:source=>transport.get(source),commit:async writes=>{
+        const lock=await get(p);
+        if(lock?.data.id!==id || lock.data.until<=clock())throw Error('Billing lease expired; retry with fresh Stripe state');
+        return transport.commit([...writes,write(p,lock,lock.data)]);
+      }};
+      const leased=createBillingStore({env,transport:guardedTransport,clock});
+      try { return await operation(leased); }
       finally {
         const doc=await get(p);
         if(doc?.data.id===id) await transport.commit([write(p,doc,null)]);

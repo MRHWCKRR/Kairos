@@ -1,5 +1,5 @@
 import Stripe from 'stripe';
-import { randomBytes, createHmac } from 'node:crypto';
+import { createHmac } from 'node:crypto';
 import { flag } from './plans.js';
 export const STRIPE_API_VERSION='2026-09-30.endive';
 function objectId(value) { return typeof value==='string'?value:value?.id; }
@@ -23,7 +23,8 @@ export function createStripeClient(env,{store,fetchImpl=fetch,clock=Date.now}={}
        !Number.isSafeInteger(price.unit_amount) || price.unit_amount<1 || !/^[a-z]{3}$/.test(price.currency||'')) throw Error('Invalid subscription price');
     return {planId:'plus',priceId:price.id,currency:price.currency,amount:price.unit_amount,interval:'month'};
   }
-  async function ensureCustomer(uid) {
+  async function ensureCustomer(uid,accountStore=store) {
+    const store=accountStore;
     if((await store.readAccount(uid)).deleting) throw Error('Account deleting');
     const mapping=await store.readMapping(uid);
     if(mapping) return mapping.customerId;
@@ -50,8 +51,8 @@ export function createStripeClient(env,{store,fetchImpl=fetch,clock=Date.now}={}
   }
   async function createCheckout(uid,planId,requestId) {
     if(!configured) throw Error('Purchases unavailable');
-    return store.withAccountLease(uid,async()=>{
-      const price=await verifyPrice(planId),customerId=await ensureCustomer(uid);
+    return store.withAccountLease(uid,async(store)=>{
+      const price=await verifyPrice(planId),customerId=await ensureCustomer(uid,store);
       const current=await subscriptions(customerId);
       if(current.some(subscription=>!['canceled','incomplete_expired'].includes(subscription.status))) return createPortal(uid);
       const mapping=await store.readMapping(uid);
@@ -61,7 +62,7 @@ export function createStripeClient(env,{store,fetchImpl=fetch,clock=Date.now}={}
         if(objectId(session.customer)!==customerId) throw Error('Invalid Checkout ownership');
         if(session.status==='open') return {kind:'checkout',url:session.url};
       }
-      const suffix=Array.from(randomBytes(8),byte=>String.fromCharCode(97+byte%26)).join('');
+      const suffix=Array.from(Buffer.from(idempotency(uid,'checkout:'+requestId),'hex').subarray(0,8),byte=>String.fromCharCode(97+byte%26)).join('');
       const session=await sdk.checkout.sessions.create({
         mode:'subscription',customer:customerId,line_items:[{price:price.priceId,quantity:1}],
         allow_promotion_codes:true,success_url:origin+'/app.html?billing=return',cancel_url:origin+'/app.html?billing=canceled',
@@ -88,6 +89,7 @@ export function createStripeClient(env,{store,fetchImpl=fetch,clock=Date.now}={}
       if(invoices.has_more)throw Error('Too many invoices to reconcile');
       let paidThrough=0,risk=null;
       for(const invoice of invoices.data) {
+        let invoiceRisk=null;
         checkMode(invoice);
         if(objectId(invoice.customer)!==customerId || objectId(invoice.parent?.subscription_details?.subscription)!==selected.id || invoice.status!=='paid')throw Error('Invalid invoice ownership');
         if(invoice.lines?.has_more || !Array.isArray(invoice.lines?.data))throw Error('Incomplete invoice lines');
@@ -115,17 +117,32 @@ export function createStripeClient(env,{store,fetchImpl=fetch,clock=Date.now}={}
             if(charge.disputed) {
               const disputes=await sdk.disputes.list({charge:charge.id,limit:100});
               if(disputes.has_more || !disputes.data.length)throw Error('Incomplete dispute state');
-              if(disputes.data.some(dispute=>dispute.status!=='won'))risk='disputed';
+              if(disputes.data.some(dispute=>dispute.status!=='won'))invoiceRisk='disputed';
             }
-            if(charge.refunded || (charge.amount>0 && charge.amount_refunded>=charge.amount))risk=risk||'refunded';
+            if(charge.refunded || (charge.amount>0 && charge.amount_refunded>=charge.amount))invoiceRisk=invoiceRisk||'refunded';
           }
         }
-        paidThrough=Math.max(paidThrough,end);
+        if(invoiceRisk)risk=risk||invoiceRisk;
+        else paidThrough=Math.max(paidThrough,end);
       }
       if(selected.status==='canceled')paidThrough=Math.min(paidThrough,Number.isSafeInteger(selected.ended_at)?selected.ended_at*1000:clock());
-      return {status:risk||selected.status,paidThrough:paidThrough||null,cancelAtPeriodEnd:selected.cancel_at_period_end===true,subscriptionId:selected.id};
+      return {status:selected.status,paymentRisk:risk,paidThrough:paidThrough||null,cancelAtPeriodEnd:selected.cancel_at_period_end===true,subscriptionId:selected.id};
     },
     async cancelAccountSubscriptions(customerId) {
+      const open=await requireSdk().checkout.sessions.list({customer:customerId,status:'open',limit:100});
+      if(open.has_more)throw Error('Too many open Checkout sessions');
+      for(const session of open.data) {
+        checkMode(session);
+        if(objectId(session.customer)!==customerId)throw Error('Invalid Checkout ownership');
+        try {await sdk.checkout.sessions.expire(session.id);}
+        catch(error) {
+          const latest=await sdk.checkout.sessions.retrieve(session.id);
+          checkMode(latest);
+          if(objectId(latest.customer)!==customerId || !['complete','expired'].includes(latest.status))throw error;
+        }
+      }
+      const remaining=await sdk.checkout.sessions.list({customer:customerId,status:'open',limit:1});
+      if(remaining.data.length || remaining.has_more)throw Error('Checkout still open');
       const list=await subscriptions(customerId);
       for(const subscription of list) {
         if(['canceled','incomplete_expired'].includes(subscription.status))continue;

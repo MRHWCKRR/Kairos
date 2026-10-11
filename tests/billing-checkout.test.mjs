@@ -24,6 +24,14 @@ function setup() {
   return {...f,stripe,handlers,payloads,count:()=>({customers,sessions}),activate:()=>active=true};
 }
 const request=(body,path='checkout')=>new Request(origin+'/api/billing/'+path,{method:'POST',headers:{Authorization:'Bearer id','X-Firebase-AppCheck':'app','Content-Type':'application/json'},body:JSON.stringify(body)});
+test('checkout retry recovers identical Stripe parameters after mapping failure',async()=>{
+  const f=setup(),commit=f.transport.commit;let failed=false;
+  f.transport.commit=async writes=>{if(!failed&&writes.some(w=>w.data?.checkoutId)){failed=true;throw Error('temporary storage failure');}return commit(writes);};
+  await assert.rejects(()=>f.stripe.createCheckout('a','plus','retry-operation'));
+  await f.stripe.createCheckout('a','plus','retry-operation');
+  assert.equal(f.payloads.length,2);
+  assert.equal(f.payloads[0].toString(),f.payloads[1].toString());
+});
 test('checkout verifies price and creates only one customer/session across repeated requests',async()=>{
   const f=setup();
   const first=await f.handlers.checkout(request({planId:'plus',requestId:'attempt-1'}));

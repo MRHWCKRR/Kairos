@@ -12,6 +12,16 @@ function setup(request=async()=>state()) {
   return {root,module,auth,window,find:id=>document.getElementById(id)};
 }
 const settle=()=>new Promise(resolve=>setTimeout(resolve,0));
+test('JPY offers show the amount Stripe charges',async()=>{
+  const status=state();status.offers=[{planId:'plus',currency:'jpy',amount:1000}];
+  const f=setup(async()=>status);await f.module.refresh();
+  assert.match(f.find('plan-upgrade-btn').textContent,/1,000/);f.module.destroy();
+});
+test('payment risk does not hide an active subscriptions renewal warning',async()=>{
+  const status=state();status.billing={status:'active',paymentRisk:'refunded',paidThrough:null,cancelAtPeriodEnd:false};
+  const f=setup(async()=>status);await f.module.refresh();
+  assert.match(f.find('plan-code-hint').textContent,/renewal continues/);f.module.destroy();
+});
 test('plan UI shows actual allowance and disables unavailable purchases',async()=>{
   const f=setup();await f.module.refresh();
   assert.equal(f.find('plan-daily-remaining').textContent,'8');

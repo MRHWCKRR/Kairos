@@ -39,7 +39,9 @@ Retain kairosAiUsage document IDs and day-specific account HMAC keys. Deployment
 
 Conditional commits cover code counters/grants and AI counter/bonus spending. Only explicit Firestore conflicts retry; uncertain network commit results fail closed. No automatic provider retry occurs after uncertain spending. Malformed/unavailable entitlement or credit storage does not default to extra access.
 
-Account deletion requires recent Firebase reauthentication and App Check. It first marks deletion, cancels and verifies all renewing Stripe subscriptions, then clears personal customer mappings and access grants. A pseudonymous deletion marker/event history prevents delayed operations from restoring access. Failure stops before Firebase identity/data deletion and allows retry. Stripe retains its required payment records. Do not remove cancellation/webhook handling while subscriptions can renew.
+Account deletion requires recent Firebase reauthentication and App Check. It first marks deletion, expires every open customer Checkout session, cancels and verifies all renewing Stripe subscriptions, then clears personal customer mappings and access grants. A customer tombstone retains only an opaque account HMAC and deletion flag, without the Firebase UID; signed delayed completion events use it to cancel late subscriptions. Keep that tombstone while delayed delivery or reconciliation can occur; no automated tombstone purge is provided. Failure stops before Firebase identity/data deletion and allows retry. Stripe retains its required payment records. Do not remove cancellation/webhook handling while subscriptions can renew.
+
+Billing mutations inside account leases conditionally commit the current lease ownership alongside the account changes. Expired or superseded operations fail; webhook retry must fetch fresh Stripe state. The 90-second lease bounds successful mutations even if slow external reads continue longer. Checkout parameters and browser retry IDs are stable across retries of the same operation.
 
 ## Rules evidence
 
@@ -73,7 +75,7 @@ Hosted Checkout supports Stripe promotion-code entry. Create discount coupons/pr
 
 The success URL shows payment confirmation pending until signed billing events verify access. Stripe does not need Firebase login/App Check for its webhook; only the bounded original raw body and valid signing secret are accepted. App/account route protections remain intact.
 
-Reconciliation retrieves current subscriptions, paid invoices and covering payment/refund/dispute state. Period-end cancellation preserves already paid coverage; terminal cancellation ends it. Pending/unpaid billing without paid coverage uses Free. Fully refunded or disputed covering payments suspend that coverage; a won dispute can restore current paid coverage. Independent access-code grants survive billing risk events. Event IDs and account leases prevent replay/stale snapshot overwrite.
+Reconciliation retrieves current subscriptions, paid invoices and covering payment/refund/dispute state. Period-end cancellation preserves already paid coverage; terminal cancellation ends it. Pending/unpaid billing without paid coverage uses Free. Fully refunded or disputed covering payments invalidate only their invoice coverage; independent clean paid coverage remains. Payment risk is stored separately from subscription lifecycle, so refund/dispute does not hide continuing renewal or the access-code billing warning. A won dispute can restore current paid coverage. Independent access-code grants survive billing risk events. Event IDs and fenced account leases prevent replay/stale snapshot overwrite.
 
 The webhook route handles subscription, paid/failed invoice, Checkout/asynchronous completion, refund and dispute events. Configure only documented supported events and the pinned API version. Unknown unrelated events/customers are acknowledged without access changes; processing errors return retryable failures.
 

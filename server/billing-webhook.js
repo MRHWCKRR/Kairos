@@ -19,10 +19,17 @@ export async function handleStripeWebhook(request,{env,stripe,store}) {
   try {
     const customer=await stripe.eventCustomer(event);
     if(!customer)return response({received:true,ignored:true});
+    if(await store.isDeletedCustomer(customer)) {
+      await stripe.cancelAccountSubscriptions(customer);
+      return response({received:true});
+    }
     const uid=await store.customerUid(customer);
-    if(!uid)return response({received:true,ignored:true});
-    await store.withAccountLease(uid,async()=>{
-      if((await store.readAccount(uid)).deleting)return;
+    if(!uid){
+      if(await store.isDeletedCustomer(customer))await stripe.cancelAccountSubscriptions(customer);
+      return response({received:true,ignored:true});
+    }
+    await store.withAccountLease(uid,async(store)=>{
+      if((await store.readAccount(uid)).deleting){await stripe.cancelAccountSubscriptions(customer);return;}
       const snapshot=await stripe.retrieveBillingSnapshot(customer);
       await store.applyBillingSnapshot({uid,snapshot,eventId:event.id});
     });

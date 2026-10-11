@@ -3,6 +3,8 @@ function dateLabel(value) {
   if(!Number.isFinite(date.getTime()))return '—';
   return new Intl.DateTimeFormat('en-AU',{timeZone:'Australia/Brisbane',day:'numeric',month:'short',year:'numeric',hour:'numeric',minute:'2-digit'}).format(date)+' Brisbane';
 }
+// Stripe charge units differ from ISK/UGX's ISO display decimals.
+const zeroDecimalCharges=new Set(['bif','clp','djf','gnf','jpy','kmf','krw','mga','pyg','rwf','vnd','vuv','xaf','xof','xpf']);
 export function mountPlanUsage({root,auth,request,onStatus=()=>{},navigate=url=>globalThis.location.assign(url)}) {
   if(!root)throw Error('Plan panel missing');
   const find=id=>root.querySelector('#'+id),message=find('plan-message');
@@ -43,7 +45,7 @@ export function mountPlanUsage({root,auth,request,onStatus=()=>{},navigate=url=>
     find('plan-upgrade-btn').hidden=!offer || ['active','past_due','trialing','incomplete','paused'].includes(billing.status);
     if(offer) {
       if(!Number.isSafeInteger(offer.amount) || !/^[a-z]{3}$/.test(offer.currency))throw Error('Invalid plan price');
-      find('plan-upgrade-btn').textContent='Upgrade — '+new Intl.NumberFormat('en-AU',{style:'currency',currency:offer.currency.toUpperCase()}).format(offer.amount/100)+'/month';
+      find('plan-upgrade-btn').textContent='Upgrade — '+new Intl.NumberFormat('en-AU',{style:'currency',currency:offer.currency.toUpperCase()}).format(offer.amount/(zeroDecimalCharges.has(offer.currency)?1:100))+'/month';
     }
     find('plan-manage-btn').hidden=billing.status==='none';
     find('plan-code-hint').textContent=!status.codesEnabled?'Code redemption will be available soon.':
@@ -93,7 +95,12 @@ export function mountPlanUsage({root,auth,request,onStatus=()=>{},navigate=url=>
     finally{if(!destroyed)setBusy(false);}
   }
   const refreshClick=()=>{if(!busy)void refresh();};
-  const upgradeClick=()=>void action('checkout',{planId:'plus',requestId:globalThis.crypto.randomUUID()});
+  let checkoutUid=null,checkoutRequestId=null;
+  const upgradeClick=()=>{
+    if(checkoutUid!==auth.currentUser?.uid){checkoutUid=auth.currentUser?.uid;checkoutRequestId=null;}
+    checkoutRequestId ||= globalThis.crypto.randomUUID();
+    void action('checkout',{planId:'plus',requestId:checkoutRequestId});
+  };
   const manageClick=()=>void action('portal',{});
   const redeem=event=>{event.preventDefault();if(current?.codesEnabled)void action('redeem',{code:find('plan-code-input').value.trim()});};
   find('plan-refresh-btn').addEventListener('click',refreshClick);

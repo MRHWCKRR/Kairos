@@ -2,6 +2,15 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fixture } from './billing-store-fixture.mjs';
 import { codeDigest, redeemAccessCode } from '../server/access-codes.js';
+test('capacity is checked against the aggregate actually committed',async()=>{
+  const f=fixture();await issued(f);const ap=f.store.accountPath('a');
+  const grants=Array.from({length:255},(_,i)=>({id:'g'+i,sourceId:'fixture:'+i,kind:'plan',planId:'plus',startsAt:1,expiresAt:2,revokedAt:null}));
+  f.docs.set(ap,{version:'initial',data:{schema:1,billing:null,deleting:false,grants}});
+  const get=f.transport.get;let reads=0;
+  f.transport.get=async p=>{const doc=await get(p);if(p===ap && ++reads===1)f.docs.set(ap,{version:'concurrent',data:{...doc.data,grants:[...grants,{...grants[0],id:'last'}]}});return doc;};
+  await assert.rejects(()=>redeemAccessCode({uid:'a',code,store:f.store,env:f.env,now:f.now()}));
+  assert.equal((await f.store.readAccount('a')).grants.length,256);
+});
 const code='ABCD-EFGH-1234-5678-ABCD-EFGH-1234-5678';
 const definition=now=>({scope:'preview',kind:'plan',planId:'plus',months:1,redeemBefore:now+86400000,maxUses:1,perAccountLimit:1,intendedUid:null,revokedAt:null});
 async function issued(f,definitionOverride={}) {

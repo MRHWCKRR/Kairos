@@ -29,7 +29,7 @@ export function createWorker({ createServices = createFirebaseServices, fetchImp
       if (path.startsWith('/api/billing/')) {
         try {
           const store = { scope: env.AI_BUDGET_SCOPE || 'production' };
-          for (const method of ['readAccount','readUsage','readMapping','saveMapping','withAccountLease','customerUid','applyBillingSnapshot','markDeleting','completeDeletion','redeemCode','issueCode','revokeCode'])
+          for (const method of ['readAccount','readUsage','readMapping','saveMapping','withAccountLease','customerUid','isDeletedCustomer','applyBillingSnapshot','markDeleting','completeDeletion','redeemCode','issueCode','revokeCode'])
             store[method] = (...args) => createServices(env).billingStore[method](...args);
           const stripe = createStripeClient(env, {store,fetchImpl});
           if (path === '/api/billing/webhook') return handleStripeWebhook(request,{env,stripe,store});
