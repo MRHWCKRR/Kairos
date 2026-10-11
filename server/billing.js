@@ -2,27 +2,29 @@ import { flag,planCatalog } from './plans.js';
 import { resolveAccess } from './entitlements.js';
 import { codeDigest,generateAccessCode,redeemAccessCode } from './access-codes.js';
 import { readBoundedText } from './http-body.js';
+import { prepareBillingDeletion } from './billing-account-deletion.js';
 function response(body,status=200) {return Response.json(body,{status,headers:{'Cache-Control':'no-store'}});}
 export function createBillingHandlers({env,store,stripe,adminAuth,appCheck,rateLimiter,clock=Date.now,usage=uid=>store.readUsage(uid)}) {
   const catalog=planCatalog(env);
-  async function authenticate(request) {
+  async function authenticate(request,{verified=true,recent=false}={}) {
     const token=/^Bearer ([^\s]+)$/i.exec(request.headers.get('Authorization')||'')?.[1];
     if(!token) throw Object.assign(Error('Sign in to manage your plan.'),{status:401});
     let user;
     try {user=await adminAuth.verifyIdToken(token);}
     catch {throw Object.assign(Error('Please sign in again.'),{status:401});}
-    if(!user.uid || user.email_verified!==true) throw Object.assign(Error('Verify your email first.'),{status:403});
+    if(!user.uid || (verified && user.email_verified!==true)) throw Object.assign(Error('Verify your email first.'),{status:403});
+    if(recent && (!Number.isSafeInteger(user.auth_time) || clock()/1000-user.auth_time>300)) throw Object.assign(Error('Sign in again before deleting your account.'),{status:403});
     const appToken=request.headers.get('X-Firebase-AppCheck');
     if(!appToken) throw Object.assign(Error('Refresh Kairos and try again.'),{status:403});
     try {await appCheck.verifyToken(appToken);}
     catch {throw Object.assign(Error('Refresh Kairos and try again.'),{status:403});}
     return user.uid;
   }
-  function route(method,allowed,action) {
+  function route(method,allowed,action,authOptions) {
     return async request=>{
       if(request.method!==method)return response({error:'Method Not Allowed'},405);
       try {
-        const uid=await authenticate(request);
+        const uid=await authenticate(request,authOptions);
         if(!rateLimiter?.limit || (await rateLimiter.limit({key:'billing:'+allowed.join(',')+':'+uid})).success!==true)
           return response({error:'Please try again shortly.'},429);
         let body={};
@@ -50,6 +52,7 @@ export function createBillingHandlers({env,store,stripe,adminAuth,appCheck,rateL
       return stripe.createCheckout(uid,body.planId,body.requestId);
     }),
     portal:route('POST',[],uid=>stripe.createPortal(uid)),
+    deleteAccount:route('POST',[],uid=>prepareBillingDeletion(uid,{store,stripe}),{verified:false,recent:true}),
     redeem:route('POST',['code'],async(uid,body)=>{
       if(!codesEnabled())throw Object.assign(Error('Code redemption is not available yet.'),{status:503});
       try {return await redeemAccessCode({uid,code:body.code,store,env,now:clock()});}

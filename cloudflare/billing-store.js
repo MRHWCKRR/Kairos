@@ -149,6 +149,20 @@ export function createBillingStore({env,transport,clock=Date.now}) {
     async markDeleting(uid) {
       return updateAccount(uid,account=>({data:{...account,deleting:true},result:{marked:true}}));
     },
+    async completeDeletion(uid) {
+      return atomic(async()=>{
+        const p=path('kairosBillingAccounts',identity(uid)),doc=await get(p),ap=accountPath(uid),account=await get(ap);
+        if(!accountData(account?.data).deleting)throw Error('Deletion not prepared');
+        const writes=[write(ap,account,{...empty(),deleting:true})];
+        if(doc) {
+          const cp=path('kairosBillingCustomers',doc.data.customerId),reverse=await get(cp);
+          writes.push(write(p,doc,null));
+          if(reverse)writes.push(write(cp,reverse,null));
+        }
+        await transport.commit(writes);
+        return {safeToDelete:true};
+      });
+    },
     async withAccountLease(uid,operation) {
       const p=path('kairosBillingLocks',identity(uid)),id=randomUUID();
       await atomic(async()=>{

@@ -1,4 +1,5 @@
 import { aiFetch, aiErrorMessage } from './ai-client.js';
+import { requestBilling } from './billing-client.js';
 import { auth, db } from './firebase.js';
 import {
     signInWithEmailAndPassword,
@@ -2602,6 +2603,8 @@ document.addEventListener("DOMContentLoaded", () => {
                     throw new Error('Please sign out and sign back in with your account provider before deleting your account.');
                 }
 
+                const billingDeletion = await requestBilling('delete-account', {});
+                if (billingDeletion.safeToDelete !== true) throw new Error('Subscription cancellation could not be confirmed. Please retry.');
                 const plansColRef = collection(db, 'study_plans');
                 const q = query(plansColRef, where('userID', '==', user.uid));
                 const snap = await getDocs(q);

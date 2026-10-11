@@ -1,5 +1,7 @@
 {
   "files": [
+    "billing-request.js",
+    "billing-client.js",
     "ai-client.js",
     "ai-request.js",
     "ai-actions.js",

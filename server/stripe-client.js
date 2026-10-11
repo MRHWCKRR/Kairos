@@ -76,8 +76,79 @@ export function createStripeClient(env,{store,fetchImpl=fetch,clock=Date.now}={}
   return {
     configured,mode,sdk,verifyPrice,ensureCustomer,createCheckout,createPortal,subscriptions,checkMode,
     async offers() { return configured?[await verifyPrice('plus')]:[]; },
+    async retrieveBillingSnapshot(customerId) {
+      const list=await subscriptions(customerId);
+      const candidates=list.filter(subscription=>subscription.items?.data?.length===1 &&
+        objectId(subscription.items.data[0].price)===env.STRIPE_PLUS_PRICE_ID && subscription.items.data[0].quantity===1);
+      const ongoing=candidates.filter(subscription=>!['canceled','incomplete_expired'].includes(subscription.status));
+      if(ongoing.length>1) throw Error('Duplicate subscriptions need operator attention');
+      const selected=ongoing[0]||candidates.sort((a,b)=>(b.created||0)-(a.created||0))[0];
+      if(!selected)return {status:'none',paidThrough:null,cancelAtPeriodEnd:false};
+      const invoices=await sdk.invoices.list({customer:customerId,subscription:selected.id,status:'paid',created:{gte:Math.floor((clock()-62*86400000)/1000)},limit:100});
+      if(invoices.has_more)throw Error('Too many invoices to reconcile');
+      let paidThrough=0,risk=null;
+      for(const invoice of invoices.data) {
+        checkMode(invoice);
+        if(objectId(invoice.customer)!==customerId || objectId(invoice.parent?.subscription_details?.subscription)!==selected.id || invoice.status!=='paid')throw Error('Invalid invoice ownership');
+        if(invoice.lines?.has_more || !Array.isArray(invoice.lines?.data))throw Error('Incomplete invoice lines');
+        const covering=invoice.lines.data.filter(line=>
+          objectId(line.pricing?.price_details?.price)===env.STRIPE_PLUS_PRICE_ID &&
+          line.parent?.subscription_item_details?.subscription===selected.id &&
+          line.parent.subscription_item_details.proration===false && Number.isSafeInteger(line.period?.end));
+        const end=Math.max(0,...covering.map(line=>line.period.end*1000));
+        if(end<=clock())continue;
+        const payments=await sdk.invoicePayments.list({invoice:invoice.id,status:'paid',limit:100});
+        if(payments.has_more)throw Error('Too many invoice payments');
+        for(const payment of payments.data) {
+          checkMode(payment);
+          let charge;
+          if(payment.payment?.type==='payment_intent') {
+            const intent=await sdk.paymentIntents.retrieve(objectId(payment.payment.payment_intent));
+            checkMode(intent);
+            if(objectId(intent.customer)!==customerId)throw Error('Invalid payment customer');
+            if(intent.latest_charge)charge=await sdk.charges.retrieve(objectId(intent.latest_charge));
+          } else if(payment.payment?.type==='charge')charge=await sdk.charges.retrieve(objectId(payment.payment.charge));
+          else throw Error('Unsupported invoice payment');
+          if(charge) {
+            checkMode(charge);
+            if(objectId(charge.customer)!==customerId)throw Error('Invalid charge customer');
+            if(charge.disputed) {
+              const disputes=await sdk.disputes.list({charge:charge.id,limit:100});
+              if(disputes.has_more || !disputes.data.length)throw Error('Incomplete dispute state');
+              if(disputes.data.some(dispute=>dispute.status!=='won'))risk='disputed';
+            }
+            if(charge.refunded || (charge.amount>0 && charge.amount_refunded>=charge.amount))risk=risk||'refunded';
+          }
+        }
+        paidThrough=Math.max(paidThrough,end);
+      }
+      if(selected.status==='canceled')paidThrough=Math.min(paidThrough,Number.isSafeInteger(selected.ended_at)?selected.ended_at*1000:clock());
+      return {status:risk||selected.status,paidThrough:paidThrough||null,cancelAtPeriodEnd:selected.cancel_at_period_end===true,subscriptionId:selected.id};
+    },
+    async cancelAccountSubscriptions(customerId) {
+      const list=await subscriptions(customerId);
+      for(const subscription of list) {
+        if(['canceled','incomplete_expired'].includes(subscription.status))continue;
+        const result=await requireSdk().subscriptions.cancel(subscription.id,{invoice_now:false,prorate:false});
+        if(result.status!=='canceled')throw Error('Subscription cancellation incomplete');
+      }
+      if((await subscriptions(customerId)).some(subscription=>!['canceled','incomplete_expired'].includes(subscription.status)))throw Error('Subscription still renewing');
+    },
+    async eventCustomer(event) {
+      const object=event.data?.object;
+      if(object?.customer)return objectId(object.customer);
+      if(object?.charge) {
+        const charge=await requireSdk().charges.retrieve(objectId(object.charge));checkMode(charge);
+        return objectId(charge.customer);
+      }
+      if(object?.payment_intent) {
+        const intent=await requireSdk().paymentIntents.retrieve(objectId(object.payment_intent));checkMode(intent);
+        return objectId(intent.customer);
+      }
+      return null;
+    },
     async verifyWebhook(raw,signature) {
-      return requireSdk().webhooks.constructEventAsync(raw,signature,env.STRIPE_WEBHOOK_SECRET,300,Stripe.createSubtleCryptoProvider(),Math.floor(clock()/1000));
+      return requireSdk().webhooks.constructEventAsync(raw,signature,env.STRIPE_WEBHOOK_SECRET,300,Stripe.createSubtleCryptoProvider(),clock());
     }
   };
 }

@@ -4,6 +4,9 @@ import { createHandler as createAnalytics } from '../server/analytics.js';
 import { createHandler as createCleanup, clearExpiredAnalytics } from '../server/cleanup-analytics.js';
 import { createFirebaseServices } from './firebase-services.js';
 import { invokeHandler, jsonResponse } from './http-adapter.js';
+import { createBillingHandlers } from '../server/billing.js';
+import { createStripeClient } from '../server/stripe-client.js';
+import { handleStripeWebhook } from '../server/billing-webhook.js';
 
 export function createWorker({ createServices = createFirebaseServices, fetchImpl = fetch } = {}) {
   return {
@@ -23,6 +26,21 @@ export function createWorker({ createServices = createFirebaseServices, fetchImp
       };
       const adminAuth = { verifyIdToken(token) { return createServices(env).adminAuth.verifyIdToken(token); } };
       const appCheck = { verifyToken(token) { return createServices(env).appCheck.verifyToken(token); } };
+      if (path.startsWith('/api/billing/')) {
+        try {
+          const store = { scope: env.AI_BUDGET_SCOPE || 'production' };
+          for (const method of ['readAccount','readUsage','readMapping','saveMapping','withAccountLease','customerUid','applyBillingSnapshot','markDeleting','completeDeletion','redeemCode','issueCode','revokeCode'])
+            store[method] = (...args) => createServices(env).billingStore[method](...args);
+          const stripe = createStripeClient(env, {store,fetchImpl});
+          if (path === '/api/billing/webhook') return handleStripeWebhook(request,{env,stripe,store});
+          const billing = createBillingHandlers({env,store,stripe,adminAuth,appCheck,rateLimiter:env.BILLING_RATE_LIMITER,
+            usage:uid=>createServices(env).db.readAiUsage(uid)});
+          const routes = {status:billing.status,checkout:billing.checkout,portal:billing.portal,redeem:billing.redeem,
+            'delete-account':billing.deleteAccount,'codes/issue':billing.issueCode,'codes/revoke':billing.revokeCode};
+          const action = routes[path.slice('/api/billing/'.length)];
+          return action ? action(request) : jsonResponse({error:'Not Found'},404);
+        } catch { return jsonResponse({error:'Plan service is temporarily unavailable.'},503); }
+      }
       let handler;
       let maxBodyBytes = 1024 * 1024;
       const clientMetadata = { ip: request.headers.get('cf-connecting-ip') || 'unknown', country: request.cf?.country || '' };
