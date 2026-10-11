@@ -13,6 +13,14 @@ function setup() {
 }
 const request = (path, options) => new Request(`https://fixture.example${path}`, options);
 
+test('billing routes reject unauthenticated callers before creating privileged services',async()=>{
+  const worker=createWorker({createServices:()=>{throw Error('must not create services');}});
+  assert.equal((await worker.fetch(request('/api/billing/status'),{})).status,401);
+  assert.equal((await worker.fetch(request('/api/billing/checkout',{method:'POST',body:'{}'}),{})).status,401);
+  assert.equal((await worker.fetch(request('/api/billing/webhook',{method:'POST',body:'{}'}),{})).status,503);
+  assert.equal((await worker.fetch(request('/api/billing/constructor'),{})).status,404);
+});
+
 test('Worker delegates static pages, returns API 404, and preserves methods', async () => {
   const { worker, env } = setup();
   assert.equal(await (await worker.fetch(request('/app.html'), env, {})).text(), '/app.html');

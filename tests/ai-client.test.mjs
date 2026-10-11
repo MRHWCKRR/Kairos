@@ -15,6 +15,12 @@ test('AI browser transport sends both tokens only to the same-origin route', asy
   assert.equal(c.sent?.url, '/api/ai'); assert.equal(c.sent.options.headers.Authorization, 'Bearer user-token');
   assert.equal(c.sent.options.headers['X-Firebase-AppCheck'], 'app-token');
 });
+test('AI usage observer sees admitted provider failures without hiding the original error',async()=>{
+  let updates=0;
+  const c=await client({onUsage:()=>updates++,fetchImpl:async()=>Response.json({error:'provider failure'},{status:502})});
+  await assert.rejects(c.request({}),error=>error.status===502);
+  assert.equal(updates,1);
+});
 test('signed-out browser makes no AI request', async () => {
   const c = await client({ getUser: () => null }); await assert.rejects(c.request({}), /sign in/i); assert.equal(c.sent, undefined);
 });

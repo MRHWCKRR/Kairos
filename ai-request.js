@@ -10,7 +10,7 @@ export function aiConversationMessages(messages) {
     !(message.role === 'assistant' && legacyDailyNotice.test(message.content)));
 }
 
-export function createAiRequester({ getUser, getAppToken, fetchImpl = fetch }) {
+export function createAiRequester({ getUser, getAppToken, fetchImpl = fetch, onUsage = () => {} }) {
   return async function aiFetch(options) {
     const user = getUser();
     if (!user) throw protectionError('Please sign in to use Kairos AI.');
@@ -26,6 +26,7 @@ export function createAiRequester({ getUser, getAppToken, fetchImpl = fetch }) {
       ...options, method: 'POST', credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}`, 'X-Firebase-AppCheck': appToken }
     });
+    if (![401,403,413].includes(response.status)) { try { onUsage(); } catch {} }
     if (response.status === 429) {
       let budget;
       try { budget = await response.json(); } catch {}

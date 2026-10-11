@@ -1,4 +1,5 @@
 import { createHmac } from 'node:crypto';
+import { validateGrant } from './entitlements.js';
 
 const DAY_MS = 86400000;
 const BRISBANE_OFFSET_MS = 10 * 3600000;
@@ -27,9 +28,7 @@ export function budgetWindow(time) {
     retryAfter: Math.max(1, Math.ceil((midnight + DAY_MS - BRISBANE_OFFSET_MS - time) / 1000)) };
 }
 
-export function reserveBudget(fields, uid, policy, secret, time) {
-  if (typeof uid !== 'string' || !uid || uid.length > 128) throw Error('Invalid AI budget identity');
-  const window = budgetWindow(time);
+function counterState(fields, window) {
   let total = 0, accounts = {};
   if (fields) {
     const day = fields.day?.stringValue;
@@ -44,10 +43,49 @@ export function reserveBudget(fields, uid, policy, secret, time) {
     if (!Number.isSafeInteger(Number(count)) || sum !== Number(count) || Object.keys(records).length > 5000 || day > window.day) throw Error('Invalid AI counter');
     if (day === window.day) { total = Number(count); accounts = { ...records }; }
   }
+  return {total,accounts};
+}
+export function readBudgetUsage(fields,uid,policy,secret,time) {
+  if(typeof uid!=='string' || !uid || uid.length>128)throw Error('Invalid AI budget identity');
+  const window=budgetWindow(time),{total,accounts}=counterState(fields,window);
+  const key=createHmac('sha256',secret).update(`${policy.scope}\0${window.day}\0${uid}`).digest('hex');
+  return {used:Number(accounts[key]?.integerValue||0),total,...window};
+}
+export function reserveBudget(fields, uid, policy, secret, time) {
+  if (typeof uid !== 'string' || !uid || uid.length > 128) throw Error('Invalid AI budget identity');
+  const window = budgetWindow(time);
+  const {total,accounts}=counterState(fields,window);
   const key = createHmac('sha256', secret).update(`${policy.scope}\0${window.day}\0${uid}`).digest('hex');
   const used = Number(accounts[key]?.integerValue || 0);
   if (total >= policy.siteLimit) return { allowed: false, reason: 'site', ...window };
   if (used >= policy.accountLimit) return { allowed: false, reason: 'account', ...window };
   accounts[key] = { integerValue: String(used + 1) };
   return { allowed: true, ...window, fields: { day: { stringValue: window.day }, total: { integerValue: String(total + 1) }, accounts: { mapValue: { fields: accounts } } } };
+}
+
+export function creditBalance(account,time) {
+  if(account===null || account===undefined)return 0;
+  if(account.schema!==1 || !Array.isArray(account.grants) || account.grants.length>256)throw Error('Invalid credit account');
+  const ids=new Set();let balance=0;
+  for(const entry of account.grants) {
+    validateGrant(entry.grant);
+    if(entry.grant.kind!=='credits' || ids.has(entry.grant.id) || !Number.isSafeInteger(entry.spent) || entry.spent<0 || entry.spent>entry.grant.amount)throw Error('Invalid credit ledger');
+    ids.add(entry.grant.id);
+    if(entry.grant.revokedAt===null && entry.grant.startsAt<=time && (entry.grant.expiresAt===null || entry.grant.expiresAt>time))balance+=entry.grant.amount-entry.spent;
+  }
+  return balance;
+}
+export function reserveTierBudget({fields,uid,policy,secret,time,access,creditAccount}) {
+  if(!Number.isInteger(access?.dailyLimit) || access.dailyLimit<1 || access.dailyLimit>5000)throw Error('Invalid trusted allowance');
+  const balance=creditBalance(creditAccount,time);
+  const result=reserveBudget(fields,uid,{...policy,accountLimit:access.dailyLimit},secret,time);
+  if(result.allowed || result.reason==='site' || !balance)return result;
+  const next=structuredClone(creditAccount);
+  const spendable=next.grants.filter(entry=>entry.grant.revokedAt===null && entry.grant.startsAt<=time &&
+    (entry.grant.expiresAt===null || entry.grant.expiresAt>time) && entry.spent<entry.grant.amount)
+    .sort((a,b)=>(a.grant.expiresAt??Number.MAX_SAFE_INTEGER)-(b.grant.expiresAt??Number.MAX_SAFE_INTEGER));
+  spendable[0].spent++;
+  const reserved=reserveBudget(fields,uid,{...policy,accountLimit:5000},secret,time);
+  if(!reserved.allowed)return reserved;
+  return {...reserved,creditAccount:next};
 }

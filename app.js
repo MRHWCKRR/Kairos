@@ -1,4 +1,6 @@
 import { aiFetch, aiErrorMessage } from './ai-client.js';
+import { requestBilling } from './billing-client.js';
+import { mountPlanUsage } from './plan-usage.js';
 import { auth, db } from './firebase.js';
 import {
     signInWithEmailAndPassword,
@@ -425,8 +427,24 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // --- Auth Management ---
     const accountDeletionPendingKey = 'kairos_account_deletion_pending';
+    const planPanel = document.getElementById('settings-plan');
+    const planUsage = mountPlanUsage({root:planPanel,auth,request:requestBilling,onStatus:status=>{
+        const badge=document.querySelector('.ai-chat-plan-badge');
+        if(badge)badge.textContent=status?.access?.tier==='plus'?'Plus':status?.access?.tier==='free'?'Free':'—';
+    }});
+    const refreshVisibleUsage = () => {
+        if(planPanel.classList.contains('active') && document.getElementById('settings-page')?.classList.contains('active')) void planUsage.refresh();
+    };
+    window.addEventListener('kairos-ai-usage',refreshVisibleUsage);
+    window.addEventListener('pageshow',event=>{if(event.persisted)void planUsage.refresh();});
+    window.addEventListener('pagehide',event=>{
+        if(event.persisted)return;
+        window.removeEventListener('kairos-ai-usage',refreshVisibleUsage);
+        planUsage.destroy();
+    },{once:true});
 
     onAuthStateChanged(auth, async (user) => {
+        if(!user)void planUsage.refresh();
         if (!user) {
             let deletionPending = false;
             try {
@@ -469,6 +487,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         console.log("User is logged in and verified:", user.email);
+        void planUsage.refresh();
         pendingInitialLoads = 0;
         hideLoadingScreen();
 
@@ -2427,6 +2446,7 @@ document.addEventListener("DOMContentLoaded", () => {
             tab.classList.add('active');
             const panel = document.getElementById(`settings-${tab.dataset.settingsTab}`);
             if (panel) panel.classList.add('active');
+            if(['plan','personal'].includes(tab.dataset.settingsTab))void planUsage.refresh();
         });
     });
 
@@ -2602,6 +2622,8 @@ document.addEventListener("DOMContentLoaded", () => {
                     throw new Error('Please sign out and sign back in with your account provider before deleting your account.');
                 }
 
+                const billingDeletion = await requestBilling('delete-account', {});
+                if (billingDeletion.safeToDelete !== true) throw new Error('Subscription cancellation could not be confirmed. Please retry.');
                 const plansColRef = collection(db, 'study_plans');
                 const q = query(plansColRef, where('userID', '==', user.uid));
                 const snap = await getDocs(q);
