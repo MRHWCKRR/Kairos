@@ -5,10 +5,38 @@ function dateLabel(value) {
 }
 // Stripe charge units differ from ISK/UGX's ISO display decimals.
 const zeroDecimalCharges=new Set(['bif','clp','djf','gnf','jpy','kmf','krw','mga','pyg','rwf','vnd','vuv','xaf','xof','xpf']);
-export function mountPlanUsage({root,auth,request,onStatus=()=>{},navigate=url=>globalThis.location.assign(url)}) {
+export function mountPlanUsage({root,auth,request,onStatus=()=>{},navigate=url=>globalThis.location.assign(url),storage,returnUrl,onExplore}) {
   if(!root)throw Error('Plan panel missing');
   const find=id=>root.querySelector('#'+id),message=find('plan-message');
   let generation=0,destroyed=false,busy=false,current=null,boundUid=null;
+  const doc=root.ownerDocument,accountPlan=doc.getElementById('settings-account-plan'),welcome=doc.getElementById('plan-welcome');
+  try {storage ??= doc.defaultView.sessionStorage;}catch{}
+  const pendingKey='kairos_upgrade_pending';
+  let pending=null,pollTimer=null,pollCount=0;
+  const returned=new URL(returnUrl||doc.defaultView.location?.href||'https://kairos.invalid').searchParams.get('billing')==='return';
+  try {const saved=JSON.parse(storage?.getItem(pendingKey)||'null');if(returned&&saved?.uid&&Number.isFinite(saved.startedAt)&&Date.now()-saved.startedAt<86400000&&saved.startedAt<=Date.now())pending=saved;}catch{}
+  function closeWelcome(){if(welcome?.hasAttribute('open')){if(welcome.close)welcome.close();else welcome.removeAttribute('open');}}
+  function openPlan(){doc.querySelector('.nav-item[data-target="settings-page"]')?.click();doc.querySelector('.settings-tab[data-settings-tab="plan"]')?.click();}
+  const accountManage=()=>openPlan();
+  const explore=()=>{closeWelcome();if(onExplore)onExplore();else doc.querySelector('.nav-item[data-target="ai-page"]')?.click();};
+  const viewPlan=()=>{closeWelcome();openPlan();};
+  doc.getElementById('settings-account-manage-plan')?.addEventListener('click',accountManage);
+  doc.getElementById('plan-welcome-close')?.addEventListener('click',closeWelcome);
+  doc.getElementById('plan-welcome-start')?.addEventListener('click',explore);
+  doc.getElementById('plan-welcome-plan')?.addEventListener('click',viewPlan);
+  function confirmUpgrade(status,uid){
+    if(!pending||pending.uid!==uid)return false;
+    if(status.access.tier==='plus'&&status.billing?.status==='active'&&status.billing.paidThrough>Date.now()&&!status.billing.paymentRisk){
+      doc.getElementById('plan-welcome-benefit').textContent=String(status.access.dailyLimit)+' AI requests a day to explore ideas, break down tasks and keep your plans moving.';
+      if(welcome.showModal)welcome.showModal();else welcome.setAttribute('open','');
+      try {storage?.removeItem(pendingKey);}catch{}
+      pending=null;clearTimeout(pollTimer);pollTimer=null;
+      try {const url=new URL(doc.defaultView.location.href);url.searchParams.delete('billing');doc.defaultView.history.replaceState(null,'',url.href);}catch{}
+      return true;
+    }
+    if(pollCount<5&&!pollTimer){pollCount++;pollTimer=setTimeout(()=>{pollTimer=null;if(!destroyed&&auth.currentUser?.uid===uid)void refresh();},2000);pollTimer.unref?.();}
+    return false;
+  }
   const controls=['plan-refresh-btn','plan-upgrade-btn','plan-manage-btn','plan-code-btn','plan-code-input'];
   function setBusy(value) {
     busy=value;
@@ -20,6 +48,7 @@ export function mountPlanUsage({root,auth,request,onStatus=()=>{},navigate=url=>
   }
   function clear() {
     current=null;boundUid=null;
+    if(accountPlan)accountPlan.textContent='—';closeWelcome();clearTimeout(pollTimer);pollTimer=null;
     for(const id of ['plan-tier','plan-daily-remaining','plan-used','plan-allowance','plan-bonus','plan-reset','plan-subscription','plan-access-until'])find(id).textContent='—';
     find('plan-upgrade-btn').hidden=true;find('plan-manage-btn').hidden=true;
     find('plan-trial-note').hidden=true;
@@ -30,6 +59,7 @@ export function mountPlanUsage({root,auth,request,onStatus=()=>{},navigate=url=>
         !status.usage || ['used','remaining','bonusCredits'].some(key=>!Number.isSafeInteger(status.usage[key]) || status.usage[key]<0)) throw Error('Plan service returned an invalid status.');
     current=status;
     find('plan-tier').textContent=status.access.tier==='plus'?'Plus':'Free';
+    if(accountPlan)accountPlan.textContent=status.access.tier==='plus'?'Kairos Plus':'Free';
     find('plan-daily-remaining').textContent=String(status.usage.remaining);
     find('plan-used').textContent=String(status.usage.used);
     find('plan-allowance').textContent=String(status.access.dailyLimit);
@@ -69,8 +99,8 @@ export function mountPlanUsage({root,auth,request,onStatus=()=>{},navigate=url=>
       if(destroyed || ticket!==generation)return;
       if(auth.currentUser?.uid!==uid){clear();onStatus(null);return;}
       boundUid=uid;render(status);
-      if(!preserveMessage)message.textContent=new URL(root.ownerDocument.defaultView.location?.href||'https://kairos.invalid').searchParams.get('billing')==='return' &&
-        status.billing?.status!=='active'?'Payment confirmation pending. Refresh after Stripe has confirmed it.':'Usage is up to date.';
+      const welcomed=confirmUpgrade(status,uid);
+      if(!preserveMessage)message.textContent=welcomed?'Your Kairos Plus upgrade is ready.':pending?.uid===uid?'Confirming your upgrade… Your plan will update once payment is verified. You can refresh here at any time.':'Usage is up to date.';
     } catch(error) {
       if(destroyed || ticket!==generation || auth.currentUser?.uid!==uid)return;
       clear();message.textContent=error.message||'Plan service is temporarily unavailable.';onStatus(null);
@@ -89,6 +119,7 @@ export function mountPlanUsage({root,auth,request,onStatus=()=>{},navigate=url=>
       } else {
         const url=new URL(result.url);
         if(!['https://checkout.stripe.com','https://billing.stripe.com'].includes(url.origin))throw Error('Invalid payment destination.');
+        if(route==='checkout'&&url.origin==='https://checkout.stripe.com')try {storage?.setItem(pendingKey,JSON.stringify({uid,startedAt:Date.now()}));}catch{}
         navigate(url.href);
       }
     }catch(error){if(!destroyed && auth.currentUser?.uid===uid)message.textContent=error.message||'Please try again.';}
@@ -109,6 +140,11 @@ export function mountPlanUsage({root,auth,request,onStatus=()=>{},navigate=url=>
   find('plan-code-form').addEventListener('submit',redeem);
   return {refresh,destroy(){
     destroyed=true;generation++;
+    clearTimeout(pollTimer);closeWelcome();
+    doc.getElementById('settings-account-manage-plan')?.removeEventListener('click',accountManage);
+    doc.getElementById('plan-welcome-close')?.removeEventListener('click',closeWelcome);
+    doc.getElementById('plan-welcome-start')?.removeEventListener('click',explore);
+    doc.getElementById('plan-welcome-plan')?.removeEventListener('click',viewPlan);
     find('plan-refresh-btn').removeEventListener('click',refreshClick);
     find('plan-upgrade-btn').removeEventListener('click',upgradeClick);
     find('plan-manage-btn').removeEventListener('click',manageClick);

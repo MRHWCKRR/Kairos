@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kairos | Opportune Routine Planner</title>
     <link rel="stylesheet" href="app.css?v=8">
-    <link rel="stylesheet" href="plan-usage.css?v=1">
+    <link rel="stylesheet" href="plan-usage.css?v=2">
     <link rel="icon" type="image/png" sizes="32x32" href="images/favicon-32.png">
     <link rel="apple-touch-icon" sizes="180x180" href="images/favicon-180.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -363,6 +363,10 @@
                                         <span class="text-muted" id="settings-signin-method">—</span>
                                     </div>
                                 </div>
+                            <div class="settings-row account-plan-row">
+                                <div class="settings-row-label"><strong>Your plan</strong><span id="settings-account-plan" aria-live="polite">—</span></div>
+                                <button id="settings-account-manage-plan" class="action-btn small-btn" type="button">Manage plan</button>
+                            </div>
                             </div>
 
                             <div class="settings-group">
@@ -744,6 +748,16 @@
             </div>
         </div>
     </div>
+
+    <dialog id="plan-welcome" class="plan-welcome" aria-labelledby="plan-welcome-title" aria-describedby="plan-welcome-copy">
+        <button id="plan-welcome-close" class="plan-welcome-close" type="button" aria-label="Close welcome">×</button>
+        <div class="plan-welcome-mark" aria-hidden="true">✦<span>✧</span><span>✧</span></div>
+        <p class="plan-welcome-eyebrow">A little more room for what matters</p>
+        <h2 id="plan-welcome-title">Welcome to Kairos Plus</h2>
+        <p id="plan-welcome-copy">Thanks for making Kairos part of your day. Your upgrade is ready — let’s turn your next idea into a plan.</p>
+        <div class="plan-welcome-benefits"><strong>More space to think</strong><p id="plan-welcome-benefit"></p><strong>Your workspace, carried forward</strong><p>Your tasks, routines and conversations are right where you left them.</p></div>
+        <div class="plan-welcome-actions"><button id="plan-welcome-start" class="action-btn" type="button" autofocus>Let’s plan something</button><button id="plan-welcome-plan" class="action-btn ghost-btn" type="button">View my plan</button></div>
+    </dialog>
 
     <!-- Account deletion goodbye screen -->
     <div id="account-deleted-screen" class="account-deleted-screen" aria-hidden="true">

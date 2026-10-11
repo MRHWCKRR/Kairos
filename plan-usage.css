@@ -11,3 +11,22 @@
 #settings-plan [hidden] { display: none !important; }
 #settings-plan :disabled { opacity: .55; cursor: not-allowed; }
 #plan-message { min-height: 1.5em; overflow-wrap: anywhere; color: var(--text-secondary); }
+.account-plan-row { border-top: 1px solid var(--border-subtle); margin-bottom: 28px; }
+#settings-account-plan { color: var(--text-primary); }
+.plan-welcome { position: fixed; inset: 0; margin: auto; width: min(520px, calc(100vw - 48px)); max-height: calc(100vh - 48px); overflow: auto; padding: 40px; border: 1px solid var(--border-subtle); border-radius: 12px; background: var(--bg-card); color: var(--text-primary); font: inherit; }
+.plan-welcome::backdrop { background: rgba(0,0,0,.7); }
+.plan-welcome-close { position: absolute; top: 12px; right: 16px; border: 0; background: none; color: var(--text-muted); font-size: 28px; cursor: pointer; }
+.plan-welcome-mark { position: relative; width: 84px; height: 84px; margin-bottom: 24px; display: grid; place-items: center; font-size: 58px; color: var(--accent-glow); }
+.plan-welcome-mark span { position: absolute; font-size: 22px; top: 0; right: 0; }
+.plan-welcome-mark span:last-child { top: auto; right: auto; left: 0; bottom: 0; }
+.plan-welcome[open] .plan-welcome-mark { animation: plus-arrival 650ms ease-out both; }
+.plan-welcome-eyebrow { color: var(--text-muted); font-size: 12px; margin-bottom: 8px; }
+.plan-welcome h2 { font-size: 27px; line-height: 1.2; margin-bottom: 16px; }
+#plan-welcome-copy, .plan-welcome-benefits p { line-height: 1.6; color: var(--text-muted); }
+.plan-welcome-benefits { margin: 24px 0; padding: 20px 0; border-top: 1px solid var(--border-subtle); border-bottom: 1px solid var(--border-subtle); }
+.plan-welcome-benefits strong { display: block; margin-bottom: 5px; font-size: 14px; }
+.plan-welcome-benefits p + strong { margin-top: 16px; }
+.plan-welcome-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.plan-welcome button:focus-visible, #settings-account-manage-plan:focus-visible { outline: 2px solid var(--accent-glow); outline-offset: 3px; }
+@keyframes plus-arrival { from { opacity: 0; transform: scale(.65) rotate(-22deg); } to { opacity: 1; transform: scale(1) rotate(0); } }
+@media (prefers-reduced-motion: reduce) { .plan-welcome[open] .plan-welcome-mark { animation: none; } }

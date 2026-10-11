@@ -2446,7 +2446,7 @@ document.addEventListener("DOMContentLoaded", () => {
             tab.classList.add('active');
             const panel = document.getElementById(`settings-${tab.dataset.settingsTab}`);
             if (panel) panel.classList.add('active');
-            if(tab.dataset.settingsTab==='plan')void planUsage.refresh();
+            if(['plan','personal'].includes(tab.dataset.settingsTab))void planUsage.refresh();
         });
     });
 
