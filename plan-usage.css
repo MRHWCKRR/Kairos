@@ -1,0 +1,13 @@
+.plan-usage-details { margin: 0; }
+.plan-usage-details > div { display: flex; justify-content: space-between; gap: 24px; padding: 8px 0; border-bottom: 1px solid var(--border-subtle); }
+.plan-usage-details dt { color: var(--text-secondary); }
+.plan-usage-details dd { margin: 0; text-align: right; overflow-wrap: anywhere; }
+.plan-actions, .plan-code-controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.plan-actions { margin-top: 16px; }
+.plan-code-form { max-width: 540px; }
+.plan-code-form label { display: block; margin-bottom: 8px; }
+.plan-code-controls input { flex: 1; min-width: 220px; padding: 10px 12px; font: inherit; background: var(--bg-base); color: var(--text-primary); border: 1px solid var(--border-subtle); border-radius: 6px; }
+#settings-plan button:focus-visible, #plan-code-input:focus-visible { outline: 2px solid var(--accent-glow); outline-offset: 3px; }
+#settings-plan [hidden] { display: none !important; }
+#settings-plan :disabled { opacity: .55; cursor: not-allowed; }
+#plan-message { min-height: 1.5em; overflow-wrap: anywhere; color: var(--text-secondary); }

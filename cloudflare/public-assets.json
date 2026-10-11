@@ -2,6 +2,8 @@
   "files": [
     "billing-request.js",
     "billing-client.js",
+    "plan-usage.js",
+    "plan-usage.css",
     "ai-client.js",
     "ai-request.js",
     "ai-actions.js",
