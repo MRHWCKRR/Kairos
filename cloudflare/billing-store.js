@@ -63,6 +63,28 @@ export function createBillingStore({env,transport,clock=Date.now}) {
   function owner(uid) { if(!env.ANALYTICS_ADMIN_UID || uid!==env.ANALYTICS_ADMIN_UID) throw Error('Owner access required'); }
   return {
     scope,accountPath,loadAccount,readAccount,path,get,atomic,write,commit:writes=>transport.commit(writes),
+    async readMapping(uid) {
+      const doc=await get(path('kairosBillingAccounts',identity(uid)));
+      if(doc && (doc.data.uid!==uid || !/^cus_[a-zA-Z0-9]+$/.test(doc.data.customerId||''))) throw Error('Invalid customer mapping');
+      return doc?.data||null;
+    },
+    async saveMapping(uid,mapping) {
+      if(!/^cus_[a-zA-Z0-9]+$/.test(mapping.customerId||'')) throw Error('Invalid customer');
+      return atomic(async()=>{
+        const p=path('kairosBillingAccounts',identity(uid)),cp=path('kairosBillingCustomers',mapping.customerId);
+        const [doc,reverse,account]=await Promise.all([get(p),get(cp),get(accountPath(uid))]);
+        if(accountData(account?.data).deleting || (reverse && reverse.data.uid!==uid) || (doc && doc.data.customerId!==mapping.customerId)) throw Error('Invalid billing ownership');
+        await transport.commit([write(p,doc,{...doc?.data,...mapping,uid}),write(cp,reverse,{uid}),write(accountPath(uid),account,accountData(account?.data))]);
+        return {customerId:mapping.customerId};
+      });
+    },
+    async customerUid(customerId) {
+      const doc=await get(path('kairosBillingCustomers',customerId));
+      if(!doc) return null;
+      const mapping=await this.readMapping(doc.data.uid);
+      if(mapping?.customerId!==customerId) throw Error('Invalid billing ownership');
+      return doc.data.uid;
+    },
     async issueCode({digest,definition,ownerUid}) {
       owner(ownerUid);validateCodeDefinition(definition,catalog,scope);
       const p=path('kairosAccessCodes',digest);
