@@ -14,12 +14,27 @@
     "AI_DAILY_SITE_LIMIT": "1000",
     "AI_BUDGET_SCOPE": "production",
     "AI_PROVIDER": "openrouter",
-    "AI_MODEL": "openai/gpt-oss-120b"
+    "AI_MODEL": "openai/gpt-oss-120b",
+    "BILLING_ENABLED": "false",
+    "ACCESS_CODES_ENABLED": "false",
+    "AI_TIER_ENFORCEMENT": "false",
+    "AI_FREE_DAILY_LIMIT": "10",
+    "AI_PLUS_DAILY_LIMIT": "100",
+    "STRIPE_MODE": "test",
+    "BILLING_ORIGIN": "https://kairos-web.kirosapp.workers.dev"
   },
   "ratelimits": [
     {
       "name": "AI_RATE_LIMITER",
       "namespace_id": "2026101001",
+      "simple": {
+        "limit": 10,
+        "period": 60
+      }
+    },
+    {
+      "name": "BILLING_RATE_LIMITER",
+      "namespace_id": "2026101011",
       "simple": {
         "limit": 10,
         "period": 60
@@ -54,12 +69,27 @@
       "AI_DAILY_SITE_LIMIT": "1000",
       "AI_BUDGET_SCOPE": "preview",
       "AI_PROVIDER": "openrouter",
-      "AI_MODEL": "openai/gpt-oss-120b"
+      "AI_MODEL": "openai/gpt-oss-120b",
+      "BILLING_ENABLED": "false",
+      "ACCESS_CODES_ENABLED": "false",
+      "AI_TIER_ENFORCEMENT": "false",
+      "AI_FREE_DAILY_LIMIT": "10",
+      "AI_PLUS_DAILY_LIMIT": "100",
+      "STRIPE_MODE": "test",
+      "BILLING_ORIGIN": "https://kairos-web-preview.kirosapp.workers.dev"
     },
     "ratelimits": [
       {
         "name": "AI_RATE_LIMITER",
         "namespace_id": "2026101003",
+        "simple": {
+          "limit": 10,
+          "period": 60
+        }
+      },
+      {
+        "name": "BILLING_RATE_LIMITER",
+        "namespace_id": "2026101013",
         "simple": {
           "limit": 10,
           "period": 60
@@ -77,12 +107,27 @@
         "AI_DAILY_SITE_LIMIT": "1000",
         "AI_BUDGET_SCOPE": "preview",
         "AI_PROVIDER": "openrouter",
-        "AI_MODEL": "openai/gpt-oss-120b"
+        "AI_MODEL": "openai/gpt-oss-120b",
+        "BILLING_ENABLED": "false",
+        "ACCESS_CODES_ENABLED": "false",
+        "AI_TIER_ENFORCEMENT": "false",
+        "AI_FREE_DAILY_LIMIT": "10",
+        "AI_PLUS_DAILY_LIMIT": "100",
+        "STRIPE_MODE": "test",
+        "BILLING_ORIGIN": "https://kairos-web-preview.kirosapp.workers.dev"
       },
       "ratelimits": [
         {
           "name": "AI_RATE_LIMITER",
           "namespace_id": "2026101002",
+          "simple": {
+            "limit": 10,
+            "period": 60
+          }
+        },
+        {
+          "name": "BILLING_RATE_LIMITER",
+          "namespace_id": "2026101012",
           "simple": {
             "limit": 10,
             "period": 60

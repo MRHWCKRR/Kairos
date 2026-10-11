@@ -37,7 +37,8 @@ export function createWorker({ createServices = createFirebaseServices, fetchImp
             usage:(uid,access)=>createServices(env).db.readAiUsage(uid,access)});
           const routes = {status:billing.status,checkout:billing.checkout,portal:billing.portal,redeem:billing.redeem,
             'delete-account':billing.deleteAccount,'codes/issue':billing.issueCode,'codes/revoke':billing.revokeCode};
-          const action = routes[path.slice('/api/billing/'.length)];
+          const route = path.slice('/api/billing/'.length);
+          const action = Object.hasOwn(routes,route) ? routes[route] : null;
           return action ? action(request) : jsonResponse({error:'Not Found'},404);
         } catch { return jsonResponse({error:'Plan service is temporarily unavailable.'},503); }
       }

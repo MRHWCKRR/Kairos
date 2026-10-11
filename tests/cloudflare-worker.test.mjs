@@ -18,6 +18,7 @@ test('billing routes reject unauthenticated callers before creating privileged s
   assert.equal((await worker.fetch(request('/api/billing/status'),{})).status,401);
   assert.equal((await worker.fetch(request('/api/billing/checkout',{method:'POST',body:'{}'}),{})).status,401);
   assert.equal((await worker.fetch(request('/api/billing/webhook',{method:'POST',body:'{}'}),{})).status,503);
+  assert.equal((await worker.fetch(request('/api/billing/constructor'),{})).status,404);
 });
 
 test('Worker delegates static pages, returns API 404, and preserves methods', async () => {
