@@ -7,6 +7,13 @@ import {
   validateScheduleProposals
 } from '../schedule-utils.js';
 
+test('proposal previous schedule comes from workspace state, not model claims', () => {
+  const task = { id: 'essay', date: null, startTime: null, endTime: null, estimatedMinutes: 45 };
+  const proposals = [{ taskId: 'essay', from: { date: '2026-10-12', startTime: '09:00', endTime: '09:45' }, to: { date: '2026-10-12', startTime: '11:00', endTime: '11:45' } }];
+  const result = validateScheduleProposals(proposals, new Map([['essay', task]]), [], { minDate: '2026-10-10' });
+  assert.deepEqual(result[0].from, { date: null, startTime: null, endTime: null });
+});
+
 test('unscheduling preserves prior duration separately from explicit estimate', () => {
   const task={id:'science',startTime:'14:07',endTime:'15:42',estimatedMinutes:null};
   preserveScheduledDuration(task);
