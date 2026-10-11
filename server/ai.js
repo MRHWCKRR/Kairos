@@ -38,9 +38,12 @@ export function createHandler({ env, adminAuth, appCheck, rateLimiter, dailyBudg
     } catch { return res.status(503).json({ error: 'Kairos AI is temporarily unavailable.' }); }
 
     // The upstream API key is supplied by the host, never by the browser.
-    const apiKey = env.KAIROS_RELAY_SECRET;
-    if (!apiKey) {
-        console.error('KAIROS_RELAY_SECRET is not configured.');
+    const provider = env.AI_PROVIDER || 'hackclub';
+    const openrouter = provider === 'openrouter';
+    const apiKey = openrouter ? env.OPENROUTER_API_KEY : env.KAIROS_RELAY_SECRET;
+    const model = openrouter ? (env.AI_MODEL || 'openai/gpt-oss-120b') : 'qwen/qwen3-32b';
+    if (!['openrouter', 'hackclub'].includes(provider) || !apiKey || !/^[a-zA-Z0-9._:/-]+$/.test(model)) {
+        console.error(JSON.stringify({ event: 'kairos_ai_configuration_missing' }));
         return res.status(503).json({ error: 'AI relay is not configured' });
     }
 
@@ -61,7 +64,7 @@ export function createHandler({ env, adminAuth, appCheck, rateLimiter, dailyBudg
     }
 
     try {
-        const upstream = await fetchImpl(AI_URL, {
+        const upstream = await fetchImpl(openrouter ? 'https://openrouter.ai/api/v1/chat/completions' : AI_URL, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -69,15 +72,21 @@ export function createHandler({ env, adminAuth, appCheck, rateLimiter, dailyBudg
             },
             signal: AbortSignal.timeout(90000),
             body: JSON.stringify({
-                model: 'qwen/qwen3-32b',
+                model,
                 messages: messages.map(({ role, content }) => ({ role, content })),
                 response_format: format ? { type: format.type } : undefined,
-                max_tokens: 8192,
-                stream: false
+                max_tokens: openrouter ? 2048 : 8192,
+                stream: false,
+                ...(openrouter ? { provider: { data_collection: 'deny', max_price: { prompt: 0.4, completion: 3 } },
+                    ...(model.startsWith('openai/gpt-oss-') ? { reasoning: { effort: 'low' } } : {}) } : {})
             })
         });
 
         if (!upstream.ok) console.warn(JSON.stringify({ event: 'kairos_ai_upstream_status', status: upstream.status }));
+        if (openrouter && !upstream.ok) {
+            await upstream.body?.cancel();
+            return res.status(upstream.status === 429 ? 429 : 503).json({ error: 'Kairos AI is temporarily unavailable.' });
+        }
         const text = await readBoundedText(upstream, 1024 * 1024);
         let data;
         try {
@@ -86,6 +95,9 @@ export function createHandler({ env, adminAuth, appCheck, rateLimiter, dailyBudg
             data = { error: text || 'AI server returned an invalid response' };
         }
 
+        if (openrouter && (data.error || !data.choices?.[0]?.message?.content || data.choices[0].finish_reason === 'length')) {
+            return res.status(502).json({ error: 'Kairos AI could not finish its response. Try a shorter request.' });
+        }
         return res.status(upstream.status).json(data);
     } catch (error) {
         console.error(JSON.stringify({ event: 'kairos_ai_upstream_failed', reason: error?.name === 'TimeoutError' ? 'timeout' : 'request-failed' }));

@@ -1,4 +1,5 @@
 import { auth, db } from './firebase.js';
+import { taskDurationMinutes } from './schedule-utils.js';
 import {
     collection, getDocs, query, where, doc, getDoc, setDoc
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
@@ -38,41 +39,16 @@ function allTasks(plan) {
     );
 }
 
-function taskTitleBase(value) {
-    const title = clean(value, 180).toLowerCase();
-    const marker = title.lastIndexOf(' (');
-    return marker > 0 && title.endsWith(')') ? title.slice(0, marker).trim() : title;
-}
-
 function findTask(plan, args) {
     const wantedId = clean(args.taskId, 120);
     const wantedTitle = clean(args.title, 180).toLowerCase();
-    const wantedBase = taskTitleBase(args.title);
     const tasks = allTasks(plan);
     const matches = tasks.filter(({ task }) =>
-        (wantedId && String(task.id) === wantedId) ||
+        wantedId ? String(task.id) === wantedId :
         (wantedTitle && clean(task.title, 180).toLowerCase() === wantedTitle)
     );
     if (matches.length === 1) return matches[0];
 
-    if (wantedBase) {
-        const baseMatches = tasks.filter(({ task }) => taskTitleBase(task.title) === wantedBase);
-        if (baseMatches.length === 1) return baseMatches[0];
-
-        const related = tasks.filter(({ task }) => {
-            const actual = taskTitleBase(task.title);
-            return actual.includes(wantedBase) || wantedBase.includes(actual);
-        });
-        if (related.length === 1) return related[0];
-    }
-
-    if (!matches.length && wantedTitle) {
-        const related = tasks.filter(({ task }) => {
-            const actual = clean(task.title, 180).toLowerCase();
-            return actual.includes(wantedTitle) || wantedTitle.includes(actual);
-        });
-        if (related.length === 1) return related[0];
-    }
     throw new Error(matches.length ? 'Multiple tasks match. Please specify the task name more precisely.' : 'Task not found.');
 }
 
@@ -81,7 +57,7 @@ function findScheduleEvent(plan, args) {
     const id = clean(args.eventId, 120);
     const title = clean(args.title, 120).toLowerCase();
     const matches = events.filter(ev =>
-        (id && String(ev.id) === id) ||
+        id ? String(ev.id) === id :
         (title && clean(ev.title, 120).toLowerCase() === title)
     );
     if (matches.length !== 1) throw new Error(matches.length ? 'Multiple schedule events match. Please specify the event name more precisely.' : 'Schedule event not found.');
@@ -141,9 +117,10 @@ export async function executeKairosAction(action) {
     if (!user) throw new Error('You must be signed in.');
     if (!action || typeof action !== 'object' || typeof action.type !== 'string') throw new Error('Invalid AI action.');
 
-    const plan = await latestPlan(user);
     const args = action.args && typeof action.args === 'object' ? action.args : Object.fromEntries(Object.entries(action).filter(([key]) => key !== 'type'));
     const type = action.type;
+    validateActionArgs(type, args);
+    const plan = await latestPlan(user);
 
     if (type === 'create_board') {
         // Resolve the task first when this is a "move task to a new board"
@@ -201,6 +178,16 @@ export async function executeKairosAction(action) {
 
     if (type === 'update_task') {
         const found = findTask(plan.data, args);
+        if (['date', 'startTime', 'endTime'].some(key => args[key] !== undefined)) {
+            if (found.task.scheduleLocked) throw new Error('This task schedule is locked.');
+            if (found.task.recurrence) throw new Error('Use the schedule to change recurring task occurrences.');
+            const next = { ...found.task, ...args };
+            validateTaskSchedule(next);
+            if (next.startTime && next.endTime &&
+                timeMinutes(next.endTime) - timeMinutes(next.startTime) !== taskDurationMinutes(found.task)) {
+                throw new Error('The schedule must preserve the task duration.');
+            }
+        }
         if (args.newTitle !== undefined) found.task.title = clean(args.newTitle, 180);
         if (args.date !== undefined) found.task.date = clean(args.date, 20) || null;
         if (args.startTime !== undefined) found.task.startTime = clean(args.startTime, 5) || null;
@@ -268,6 +255,7 @@ export async function executeKairosAction(action) {
         if (args.day !== undefined) event.day = Number(args.day);
         if (args.start !== undefined) event.start = clean(args.start, 10);
         if (args.end !== undefined) event.end = clean(args.end, 10);
+        validateEvent(event);
         if (event.day < 0 || event.day > 6 || !event.start || !event.end) throw new Error('Invalid schedule event details.');
         await writePlan(plan);
         return { type, event };
@@ -281,4 +269,46 @@ export async function executeKairosAction(action) {
     }
 
     throw new Error('Unsupported AI action: ' + type);
+}
+
+const actionFields = {
+    create_board: ['title', 'moveTaskId', 'moveTaskTitle'],
+    create_task: ['title', 'board', 'section', 'date', 'startTime', 'endTime'],
+    update_task: ['taskId', 'title', 'newTitle', 'board', 'section', 'date', 'startTime', 'endTime', 'completed', 'archived'],
+    complete_task: ['taskId', 'title'], delete_task: ['taskId', 'title'],
+    create_schedule_event: ['title', 'category', 'day', 'start', 'end'],
+    update_schedule_event: ['eventId', 'title', 'newTitle', 'category', 'day', 'start', 'end'],
+    delete_schedule_event: ['eventId', 'title']
+};
+function timeMinutes(value) {
+    if (typeof value !== 'string' || !/^([01]\d|2[0-3]):[0-5]\d$/.test(value)) throw new Error('Invalid schedule time.');
+    return Number(value.slice(0, 2)) * 60 + Number(value.slice(3));
+}
+function validateTaskSchedule(args) {
+    if (args.date != null && args.date !== '') {
+        if (typeof args.date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(args.date) ||
+            Number.isNaN(Date.parse(args.date)) || new Date(args.date).toISOString().slice(0, 10) !== args.date) throw new Error('Invalid task date.');
+    }
+    const hasStart = args.startTime != null && args.startTime !== '';
+    const hasEnd = args.endTime != null && args.endTime !== '';
+    if (hasStart !== hasEnd || ((hasStart || hasEnd) && !args.date)) throw new Error('Invalid task schedule: date and both times are required.');
+    if (hasStart && timeMinutes(args.endTime) <= timeMinutes(args.startTime)) throw new Error('Invalid task schedule duration.');
+}
+function validateEvent(args) {
+    if (!Number.isInteger(Number(args.day)) || Number(args.day) < 0 || Number(args.day) > 6 || args.day === null || args.day === '') throw new Error('Invalid schedule event day.');
+    if (timeMinutes(args.end) <= timeMinutes(args.start)) throw new Error('Invalid schedule event duration.');
+}
+function validateActionArgs(type, args) {
+    const fields = actionFields[type];
+    if (!fields || !args || Array.isArray(args) || Object.keys(args).some(key => !fields.includes(key))) throw new Error('Unsupported or invalid AI action fields.');
+    for (const [key, value] of Object.entries(args)) {
+        if (['completed', 'archived'].includes(key)) {
+            if (typeof value !== 'boolean') throw new Error('Invalid task status.');
+        } else if (key === 'day') {
+            if (!Number.isInteger(value) || value < 0 || value > 6) throw new Error('Invalid schedule event day.');
+        } else if (value !== null && typeof value !== 'string') throw new Error('Invalid AI action value.');
+    }
+    if (args.newTitle !== undefined && !clean(args.newTitle)) throw new Error('Invalid task or event title.');
+    if (type === 'create_task') validateTaskSchedule(args);
+    if (type === 'create_schedule_event') validateEvent(args);
 }

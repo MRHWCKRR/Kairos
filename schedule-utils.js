@@ -197,7 +197,7 @@ export function validateScheduleProposals(raw,tasksById,fixedEvents=[],constrain
     seen.add(taskId);
     preliminary.push({
       taskId,
-      from:{date:item?.from?.date??task.date??null,startTime:item?.from?.startTime??task.startTime??null,endTime:item?.from?.endTime??task.endTime??null},
+      from:{date:task.date??null,startTime:task.startTime??null,endTime:task.endTime??null},
       to:{date,startTime:formatTime(startMin,false),endTime:formatTime(endMin%1440,false)},
       reason:String(item?.reason||'Fits the available time.').trim().slice(0,500),
       conflictIds:Array.isArray(item?.conflictIds)?item.conflictIds.map(String).slice(0,20):[],
