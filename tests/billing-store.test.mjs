@@ -24,3 +24,12 @@ test('raw store documents with malformed aggregates fail closed',async()=>{
   await assert.rejects(()=>f.store.readAccount('a'));
   assert.throws(()=>f.store.accountPath('../b'));
 });
+test('server credit grants cannot duplicate their source and require owner authorization',async()=>{
+  const f=fixture();
+  const grant={id:'credit1',sourceId:'fixture:reward1',kind:'credits',amount:3,startsAt:f.now(),expiresAt:null,revokedAt:null};
+  await f.store.grantCredits({uid:'a',grant,ownerUid:'owner'});
+  await f.store.grantCredits({uid:'a',grant,ownerUid:'owner'});
+  assert.equal((await f.store.loadCredits('a')).doc.data.grants.length,1);
+  await assert.rejects(()=>f.store.grantCredits({uid:'b',grant,ownerUid:'owner'}));
+  await assert.rejects(()=>f.store.grantCredits({uid:'a',grant,ownerUid:'a'}));
+});

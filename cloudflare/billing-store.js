@@ -2,6 +2,7 @@ import { createHmac, randomUUID } from 'node:crypto';
 import { planCatalog } from '../server/plans.js';
 import { validateGrant, resolveAccess, addCalendarMonths } from '../server/entitlements.js';
 import { validateCodeDefinition } from '../server/access-codes.js';
+import { creditBalance } from '../server/ai-budget.js';
 
 export const BILLING_COLLECTIONS=new Set(['kairosBillingAccounts','kairosBillingCustomers','kairosBillingEntitlements','kairosBillingEvents','kairosBillingLocks','kairosCreditAccounts','kairosCreditGrants','kairosAccessCodes','kairosCodeRedemptions']);
 export function createBillingStore({env,transport,clock=Date.now}) {
@@ -63,6 +64,31 @@ export function createBillingStore({env,transport,clock=Date.now}) {
   function owner(uid) { if(!env.ANALYTICS_ADMIN_UID || uid!==env.ANALYTICS_ADMIN_UID) throw Error('Owner access required'); }
   return {
     scope,accountPath,loadAccount,readAccount,path,get,atomic,write,commit:writes=>transport.commit(writes),
+    async loadCredits(uid) {
+      const p=path('kairosCreditAccounts',identity(uid)),doc=await get(p);
+      creditBalance(doc?.data||null,clock());
+      return {path:p,doc};
+    },
+    async grantCredits({uid,grant,ownerUid}) {
+      owner(ownerUid);validateGrant(grant);
+      if(grant.kind!=='credits')throw Error('Invalid credit grant');
+      const sourceKey=createHmac('sha256',secret).update(scope+'\0'+grant.sourceId).digest('hex');
+      const gp=path('kairosCreditGrants',sourceKey),cp=path('kairosCreditAccounts',identity(uid));
+      return atomic(async()=>{
+        const [prior,doc,account]=await Promise.all([get(gp),get(cp),get(accountPath(uid))]);
+        if(accountData(account?.data).deleting)throw Error('Account deleting');
+        if(prior) {
+          if(prior.data.accountKey!==identity(uid) || JSON.stringify(prior.data.grant)!==JSON.stringify(grant))throw Error('Credit source already claimed');
+          return {alreadyGranted:true};
+        }
+        const data=doc?.data||{schema:1,grants:[]};
+        creditBalance(data,clock());
+        if(data.grants.length>=256)throw Error('Credit ledger full');
+        await transport.commit([write(cp,doc,{schema:1,grants:[...data.grants,{grant,spent:0}]}),
+          {path:gp,version:null,data:{accountKey:identity(uid),grant}},write(accountPath(uid),account,accountData(account?.data))]);
+        return {alreadyGranted:false};
+      });
+    },
     async readMapping(uid) {
       const doc=await get(path('kairosBillingAccounts',identity(uid)));
       if(doc && (doc.data.uid!==uid || !/^cus_[a-zA-Z0-9]+$/.test(doc.data.customerId||''))) throw Error('Invalid customer mapping');

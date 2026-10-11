@@ -34,7 +34,7 @@ export function createWorker({ createServices = createFirebaseServices, fetchImp
           const stripe = createStripeClient(env, {store,fetchImpl});
           if (path === '/api/billing/webhook') return handleStripeWebhook(request,{env,stripe,store});
           const billing = createBillingHandlers({env,store,stripe,adminAuth,appCheck,rateLimiter:env.BILLING_RATE_LIMITER,
-            usage:uid=>createServices(env).db.readAiUsage(uid)});
+            usage:(uid,access)=>createServices(env).db.readAiUsage(uid,access)});
           const routes = {status:billing.status,checkout:billing.checkout,portal:billing.portal,redeem:billing.redeem,
             'delete-account':billing.deleteAccount,'codes/issue':billing.issueCode,'codes/revoke':billing.revokeCode};
           const action = routes[path.slice('/api/billing/'.length)];

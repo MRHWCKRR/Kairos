@@ -45,7 +45,7 @@ export function createBillingHandlers({env,store,stripe,adminAuth,appCheck,rateL
       const account=await store.readAccount(uid);
       if(account.deleting)throw Error('Account deleting');
       const access=resolveAccess({catalog,billing:account.billing,grants:account.grants,now:clock()});
-      return {access,usage:await usage(uid),billing:account.billing||{status:'none',paidThrough:null,cancelAtPeriodEnd:false},offers:await stripe.offers(),codesEnabled:codesEnabled(),trial:!catalog.enforced};
+      return {access,usage:await usage(uid,access),billing:account.billing||{status:'none',paidThrough:null,cancelAtPeriodEnd:false},offers:await stripe.offers(),codesEnabled:codesEnabled(),trial:!catalog.enforced};
     }),
     checkout:route('POST',['planId','requestId'],async(uid,body)=>{
       if(body.planId!=='plus' || typeof body.requestId!=='string' || !/^[a-zA-Z0-9_-]{1,80}$/.test(body.requestId)) throw Object.assign(Error('Invalid plan request.'),{status:400});
