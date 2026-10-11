@@ -1,6 +1,7 @@
 import { importPKCS8, SignJWT } from 'jose';
 import { readBoundedText } from '../server/http-body.js';
 import { budgetPolicy, budgetWindow, reserveBudget } from '../server/ai-budget.js';
+import { BILLING_COLLECTIONS } from './billing-store.js';
 
 const OAUTH_URL = 'https://oauth2.googleapis.com/token';
 const FIELDS = new Set(['visitorId', 'day', 'timestamp', 'expiresAt', 'page', 'referrer', 'country', 'device', 'os', 'browser']);
@@ -127,6 +128,41 @@ export function createFirestore({ env, fetchImpl = fetch, now = Date.now }) {
   }
 
   return {
+    billingTransport() {
+      const scope = env.AI_BUDGET_SCOPE || 'production';
+      if (!['production', 'preview'].includes(scope)) throw Error('Invalid billing scope');
+      function billingName(path) {
+        const [collection, id, extra] = String(path).split('/');
+        if (extra !== undefined || !BILLING_COLLECTIONS.has(collection) || !id?.startsWith(scope + '-') ||
+            !/^[a-zA-Z0-9_-]{1,180}$/.test(id)) throw Error('Invalid billing document path');
+        return documents + '/' + path;
+      }
+      return {
+        async get(path) {
+          const name = billingName(path);
+          let result;
+          try { result = await request('https://firestore.googleapis.com/v1/' + name, undefined, {method:'GET',timeoutMs:5000}); }
+          catch(error) { if(error.status===404 && error.code==='NOT_FOUND') return null; throw error; }
+          if(result.name!==name || !result.updateTime || typeof result.fields?.payload?.stringValue!=='string' ||
+              result.fields.payload.stringValue.length>262144) throw Error('Invalid billing document');
+          return {data:JSON.parse(result.fields.payload.stringValue),version:result.updateTime};
+        },
+        async commit(changes) {
+          if(!Array.isArray(changes) || !changes.length || changes.length>300 ||
+              new Set(changes.map(change=>change.path)).size!==changes.length) throw Error('Invalid billing commit');
+          const writes=changes.map(change=>{
+            const name=billingName(change.path);
+            if(change.version!==null && typeof change.version!=='string') throw Error('Invalid billing version');
+            const currentDocument=change.version===null?{exists:false}:{updateTime:change.version};
+            if(change.data===null) return {delete:name,currentDocument};
+            const payload=JSON.stringify(change.data);
+            if(typeof payload!=='string' || new TextEncoder().encode(payload).byteLength>262144) throw Error('Billing document too large');
+            return {update:{name,fields:{payload:{stringValue:payload}}},currentDocument};
+          });
+          return request(baseUrl+':commit',{writes},{timeoutMs:5000});
+        }
+      };
+    },
     async clearExpiredAiUsage() {
       const { scope } = budgetPolicy(env);
       const name = `${documents}/kairosAiUsage/${scope}`;
