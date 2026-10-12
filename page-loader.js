@@ -1,6 +1,6 @@
 // Keep each workspace alive once loaded: navigating never cancels AI requests,
 // recreates Firebase listeners, or resets an in-progress schedule edit.
-const scheduleStyles=['schedule-workspace.css','schedule-interactions.css','schedule-inspector.css','schedule-ai.css'];
+const scheduleStyles=['schedule-workspace.css','schedule-interactions.css','schedule-inspector.css','schedule-ai.css','schedule-day-change.css'];
 const scheduleModules=['schedule-interactions.js','schedule-inspector.js','schedule-responsive.js','schedule-task-create.js','schedule-ai.js'];
 
 export function loadPageStyle(href, document=globalThis.document) {
@@ -33,11 +33,11 @@ export function createPageLoader({importModule=url=>import(url),loadStyle=loadPa
         await importModule('./statistics-ai.js?v=1');
       }
       if(page==='schedule-page'&&scheduleEnabled) {
-        await Promise.all(scheduleStyles.map(name=>loadStyle(name+'?v=10')));
+        await Promise.all(scheduleStyles.map(name=>loadStyle(name+(name==='schedule-day-change.css'?'?v=1':'?v=10'))));
         await importModule('./schedule-workspace.js?v=11');
         // These modules inspect the workspace during boot. Preserve that order
         // even when network responses arrive out of order.
-        for(const name of scheduleModules)await importModule('./'+name+(name==='schedule-responsive.js'?'?v=11':'?v=10'));
+        for(const name of scheduleModules)await importModule('./'+name+(name==='schedule-responsive.js'||name==='schedule-ai.js'?'?v=11':'?v=10'));
       }
     })();
     loaded.set(page,task);

@@ -178,22 +178,27 @@ function proposalConflictsWithRecurring(date,startMin,endMin,fixedEvents=[]){
 export function validateScheduleProposals(raw,tasksById,fixedEvents=[],constraints={}){
   if(!Array.isArray(raw))return [];
   const minimumDate=validDateKey(constraints?.minDate)?constraints.minDate:null;
+  const maximumDate=validDateKey(constraints?.maxDate)?constraints.maxDate:null;
   const minimumTime=parseTime(constraints?.minTime);
+  const blockedWindows=constraints?.blockedWindows||[];
+  if(!Array.isArray(blockedWindows)||blockedWindows.some(window=>!validDateKey(window?.date)||parseTime(window?.startTime)===null||parseTime(window?.endTime)===null||parseTime(window.endTime)<=parseTime(window.startTime)))return [];
   const preliminary=[],seen=new Set();
   for(const item of raw){
     const taskId=String(item?.taskId??'');
     const task=tasksById?.get?.(taskId);
     if(!task||task.scheduleLocked||task.completed||task.archived||seen.has(taskId))continue;
     const date=item?.to?.date,start=item?.to?.startTime,modelEnd=item?.to?.endTime;
-    const startMin=parseTime(start),modelEndMin=parseTime(modelEnd);
+    const startMin=parseTime(start),rawEndMin=parseTime(modelEnd),modelEndMin=rawEndMin===0&&startMin>0?1440:rawEndMin;
     if(!validDateKey(date)||startMin===null||modelEndMin===null||modelEndMin-startMin<1)continue;
     const plannedDuration=taskDurationMinutes(task);
     const endMin=startMin+plannedDuration;
     if(endMin>1440)continue;
     if(minimumDate&&date<minimumDate)continue;
+    if(maximumDate&&date>maximumDate)continue;
     if(minimumDate&&date===minimumDate&&minimumTime!==null&&startMin<minimumTime)continue;
     if(validDateKey(task.dueDate)&&date>task.dueDate)continue;
     if(proposalConflictsWithRecurring(date,startMin,endMin,fixedEvents))continue;
+    if(blockedWindows.some(window=>window.date===date&&overlaps({startMin,endMin},{startMin:parseTime(window.startTime),endMin:parseTime(window.endTime)})))continue;
     seen.add(taskId);
     preliminary.push({
       taskId,
@@ -204,22 +209,24 @@ export function validateScheduleProposals(raw,tasksById,fixedEvents=[],constrain
       _interval:{date,startMin,endMin}
     });
   }
-  const proposedById=new Map(preliminary.map(p=>[p.taskId,p]));
-  const finalIntervals=[];
-  for(const [id,task] of tasksById||[]){
-    if(task?.completed||task?.archived)continue;
-    const proposal=proposedById.get(String(id));
-    if(proposal){finalIntervals.push({taskId:String(id),...proposal._interval});continue;}
-    if(!validDateKey(task?.date))continue;
-    const startMin=parseTime(task?.startTime),rawEnd=parseTime(task?.endTime);
-    if(startMin===null||rawEnd===null)continue;
-    const endMin=rawEnd>startMin?rawEnd:1440;
-    finalIntervals.push({taskId:String(id),date:task.date,startMin,endMin});
+  let accepted=preliminary;
+  // A rejected move leaves its task in the original slot. Recheck dependent
+  // moves until none relies on a slot which has stopped being freed.
+  while(accepted.length){
+    const proposedById=new Map(accepted.map(p=>[p.taskId,p])),finalIntervals=[];
+    for(const [id,task] of tasksById||[]){
+      if(task?.completed||task?.archived)continue;
+      const proposal=proposedById.get(String(id));
+      if(proposal){finalIntervals.push({taskId:String(id),...proposal._interval});continue;}
+      if(!validDateKey(task?.date))continue;
+      const startMin=parseTime(task?.startTime),rawEnd=parseTime(task?.endTime);
+      if(startMin===null)continue;
+      const endMin=rawEnd===null?Math.min(1440,startMin+taskDurationMinutes(task)):rawEnd>startMin?rawEnd:1440;
+      finalIntervals.push({taskId:String(id),date:task.date,startMin,endMin});
+    }
+    const next=accepted.filter(proposal=>!finalIntervals.some(other=>other.taskId!==proposal.taskId&&other.date===proposal._interval.date&&overlaps(proposal._interval,other)));
+    if(next.length===accepted.length)break;
+    accepted=next;
   }
-  return preliminary.filter(proposal=>{
-    const blocked=finalIntervals.some(other=>other.taskId!==proposal.taskId&&other.date===proposal._interval.date&&overlaps(proposal._interval,other));
-    if(blocked)return false;
-    delete proposal._interval;
-    return true;
-  }).map(proposal=>{delete proposal._interval;return proposal});
+  return accepted.map(proposal=>{delete proposal._interval;return proposal});
 }
