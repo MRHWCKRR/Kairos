@@ -1837,8 +1837,8 @@ body.cursor-spaceship, body.cursor-spaceship * { cursor: url('cursors/spaceship.
 }
 
 .ai-chat-bubble-row.assistant .ai-chat-bubble {
-    background: transparent;
-    border: 0;
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
     color: var(--text-primary);
     border-bottom-left-radius: 4px;
 }

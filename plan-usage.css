@@ -43,6 +43,12 @@
 
 /* A dedicated, opaque plan-selection surface. Account appearance still owns
    the colours; uploaded wallpaper cannot sit behind prices or plan features. */
+body.standalone-plans { height: auto; min-height: 100vh; overflow-x: hidden; overflow-y: auto; }
+body.standalone-plans main { display: block; }
+body.standalone-plans #plans-page { min-height: 100vh; }
+#plans-page[hidden], #plans-auth-status[hidden] { display: none !important; }
+#plans-auth-status { padding: 48px; text-align: center; }
+.standalone-plans #plan-comparison-note, .standalone-plans #plan-trial-note { display: none; }
 #plans-page.page-view {
   max-width: none;
   min-height: calc(100vh - 100px);

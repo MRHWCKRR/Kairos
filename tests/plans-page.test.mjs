@@ -37,7 +37,8 @@ test('the current plan and unavailable Plus state are clear without inventing a 
   assert.equal(document.getElementById('plan-plus-price').textContent,'Coming soon');
   assert.equal(document.getElementById('plan-upgrade-btn').hidden,true);
   assert.equal(document.getElementById('plan-plus-unavailable').disabled,true);
-  assert.match(document.getElementById('plan-comparison-note').textContent,/100/);
+  assert.equal(document.getElementById('plan-comparison-note').textContent,'');
+  assert.equal(document.getElementById('plan-free-limit').textContent,'100');
   module.destroy();
 });
 
