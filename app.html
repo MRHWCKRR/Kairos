@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kairos | Opportune Routine Planner</title>
-    <link rel="stylesheet" href="app.css?v=8">
+    <link rel="stylesheet" href="app.css?v=9">
     <link rel="stylesheet" href="app-pages.css?v=1">
     <link rel="stylesheet" href="boards-recurrence.css?v=10">
     <link rel="stylesheet" href="plan-usage.css?v=3">
@@ -114,7 +114,7 @@
                 <button id="sidebar-toggle" class="toggle-btn" title="Toggle Sidebar">☰</button>
             </div>
 
-            <nav class="sidebar-nav">
+            <nav class="sidebar-nav" aria-label="Workspace">
                 <a class="nav-item active" data-target="home-page" data-i18n="nav_dashboard" href="app.html?page=dashboard">Dashboard</a>
                 <a class="nav-item" data-target="ai-page" data-i18n="nav_ai" href="app.html?page=ai">AI Helper</a>
                 <a class="nav-item" data-target="tasks-page" data-i18n="nav_tasks" href="app.html?page=tasks">Routines & Tasks</a>
@@ -166,20 +166,23 @@
                         <!-- Content injected by JavaScript -->
                     </div>
 
-                    <div class="dash-card">
-                        <div class="stats-header">
-                            <h3 data-i18n="routine_stats">Routine Stats</h3>
-                            <span id="stats-percentage" class="stats-percentage">0%</span>
-                        </div>
-                        <p id="stats-fraction" class="text-muted" style="margin-bottom: 16px;">0 / 0 tasks completed</p>
-                        
-                        <div class="progress-bar-container">
-                            <div id="progress-bar-fill" class="progress-bar-fill"></div>
-                        </div>
-                    </div>
+                    <div class="dashboard-support">
+                        <div id="focus-timer-container" class="dash-card"></div>
 
-                    <div id="focus-timer-container" class="dash-card"></div>
-                    <div id="mini-achievements-container" class="dash-card"></div>
+                        <div class="dash-card">
+                            <div class="stats-header">
+                                <h3 data-i18n="routine_stats">Routine Stats</h3>
+                                <span id="stats-percentage" class="stats-percentage">0%</span>
+                            </div>
+                            <p id="stats-fraction" class="text-muted" style="margin-bottom: 16px;">0 / 0 tasks completed</p>
+                        
+                            <div class="progress-bar-container">
+                                <div id="progress-bar-fill" class="progress-bar-fill"></div>
+                            </div>
+                        </div>
+
+                        <div id="mini-achievements-container" class="dash-card"></div>
+                    </div>
                 </div>
             </div>
 

@@ -3,7 +3,7 @@
     --bg-card: #161616;
     --border-subtle: #262626;
     --text-primary: #f5f5f5;
-    --text-muted: #808080;
+    --text-muted: #929292;
     --accent-glow: #a855f7;
     --accent-glow-soft: rgba(168, 85, 247, 0.1);
     --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -201,6 +201,12 @@ body.theme-peacefulplains .logo-stop-right-b { stop-color: #15803d; }
 #live-time { font-size: 3.5rem; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 4px; }
 #live-date { font-size: 1.1rem; color: var(--text-muted); }
 .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; }
+#home-page .dashboard-grid { grid-template-columns: minmax(0, 1.35fr) minmax(260px, 0.85fr); align-items: start; }
+.dashboard-support { display: flex; flex-direction: column; gap: 24px; min-width: 0; }
+#home-page .dash-card { min-width: 0; }
+@media (max-width: 960px) {
+    #home-page .dashboard-grid { grid-template-columns: minmax(0, 1fr); }
+}
 .dash-card { background-color: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: 12px; padding: var(--card-padding); transition: padding 0.2s ease; }
 .dash-card h3 { font-size: 1rem; margin-bottom: 12px; }
 .text-muted { color: var(--text-muted); font-size: 0.9rem; }
@@ -211,7 +217,7 @@ body.theme-peacefulplains .logo-stop-right-b { stop-color: #15803d; }
 .editable-title:focus { border-color: var(--border-subtle); background-color: var(--bg-main); }
 .task-list { list-style: none; display: flex; flex-direction: column; gap: var(--task-gap); transition: gap 0.2s ease; }
 .task-item { display: flex; align-items: center; gap: 14px; padding: var(--task-padding); border-radius: 8px; transition: background 0.2s, padding 0.2s ease; }
-.task-item:hover { background-color: rgba(255,255,255,0.03); }
+.task-item:hover, .task-item:focus-within { background-color: color-mix(in srgb, var(--text-primary) 4%, transparent); }
 
 /* manager-section cards (Routines & Tasks page) also respect density spacing */
 .manager-section {
@@ -227,13 +233,29 @@ body.theme-peacefulplains .logo-stop-right-b { stop-color: #15803d; }
 .custom-checkbox input { position: absolute; opacity: 0; cursor: pointer; height: 100%; width: 100%; margin: 0; z-index: 2; }
 .checkmark { position: absolute; top: 0; left: 0; height: 26px; width: 26px; background-color: transparent; border: 2px solid var(--border-subtle); border-radius: 50%; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); pointer-events: none; }
 .custom-checkbox:hover input ~ .checkmark { border-color: var(--accent-glow); }
+.custom-checkbox input:focus-visible ~ .checkmark { outline: 2px solid var(--accent-glow); outline-offset: 3px; }
 .custom-checkbox input:checked ~ .checkmark { background-color: var(--accent-glow); border-color: var(--accent-glow); }
 .checkmark:after { content: ""; position: absolute; display: none; left: 9px; top: 4px; width: 5px; height: 12px; border: solid white; border-width: 0 2px 2px 0; transform: rotate(45deg); }
 .custom-checkbox input:checked ~ .checkmark:after { display: block; animation: popIn 0.2s ease-out; }
 @keyframes popIn { 0% { transform: scale(0) rotate(45deg); } 100% { transform: scale(1) rotate(45deg); } }
 
 /* Task Text Strikethrough */
-.task-text { background: none; border: none; color: var(--text-primary); font-size: 0.95rem; flex-grow: 1; min-width: 0; outline: none; transition: all 0.2s; cursor: pointer; text-overflow: ellipsis; }
+.task-text { background: none; border: none; color: var(--text-primary); font-size: 0.95rem; flex-grow: 1; min-width: 0; outline: none; transition: color 0.15s, background-color 0.15s; cursor: text; text-overflow: ellipsis; border-radius: 3px; }
+.task-text:focus-visible { background: var(--bg-main); outline: 2px solid var(--accent-glow); outline-offset: 3px; }
+.app-layout :is(.nav-item, .toggle-btn, .action-btn, .settings-cancel-btn,
+    .dots-menu-btn, .task-delete-btn, .add-task-btn, .add-section-btn,
+    .add-board-btn, .settings-tab, .option-tile, .swatch,
+    .ai-chat-icon-btn, .ai-chat-send-btn, .ai-new-chat-btn,
+    .ai-chat-list-menu, .ai-project-add-btn, .ai-project-menu):focus-visible {
+    outline: 2px solid var(--accent-glow);
+    outline-offset: 3px;
+}
+#ai-page .ai-chat-list-item:focus-within .ai-chat-list-menu,
+#ai-page .ai-project-item:focus-within .ai-project-menu { opacity: 1; }
+@media (hover: none) {
+    .app-layout .task-delete-btn, .app-layout .dots-menu-btn,
+    #ai-page .ai-chat-list-menu, #ai-page .ai-project-menu { opacity: 1; }
+}
 .task-item.completed .task-text { text-decoration: line-through; color: var(--text-muted); }
 
 /* Forms */
@@ -267,7 +289,7 @@ body.theme-peacefulplains .logo-stop-right-b { stop-color: #15803d; }
 .fade-in-section { animation: fadeInSlide 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
 @keyframes fadeInSlide { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-.boards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 24px; margin-top: 24px; }
+.boards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 380px), 1fr)); gap: 24px; margin-top: 24px; }
 
 .add-board-btn {
     margin-top: 20px;
@@ -332,6 +354,9 @@ body.theme-peacefulplains .logo-stop-right-b { stop-color: #15803d; }
 .notif-item:hover .dots-menu-btn,
 .dots-menu-wrapper.active .dots-menu-btn { opacity: 1; }
 .dots-menu-btn:hover { background: var(--border-subtle); color: var(--text-primary); }
+.dots-menu-wrapper:focus-within .dots-menu-btn,
+.board-card:focus-within > .board-card-header .dots-menu-btn,
+.board-section-block:focus-within > .section-title-row .dots-menu-btn { opacity: 1; }
 
 .dots-menu {
     position: absolute;
@@ -378,7 +403,7 @@ body.theme-peacefulplains .logo-stop-right-b { stop-color: #15803d; }
     transition: opacity 0.15s, color 0.15s, background 0.15s;
     flex-shrink: 0;
 }
-.task-item:hover .task-delete-btn { opacity: 1; }
+.task-item:hover .task-delete-btn, .task-item:focus-within .task-delete-btn { opacity: 1; }
 .task-delete-btn:hover { color: #ef4444; background: rgba(239, 68, 68, 0.1); }
 
 .boards-empty-state { text-align: center; padding: 40px 20px; color: var(--text-muted); grid-column: 1 / -1; }
@@ -1231,14 +1256,14 @@ body.cursor-spaceship, body.cursor-spaceship * { cursor: url('cursors/spaceship.
 /* FOCUS TIMER WIDGET                             */
 /* ============================================= */
 .focus-timer-display {
-    font-size: 2.2rem;
-    font-weight: 800;
-    letter-spacing: -0.02em;
-    margin: 8px 0 4px 0;
+    font-size: clamp(1.75rem, 3.1vw, 2.5rem);
+    font-weight: 600;
+    letter-spacing: -0.035em;
+    margin: 18px 0 8px 0;
     font-variant-numeric: tabular-nums;
 }
 .focus-timer-longest-row { margin-bottom: 16px; }
-.focus-timer-controls { display: flex; gap: 10px; }
+.focus-timer-controls { display: flex; gap: 8px; flex-wrap: wrap; }
 .focus-timer-controls .action-btn.small-btn { flex: 1; }
 .focus-timer-controls .settings-cancel-btn {
     border: 1px solid var(--border-subtle);
@@ -1325,7 +1350,7 @@ body.cursor-spaceship, body.cursor-spaceship * { cursor: url('cursors/spaceship.
 /* Mini achievements dashboard widget */
 .mini-goal-item { margin-top: 14px; }
 .mini-goal-item:first-of-type { margin-top: 4px; }
-.mini-goal-header { display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 6px; }
+.mini-goal-header { display: flex; justify-content: space-between; gap: 12px; font-size: 0.85rem; margin-bottom: 8px; }
 
 /* Achievement unlock toast */
 .achievement-toast-container {
@@ -1501,9 +1526,9 @@ body.cursor-spaceship, body.cursor-spaceship * { cursor: url('cursors/spaceship.
     width: 100%;
     overflow: hidden;
     border: 1px solid var(--border-subtle);
-    border-radius: 16px;
+    border-radius: 10px;
     background: color-mix(in srgb, var(--bg-main) 88%, var(--bg-card));
-    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.12);
+    box-shadow: none;
 }
 
 .ai-chat-sidebar {
@@ -1532,10 +1557,10 @@ body.cursor-spaceship, body.cursor-spaceship * { cursor: url('cursors/spaceship.
     display: block;
     margin-bottom: 3px;
     color: var(--text-muted);
-    font-size: 0.68rem;
-    font-weight: 800;
-    letter-spacing: 0.11em;
-    text-transform: uppercase;
+    font-size: 0.75rem;
+    font-weight: 500;
+    letter-spacing: normal;
+    text-transform: none;
 }
 
 .ai-chat-sidebar-header h2 {
@@ -1665,8 +1690,8 @@ body.cursor-spaceship, body.cursor-spaceship * { cursor: url('cursors/spaceship.
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-size: 0.82rem;
-    font-weight: 600;
+    font-size: 0.875rem;
+    font-weight: 500;
 }
 
 .ai-chat-list-menu {
@@ -1812,8 +1837,8 @@ body.cursor-spaceship, body.cursor-spaceship * { cursor: url('cursors/spaceship.
 }
 
 .ai-chat-bubble-row.assistant .ai-chat-bubble {
-    background: var(--bg-card);
-    border: 1px solid var(--border-subtle);
+    background: transparent;
+    border: 0;
     color: var(--text-primary);
     border-bottom-left-radius: 4px;
 }
@@ -1871,15 +1896,15 @@ body.cursor-spaceship, body.cursor-spaceship * { cursor: url('cursors/spaceship.
     align-items: center;
     background: var(--bg-card);
     border: 1px solid var(--border-subtle);
-    border-radius: 14px;
+    border-radius: 10px;
     padding: 10px 10px 10px 16px;
-    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+    box-shadow: none;
     transition: border-color 0.18s ease, box-shadow 0.18s ease;
 }
 
 .ai-chat-input-row:focus-within {
-    border-color: color-mix(in srgb, var(--accent-glow) 48%, var(--border-subtle));
-    box-shadow: 0 8px 34px rgba(0, 0, 0, 0.12);
+    border-color: var(--accent-glow);
+    box-shadow: 0 0 0 1px var(--accent-glow-soft);
 }
 
 .ai-chat-textarea {
@@ -2234,10 +2259,9 @@ html.kairos-mobile-device body > #ambient-audio {
     color: var(--text-muted);
     font-size: 0.75rem;
     line-height: 1;
-    padding: 4px 8px;
-    border: 1px solid var(--border-subtle);
-    border-radius: 6px;
-    background: var(--bg-main);
+    padding: 4px 0;
+    border: 0;
+    background: transparent;
 }
 
 .ai-chat-list-project{flex:0 1 auto;max-width:86px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:3px 6px;border-radius:999px;background:var(--bg-main);color:var(--text-muted);font-size:.58rem;font-weight:700}.ai-project-list{display:flex;flex-direction:column;gap:3px}.ai-project-item{position:relative;display:flex;align-items:center;gap:8px;width:100%;padding:9px 8px;border:1px solid transparent;border-radius:9px;background:transparent;color:var(--text-primary);font:inherit;text-align:left;cursor:pointer}.ai-project-item:hover{background:var(--bg-main);border-color:var(--border-subtle)}.ai-project-folder{color:var(--accent-glow);font-size:.8rem}.ai-project-title{min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.8rem;font-weight:600}.ai-project-count{color:var(--text-muted);font-size:.65rem}.ai-project-menu{opacity:0;color:var(--text-muted);font-size:1rem}.ai-project-item:hover .ai-project-menu,.ai-project-menu:focus{opacity:1}.ai-project-empty{padding:10px 8px;color:var(--text-muted);font-size:.74rem;line-height:1.45}
