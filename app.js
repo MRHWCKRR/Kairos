@@ -1,6 +1,6 @@
 import { aiFetch, aiErrorMessage } from './ai-client.js';
 import { requestBilling } from './billing-client.js';
-import { mountPlanUsage } from './plan-usage.js?v=2';
+import { mountPlanUsage } from './plan-usage.js?v=3';
 import { createPageLoader } from './page-loader.js?v=1';
 import { mountPageRouter } from './page-router.js?v=2';
 import { createPageRenderCache } from './page-render-cache.js?v=1';
@@ -442,7 +442,8 @@ function bootApp() {
     onOpenPlans:()=>{
         const active=document.querySelector('.page-view.active');
         if(active && active.id!=='plans-page')plansReturnPage=active.id;
-        return pageRouter.navigate('plans-page');
+        const page=new URL(location.href).searchParams.get('page')||'dashboard';
+        location.assign('plans.html?return='+encodeURIComponent(page));
     },onClosePlans:()=>pageRouter.navigate(plansReturnPage),onStatus:status=>{
         const badge=document.querySelector('.ai-chat-plan-badge');
         if(badge)badge.textContent=status?.access?.tier==='plus'?'Plus':status?.access?.tier==='free'?'Free':'—';
@@ -534,7 +535,7 @@ function bootApp() {
     window.__kairosPreparePage = pageLoader.prepare;
     const pageRouter = mountPageRouter({preparePage:pageLoader.prepare,onNavigate:targetName=>{
             pageRenders.activate(targetName);
-            if (targetName === 'plans-page') void planUsage.refresh();
+            if (targetName === 'plans-page') location.replace('plans.html');
             if (targetName === 'statistics-page' && statisticsRenderedDate !== toDateKey(new Date())) renderStatisticsPage();
             if (targetName === "settings-page") {
                 enterSettingsPage();

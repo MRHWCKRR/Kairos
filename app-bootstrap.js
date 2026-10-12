@@ -5,7 +5,14 @@ async function boot() {
     document.getElementById('mobile-access-screen')?.setAttribute('aria-hidden','false');
     return;
   }
-  try {await import('./app.js?v=14');}
+  const url=new URL(location.href);
+  if(url.searchParams.get('page')==='plans' || ['return','canceled'].includes(url.searchParams.get('billing'))) {
+    url.pathname=url.pathname.replace(/app\.html$/, 'plans.html');
+    url.searchParams.delete('page');
+    location.replace(url.href);
+    return;
+  }
+  try {await import('./app.js?v=15');}
   catch(error) {
     console.error('[Kairos] Application could not start.',error);
     const root=document.getElementById('app-loading-screen');

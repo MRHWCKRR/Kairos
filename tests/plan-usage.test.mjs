@@ -120,11 +120,11 @@ test('a temporary refresh failure preserves the same accounts verified plan',asy
   assert.match(f.find('plan-message').textContent,/last update/i);assert.equal(f.find('plan-upgrade-btn').disabled,true);f.module.destroy();
 });
 test('unavailable checkout explains Plus instead of hiding plan discovery',async()=>{
-  const status={...state(),trial:true,plans:{free:{dailyLimit:10},plus:{dailyLimit:100}},billingMode:'test'};
+  const status={...state(),access:{...state().access,dailyLimit:100},trial:true,plans:{free:{dailyLimit:10},plus:{dailyLimit:100}},billingMode:'test'};
   const f=setup(async()=>status);await f.module.refresh();
   assert.match(f.find('plan-offer-status')?.textContent||'',/coming soon/i);
-  assert.match(f.find('plan-comparison-note')?.textContent||'',/trial/i);
-  assert.equal(f.find('plan-free-limit')?.textContent,'10');assert.equal(f.find('plan-plus-limit')?.textContent,'100');f.module.destroy();
+  assert.equal(f.find('plan-comparison-note')?.textContent,'');
+  assert.equal(f.find('plan-free-limit')?.textContent,'100');assert.equal(f.find('plan-plus-limit')?.textContent,'100');f.module.destroy();
 });
 test('sandbox purchase is labelled and uses a fresh verified offer',async()=>{
   const status={...state(),billingMode:'test',offers:[{planId:'plus',currency:'aud',amount:500}]};

@@ -4,6 +4,10 @@
     "billing-client.js",
     "plan-usage.js",
     "plan-usage.css",
+    "plans.html",
+    "plans-bootstrap.js",
+    "plans-page.js",
+    "plans-controller.js",
     "ai-client.js",
     "ai-request.js",
     "ai-actions.js",
@@ -69,4 +73,3 @@
     "cursors"
   ]
 }
-

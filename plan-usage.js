@@ -119,18 +119,16 @@ export function mountPlanUsage({root,auth,request,onStatus=()=>{},navigate=url=>
     const names={none:'No paid subscription',active:'Active',past_due:'Payment needs attention',canceled:'Canceled',unpaid:'Unpaid',incomplete:'Payment pending',incomplete_expired:'Payment expired',trialing:'Trial',paused:'Paused',refunded:'Refunded',disputed:'Payment disputed'};
     find('plan-subscription').textContent=(names[billing.status]||'Unavailable')+
       (billing.paidThrough?'; '+(billing.cancelAtPeriodEnd?'ends ':'paid through ')+dateLabel(billing.paidThrough):'');
-    find('plan-trial-note').hidden=status.trial!==true;
+    find('plan-trial-note').hidden=true;
     const offer=status.offers?.find(offer=>offer.planId==='plus');
     find('plan-upgrade-btn').hidden=!offer || ['active','past_due','trialing','incomplete','paused','unpaid'].includes(billing.status);
     if(offer) {
       if(!Number.isSafeInteger(offer.amount) || !/^[a-z]{3}$/.test(offer.currency))throw Error('Invalid plan price');
       find('plan-upgrade-btn').textContent=(status.billingMode==='test'?'Test checkout — ':'Upgrade to Plus — ')+new Intl.NumberFormat('en-AU',{style:'currency',currency:offer.currency.toUpperCase()}).format(offer.amount/(zeroDecimalCharges.has(offer.currency)?1:100))+'/month';
     }
-    for(const tier of ['free','plus']){const limit=status.plans?.[tier]?.dailyLimit;if(find('plan-'+tier+'-limit'))find('plan-'+tier+'-limit').textContent=Number.isInteger(limit)&&limit>0?String(limit):'—';}
+    for(const tier of ['free','plus']){const limit=status.trial===true?status.access.dailyLimit:status.plans?.[tier]?.dailyLimit;if(find('plan-'+tier+'-limit'))find('plan-'+tier+'-limit').textContent=Number.isInteger(limit)&&limit>0?String(limit):'—';}
     if(find('plan-offer-status'))find('plan-offer-status').textContent=offer?(status.billingMode==='test'?'Sandbox checkout: use test payment details. No real money moves.':'Monthly subscription. Manage renewal and cancellation in your billing portal.'):'Plus coming soon. Purchases are not available here yet.';
-    if(find('plan-comparison-note'))find('plan-comparison-note').textContent=status.trial?
-      'Pre-launch trial: everyone currently receives '+status.access.dailyLimit+' AI requests a day. The comparison shows planned launch allowances; Plus does not increase the trial allowance.':
-      'Daily AI allowances reset at midnight Brisbane time. Service-wide and short-term limits still apply to both plans.';
+    if(find('plan-comparison-note'))find('plan-comparison-note').textContent='';
     const accountLink=doc.getElementById('settings-account-manage-plan');
     if(accountLink)accountLink.textContent=status.access.tier==='plus'?'Manage plan':'View plans';
     find('plan-manage-btn').hidden=billing.status==='none';
@@ -153,11 +151,11 @@ export function mountPlanUsage({root,auth,request,onStatus=()=>{},navigate=url=>
     const unavailable=find('plan-plus-unavailable');
     unavailable.hidden=!find('plan-upgrade-btn').hidden || !find('plan-manage-btn').hidden;
     unavailable.textContent=status.access.tier==='plus'?'Your current plan':'Coming soon';
-    for(const label of root.querySelectorAll('[data-plan-limit-period]'))label.textContent=status.trial?'AI requests a day at launch':'AI requests a day';
+    for(const label of root.querySelectorAll('[data-plan-limit-period]'))label.textContent='AI requests a day';
     find('plan-code-hint').textContent=!status.codesEnabled?'Code redemption will be available soon.':
       ['active','past_due','trialing','paused'].includes(billing.status)?
       'Access codes do not change subscription billing. '+(billing.cancelAtPeriodEnd?'Your scheduled cancellation stays in place.':'Your renewal continues unless you cancel in Manage subscription.'):
-      'Access codes grant Kairos access or features without starting a subscription. Subscription discounts are entered in Stripe Checkout.';
+      'Enter your access code. Subscription discounts apply at checkout.';
     setBusy(busy);
     onStatus(status);renderNear();renderLimitActions();
   }

@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="app.css?v=9">
     <link rel="stylesheet" href="app-pages.css?v=1">
     <link rel="stylesheet" href="boards-recurrence.css?v=10">
-    <link rel="stylesheet" href="plan-usage.css?v=4">
+    <link rel="stylesheet" href="plan-usage.css?v=5">
     <link rel="icon" type="image/png" sizes="32x32" href="images/favicon-32.png">
     <link rel="apple-touch-icon" sizes="180x180" href="images/favicon-180.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -338,7 +338,7 @@
                     <header class="plans-page-header">
                         <button id="plan-back-btn" class="plans-back" type="button">← Back to Kairos</button>
                         <h1 id="plan-comparison-title" tabindex="-1">Choose your plan</h1>
-                        <p>Keep planning with Free, or get more AI requests with Plus.</p>
+
                     </header>
 
                     <div class="plans-choices" aria-label="Available plans">
@@ -366,18 +366,18 @@
                             <ul class="plan-feature-list">
                                 <li>Everything included in Free</li>
                                 <li><strong id="plan-plus-limit">—</strong> <span data-plan-limit-period>AI requests a day</span></li>
-                                <li>More requests for task breakdown and replanning</li>
+                                <li>More AI help with your plans</li>
                             </ul>
                         </article>
                     </div>
                     <p id="plan-offer-status" class="plan-offer-status">Check your plan to see availability.</p>
-                    <p id="plan-comparison-note" class="plans-footnote">Current allowances and pricing appear after your plan loads.</p>
+                    <p id="plan-comparison-note" hidden></p>
                     <p id="plan-message" class="plans-message" role="status" aria-live="polite">Loading your plan…</p>
 
                     <section class="plans-account" aria-labelledby="plan-account-title">
                         <div class="plans-section-heading"><h2 id="plan-account-title">Your plan &amp; usage</h2><button id="plan-refresh-btn" class="plans-refresh" type="button">Refresh usage</button></div>
                         <p class="plan-account-summary"><strong id="plan-tier">—</strong> · <span id="plan-daily-remaining">—</span> AI requests remaining today</p>
-                        <p id="plan-trial-note" class="plans-footnote" hidden>Pre-launch trial allowances are currently active.</p>
+                        <p id="plan-trial-note" hidden></p>
                         <details class="plans-usage-detail"><summary>Usage and access details</summary>
                             <dl class="plan-usage-details">
                                 <div><dt>Requests used today</dt><dd id="plan-used">—</dd></div>
@@ -387,13 +387,13 @@
                                 <div><dt>Subscription</dt><dd id="plan-subscription">—</dd></div>
                                 <div><dt>Access until</dt><dd id="plan-access-until">—</dd></div>
                             </dl>
-                            <p class="plans-footnote">One request is one AI call. Planning retries and automatic summaries can use additional requests. An admitted request counts even if the AI provider fails.</p>
+                            <p class="plans-footnote">AI allowances reset daily at midnight Brisbane time.</p>
                         </details>
                     </section>
 
                     <details class="plans-code">
                         <summary>Have an access code?</summary>
-                        <p id="plan-code-hint" class="plans-footnote">Access codes grant access or features. Subscription discounts are entered in Stripe Checkout.</p>
+                        <p id="plan-code-hint" class="plans-footnote">Enter your code below. Subscription discounts apply at checkout.</p>
                         <form id="plan-code-form" class="plan-code-form">
                             <label for="plan-code-input">Access code</label>
                             <div class="plan-code-controls"><input id="plan-code-input" type="text" maxlength="64" autocomplete="off" spellcheck="false" aria-describedby="plan-code-hint" disabled><button id="plan-code-btn" class="action-btn small-btn" type="submit" disabled>Redeem code</button></div>
@@ -822,7 +822,7 @@
 
     <div id="achievement-toast-container" class="achievement-toast-container"></div>
     
-    <script type="module" src="app-bootstrap.js?v=2"></script>
+    <script type="module" src="app-bootstrap.js?v=3"></script>
 </body>
 </html>
 
