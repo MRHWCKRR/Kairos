@@ -57,7 +57,7 @@ test('deployed entry defers feature assets and retains billing markup', async ()
   assert.match(output,/app-bootstrap\.js/);
   assert.doesNotMatch(output,/<script[^>]+src="(?:ai-workspace|ai-markdown|schedule-[^"?]+)\.js/);
   assert.doesNotMatch(output,/<link[^>]+rel="stylesheet"[^>]+href="(?:ai-workspace|schedule-[^"?]+)\.css/);
-  assert.match(output,/id="settings-plan"/);
+  assert.match(output,/id="plans-page"/);
   assert.match(output,/id="plan-welcome"/);
   assert.equal(injectScheduleAssets(output),output);
 });

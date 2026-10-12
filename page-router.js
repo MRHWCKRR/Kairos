@@ -1,4 +1,4 @@
-export const PAGE_ROUTES={dashboard:'home-page',ai:'ai-page',tasks:'tasks-page',schedule:'schedule-page',calendar:'calendar-page',achievements:'achievements-page',statistics:'statistics-page',settings:'settings-page'};
+export const PAGE_ROUTES={dashboard:'home-page',ai:'ai-page',tasks:'tasks-page',schedule:'schedule-page',calendar:'calendar-page',achievements:'achievements-page',statistics:'statistics-page',settings:'settings-page',plans:'plans-page'};
 
 export function pageFromUrl(href) {
   const route=new URL(href).searchParams.get('page');

@@ -8,7 +8,7 @@ const html=await readFile(new URL('../app.html',import.meta.url),'utf8');
 const state=()=>({access:{tier:'free',dailyLimit:10,features:[],accessUntil:null},usage:{used:2,remaining:8,resetsAt:'2026-10-11T14:00:00Z',bonusCredits:0},billing:{status:'none',paidThrough:null,cancelAtPeriodEnd:false},offers:[],codesEnabled:true,trial:false});
 function setup(request=async()=>state(),options={}) {
   const {document,window}=parseHTML(html),auth={currentUser:{uid:'a',emailVerified:true}};
-  const root=document.querySelector('#settings-plan');
+  const root=document.querySelector('#plans-page');
   const module=mountPlanUsage({root,auth,request,onStatus:()=>{},navigate:url=>{throw Error('unexpected redirect '+url);},...options});
   return {root,module,auth,window,find:id=>document.getElementById(id)};
 }
