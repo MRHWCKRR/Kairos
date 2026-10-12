@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="app.css?v=8">
     <link rel="stylesheet" href="app-pages.css?v=1">
     <link rel="stylesheet" href="boards-recurrence.css?v=10">
-    <link rel="stylesheet" href="plan-usage.css?v=2">
+    <link rel="stylesheet" href="plan-usage.css?v=3">
     <link rel="icon" type="image/png" sizes="32x32" href="images/favicon-32.png">
     <link rel="apple-touch-icon" sizes="180x180" href="images/favicon-180.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -223,6 +223,7 @@
                         <div class="ai-chat-sidebar-footer">
                             <span>AI workspace</span>
                             <span class="ai-chat-plan-badge">—</span>
+                            <button type="button" class="plan-link" data-view-plans>View plans</button>
                         </div>
                     </aside>
 
@@ -243,6 +244,7 @@
                         <div id="ai-project-home" class="ai-project-home" hidden></div><div id="ai-chat-messages" class="ai-chat-messages"></div>
 
                         <div class="ai-chat-composer-wrap">
+                            <div id="ai-plan-notice" class="ai-plan-notice" role="status" hidden><span id="ai-plan-notice-copy"></span><button type="button" class="plan-link" data-view-plans>View plans</button><button type="button" class="plan-notice-dismiss" id="ai-plan-notice-dismiss" aria-label="Dismiss allowance notice">×</button></div>
                             <div class="ai-chat-input-row">
                                 <textarea id="ai-chat-input" class="ai-chat-textarea" rows="1" placeholder="Ask anything..." data-i18n="ai_chat_placeholder" data-i18n-placeholder></textarea>
                                 <button id="ai-chat-send-btn" class="ai-chat-send-btn" title="Send" aria-label="Send">➤</button>
@@ -562,6 +564,7 @@
                             <p>Manage your access and keep track of AI requests.</p>
                             <div class="settings-group plan-summary">
                                 <h3 id="plan-tier">—</h3>
+                                <p class="settings-hint">Your current plan and today's AI usage.</p>
                                 <dl class="plan-usage-details">
                                     <div><dt>Requests remaining today</dt><dd id="plan-daily-remaining">—</dd></div>
                                     <div><dt>Requests used today</dt><dd id="plan-used">—</dd></div>
@@ -575,10 +578,25 @@
                                 <p id="plan-trial-note" class="settings-hint" hidden>Pre-launch trial allowances are currently active.</p>
                                 <div class="plan-actions">
                                     <button id="plan-refresh-btn" class="action-btn small-btn" type="button">Refresh usage</button>
-                                    <button id="plan-upgrade-btn" class="action-btn small-btn" type="button" hidden>Upgrade</button>
                                     <button id="plan-manage-btn" class="action-btn small-btn" type="button" hidden>Manage subscription</button>
                                 </div>
                             </div>
+                                <div class="plan-comparison">
+                                    <h3 id="plan-comparison-title" tabindex="-1">More room to plan with Kairos Plus</h3>
+                                    <p class="settings-hint">For the weeks when you need more help breaking work down and keeping your schedule moving.</p>
+                                    <div class="plan-table-wrap"><table class="plan-comparison-table">
+                                        <caption class="plan-table-caption">Free and Plus features</caption>
+                                        <thead><tr><th scope="col">Included</th><th scope="col">Free</th><th scope="col">Kairos Plus</th></tr></thead>
+                                        <tbody>
+                                            <tr><th scope="row">Tasks, boards &amp; scheduling</th><td>Included</td><td>Included</td></tr>
+                                            <tr><th scope="row">Saved AI conversations</th><td>Included</td><td>Included</td></tr>
+                                            <tr><th scope="row">Daily AI requests</th><td id="plan-free-limit">—</td><td id="plan-plus-limit">—</td></tr>
+                                        </tbody>
+                                    </table></div>
+                                    <p class="settings-hint" id="plan-comparison-note">Current allowances and pricing appear after your plan loads.</p>
+                                    <p id="plan-offer-status" class="plan-offer-status">Check your plan to see availability.</p>
+                                    <button id="plan-upgrade-btn" class="action-btn" type="button" hidden>Upgrade to Plus</button>
+                                </div>
                             <div class="settings-group">
                                 <h3>Redeem an access code</h3>
                                 <p class="settings-hint" id="plan-code-hint">Access codes grant Kairos access or features. Subscription discounts are entered in Stripe Checkout.</p>

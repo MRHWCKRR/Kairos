@@ -4,7 +4,7 @@ import { createAiRequester } from './ai-request.js';
 export { aiErrorMessage, aiConversationMessages } from './ai-request.js';
 
 export const aiFetch = createAiRequester({
-  onUsage: () => window.dispatchEvent(new Event('kairos-ai-usage')),
+  onUsage: detail => window.dispatchEvent(new CustomEvent('kairos-ai-usage',{detail})),
   getUser: () => auth.currentUser,
   getAppToken: async () => {
     const appCheck = await appCheckReady;

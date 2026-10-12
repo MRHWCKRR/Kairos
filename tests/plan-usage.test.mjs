@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {parseHTML} from 'linkedom';
-import {mountPlanUsage} from '../plan-usage.js';
+import * as planUsage from '../plan-usage.js';
+const {mountPlanUsage}=planUsage;
 const html=await readFile(new URL('../app.html',import.meta.url),'utf8');
 const state=()=>({access:{tier:'free',dailyLimit:10,features:[],accessUntil:null},usage:{used:2,remaining:8,resetsAt:'2026-10-11T14:00:00Z',bonusCredits:0},billing:{status:'none',paidThrough:null,cancelAtPeriodEnd:false},offers:[],codesEnabled:true,trial:false});
 function setup(request=async()=>state(),options={}) {
@@ -92,3 +93,54 @@ test('signed-out, failed loading and invalid redemption states are visible',asyn
   f.auth.currentUser={uid:'a',emailVerified:true};await f.module.refresh();assert.match(f.find('plan-message').textContent,/unavailable/i);
   f.module.destroy();
 });
+
+test('only a meaningful Free account limit offers a contextual plan action',async()=>{
+  const status={...state(),plans:{free:{dailyLimit:10},plus:{dailyLimit:100}}};
+  const f=setup(async()=>status),messages=f.find('ai-chat-messages');await f.module.refresh();
+  const renderNotice=reason=>{
+    messages.innerHTML='<div class="ai-chat-bubble-row assistant"><div class="ai-chat-bubble">Limit reached</div></div>';
+    planUsage.appendPlanLimitActions?.(messages,[{limit:{reason,resetsAt:new Date(Date.now()+86400000).toISOString()}}]);
+    return messages.querySelector('[data-plan-limit-action]');
+  };
+  assert.equal(renderNotice('daily-account')?.hidden,false);assert.equal(renderNotice('daily-site'),null);
+  status.access.tier='plus';await f.module.refresh();assert.equal(renderNotice('daily-account')?.hidden,true);
+  status.access.tier='free';status.trial=true;await f.module.refresh();assert.equal(renderNotice('daily-account')?.hidden,true);f.module.destroy();
+});
+test('near-limit notice follows useful successful usage and stays dismissed for the day',async()=>{
+  const status={...state(),plans:{free:{dailyLimit:10},plus:{dailyLimit:100}},usage:{...state().usage,used:8,remaining:2}};
+  const f=setup(async()=>status,{storage:memoryStorage()});await f.module.refresh();assert.equal(f.find('ai-plan-notice').hidden,true);
+  f.module.usageChanged({success:true});await f.module.refresh();assert.equal(f.find('ai-plan-notice').hidden,false);
+  f.find('ai-plan-notice-dismiss').click();await f.module.refresh();assert.equal(f.find('ai-plan-notice').hidden,true);f.module.destroy();
+});
+test('a temporary refresh failure preserves the same accounts verified plan',async()=>{
+  let failed=false;
+  const f=setup(async()=>{if(failed)throw Object.assign(Error('Please try again shortly.'),{status:429,retryAt:Date.now()+60000});return paidState();});
+  await f.module.refresh();failed=true;await f.module.refresh();
+  assert.equal(f.find('settings-account-plan').textContent,'Kairos Plus');assert.equal(f.find('plan-manage-btn').hidden,false);
+  assert.match(f.find('plan-message').textContent,/last update/i);assert.equal(f.find('plan-upgrade-btn').disabled,true);f.module.destroy();
+});
+test('unavailable checkout explains Plus instead of hiding plan discovery',async()=>{
+  const status={...state(),trial:true,plans:{free:{dailyLimit:10},plus:{dailyLimit:100}},billingMode:'test'};
+  const f=setup(async()=>status);await f.module.refresh();
+  assert.match(f.find('plan-offer-status')?.textContent||'',/coming soon/i);
+  assert.match(f.find('plan-comparison-note')?.textContent||'',/trial/i);
+  assert.equal(f.find('plan-free-limit')?.textContent,'10');assert.equal(f.find('plan-plus-limit')?.textContent,'100');f.module.destroy();
+});
+test('sandbox purchase is labelled and uses a fresh verified offer',async()=>{
+  const status={...state(),billingMode:'test',offers:[{planId:'plus',currency:'aud',amount:500}]};
+  let fresh=false,navigated=false;
+  const f=setup(async(route,body,options)=>{if(route==='status'){fresh ||= options?.fresh===true;return status;}return{url:'https://checkout.stripe.com/test'};},{navigate:()=>navigated=true});
+  await f.module.refresh();assert.match(f.find('plan-upgrade-btn').textContent,/Test checkout/);
+  f.find('plan-upgrade-btn').click();await settle();assert.equal(fresh,true);assert.equal(navigated,true);f.module.destroy();
+});
+test('successful AI usage during a slow status schedules a follow-up refresh',async t=>{
+  t.mock.timers.enable({apis:['setTimeout','Date'],now:100000});
+  let finish,calls=0;
+  const status={...state(),plans:{free:{dailyLimit:10},plus:{dailyLimit:100}},usage:{...state().usage,used:7,remaining:3}};
+  const f=setup(async()=>{calls++;return calls===1?new Promise(resolve=>finish=resolve):{...status,usage:{...status.usage,used:8,remaining:2}};},{storage:memoryStorage()});
+  const initial=f.module.refresh();f.module.usageChanged({success:true});
+  t.mock.timers.tick(400);finish(status);await initial;
+  t.mock.timers.tick(10001);await Promise.resolve();await Promise.resolve();
+  assert.equal(calls,2);assert.equal(f.find('plan-used').textContent,'8');assert.equal(f.find('ai-plan-notice').hidden,false);f.module.destroy();
+});
+
