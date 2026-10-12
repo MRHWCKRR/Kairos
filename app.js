@@ -1,7 +1,8 @@
+import { showNotice, confirmDialog, promptDialog } from './ui-dialogs.js?v=1';
 import { aiFetch, aiErrorMessage } from './ai-client.js';
 import { requestBilling } from './billing-client.js';
 import { mountPlanUsage } from './plan-usage.js?v=3';
-import { createPageLoader } from './page-loader.js?v=4';
+import { createPageLoader } from './page-loader.js?v=5';
 import { mountPageRouter } from './page-router.js?v=2';
 import { createPageRenderCache } from './page-render-cache.js?v=1';
 import './boards-recurrence.js?v=10';
@@ -170,6 +171,16 @@ function defaultFocusData() {
 }
 
 function bootApp() {
+    async function confirmAction(message) {
+        const owner = auth.currentUser?.uid, plan = currentPlanDocId;
+        const accepted = await confirmDialog(message, { destructive: /delete/i.test(message), confirmText: /delete/i.test(message) ? 'Delete' : 'Archive' });
+        return accepted && owner === auth.currentUser?.uid && plan === currentPlanDocId;
+    }
+    async function requestName(message, value = '') {
+        const owner = auth.currentUser?.uid, plan = currentPlanDocId;
+        const result = await promptDialog(message, value);
+        return owner === auth.currentUser?.uid && plan === currentPlanDocId ? result : null;
+    }
 
     // Block the web workspace on phones/tablets before the app can render.
     const mobileAccessScreen = document.getElementById('mobile-access-screen');
@@ -420,6 +431,7 @@ function bootApp() {
         if (!appReady) return;
         renderConfigOptions();
         populateSettingsForm();
+        document.dispatchEvent(new Event('kairos-controls-refresh'));
         if (auth.currentUser) renderUserProfileMenu(auth.currentUser);
         renderNotifPanel();
         renderFocusTimerWidget();
@@ -793,7 +805,7 @@ function bootApp() {
         }
     });
 
-    document.body.addEventListener('click', (e) => {
+    document.body.addEventListener('click', async (e) => {
 
         const openMenu = document.querySelector('.dots-menu.active');
         if (openMenu && !e.target.closest('.dots-menu-wrapper')) {
@@ -836,7 +848,7 @@ function bootApp() {
 
         const deleteBoardForeverBtn = e.target.closest('.archive-delete-board-btn');
         if (deleteBoardForeverBtn) {
-            if (confirm('Permanently delete this board and everything in it? This cannot be undone.')) {
+            if (await confirmAction('Permanently delete this board and everything in it? This cannot be undone.')) {
                 const boardId = deleteBoardForeverBtn.getAttribute('data-board-id');
                 boardsData = boardsData.filter(b => b.id !== boardId);
                 updatePlanInFirestore();
@@ -854,7 +866,7 @@ function bootApp() {
 
         const deleteSectionForeverBtn = e.target.closest('.archive-delete-section-btn');
         if (deleteSectionForeverBtn) {
-            if (confirm('Permanently delete this section and its tasks? This cannot be undone.')) {
+            if (await confirmAction('Permanently delete this section and its tasks? This cannot be undone.')) {
                 const boardId = deleteSectionForeverBtn.getAttribute('data-board-id');
                 const sectionId = deleteSectionForeverBtn.getAttribute('data-section-id');
                 const board = findBoard(boardId);
@@ -877,7 +889,7 @@ function bootApp() {
 
         const deleteTaskForeverBtn = e.target.closest('.archive-delete-task-btn');
         if (deleteTaskForeverBtn) {
-            if (confirm('Permanently delete this task? This cannot be undone.')) {
+            if (await confirmAction('Permanently delete this task? This cannot be undone.')) {
                 const found = findSection(deleteTaskForeverBtn.getAttribute('data-section-id'));
                 if (found) {
                     found.section.tasks = found.section.tasks.filter(t => t.id !== deleteTaskForeverBtn.getAttribute('data-task-id'));
@@ -913,7 +925,7 @@ function bootApp() {
             const block = sectionDeleteBtn.closest('.board-section-block');
             const boardId = block.getAttribute('data-board-id');
             const sectionId = block.getAttribute('data-section-id');
-            if (confirm('Archive this section? Its tasks will stay visible on the Calendar and can be restored from the Archive.')) {
+            if (await confirmAction('Archive this section? Its tasks will stay visible on the Calendar and can be restored from the Archive.')) {
                 const board = findBoard(boardId);
                 if (board) {
                     const section = board.sections.find(s => s.id === sectionId);
@@ -928,9 +940,11 @@ function bootApp() {
         const addTaskBtn = e.target.closest('.add-task-btn');
         if (addTaskBtn) {
             const sectionId = addTaskBtn.getAttribute('data-section-id');
-            const found = findSection(sectionId);
+            let found = findSection(sectionId);
             if (found) {
-                const title = prompt(tr('new_task_prompt'));
+                const title = await requestName(tr('new_task_prompt'));
+                found = findSection(sectionId);
+                if (!found) return;
                 if (title && title.trim()) {
                     found.section.tasks.push({ id: 'task-' + Date.now(), title: title.trim(), completed: false, date: null, archived: false });
                     updatePlanInFirestore();
@@ -943,9 +957,11 @@ function bootApp() {
         const addSectionBtn = e.target.closest('.add-section-btn');
         if (addSectionBtn) {
             const boardId = addSectionBtn.getAttribute('data-board-id');
-            const board = findBoard(boardId);
+            let board = findBoard(boardId);
             if (board) {
-                const title = prompt(tr('new_section_prompt'));
+                const title = await requestName(tr('new_section_prompt'));
+                board = findBoard(boardId);
+                if (!board) return;
                 if (title && title.trim()) {
                     board.sections.push({ id: 'sec-' + Date.now(), title: title.trim(), tasks: [], archived: false });
                     updatePlanInFirestore();
@@ -958,9 +974,11 @@ function bootApp() {
         const sectionRenameBtn = e.target.closest('.section-rename-btn');
         if (sectionRenameBtn) {
             const block = sectionRenameBtn.closest('.board-section-block');
-            const found = findSection(block.getAttribute('data-section-id'));
+            let found = findSection(block.getAttribute('data-section-id'));
             if (found) {
-                const title = prompt(tr('rename_section_prompt'), found.section.title);
+                const title = await requestName(tr('rename_section_prompt'), found.section.title);
+                found = findSection(block.getAttribute('data-section-id'));
+                if (!found) return;
                 if (title && title.trim()) {
                     found.section.title = title.trim();
                     updatePlanInFirestore();
@@ -973,9 +991,11 @@ function bootApp() {
         const boardRenameBtn = e.target.closest('.board-rename-btn');
         if (boardRenameBtn) {
             const card = boardRenameBtn.closest('.board-card');
-            const board = findBoard(card.getAttribute('data-board-id'));
+            let board = findBoard(card.getAttribute('data-board-id'));
             if (board) {
-                const title = prompt(tr('rename_board_prompt'), board.title);
+                const title = await requestName(tr('rename_board_prompt'), board.title);
+                board = findBoard(card.getAttribute('data-board-id'));
+                if (!board) return;
                 if (title && title.trim()) {
                     board.title = title.trim();
                     updatePlanInFirestore();
@@ -989,7 +1009,7 @@ function bootApp() {
         if (boardDeleteBtn) {
             const card = boardDeleteBtn.closest('.board-card');
             const boardId = card.getAttribute('data-board-id');
-            if (confirm('Archive this board? Its tasks will stay visible on the Calendar and can be restored from the Archive.')) {
+            if (await confirmAction('Archive this board? Its tasks will stay visible on the Calendar and can be restored from the Archive.')) {
                 const board = findBoard(boardId);
                 if (board) {
                     board.archived = true;
@@ -1002,7 +1022,7 @@ function bootApp() {
 
         const addBoardBtn = e.target.closest('#add-board-btn');
         if (addBoardBtn) {
-            const title = prompt(tr('new_board_prompt'));
+            const title = await requestName(tr('new_board_prompt'));
             if (title && title.trim()) {
                 boardsData.push({ id: 'board-' + Date.now(), title: title.trim(), sections: [], archived: false });
                 if (!currentPlanDocId) { savePlanToFirestore(boardsData); } else { updatePlanInFirestore(); }
@@ -1221,7 +1241,7 @@ function bootApp() {
 
     async function generatePlanFromText(assignmentText, triggerBtn) {
         if (!assignmentText || !assignmentText.trim()) {
-            alert(tr('alert_empty_input'));
+            showNotice(tr('alert_empty_input'));
             return;
         }
         if (isGeneratingPlan) return;
@@ -1304,7 +1324,7 @@ function bootApp() {
 
         } catch (error) {
             console.error(error);
-            alert(error.code === 'ai-protection' ? aiErrorMessage(error) : tr('alert_ai_generation_error'));
+            showNotice(error.code === 'ai-protection' ? aiErrorMessage(error) : tr('alert_ai_generation_error'));
         } finally {
             isGeneratingPlan = false;
             if (triggerBtn) {
@@ -1436,7 +1456,7 @@ function bootApp() {
                     });
                 });
                 if (skippedTitles.length) {
-                    alert(`Couldn't confidently determine the day for: ${skippedTitles.join(', ')}. Add ${skippedTitles.length === 1 ? 'it' : 'them'} manually from the Schedule tab.`);
+                    showNotice(`Couldn't confidently determine the day for: ${skippedTitles.join(', ')}. Add ${skippedTitles.length === 1 ? 'it' : 'them'} manually from the Schedule tab.`);
                 }
                 renderScheduleWeek();
             }
@@ -1893,6 +1913,7 @@ function bootApp() {
         localStorage.setItem('kairos_settings_cache', JSON.stringify(userSettings));
         applyAllSettings();
         populateSettingsForm();
+        document.dispatchEvent(new Event('kairos-controls-refresh'));
         renderUserProfileMenu(user);        setupNotificationBell();
         markInitialLoadComplete();
     }
@@ -1914,7 +1935,7 @@ function bootApp() {
             } else if (code.includes('invalid-argument') || code.includes('resource-exhausted') || /longer than/i.test(error?.message || '')) {
                 hint = 'Could not sync to the cloud: your profile picture or background image is too large for cloud storage. Try removing/re-uploading a smaller image. Your settings are saved locally on this device for now.';
             }
-            alert(hint);
+            showNotice(hint);
             return false;
         }
     }
@@ -1985,6 +2006,7 @@ function bootApp() {
     function enterSettingsPage() {
         pendingSettings = cloneDeep(userSettings);
         populateSettingsForm();
+        document.dispatchEvent(new Event('kairos-controls-refresh'));
         updateSaveBarVisibility(false);
     }
 
@@ -2343,7 +2365,7 @@ function bootApp() {
             const file = e.target.files[0];
             if (!file) return;
             if (file.size > 700 * 1024) {
-                alert(tr("alert_avatar_too_large"));
+                showNotice(tr("alert_avatar_too_large"));
                 return;
             }
             const reader = new FileReader();
@@ -2383,7 +2405,7 @@ function bootApp() {
             const file = e.target.files[0];
             if (!file) return;
             if (file.size > 1.2 * 1024 * 1024) {
-                alert(tr("alert_bg_too_large"));
+                showNotice(tr("alert_bg_too_large"));
                 return;
             }
             const reader = new FileReader();
@@ -2439,6 +2461,7 @@ function bootApp() {
             pendingSettings = cloneDeep(userSettings);
             applyAllSettings();
             populateSettingsForm();
+        document.dispatchEvent(new Event('kairos-controls-refresh'));
             updateSaveBarVisibility(false);
         });
     }
@@ -2465,12 +2488,12 @@ function bootApp() {
             if (!user) return;
             const isPasswordAccount = user.providerData.some(p => p.providerId === 'password');
             if (!isPasswordAccount) {
-                alert("Email changes aren't available for accounts signed in via Google, GitHub, or Microsoft.");
+                showNotice("Email changes aren't available for accounts signed in via Google, GitHub, or Microsoft.");
                 return;
             }
             const newEmail = document.getElementById('security-new-email').value.trim();
             const currentPw = document.getElementById('security-email-current-pw').value;
-            if (!newEmail || !currentPw) { alert('Please fill in both fields.'); return; }
+            if (!newEmail || !currentPw) { showNotice('Please fill in both fields.'); return; }
 
             try {
                 const cred = EmailAuthProvider.credential(user.email, currentPw);
@@ -2479,9 +2502,9 @@ function bootApp() {
                 document.getElementById('settings-current-email').textContent = newEmail;
                 document.getElementById('security-new-email').value = '';
                 document.getElementById('security-email-current-pw').value = '';
-                alert('Email updated successfully!');
+                showNotice('Email updated successfully!');
             } catch (error) {
-                alert('Failed to update email: ' + error.message);
+                showNotice('Failed to update email: ' + error.message);
             }
         });
     }
@@ -2494,16 +2517,16 @@ function bootApp() {
             if (!user) return;
             const isPasswordAccount = user.providerData.some(p => p.providerId === 'password');
             if (!isPasswordAccount) {
-                alert("Password changes aren't available for accounts signed in via Google, GitHub, or Microsoft.");
+                showNotice("Password changes aren't available for accounts signed in via Google, GitHub, or Microsoft.");
                 return;
             }
             const currentPw = document.getElementById('security-current-pw').value;
             const newPw = document.getElementById('security-new-pw').value;
             const confirmPw = document.getElementById('security-new-pw-confirm').value;
 
-            if (!currentPw || !newPw || !confirmPw) { alert('Please fill in all password fields.'); return; }
-            if (newPw !== confirmPw) { alert('New passwords do not match.'); return; }
-            if (newPw.length < 6) { alert('New password must be at least 6 characters.'); return; }
+            if (!currentPw || !newPw || !confirmPw) { showNotice('Please fill in all password fields.'); return; }
+            if (newPw !== confirmPw) { showNotice('New passwords do not match.'); return; }
+            if (newPw.length < 6) { showNotice('New password must be at least 6 characters.'); return; }
 
             try {
                 const cred = EmailAuthProvider.credential(user.email, currentPw);
@@ -2512,9 +2535,9 @@ function bootApp() {
                 document.getElementById('security-current-pw').value = '';
                 document.getElementById('security-new-pw').value = '';
                 document.getElementById('security-new-pw-confirm').value = '';
-                alert('Password updated successfully!');
+                showNotice('Password updated successfully!');
             } catch (error) {
-                alert('Failed to update password: ' + error.message);
+                showNotice('Failed to update password: ' + error.message);
             }
         });
     }
@@ -2650,7 +2673,7 @@ function bootApp() {
                 try { sessionStorage.removeItem(accountDeletionPendingKey); } catch (e) {}
                 confirmBtn.disabled = false;
                 confirmBtn.textContent = 'Delete my account';
-                alert('Could not delete your account: ' + error.message + '\n\nFor security, Firebase may require a recent sign-in before allowing account deletion. Try logging out, logging back in, then retrying.');
+                showNotice('Could not delete your account: ' + error.message + '\n\nFor security, Firebase may require a recent sign-in before allowing account deletion. Try logging out, logging back in, then retrying.');
             }
         };
 
@@ -3182,11 +3205,11 @@ function bootApp() {
             const end = scheduleEndInput.value;
 
             if (!title || !start || !end) {
-                alert('Please fill in the title, start time, and end time.');
+                showNotice('Please fill in the title, start time, and end time.');
                 return;
             }
             if (start === end) {
-                alert("Start and end time can't be the same.");
+                showNotice("Start and end time can't be the same.");
                 return;
             }
 
@@ -3204,10 +3227,11 @@ function bootApp() {
     }
 
     if (scheduleDeleteBtn) {
-        scheduleDeleteBtn.addEventListener('click', () => {
-            if (!editingScheduleEventId) return;
-            if (!confirm('Delete this recurring event?')) return;
-            scheduleData = scheduleData.filter(e => e.id !== editingScheduleEventId);
+        scheduleDeleteBtn.addEventListener('click', async () => {
+            const eventId = editingScheduleEventId;
+            if (!eventId) return;
+            if (!await confirmAction('Delete this recurring event?')) return;
+            scheduleData = scheduleData.filter(e => e.id !== eventId);
             saveScheduleToFirestore();
             renderScheduleWeek();
             closeScheduleModal();
@@ -3218,7 +3242,7 @@ function bootApp() {
 
     async function requestBrowserPushPermission() {
         if (typeof Notification === 'undefined') {
-            alert("This browser doesn't support notifications.");
+            showNotice("This browser doesn't support notifications.");
             return false;
         }
         if (Notification.permission === 'granted') return true;
@@ -3700,6 +3724,7 @@ function bootApp() {
 
     renderConfigOptions();
     populateSettingsForm();
+        document.dispatchEvent(new Event('kairos-controls-refresh'));
 
     appReady = true;
     renderApp();

@@ -1,3 +1,4 @@
+import { showNotice, confirmDialog, promptDialog } from './ui-dialogs.js?v=1';
 /* Kairos Web onboarding — mirrors the Android onboarding flow. */
 
 import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
@@ -178,7 +179,7 @@ async function startOnboarding(user) {
         } catch (e) {
             console.error("Kairos onboarding save failed", e);
             start.disabled=false; start.textContent="Get Started";
-            alert("We couldn't save your onboarding details. Please try again.");
+            showNotice("We couldn't save your onboarding details. Please try again.");
         }
     };
     render();
