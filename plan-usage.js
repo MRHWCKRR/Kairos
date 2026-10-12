@@ -20,7 +20,7 @@ export function appendPlanLimitActions(root,messages){
 export function mountPlanUsage({root,auth,request,onStatus=()=>{},navigate=url=>globalThis.location.assign(url),storage,returnUrl,onExplore}) {
   if(!root)throw Error('Plan panel missing');
   const find=id=>root.querySelector('#'+id),message=find('plan-message');
-  let generation=0,destroyed=false,busy=false,current=null,boundUid=null,stale=true,retryAt=0,retryTimer=null,usageTimer=null,lastRefresh=0,showNear=false;
+  let generation=0,destroyed=false,busy=false,current=null,boundUid=null,stale=true,retryAt=0,retryTimer=null,usageTimer=null,lastRefresh=0,showNear=false,usageDirty=false;
   const doc=root.ownerDocument,accountPlan=doc.getElementById('settings-account-plan'),welcome=doc.getElementById('plan-welcome');
   try {storage ??= doc.defaultView.sessionStorage;}catch{}
   const pendingKey='kairos_upgrade_pending';
@@ -80,10 +80,11 @@ export function mountPlanUsage({root,auth,request,onStatus=()=>{},navigate=url=>
       find('plan-code-btn').disabled=!enabled;find('plan-code-input').disabled=!enabled;
       find('plan-upgrade-btn').disabled=stale;
       find('plan-refresh-btn').disabled=retryAt>Date.now();
+      if(usageDirty)scheduleUsage();
     }
   }
   function clear() {
-    current=null;boundUid=null;stale=true;retryAt=0;showNear=false;hideNear();clearTimeout(usageTimer);usageTimer=null;clearTimeout(retryTimer);retryTimer=null;renderLimitActions();
+    current=null;boundUid=null;stale=true;retryAt=0;showNear=false;usageDirty=false;hideNear();clearTimeout(usageTimer);usageTimer=null;clearTimeout(retryTimer);retryTimer=null;renderLimitActions();
     if(accountPlan)accountPlan.textContent='—';closeWelcome();clearTimeout(pollTimer);pollTimer=null;
     for(const id of ['plan-tier','plan-daily-remaining','plan-used','plan-allowance','plan-bonus','plan-reset','plan-subscription','plan-access-until'])find(id).textContent='—';
     find('plan-upgrade-btn').hidden=true;find('plan-manage-btn').hidden=true;
@@ -196,9 +197,17 @@ export function mountPlanUsage({root,auth,request,onStatus=()=>{},navigate=url=>
   find('plan-upgrade-btn').addEventListener('click',upgradeClick);
   find('plan-manage-btn').addEventListener('click',manageClick);
   find('plan-code-form').addEventListener('submit',redeem);
+  function scheduleUsage(){
+    if(destroyed||!auth.currentUser?.uid||usageTimer)return;
+    usageTimer=setTimeout(()=>{
+      usageTimer=null;
+      if(destroyed||busy)return;
+      usageDirty=false;void refresh();
+    },Math.max(300,10000-(Date.now()-lastRefresh)));
+    usageTimer.unref?.();
+  }
   function usageChanged({success=false}={}){
-    request.invalidate?.();showNear=success;
-    if(!usageTimer){usageTimer=setTimeout(()=>{usageTimer=null;if(!destroyed)void refresh();},Math.max(300,10000-(Date.now()-lastRefresh)));usageTimer.unref?.();}
+    request.invalidate?.();showNear=success;usageDirty=true;scheduleUsage();
   }
   return {refresh,usageChanged,reset(){generation++;request.clear?.();clear();onStatus(null);},destroy(){
     destroyed=true;generation++;
@@ -216,3 +225,4 @@ export function mountPlanUsage({root,auth,request,onStatus=()=>{},navigate=url=>
     find('plan-code-form').removeEventListener('submit',redeem);
   }};
 }
+

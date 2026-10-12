@@ -133,3 +133,14 @@ test('sandbox purchase is labelled and uses a fresh verified offer',async()=>{
   await f.module.refresh();assert.match(f.find('plan-upgrade-btn').textContent,/Test checkout/);
   f.find('plan-upgrade-btn').click();await settle();assert.equal(fresh,true);assert.equal(navigated,true);f.module.destroy();
 });
+test('successful AI usage during a slow status schedules a follow-up refresh',async t=>{
+  t.mock.timers.enable({apis:['setTimeout','Date'],now:100000});
+  let finish,calls=0;
+  const status={...state(),plans:{free:{dailyLimit:10},plus:{dailyLimit:100}},usage:{...state().usage,used:7,remaining:3}};
+  const f=setup(async()=>{calls++;return calls===1?new Promise(resolve=>finish=resolve):{...status,usage:{...status.usage,used:8,remaining:2}};},{storage:memoryStorage()});
+  const initial=f.module.refresh();f.module.usageChanged({success:true});
+  t.mock.timers.tick(400);finish(status);await initial;
+  t.mock.timers.tick(10001);await Promise.resolve();await Promise.resolve();
+  assert.equal(calls,2);assert.equal(f.find('plan-used').textContent,'8');assert.equal(f.find('ai-plan-notice').hidden,false);f.module.destroy();
+});
+

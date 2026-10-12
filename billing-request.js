@@ -15,7 +15,11 @@ export function createBillingRequester({getUser,getAppToken,fetchImpl=fetch,cloc
     const scope=account(user.uid),retryAt=scope.cooldowns.get(route)||0;
     if(retryAt>clock())throw Object.assign(Error('Please try again shortly.'),{status:429,retryAt,retryAfter:Math.ceil((retryAt-clock())/1000)});
     if(route==='status'){
-      if(scope.pending)return scope.pending;
+      if(scope.pending){
+        const pendingRevision=scope.pendingRevision,result=await scope.pending;
+        if(state!==scope||getUser()?.uid!==user.uid)throw Error('Your sign-in changed. Please try again.');
+        return pendingRevision!==scope.revision?requestBilling(route,body,{fresh:true}):result;
+      }
       if(!fresh&&scope.cached&&scope.expires>clock())return scope.cached;
     }
     const revision=scope.revision;
@@ -46,10 +50,11 @@ export function createBillingRequester({getUser,getAppToken,fetchImpl=fetch,cloc
       if(route!=='status')invalidate();
       return data;
     })();
-    if(route==='status')scope.pending=work;
+    if(route==='status'){scope.pending=work;scope.pendingRevision=revision;}
     try{return await work;}finally{if(scope.pending===work)scope.pending=null;}
   }
   requestBilling.invalidate=invalidate;
   requestBilling.clear=clear;
   return requestBilling;
 }
+

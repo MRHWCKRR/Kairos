@@ -53,3 +53,11 @@ test('cache and pending responses cannot cross sign-out and UID changes',async()
   setUser({uid:'b',emailVerified:true,getIdToken:async()=>'b'});request.clear();
   finish();await assert.rejects(pending,/sign-in changed/);assert.equal(calls,1);
 });
+test('a fresh caller waits then rereads a status invalidated during transport',async()=>{
+  let finish,calls=0;
+  const {request}=transport(async()=>{calls++;return calls===1?new Promise(resolve=>finish=()=>resolve(Response.json({used:7}))):Response.json({used:8});});
+  const before=request('status');await new Promise(r=>setTimeout(r,0));
+  request.invalidate();const after=request('status',null,{fresh:true});
+  finish();assert.deepEqual(await before,{used:7});assert.deepEqual(await after,{used:8});assert.equal(calls,2);
+});
+
