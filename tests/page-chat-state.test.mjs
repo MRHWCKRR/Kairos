@@ -4,7 +4,8 @@ import {readFile} from 'node:fs/promises';
 import vm from 'node:vm';
 import {parseHTML} from 'linkedom';
 import {mountPageRouter} from '../page-router.js';
-import {aiConversationMessages} from '../ai-request.js';
+import {aiConversationMessages,aiErrorMessage} from '../ai-request.js';
+import {appendPlanLimitActions} from '../plan-usage.js';
 
 const html=await readFile(new URL('../app.html',import.meta.url),'utf8');
 const source=(await readFile(new URL('../ai-workspace.js',import.meta.url),'utf8')).replace(/^import[^\n]*\n/gm,'');
@@ -25,7 +26,7 @@ function setup(data=workspace,{getDoc,aiFetch}={}) {
     onAuthStateChanged:(_,callback)=>void callback(auth.currentUser),
     doc:()=>({}),getDoc:getDoc||(async()=>({exists:()=>true,data:()=>({aiWorkspace:saved})})),
     setDoc:async(_,value)=>{saved=JSON.parse(JSON.stringify(value.aiWorkspace));},
-    aiFetch,getKairosContext:async()=>'',aiConversationMessages,
+    aiFetch,getKairosContext:async()=>'',aiConversationMessages,aiErrorMessage,appendPlanLimitActions,
     actionNeedsConfirmation:()=>false});
   vm.runInContext(source,context);
   context.boot();
@@ -62,4 +63,21 @@ test('concurrent responses survive page switches and restore after reload',async
   restored.document.querySelector('[data-id="first"]').click();
   assert.match(restored.document.getElementById('ai-chat-messages').textContent,/First response/);
   assert.equal(restored.document.querySelectorAll('[data-id]').length,2);
+});
+
+test('daily limit action survives chat persistence while ordinary rate notices save cleanly',async()=>{
+  for(const reason of ['daily-account','rate']){
+    const resetsAt=new Date(Date.now()+86400000).toISOString();
+    const f=setup(workspace,{aiFetch:async()=>{throw Object.assign(Error('Allowance reached'),{code:'ai-protection',reason,...(reason==='daily-account'?{resetsAt}:{})});}});
+    await f.window.__kairosAiWorkspaceReady;
+    f.document.getElementById('ai-chat-input').value='Hello';await f.context.send();
+    const messages=f.saved().chats.find(c=>c.id==='first').messages,notice=messages.find(m=>m.notice);
+    assert.ok(notice);
+    if(reason==='daily-account'){
+      assert.deepEqual(notice.limit,{reason,resetsAt});
+      const restored=setup(f.saved());await restored.window.__kairosAiWorkspaceReady;
+      assert.ok(restored.document.querySelector('[data-plan-limit-action]'));
+    }else assert.equal(Object.hasOwn(notice,'limit'),false);
+    assert.equal(aiConversationMessages(messages).some(m=>m.notice),false);
+  }
 });
