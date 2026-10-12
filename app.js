@@ -1,6 +1,10 @@
 import { aiFetch, aiErrorMessage } from './ai-client.js';
 import { requestBilling } from './billing-client.js';
 import { mountPlanUsage } from './plan-usage.js';
+import { createPageLoader } from './page-loader.js?v=1';
+import { mountPageRouter } from './page-router.js?v=1';
+import { createPageRenderCache } from './page-render-cache.js?v=1';
+import './boards-recurrence.js?v=10';
 import { auth, db } from './firebase.js';
 import {
     signInWithEmailAndPassword,
@@ -165,7 +169,7 @@ function defaultFocusData() {
     return { totalSeconds: 0, longestSessionSeconds: 0, dailyFocusLog: {}, dailyTasksLog: {} };
 }
 
-document.addEventListener("DOMContentLoaded", () => {
+function bootApp() {
 
     // Block the web workspace on phones/tablets before the app can render.
     const mobileAccessScreen = document.getElementById('mobile-access-screen');
@@ -386,12 +390,17 @@ document.addEventListener("DOMContentLoaded", () => {
     let achievementsData = defaultAchievementsData();
     let focusData = defaultFocusData();
     let statsRange = 'week';
+    let statisticsRenderedDate = null;
     let focusTimerRunning = false;
     let focusTimerStartTs = null;
     let focusTimerAccumulatedMs = 0;
     let focusTimerIntervalId = null;
 
     let appReady = false; // guards against calling render functions before they're defined below
+    const pageRenders = createPageRenderCache({
+        isActive: page => document.getElementById(page)?.classList.contains('active'),
+        scheduleIdle: callback => window.requestIdleCallback ? window.requestIdleCallback(callback, {timeout:4000}) : setTimeout(callback,250)
+    });
     let ytPlayer = null; // YouTube ambient player state — declared early since applyAllSettings() (called just below) can reach it via applyAmbientSound()
     let ytApiReadyPromise = null;
 
@@ -487,6 +496,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         console.log("User is logged in and verified:", user.email);
+        pageRouter.warm();
         void planUsage.refresh();
         pendingInitialLoads = 0;
         hideLoadingScreen();
@@ -513,32 +523,18 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    const navItems = document.querySelectorAll(".nav-item");
-    const pageViews = document.querySelectorAll(".page-view");
-
     let aiPageAutoCollapsed = false;
     let sidebarManuallyToggledOnAI = false;
-
-    navItems.forEach(button => {
-        button.addEventListener("click", () => {
-            navItems.forEach(item => item.classList.remove("active"));
-            pageViews.forEach(page => page.classList.remove("active"));
-            button.classList.add("active");
-            const targetName = button.getAttribute("data-target");
-            const targetPage = document.getElementById(targetName);
-            if (targetPage) targetPage.classList.add("active");
-
+    const pageLoader = createPageLoader({scheduleEnabled:!!document.getElementById('schedule-calendar')});
+    window.__kairosPreparePage = pageLoader.prepare;
+    const pageRouter = mountPageRouter({preparePage:pageLoader.prepare,onNavigate:targetName=>{
+            pageRenders.activate(targetName);
+            if (targetName === 'statistics-page' && statisticsRenderedDate !== toDateKey(new Date())) renderStatisticsPage();
             if (targetName === "settings-page") {
                 enterSettingsPage();
             }
             if (targetName === "schedule-page") {
-                scrollScheduleToDefault();            }
-            if (targetName === "achievements-page") {
-                renderAchievementsPage();
-                renderGoalSelects();
-            }
-            if (targetName === "statistics-page") {
-                renderStatisticsPage();
+                scrollScheduleToDefault();
             }
 
             if (targetName === "ai-page") {
@@ -556,8 +552,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 aiPageAutoCollapsed = false;
                 sidebarManuallyToggledOnAI = false;
             }
-        });
-    });
+    }});
 
     function updateClock() {
         const timeElement = document.getElementById("live-time");
@@ -593,6 +588,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function renderApp() {
+        window.__kairosScheduleWorkspace?.invalidate();
         renderFocusMode();
         renderBoardsGrid();
         updateRoutineStats();
@@ -615,6 +611,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function renderFocusMode() {
         if (!focusContainer) return;
+        if (pageRenders.defer('home-page',renderFocusMode)) return;
         const activeSection = findFirstIncompleteSection();
         if (activeSection) {
             const visibleTasks = activeSection.tasks.filter(t => !t.archived);
@@ -684,6 +681,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function renderBoardsGrid() {
         if (!managerContainer) return;
+        if (pageRenders.defer('tasks-page',renderBoardsGrid)) return;
         const visibleBoards = boardsData.filter(b => !b.archived);
         if (!visibleBoards.length) {
             managerContainer.innerHTML = `<p class="boards-empty-state text-muted">${tr('no_boards_yet')}</p>`;
@@ -1148,6 +1146,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     async function updatePlanInFirestore() {
+        window.__kairosScheduleWorkspace?.invalidate();
         if (!currentPlanDocId) {
             console.warn("No active plan doc ID found. Cannot sync progress.");
             return;
@@ -1526,6 +1525,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function renderCalendar() {
         if (!calendarGrid || !calendarMonthYear) return;
+        if (pageRenders.defer('calendar-page',renderCalendar)) return;
 
         const year = calendarViewDate.getFullYear();
         const month = calendarViewDate.getMonth();
@@ -3368,12 +3368,14 @@ document.addEventListener("DOMContentLoaded", () => {
         ACHIEVEMENTS.filter(a => a.category === 'focus').forEach(a => {
             if (!achievementsData.unlocked[a.id] && focusData.totalSeconds >= a.threshold) unlockAchievement(a.id);
         });
+        renderAchievementsPage();
     }
 
     function checkTaskAchievements() {
         ACHIEVEMENTS.filter(a => a.category === 'tasks').forEach(a => {
             if (!achievementsData.unlocked[a.id] && achievementsData.lifetimeTasksCompleted >= a.threshold) unlockAchievement(a.id);
         });
+        renderAchievementsPage();
     }
 
     function triggerMiscAchievement(eventName) {
@@ -3419,6 +3421,7 @@ document.addEventListener("DOMContentLoaded", () => {
     function renderAchievementsPage() {
         const container = document.getElementById('achievements-grid-container');
         if (!container) return;
+        if (pageRenders.defer('achievements-page',renderAchievementsPage)) return;
 
         const categories = ['focus', 'tasks', 'misc'];
         container.innerHTML = categories.map(cat => {
@@ -3462,6 +3465,7 @@ document.addEventListener("DOMContentLoaded", () => {
     function renderGoalSelects() {
         const container = document.getElementById('achievement-goal-selects');
         if (!container) return;
+        if (pageRenders.defer('achievements-page',renderGoalSelects)) return;
 
         const trackable = ACHIEVEMENTS.filter(a => a.type === 'focus_seconds' || a.type === 'tasks_completed');
         const goals = achievementsData.goals || [];
@@ -3653,6 +3657,8 @@ document.addEventListener("DOMContentLoaded", () => {
         const chartsContainer = document.getElementById('stats-charts-container');
         const totalsContainer = document.getElementById('stats-totals-container');
         if (!chartsContainer) return;
+        if (pageRenders.defer('statistics-page',renderStatisticsPage)) return;
+        statisticsRenderedDate = toDateKey(new Date());
 
         const focusChartData = aggregateDailyLog(focusData.dailyFocusLog || {}, statsRange);
         const taskChartData = aggregateDailyLog(focusData.dailyTasksLog || {}, statsRange);
@@ -3690,7 +3696,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
     appReady = true;
     renderApp();
+    renderAchievementsPage();
+    renderGoalSelects();
+    renderStatisticsPage();
+    void pageRouter.start();
 
     checkBedtimeReminders();
     setInterval(checkBedtimeReminders, 60000);
-});
+}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bootApp,{once:true});else bootApp();
+

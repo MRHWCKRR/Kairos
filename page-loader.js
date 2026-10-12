@@ -1,0 +1,43 @@
+// Keep each workspace alive once loaded: navigating never cancels AI requests,
+// recreates Firebase listeners, or resets an in-progress schedule edit.
+const scheduleStyles=['schedule-workspace.css','schedule-interactions.css','schedule-inspector.css','schedule-ai.css'];
+const scheduleModules=['schedule-interactions.js','schedule-inspector.js','schedule-responsive.js','schedule-task-create.js','schedule-ai.js'];
+
+export function loadPageStyle(href, document=globalThis.document) {
+  const existing=[...document.querySelectorAll('link[rel="stylesheet"]')].find(link=>link.getAttribute('href')===href);
+  if(existing?.sheet)return Promise.resolve();
+  return new Promise((resolve,reject)=>{
+    const link=existing||document.createElement('link');
+    link.rel='stylesheet';link.href=href;
+    link.addEventListener('load',()=>resolve(),{once:true});
+    link.addEventListener('error',()=>reject(Error('Could not load '+href)),{once:true});
+    if(!existing)document.head.appendChild(link);
+  });
+}
+
+export function createPageLoader({importModule=url=>import(url),loadStyle=loadPageStyle,scheduleEnabled=false,warn=console.warn,waitForChat=()=>globalThis.window?.__kairosAiWorkspaceReady}={}) {
+  const loaded=new Map();
+  function prepare(page) {
+    if(loaded.has(page))return loaded.get(page);
+    const task=(async()=>{
+      if(page==='ai-page') {
+        await loadStyle('ai-workspace.css?v=1');
+        // Markdown enhances already-escaped text; a CDN outage must not prevent
+        // authentication or plain-text chat. Sanitisation stays in ai-markdown.
+        void importModule('./ai-markdown.js?v=1').catch(error=>warn('[Kairos] Markdown unavailable; using plain text.',error));
+        await importModule('./ai-workspace.js?v=24');
+        await waitForChat();
+      }
+      if(page==='schedule-page'&&scheduleEnabled) {
+        await Promise.all(scheduleStyles.map(name=>loadStyle(name+'?v=10')));
+        await importModule('./schedule-workspace.js?v=11');
+        // These modules inspect the workspace during boot. Preserve that order
+        // even when network responses arrive out of order.
+        for(const name of scheduleModules)await importModule('./'+name+(name==='schedule-responsive.js'?'?v=11':'?v=10'));
+      }
+    })();
+    loaded.set(page,task);
+    return task;
+  }
+  return {prepare};
+}

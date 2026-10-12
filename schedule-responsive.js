@@ -29,9 +29,10 @@ function boot(){
   },true);
   root.addEventListener('click',event=>{const view=event.target.closest?.('[data-view]');if(view?.dataset.view==='day'&&forcedView)forcedView=null},true);
   const eventModal=document.getElementById('schedule-event-modal');
-  if(eventModal){let wasActive=eventModal.classList.contains('active');new MutationObserver(()=>{const active=eventModal.classList.contains('active');if(wasActive&&!active)setTimeout(()=>workspace()?.render?.(),0);wasActive=active}).observe(eventModal,{attributes:true,attributeFilter:['class']})}
-  window.addEventListener('kairos-data-changed',()=>setTimeout(()=>workspace()?.render?.(),500));
+  if(eventModal){let wasActive=eventModal.classList.contains('active');new MutationObserver(()=>{const active=eventModal.classList.contains('active');if(wasActive&&!active)setTimeout(()=>workspace()?.invalidate?.(),0);wasActive=active}).observe(eventModal,{attributes:true,attributeFilter:['class']})}
+  window.addEventListener('kairos-page-ready',event=>{if(event.detail?.page==='schedule-page')applyResponsive();});
   applyResponsive();
 }
 window.addEventListener('kairos-schedule-bridge-ready',boot);
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
+

@@ -5,13 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kairos | Opportune Routine Planner</title>
     <link rel="stylesheet" href="app.css?v=8">
+    <link rel="stylesheet" href="app-pages.css?v=1">
+    <link rel="stylesheet" href="boards-recurrence.css?v=10">
     <link rel="stylesheet" href="plan-usage.css?v=2">
     <link rel="icon" type="image/png" sizes="32x32" href="images/favicon-32.png">
     <link rel="apple-touch-icon" sizes="180x180" href="images/favicon-180.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Quicksand:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 </head>
 <body>
     <script>
@@ -113,14 +115,14 @@
             </div>
 
             <nav class="sidebar-nav">
-                <button class="nav-item active" data-target="home-page" data-i18n="nav_dashboard">Dashboard</button>
-                <button class="nav-item" data-target="ai-page" data-i18n="nav_ai">AI Helper</button>
-                <button class="nav-item" data-target="tasks-page" data-i18n="nav_tasks">Routines & Tasks</button>
-                <button class="nav-item" data-target="schedule-page" data-i18n="nav_schedule">Schedule</button>
-                <button class="nav-item" data-target="calendar-page" data-i18n="nav_calendar">Calendar</button>
-                <button class="nav-item" data-target="achievements-page" data-i18n="nav_achievements">Achievements</button>
-                <button class="nav-item" data-target="statistics-page" data-i18n="nav_statistics">Statistics</button>
-                <button class="nav-item" data-target="settings-page" data-i18n="nav_settings">Settings</button>
+                <a class="nav-item active" data-target="home-page" data-i18n="nav_dashboard" href="app.html?page=dashboard">Dashboard</a>
+                <a class="nav-item" data-target="ai-page" data-i18n="nav_ai" href="app.html?page=ai">AI Helper</a>
+                <a class="nav-item" data-target="tasks-page" data-i18n="nav_tasks" href="app.html?page=tasks">Routines & Tasks</a>
+                <a class="nav-item" data-target="schedule-page" data-i18n="nav_schedule" href="app.html?page=schedule">Schedule</a>
+                <a class="nav-item" data-target="calendar-page" data-i18n="nav_calendar" href="app.html?page=calendar">Calendar</a>
+                <a class="nav-item" data-target="achievements-page" data-i18n="nav_achievements" href="app.html?page=achievements">Achievements</a>
+                <a class="nav-item" data-target="statistics-page" data-i18n="nav_statistics" href="app.html?page=statistics">Statistics</a>
+                <a class="nav-item" data-target="settings-page" data-i18n="nav_settings" href="app.html?page=settings">Settings</a>
             </nav>
 
             <div class="widget whats-next-widget" id="whats-next-widget">
@@ -781,7 +783,8 @@
 
     <div id="achievement-toast-container" class="achievement-toast-container"></div>
     
-    <link rel="stylesheet" href="ai-workspace.css?v=1"><script type="module" src="app.js?v=10"></script><script type="module" src="ai-workspace.js?v=23"></script><script type="module" src="ai-markdown.js?v=1"></script>
+    <script type="module" src="app-bootstrap.js?v=1"></script>
 </body>
 </html>
+
 
