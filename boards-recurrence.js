@@ -23,8 +23,10 @@ function formatNext(key){
   const [y,m,d]=key.split('-').map(Number);
   return new Date(y,m-1,d,12).toLocaleDateString(undefined,{month:'short',day:'numeric'});
 }
-function openSeriesEditor(taskId){
+async function openSeriesEditor(taskId){
   document.querySelector('.nav-item[data-target="schedule-page"]')?.click();
+  try {await window.__kairosPreparePage?.('schedule-page');}
+  catch(error){console.error('[Kairos] Schedule could not load.',error);return;}
   requestAnimationFrame(()=>workspace()?.selectItem?.('task',taskId));
 }
 function decorate(){

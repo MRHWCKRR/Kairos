@@ -22,6 +22,8 @@ jobs:
           node-version: 22
       - name: Install dependencies
         run: npm ci
+      - name: Verify routed page loading
+        run: node --test tests/page-loading.test.mjs tests/page-router.test.mjs tests/page-render-cache.test.mjs
       - name: Run Cloudflare tests and build
         run: npm run build:cloudflare
       - name: Verify Cloudflare runtime and bundle

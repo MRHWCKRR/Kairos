@@ -131,6 +131,9 @@ export function injectScheduleShell(html){
 }
 
 export function injectScheduleAssets(html){
+  // The routed app owns its deferred module graph. Keep the legacy transform
+  // available for old shells and fixtures; do not eagerly re-add workspaces.
+  if(html.includes('app-bootstrap.js')) return html;
   let out=html.replace(/app\.js\?v=\d+/,'app.js?v=12');
   const css=['schedule-workspace.css','schedule-interactions.css','schedule-inspector.css','schedule-ai.css','boards-recurrence.css'];
   const js=['schedule-workspace.js','schedule-interactions.js','schedule-inspector.js','schedule-responsive.js','schedule-task-create.js','schedule-ai.js','boards-recurrence.js'];
