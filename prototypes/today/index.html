@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="description" content="A working Kairos product prototype: choose what fits, make room when the day changes, and resume interrupted work.">
+  <title>Kairos · Today prototype</title>
+  <link rel="stylesheet" href="./today.css">
+</head>
+<body class="dark">
+  <a class="skip-link" href="#main">Skip to your work</a>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="Kairos navigation">
+      <a class="brand" href="#today" data-action="today" aria-label="Kairos Today">
+        <svg viewBox="0 0 100 100" aria-hidden="true"><defs><linearGradient id="mark-left" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#d8b4fe"/><stop offset="100%" stop-color="#c084fc"/></linearGradient><linearGradient id="mark-right" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#a855f7"/><stop offset="100%" stop-color="#7e22ce"/></linearGradient></defs><line x1="24.5" y1="85" x2="50.5" y2="15" stroke="url(#mark-left)" stroke-width="15" stroke-linecap="round"/><line x1="49.5" y1="85" x2="75.5" y2="15" stroke="url(#mark-right)" stroke-width="15" stroke-linecap="round"/></svg>
+        <span>Kairos</span>
+      </a>
+      <p class="sidebar-section-label">WORKSPACE</p><nav id="navigation" aria-label="Workspace"></nav>
+      <div class="sidebar-lists"><p class="sidebar-section-label">YOUR LISTS</p><nav id="sidebar-lists" aria-label="Your task lists"></nav></div>
+      <div class="sidebar-bottom">
+        <button class="nav-button" data-action="help"><span aria-hidden="true">?</span> How this works</button>
+        <button class="nav-button" data-action="theme"><span aria-hidden="true">◐</span> <span id="theme-label">Light appearance</span></button>
+        <div class="prototype-label"><span class="prototype-dot"></span> Product prototype<span>Sample data · saved on this browser</span></div>
+      </div>
+    </aside>
+    <div class="workspace">
+      <header class="topbar">
+        <div class="sample-switch"><label for="scenario">Sample day</label><select id="scenario" aria-label="Sample scenario"><option value="adult">Work & life</option><option value="student">School & life</option></select></div>
+        <div class="topbar-actions"><span id="sample-clock" class="sample-clock"></span><button class="text-button" data-action="reset">Reset sample</button></div>
+      </header>
+      <div id="storage-notice" class="storage-notice" role="status" hidden></div>
+      <main id="main" tabindex="-1"></main>
+      <footer class="workspace-footer">An illustrative Monday, 12 October. Your real Kairos account is separate.</footer>
+    </div>
+  </div>
+  <div id="feedback" class="feedback" role="status" hidden><span id="feedback-text"></span><button data-action="undo" hidden>Undo</button><button class="feedback-close" data-action="dismiss-feedback" aria-label="Dismiss notification">×</button></div>
+
+  <dialog id="task-dialog" aria-labelledby="task-dialog-title">
+    <div class="dialog-heading"><h2 id="task-dialog-title">Add a task</h2><button class="icon-button" data-action="cancel" aria-label="Close task editor">×</button></div>
+    <form id="task-form">
+      <label>What do you want to do?<input name="title" required maxlength="180" autocomplete="off" placeholder="Give the task a concrete next step" autofocus></label>
+      <div class="form-pair"><label>Time still needed <span class="hint">minutes</span><input name="remaining" type="number" min="1" max="240" value="20" required></label><label>List<input name="list" maxlength="48" value="Personal" required list="list-names"><datalist id="list-names"></datalist></label></div>
+      <div class="form-pair"><label>Plan for<select name="plannedDay"><option value="0">Today</option><option value="1">Tomorrow</option><option value="none">Leave unscheduled</option></select></label><label>Deadline<select name="dueDay"><option value="none">No deadline</option><option value="0">Today</option><option value="1">Tomorrow</option><option value="2">In 2 days</option><option value="3">In 3 days</option><option value="7">In a week</option></select></label></div>
+      <label>Priority<select name="priority"><option value="1">Low · can wait</option><option value="2" selected>Normal</option><option value="3">High · protect this</option></select></label>
+      <label>Pick up here <span class="hint">optional</span><textarea name="note" rows="2" maxlength="600" placeholder="A useful detail for when you return"></textarea></label>
+      <p id="task-error" class="form-error" role="alert" hidden></p>
+      <div class="dialog-footer"><button type="button" class="secondary-button" data-action="cancel">Cancel</button><button class="primary-button" type="submit">Save task</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="change-dialog" class="change-dialog" aria-labelledby="change-title">
+    <div class="dialog-heading"><div><p class="eyebrow">MAKE ROOM</p><h2 id="change-title">The day changed. That’s okay.</h2></div><button class="icon-button" data-action="cancel" aria-label="Close Make room">×</button></div>
+    <p class="dialog-intro">Keep the commitments. Choose what gives.</p>
+    <div class="delay-control"><label for="lost-minutes">How much time did you lose?</label><select id="lost-minutes"><option value="15">15 minutes</option><option value="30" selected>30 minutes</option><option value="45">45 minutes</option><option value="60">1 hour</option></select><button class="secondary-button" data-action="review-change">Show my options</button></div>
+    <div id="change-options"></div>
+    <p id="change-error" class="form-error" role="alert" hidden></p>
+    <div class="dialog-footer"><button class="text-button" data-action="cancel">Keep my current plan</button><button class="primary-button" data-action="apply-proposal" disabled>Use this plan</button></div>
+  </dialog>
+
+  <dialog id="pause-dialog" aria-labelledby="pause-title">
+    <div class="dialog-heading"><h2 id="pause-title">Leave yourself a way back.</h2><button class="icon-button" data-action="cancel" aria-label="Close resume note">×</button></div>
+    <p class="dialog-intro">Your session is paused. The task stays unfinished.</p>
+    <form id="pause-form"><label>Where should you pick up?<textarea id="resume-note" rows="3" maxlength="600" placeholder="e.g. Start at slide 3; check the last example" autofocus></textarea></label><div class="dialog-footer"><button class="text-button" type="button" data-action="cancel">Skip for now</button><button class="primary-button" type="submit">Save note</button></div></form>
+  </dialog>
+
+  <dialog id="window-dialog" aria-labelledby="window-title">
+    <div class="dialog-heading"><h2 id="window-title">Your available window</h2><button class="icon-button" data-action="cancel" aria-label="Close available window">×</button></div>
+    <p class="dialog-intro">Fixed commitments and breaks still take their place. This changes the sample planning window, not your elapsed session.</p>
+    <form id="window-form"><div class="form-pair"><label>From<input id="window-start" type="time" required></label><label>Until<input id="window-end" type="time" required></label></div><p id="window-error" class="form-error" role="alert" hidden></p><div class="dialog-footer"><button class="secondary-button" type="button" data-action="cancel">Cancel</button><button class="primary-button">Save window</button></div></form>
+  </dialog>
+
+  <dialog id="confirm-dialog" aria-labelledby="confirm-title"><h2 id="confirm-title">Reset this sample?</h2><p id="confirm-text" class="dialog-intro">This removes your prototype edits and resume notes from this browser.</p><div class="dialog-footer"><button class="secondary-button" data-action="cancel">Cancel</button><button class="primary-button" data-action="confirm-reset">Start fresh</button></div></dialog>
+
+  <dialog id="help-dialog" aria-labelledby="help-title"><div class="dialog-heading"><h2 id="help-title">A little less planning. A way forward.</h2><button class="icon-button" data-action="cancel" aria-label="Close explanation">×</button></div><div class="help-copy"><p><strong>Right now</strong> finds a whole task that fits in the next free gap. Deadlines and priority guide the order. Tasks that do not fit stay visible.</p><p><strong>Make room</strong> compares a later finish with moving flexible work to a verified gap tomorrow. You review every change and can undo it.</p><p><strong>Pick up here</strong> keeps a short note with interrupted work. The timer records elapsed time until paused, including time with the tab closed. You decide when work is complete and how much time remains.</p><p>This is a product prototype with fictional data. The sample clock moves only when you edit the window or use Make room; the session timer uses real elapsed time. No AI service, account, payment, or calendar connection is involved.</p><p>Your sample tasks are stored only in this browser. Try both sample scenarios, and reset whenever you want.</p></div><div class="dialog-footer"><button class="primary-button" data-action="cancel">Got it</button></div></dialog>
+
+  <noscript><p class="storage-notice">Enable JavaScript to try the interactive prototype.</p></noscript>
+  <script type="module" src="./today.js"></script>
+</body>
+</html>
