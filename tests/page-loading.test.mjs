@@ -41,7 +41,7 @@ test('a slow optional markdown CDN does not block chat readiness', async () => {
 test('ordinary pages and legacy schedule do not pull in heavy workspaces', async () => {
   const imports=[];
   const loader=createPageLoader({scheduleEnabled:false,loadStyle:async()=>{},importModule:async url=>imports.push(url)});
-  for(const page of ['home-page','tasks-page','settings-page','calendar-page','statistics-page','achievements-page','schedule-page'])await loader.prepare(page);
+  for(const page of ['home-page','tasks-page','settings-page','calendar-page','achievements-page','schedule-page'])await loader.prepare(page);
   assert.deepEqual(imports,[]);
 });
 

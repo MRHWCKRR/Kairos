@@ -19,7 +19,7 @@ function setup(data=workspace,{getDoc,aiFetch}={}) {
   window.location={href:'https://kairos.invalid/app.html?page=ai'};
   window.history={state:null,pushState(_,__,url){window.location.href=url;},replaceState(_,__,url){window.location.href=url;}};
   const auth={currentUser:{uid:'fixture',emailVerified:true}};
-  let saved=data;
+  let saved=data;const activityEvents=[];
   const context=vm.createContext({document,window,auth,db:{},console,
     localStorage:{getItem:()=>null,setItem(){}},
     requestAnimationFrame:fn=>fn(),setTimeout,clearTimeout,
@@ -27,10 +27,10 @@ function setup(data=workspace,{getDoc,aiFetch}={}) {
     doc:()=>({}),getDoc:getDoc||(async()=>({exists:()=>true,data:()=>({aiWorkspace:saved})})),
     setDoc:async(_,value)=>{saved=JSON.parse(JSON.stringify(value.aiWorkspace));},
     aiFetch,getKairosContext:async()=>'',aiConversationMessages,aiErrorMessage,appendPlanLimitActions,
-    actionNeedsConfirmation:()=>false});
+    initializeMessageUsage:async()=>{},recordSentMessage:async(uid,baseline)=>activityEvents.push({uid,baseline}),savedMessageCount:()=>0,actionNeedsConfirmation:()=>false});
   vm.runInContext(source,context);
   context.boot();
-  return {document,window,context,saved:()=>saved};
+  return {document,window,context,saved:()=>saved,activityEvents};
 }
 
 test('deferred chat readiness waits for persisted conversations',async()=>{
@@ -53,6 +53,7 @@ test('concurrent responses survive page switches and restore after reload',async
   f.document.querySelector('[data-id="second"]').click();
   f.document.getElementById('ai-chat-input').value='Hi';const second=f.context.send();await settle();
   assert.equal(responses.length,2);
+  assert.equal(f.activityEvents.length,2);
   await router.navigate('tasks-page');await router.navigate('settings-page');
   responses[1](Response.json({choices:[{message:{content:JSON.stringify({reply:'Second response',actions:[]})}}]}));
   await second;

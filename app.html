@@ -330,6 +330,16 @@
 
                 <div id="stats-charts-container" class="dashboard-grid"></div>
                 <div id="stats-totals-container" class="dashboard-grid" style="margin-top: 20px;"></div>
+                <section id="ai-activity" class="ai-activity" aria-labelledby="ai-activity-title">
+                    <div class="ai-activity-heading"><h3 id="ai-activity-title">AI activity</h3><button type="button" class="ai-activity-refresh" data-activity-refresh>Refresh</button></div>
+                    <dl class="ai-activity-summary"><div><dt>Total messages</dt><dd data-activity-total>—</dd></div><div><dt>Messages today</dt><dd data-activity-today>—</dd></div></dl>
+                    <p class="ai-activity-status" data-activity-status role="status">Loading AI activity…</p>
+                    <div data-activity-calendar hidden>
+                        <div class="ai-activity-scroll"><div class="ai-activity-months" data-activity-months aria-hidden="true"></div><div class="ai-activity-grid" data-activity-grid role="group" aria-label="Daily messages over the past year. Use arrow keys to explore."></div></div>
+                        <div class="ai-activity-footer"><span data-activity-detail aria-live="polite">Past year · messages per day</span><div class="ai-activity-legend" aria-label="Less to more activity"><span>Less</span><span class="ai-activity-day" data-level="0"></span><span class="ai-activity-day" data-level="1"></span><span class="ai-activity-day" data-level="2"></span><span class="ai-activity-day" data-level="3"></span><span class="ai-activity-day" data-level="4"></span><span>More</span></div></div>
+                    </div>
+                    <p class="ai-activity-note" data-activity-note></p>
+                </section>
             </div>
 
             <!-- Plans is a workspace page, separate from Settings. -->
@@ -822,7 +832,7 @@
 
     <div id="achievement-toast-container" class="achievement-toast-container"></div>
     
-    <script type="module" src="app-bootstrap.js?v=3"></script>
+    <script type="module" src="app-bootstrap.js?v=4"></script>
 </body>
 </html>
 
