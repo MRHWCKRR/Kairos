@@ -1,8 +1,8 @@
 import { aiFetch, aiErrorMessage } from './ai-client.js';
 import { requestBilling } from './billing-client.js';
-import { mountPlanUsage } from './plan-usage.js';
+import { mountPlanUsage } from './plan-usage.js?v=2';
 import { createPageLoader } from './page-loader.js?v=1';
-import { mountPageRouter } from './page-router.js?v=1';
+import { mountPageRouter } from './page-router.js?v=2';
 import { createPageRenderCache } from './page-render-cache.js?v=1';
 import './boards-recurrence.js?v=10';
 import { auth, db } from './firebase.js';
@@ -436,8 +436,14 @@ function bootApp() {
 
     // --- Auth Management ---
     const accountDeletionPendingKey = 'kairos_account_deletion_pending';
-    const planPanel = document.getElementById('settings-plan');
-    const planUsage = mountPlanUsage({root:planPanel,auth,request:requestBilling,onStatus:status=>{
+    let plansReturnPage = 'home-page';
+    const planPanel = document.getElementById('plans-page');
+    const planUsage = mountPlanUsage({root:planPanel,auth,request:requestBilling,
+    onOpenPlans:()=>{
+        const active=document.querySelector('.page-view.active');
+        if(active && active.id!=='plans-page')plansReturnPage=active.id;
+        return pageRouter.navigate('plans-page');
+    },onClosePlans:()=>pageRouter.navigate(plansReturnPage),onStatus:status=>{
         const badge=document.querySelector('.ai-chat-plan-badge');
         if(badge)badge.textContent=status?.access?.tier==='plus'?'Plus':status?.access?.tier==='free'?'Free':'—';
     }});
@@ -528,6 +534,7 @@ function bootApp() {
     window.__kairosPreparePage = pageLoader.prepare;
     const pageRouter = mountPageRouter({preparePage:pageLoader.prepare,onNavigate:targetName=>{
             pageRenders.activate(targetName);
+            if (targetName === 'plans-page') void planUsage.refresh();
             if (targetName === 'statistics-page' && statisticsRenderedDate !== toDateKey(new Date())) renderStatisticsPage();
             if (targetName === "settings-page") {
                 enterSettingsPage();
@@ -2445,7 +2452,7 @@ function bootApp() {
             tab.classList.add('active');
             const panel = document.getElementById(`settings-${tab.dataset.settingsTab}`);
             if (panel) panel.classList.add('active');
-            if(['plan','personal'].includes(tab.dataset.settingsTab))void planUsage.refresh();
+            if(tab.dataset.settingsTab==='personal')void planUsage.refresh();
         });
     });
 

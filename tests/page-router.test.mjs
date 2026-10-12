@@ -29,6 +29,21 @@ test('Back and Forward restore the selected page without creating history entrie
   assert.equal(f.document.querySelector('.page-view.active').id,'schedule-page');assert.equal(f.writes.length,count);
 });
 
+test('Plans deep links and return navigation retain the Settings panel and drafts',async()=>{
+  const f=setup('https://kairos.invalid/app.html?page=plans');
+  await f.router.start();
+  assert.equal(f.document.querySelector('.page-view.active').id,'plans-page');
+  await f.router.navigate('settings-page');
+  const panel=f.document.querySelector('.settings-panel.active');
+  const input=f.document.getElementById('settings-display-name');input.value='Unfinished edit';
+  await f.router.navigate('plans-page');
+  assert.equal(f.document.getElementById('plans-page').inert,false);
+  await f.router.navigate('settings-page');
+  assert.equal(f.document.querySelector('.settings-panel.active'),panel);
+  assert.equal(input.value,'Unfinished edit');
+  assert.equal(pageFromUrl(f.window.location.href),'settings-page');
+});
+
 test('an older slow navigation never replaces the latest page',async()=>{
   let finish;const pending=new Promise(resolve=>finish=resolve);
   const f=setup('https://kairos.invalid/app.html',page=>page==='ai-page'?pending:Promise.resolve());await f.router.start();
@@ -60,7 +75,7 @@ test('checkout confirmation continues through page switching and keeps the curre
   const f=setup('https://kairos.invalid/app.html?billing=return&page=settings');
   const values=new Map([['kairos_upgrade_pending',JSON.stringify({uid:'fixture',startedAt:Date.now()})]]);
   let tier='free';
-  const plan=mountPlanUsage({root:f.document.getElementById('settings-plan'),auth:{currentUser:{uid:'fixture',emailVerified:true}},
+  const plan=mountPlanUsage({root:f.document.getElementById('plans-page'),auth:{currentUser:{uid:'fixture',emailVerified:true}},
     storage:{getItem:key=>values.get(key)||null,removeItem:key=>values.delete(key)},
     request:async()=>({access:{tier,dailyLimit:tier==='plus'?100:10},usage:{used:0,remaining:10,bonusCredits:0},billing:{status:tier==='plus'?'active':'none',paidThrough:tier==='plus'?Date.now()+86400000:null},offers:[]})});
   try {

@@ -5,7 +5,7 @@ async function boot() {
     document.getElementById('mobile-access-screen')?.setAttribute('aria-hidden','false');
     return;
   }
-  try {await import('./app.js?v=13');}
+  try {await import('./app.js?v=14');}
   catch(error) {
     console.error('[Kairos] Application could not start.',error);
     const root=document.getElementById('app-loading-screen');

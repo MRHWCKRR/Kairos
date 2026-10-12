@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="app.css?v=9">
     <link rel="stylesheet" href="app-pages.css?v=1">
     <link rel="stylesheet" href="boards-recurrence.css?v=10">
-    <link rel="stylesheet" href="plan-usage.css?v=3">
+    <link rel="stylesheet" href="plan-usage.css?v=4">
     <link rel="icon" type="image/png" sizes="32x32" href="images/favicon-32.png">
     <link rel="apple-touch-icon" sizes="180x180" href="images/favicon-180.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -332,6 +332,76 @@
                 <div id="stats-totals-container" class="dashboard-grid" style="margin-top: 20px;"></div>
             </div>
 
+            <!-- Plans is a workspace page, separate from Settings. -->
+            <section id="plans-page" class="page-view" aria-labelledby="plan-comparison-title">
+                <div class="plans-page-inner">
+                    <header class="plans-page-header">
+                        <button id="plan-back-btn" class="plans-back" type="button">← Back to Kairos</button>
+                        <h1 id="plan-comparison-title" tabindex="-1">Choose your plan</h1>
+                        <p>Keep planning with Free, or get more AI requests with Plus.</p>
+                    </header>
+
+                    <div class="plans-choices" aria-label="Available plans">
+                        <article id="plan-free-card" class="plan-choice" aria-labelledby="plan-free-title">
+                            <div class="plan-choice-heading"><h2 id="plan-free-title">Free</h2><span id="plan-free-current" class="plan-current-label" hidden>Current plan</span></div>
+                            <p class="plan-choice-price">$0 <span>/ month</span></p>
+                            <p class="plan-choice-description">For everyday tasks and planning.</p>
+                            <button id="plan-free-cta" class="plan-current-choice" type="button" disabled>Checking your plan…</button>
+                            <ul class="plan-feature-list">
+                                <li>Tasks, boards and scheduling</li>
+                                <li>Saved AI conversations</li>
+                                <li><strong id="plan-free-limit">—</strong> <span data-plan-limit-period>AI requests a day</span></li>
+                            </ul>
+                        </article>
+
+                        <article id="plan-plus-card" class="plan-choice" aria-labelledby="plan-plus-title">
+                            <div class="plan-choice-heading"><h2 id="plan-plus-title">Kairos Plus</h2><span id="plan-plus-current" class="plan-current-label" hidden>Current plan</span></div>
+                            <p class="plan-choice-price"><span id="plan-plus-price">Checking availability…</span><span id="plan-plus-period"></span></p>
+                            <p class="plan-choice-description">For weeks when you need more AI help.</p>
+                            <div class="plan-choice-action">
+                                <button id="plan-upgrade-btn" class="action-btn" type="button" hidden>Upgrade to Plus</button>
+                                <button id="plan-manage-btn" class="action-btn" type="button" hidden>Manage subscription</button>
+                                <button id="plan-plus-unavailable" class="plan-current-choice" type="button" disabled>Checking availability…</button>
+                            </div>
+                            <ul class="plan-feature-list">
+                                <li>Everything included in Free</li>
+                                <li><strong id="plan-plus-limit">—</strong> <span data-plan-limit-period>AI requests a day</span></li>
+                                <li>More requests for task breakdown and replanning</li>
+                            </ul>
+                        </article>
+                    </div>
+                    <p id="plan-offer-status" class="plan-offer-status">Check your plan to see availability.</p>
+                    <p id="plan-comparison-note" class="plans-footnote">Current allowances and pricing appear after your plan loads.</p>
+                    <p id="plan-message" class="plans-message" role="status" aria-live="polite">Loading your plan…</p>
+
+                    <section class="plans-account" aria-labelledby="plan-account-title">
+                        <div class="plans-section-heading"><h2 id="plan-account-title">Your plan &amp; usage</h2><button id="plan-refresh-btn" class="plans-refresh" type="button">Refresh usage</button></div>
+                        <p class="plan-account-summary"><strong id="plan-tier">—</strong> · <span id="plan-daily-remaining">—</span> AI requests remaining today</p>
+                        <p id="plan-trial-note" class="plans-footnote" hidden>Pre-launch trial allowances are currently active.</p>
+                        <details class="plans-usage-detail"><summary>Usage and access details</summary>
+                            <dl class="plan-usage-details">
+                                <div><dt>Requests used today</dt><dd id="plan-used">—</dd></div>
+                                <div><dt>Daily allowance</dt><dd id="plan-allowance">—</dd></div>
+                                <div><dt>Additional credits</dt><dd id="plan-bonus">—</dd></div>
+                                <div><dt>Next daily reset</dt><dd id="plan-reset">—</dd></div>
+                                <div><dt>Subscription</dt><dd id="plan-subscription">—</dd></div>
+                                <div><dt>Access until</dt><dd id="plan-access-until">—</dd></div>
+                            </dl>
+                            <p class="plans-footnote">One request is one AI call. Planning retries and automatic summaries can use additional requests. An admitted request counts even if the AI provider fails.</p>
+                        </details>
+                    </section>
+
+                    <details class="plans-code">
+                        <summary>Have an access code?</summary>
+                        <p id="plan-code-hint" class="plans-footnote">Access codes grant access or features. Subscription discounts are entered in Stripe Checkout.</p>
+                        <form id="plan-code-form" class="plan-code-form">
+                            <label for="plan-code-input">Access code</label>
+                            <div class="plan-code-controls"><input id="plan-code-input" type="text" maxlength="64" autocomplete="off" spellcheck="false" aria-describedby="plan-code-hint" disabled><button id="plan-code-btn" class="action-btn small-btn" type="submit" disabled>Redeem code</button></div>
+                        </form>
+                    </details>
+                </div>
+            </section>
+
             <!-- Settings -->
             <div id="settings-page" class="page-view">
                 <div class="settings-layout">
@@ -342,7 +412,7 @@
                         <button class="settings-tab" data-settings-tab="security" data-i18n="settings_security">Security</button>
                         <button class="settings-tab" data-settings-tab="appearance" data-i18n="settings_appearance">Appearance</button>
                         <button class="settings-tab" data-settings-tab="ai" data-i18n="settings_ai">AI Engine</button>
-                        <button class="settings-tab" data-settings-tab="plan">Plan &amp; Usage</button>
+                        <button class="settings-plan-link" type="button" data-view-plans>Plans <span aria-hidden="true">↗</span></button>
                         <button class="settings-tab" data-settings-tab="privacy" data-i18n="settings_privacy">Privacy & Data</button>
 
                         <div class="settings-tablist-spacer"></div><button id="settings-logout-btn" class="settings-logout-btn" data-i18n="log_out">Log Out</button>
@@ -562,58 +632,6 @@
                             </div>
                         </section>
 
-                        <section id="settings-plan" class="settings-panel">
-                            <h2>Plan &amp; Usage</h2>
-                            <p>Manage your access and keep track of AI requests.</p>
-                            <div class="settings-group plan-summary">
-                                <h3 id="plan-tier">—</h3>
-                                <p class="settings-hint">Your current plan and today's AI usage.</p>
-                                <dl class="plan-usage-details">
-                                    <div><dt>Requests remaining today</dt><dd id="plan-daily-remaining">—</dd></div>
-                                    <div><dt>Requests used today</dt><dd id="plan-used">—</dd></div>
-                                    <div><dt>Daily allowance</dt><dd id="plan-allowance">—</dd></div>
-                                    <div><dt>Additional credits</dt><dd id="plan-bonus">—</dd></div>
-                                    <div><dt>Next daily reset</dt><dd id="plan-reset">—</dd></div>
-                                    <div><dt>Subscription</dt><dd id="plan-subscription">—</dd></div>
-                                    <div><dt>Access until</dt><dd id="plan-access-until">—</dd></div>
-                                </dl>
-                                <p class="settings-hint">One request is one AI call. Planning retries and automatic summaries can use additional requests. An admitted request counts even if the AI provider fails.</p>
-                                <p id="plan-trial-note" class="settings-hint" hidden>Pre-launch trial allowances are currently active.</p>
-                                <div class="plan-actions">
-                                    <button id="plan-refresh-btn" class="action-btn small-btn" type="button">Refresh usage</button>
-                                    <button id="plan-manage-btn" class="action-btn small-btn" type="button" hidden>Manage subscription</button>
-                                </div>
-                            </div>
-                                <div class="plan-comparison">
-                                    <h3 id="plan-comparison-title" tabindex="-1">More room to plan with Kairos Plus</h3>
-                                    <p class="settings-hint">For the weeks when you need more help breaking work down and keeping your schedule moving.</p>
-                                    <div class="plan-table-wrap"><table class="plan-comparison-table">
-                                        <caption class="plan-table-caption">Free and Plus features</caption>
-                                        <thead><tr><th scope="col">Included</th><th scope="col">Free</th><th scope="col">Kairos Plus</th></tr></thead>
-                                        <tbody>
-                                            <tr><th scope="row">Tasks, boards &amp; scheduling</th><td>Included</td><td>Included</td></tr>
-                                            <tr><th scope="row">Saved AI conversations</th><td>Included</td><td>Included</td></tr>
-                                            <tr><th scope="row">Daily AI requests</th><td id="plan-free-limit">—</td><td id="plan-plus-limit">—</td></tr>
-                                        </tbody>
-                                    </table></div>
-                                    <p class="settings-hint" id="plan-comparison-note">Current allowances and pricing appear after your plan loads.</p>
-                                    <p id="plan-offer-status" class="plan-offer-status">Check your plan to see availability.</p>
-                                    <button id="plan-upgrade-btn" class="action-btn" type="button" hidden>Upgrade to Plus</button>
-                                </div>
-                            <div class="settings-group">
-                                <h3>Redeem an access code</h3>
-                                <p class="settings-hint" id="plan-code-hint">Access codes grant Kairos access or features. Subscription discounts are entered in Stripe Checkout.</p>
-                                <form id="plan-code-form" class="plan-code-form">
-                                    <label for="plan-code-input">Access code</label>
-                                    <div class="plan-code-controls">
-                                        <input id="plan-code-input" type="text" maxlength="64" autocomplete="off" spellcheck="false" aria-describedby="plan-code-hint" disabled>
-                                        <button id="plan-code-btn" class="action-btn small-btn" type="submit" disabled>Redeem code</button>
-                                    </div>
-                                </form>
-                            </div>
-                            <p id="plan-message" role="status" aria-live="polite">Open this panel to check your plan.</p>
-                        </section>
-
                         <!-- Privacy & Data -->
                         <section id="settings-privacy" class="settings-panel">
                             <h2 data-i18n="privacy_title">Privacy & Data</h2>
@@ -804,7 +822,7 @@
 
     <div id="achievement-toast-container" class="achievement-toast-container"></div>
     
-    <script type="module" src="app-bootstrap.js?v=1"></script>
+    <script type="module" src="app-bootstrap.js?v=2"></script>
 </body>
 </html>
 
