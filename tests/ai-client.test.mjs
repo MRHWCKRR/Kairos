@@ -54,3 +54,13 @@ test('daily notices stay out of AI context after reload while ordinary messages 
   assert.deepEqual(filtered?.map(m=>m.content), ['Hello','Hi','What does the daily Kairos AI allowance mean?']);
   assert.equal(messages.length,5);
 });
+
+test('daily account errors retain structured reset reason for an upgrade notice',async()=>{
+  const c=await client({fetchImpl:async()=>Response.json({code:'daily-account',resetsAt:'2026-10-12T14:00:00Z'},{status:429,headers:{'Retry-After':'60'}})});
+  await assert.rejects(c.request({}),e=>e.reason==='daily-account'&&e.resetsAt==='2026-10-12T14:00:00Z'&&e.retryAfter===60);
+});
+test('an old account response cannot refresh the new accounts usage',async()=>{
+  let user={uid:'one',emailVerified:true,getIdToken:async()=>'id'},updates=0;
+  const c=await client({getUser:()=>user,onUsage:()=>updates++,fetchImpl:async()=>{user={uid:'two'};return Response.json({ok:true});}});
+  await assert.rejects(c.request({}),/sign in/i);assert.equal(updates,0);
+});

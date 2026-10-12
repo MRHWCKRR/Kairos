@@ -441,11 +441,9 @@ function bootApp() {
         const badge=document.querySelector('.ai-chat-plan-badge');
         if(badge)badge.textContent=status?.access?.tier==='plus'?'Plus':status?.access?.tier==='free'?'Free':'—';
     }});
-    const refreshVisibleUsage = () => {
-        if(planPanel.classList.contains('active') && document.getElementById('settings-page')?.classList.contains('active')) void planUsage.refresh();
-    };
+    const refreshVisibleUsage = event => planUsage.usageChanged(event.detail);
     window.addEventListener('kairos-ai-usage',refreshVisibleUsage);
-    window.addEventListener('pageshow',event=>{if(event.persisted)void planUsage.refresh();});
+    window.addEventListener('pageshow',event=>{if(event.persisted)void planUsage.refresh({fresh:true});});
     window.addEventListener('pagehide',event=>{
         if(event.persisted)return;
         window.removeEventListener('kairos-ai-usage',refreshVisibleUsage);
@@ -453,6 +451,7 @@ function bootApp() {
     },{once:true});
 
     onAuthStateChanged(auth, async (user) => {
+        planUsage.reset();
         if(!user)void planUsage.refresh();
         if (!user) {
             let deletionPending = false;

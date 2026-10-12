@@ -4,6 +4,7 @@ import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/fi
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { getKairosContext } from './ai-context.js';
 import { actionNeedsConfirmation, executeKairosAction } from './ai-actions.js';
+import { appendPlanLimitActions } from './plan-usage.js';
 
 const MAX_CHATS=12, MAX_MESSAGES=80, CONTEXT_MESSAGES=18;
 const ACTION_INTENT=/\b(add|create|make|move|schedule|set|change|update|complete|finish|delete|remove|archive|organize|organise)\b/i;
@@ -130,6 +131,7 @@ function render(){
   if(!c)return;
   $('ai-chat-title').textContent=title(c);m.hidden=false;if(composer)composer.hidden=false; if(home)home.hidden=true;
   m.innerHTML=c.messages.length?c.messages.map(x=>'<div class="ai-chat-bubble-row '+x.role+'"><div class="ai-chat-bubble">'+esc(x.content)+'</div></div>').join(''):'<div class="ai-chat-empty-state"><div class="ai-chat-empty-icon">✦</div><p>Start a conversation. Kairos can help with study, planning, organisation, and ideas.</p></div>';
+  if(c.messages.some(message=>message.limit))appendPlanLimitActions(m,c.messages);
   if(pendingChats.has(c.id))m.insertAdjacentHTML('beforeend','<div id="ai-chat-typing-row" class="ai-chat-bubble-row assistant"><div class="ai-chat-bubble"><span class="ai-chat-typing-dots"><span></span><span></span><span></span></span></div></div>');
   requestAnimationFrame(()=>{m.scrollTop=m.scrollHeight});
 }
@@ -195,7 +197,7 @@ if(target){
   target.updatedAt=Date.now();
   if(activeId!==chatId){unreadChats.add(chatId);finishedChats.add(chatId)}
   if(planLike(t)&&activeId===chatId)planSuggestion(target);void updateAutoMemory(target);
-}}catch(e){const target=chats.find(x=>x.id===chatId);if(target){target.messages.push({role:'assistant',notice:e.code==='ai-protection',content:e.code==='ai-protection'?aiErrorMessage(e):e.message==='rate'?'Kairos AI is temporarily rate-limited. Please try again shortly.':e.message==='no-action'?'I understood that you wanted me to make a change, but Kairos did not return an executable action, so I did not claim that the change was made. Please try again.':e.message==='cancelled'?'Okay, I did not make the change.':e.message?.startsWith('relay-')||e.message?.startsWith('relay:')?'Something went wrong while contacting Kairos AI ('+e.message+'). Check the browser console for the relay error.':'I could not apply that change: '+e.message});target.updatedAt=Date.now()}}finally{pendingChats.delete(chatId);if(activeId===chatId){unreadChats.delete(chatId);finishedChats.delete(chatId);render()}else{finishedChats.add(chatId);render()}try{await save()}catch(e){console.error('Kairos AI chat save failed:',e)}}}
+}}catch(e){const target=chats.find(x=>x.id===chatId);if(target){target.messages.push({role:'assistant',notice:e.code==='ai-protection',...(e.reason==='daily-account'&&typeof e.resetsAt==='string'?{limit:{reason:e.reason,resetsAt:e.resetsAt}}:{}),content:e.code==='ai-protection'?aiErrorMessage(e):e.message==='rate'?'Kairos AI is temporarily rate-limited. Please try again shortly.':e.message==='no-action'?'I understood that you wanted me to make a change, but Kairos did not return an executable action, so I did not claim that the change was made. Please try again.':e.message==='cancelled'?'Okay, I did not make the change.':e.message?.startsWith('relay-')||e.message?.startsWith('relay:')?'Something went wrong while contacting Kairos AI ('+e.message+'). Check the browser console for the relay error.':'I could not apply that change: '+e.message});target.updatedAt=Date.now()}}finally{pendingChats.delete(chatId);if(activeId===chatId){unreadChats.delete(chatId);finishedChats.delete(chatId);render()}else{finishedChats.add(chatId);render()}try{await save()}catch(e){console.error('Kairos AI chat save failed:',e)}}}
 async function runAction(chatId,action){
   console.log('[Kairos AI] Executing action:', action);
   const result=await executeKairosAction(action);

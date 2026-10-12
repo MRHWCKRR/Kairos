@@ -22,6 +22,8 @@ jobs:
           node-version: 22
       - name: Install dependencies
         run: npm ci
+      - name: Run full regression suite
+        run: npm test
       - name: Run Cloudflare tests and build
         run: npm run build:cloudflare
       - name: Verify Cloudflare runtime and bundle

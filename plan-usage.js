@@ -5,10 +5,22 @@ function dateLabel(value) {
 }
 // Stripe charge units differ from ISK/UGX's ISO display decimals.
 const zeroDecimalCharges=new Set(['bif','clp','djf','gnf','jpy','kmf','krw','mga','pyg','rwf','vnd','vuv','xaf','xof','xpf']);
+export function appendPlanLimitActions(root,messages){
+  const doc=root.ownerDocument,rows=root.querySelectorAll('.ai-chat-bubble-row');
+  messages.forEach((message,index)=>{
+    if(message.limit?.reason!=='daily-account'||!rows[index])return;
+    const button=doc.createElement('button');
+    button.type='button';button.className='plan-link plan-limit-action';button.textContent='View plans';
+    button.setAttribute('data-view-plans','');button.setAttribute('data-plan-limit-action','');
+    button.dataset.resetsAt=message.limit.resetsAt||'';
+    rows[index].appendChild(button);
+  });
+  doc.dispatchEvent(new doc.defaultView.Event('kairos-plan-notices'));
+}
 export function mountPlanUsage({root,auth,request,onStatus=()=>{},navigate=url=>globalThis.location.assign(url),storage,returnUrl,onExplore}) {
   if(!root)throw Error('Plan panel missing');
   const find=id=>root.querySelector('#'+id),message=find('plan-message');
-  let generation=0,destroyed=false,busy=false,current=null,boundUid=null;
+  let generation=0,destroyed=false,busy=false,current=null,boundUid=null,stale=true,retryAt=0,retryTimer=null,usageTimer=null,lastRefresh=0,showNear=false;
   const doc=root.ownerDocument,accountPlan=doc.getElementById('settings-account-plan'),welcome=doc.getElementById('plan-welcome');
   try {storage ??= doc.defaultView.sessionStorage;}catch{}
   const pendingKey='kairos_upgrade_pending';
@@ -16,7 +28,29 @@ export function mountPlanUsage({root,auth,request,onStatus=()=>{},navigate=url=>
   const returned=new URL(returnUrl||doc.defaultView.location?.href||'https://kairos.invalid').searchParams.get('billing')==='return';
   try {const saved=JSON.parse(storage?.getItem(pendingKey)||'null');if(returned&&saved?.uid&&Number.isFinite(saved.startedAt)&&Date.now()-saved.startedAt<86400000&&saved.startedAt<=Date.now())pending=saved;}catch{}
   function closeWelcome(){if(welcome?.hasAttribute('open')){if(welcome.close)welcome.close();else welcome.removeAttribute('open');}}
-  function openPlan(){doc.querySelector('.nav-item[data-target="settings-page"]')?.click();doc.querySelector('.settings-tab[data-settings-tab="plan"]')?.click();}
+  function openPlan(){doc.querySelector('.nav-item[data-target="settings-page"]')?.click();doc.querySelector('.settings-tab[data-settings-tab="plan"]')?.click();find('plan-comparison-title')?.focus();}
+  const viewPlans=event=>{if(event.target.closest('[data-view-plans]'))openPlan();};
+  doc.addEventListener('click',viewPlans);
+  function renderLimitActions(){
+    const useful=!stale&&current?.trial===false&&current?.access?.tier==='free'&&current?.plans?.plus?.dailyLimit>current.access.dailyLimit;
+    for(const button of doc.querySelectorAll('[data-plan-limit-action]'))button.hidden=!useful||!(Date.parse(button.dataset.resetsAt)>Date.now());
+  }
+  doc.addEventListener('kairos-plan-notices',renderLimitActions);
+  function nearKey(){return 'kairos_plan_notice:'+boundUid+':'+current?.usage?.resetsAt;}
+  function hideNear(){const notice=doc.getElementById('ai-plan-notice');if(notice)notice.hidden=true;}
+  const dismissNear=()=>{hideNear();try{storage?.setItem(nearKey(),'dismissed');}catch{}};
+  doc.getElementById('ai-plan-notice-dismiss')?.addEventListener('click',dismissNear);
+  function renderNear(){
+    const notice=doc.getElementById('ai-plan-notice'),text=doc.getElementById('ai-plan-notice-copy');
+    if(!notice||!text)return;
+    let seen=null;try{seen=storage?.getItem(nearKey());}catch{}
+    const dismissed=seen==='dismissed'||(seen==='seen'&&notice.hidden);
+    const limit=current?.access?.dailyLimit;
+    const eligible=showNear&&!stale&&!dismissed&&current?.trial===false&&current?.access?.tier==='free'&&limit>=5&&
+      current?.plans?.plus?.dailyLimit>limit&&current.usage.used>=Math.ceil(limit*.8)&&current.usage.remaining>0;
+    notice.hidden=!eligible;
+    if(eligible){text.textContent=current.usage.remaining+' AI requests left today. Plus offers more room for busy weeks.';try{storage?.setItem(nearKey(),'seen');}catch{}}
+  }
   const accountManage=()=>openPlan();
   const explore=()=>{closeWelcome();if(onExplore)onExplore();else doc.querySelector('.nav-item[data-target="ai-page"]')?.click();};
   const viewPlan=()=>{closeWelcome();openPlan();};
@@ -44,20 +78,25 @@ export function mountPlanUsage({root,auth,request,onStatus=()=>{},navigate=url=>
     if(!value) {
       const enabled=current?.codesEnabled===true;
       find('plan-code-btn').disabled=!enabled;find('plan-code-input').disabled=!enabled;
+      find('plan-upgrade-btn').disabled=stale;
+      find('plan-refresh-btn').disabled=retryAt>Date.now();
     }
   }
   function clear() {
-    current=null;boundUid=null;
+    current=null;boundUid=null;stale=true;retryAt=0;showNear=false;hideNear();clearTimeout(usageTimer);usageTimer=null;clearTimeout(retryTimer);retryTimer=null;renderLimitActions();
     if(accountPlan)accountPlan.textContent='—';closeWelcome();clearTimeout(pollTimer);pollTimer=null;
     for(const id of ['plan-tier','plan-daily-remaining','plan-used','plan-allowance','plan-bonus','plan-reset','plan-subscription','plan-access-until'])find(id).textContent='—';
     find('plan-upgrade-btn').hidden=true;find('plan-manage-btn').hidden=true;
     find('plan-trial-note').hidden=true;
+    for(const id of ['plan-free-limit','plan-plus-limit'])if(find(id))find(id).textContent='—';
+    if(find('plan-offer-status'))find('plan-offer-status').textContent='Check your plan to see availability.';
+    if(find('plan-comparison-note'))find('plan-comparison-note').textContent='Current allowances and pricing appear after your plan loads.';
     setBusy(false);
   }
   function render(status) {
     if(!status || !['free','plus'].includes(status.access?.tier) || !Number.isInteger(status.access.dailyLimit) ||
         !status.usage || ['used','remaining','bonusCredits'].some(key=>!Number.isSafeInteger(status.usage[key]) || status.usage[key]<0)) throw Error('Plan service returned an invalid status.');
-    current=status;
+    current=status;stale=false;retryAt=0;
     find('plan-tier').textContent=status.access.tier==='plus'?'Plus':'Free';
     if(accountPlan)accountPlan.textContent=status.access.tier==='plus'?'Kairos Plus':'Free';
     find('plan-daily-remaining').textContent=String(status.usage.remaining);
@@ -72,20 +111,27 @@ export function mountPlanUsage({root,auth,request,onStatus=()=>{},navigate=url=>
       (billing.paidThrough?'; '+(billing.cancelAtPeriodEnd?'ends ':'paid through ')+dateLabel(billing.paidThrough):'');
     find('plan-trial-note').hidden=status.trial!==true;
     const offer=status.offers?.find(offer=>offer.planId==='plus');
-    find('plan-upgrade-btn').hidden=!offer || ['active','past_due','trialing','incomplete','paused'].includes(billing.status);
+    find('plan-upgrade-btn').hidden=!offer || ['active','past_due','trialing','incomplete','paused','unpaid'].includes(billing.status);
     if(offer) {
       if(!Number.isSafeInteger(offer.amount) || !/^[a-z]{3}$/.test(offer.currency))throw Error('Invalid plan price');
-      find('plan-upgrade-btn').textContent='Upgrade — '+new Intl.NumberFormat('en-AU',{style:'currency',currency:offer.currency.toUpperCase()}).format(offer.amount/(zeroDecimalCharges.has(offer.currency)?1:100))+'/month';
+      find('plan-upgrade-btn').textContent=(status.billingMode==='test'?'Test checkout — ':'Upgrade to Plus — ')+new Intl.NumberFormat('en-AU',{style:'currency',currency:offer.currency.toUpperCase()}).format(offer.amount/(zeroDecimalCharges.has(offer.currency)?1:100))+'/month';
     }
+    for(const tier of ['free','plus']){const limit=status.plans?.[tier]?.dailyLimit;if(find('plan-'+tier+'-limit'))find('plan-'+tier+'-limit').textContent=Number.isInteger(limit)&&limit>0?String(limit):'—';}
+    if(find('plan-offer-status'))find('plan-offer-status').textContent=offer?(status.billingMode==='test'?'Sandbox checkout: use test payment details. No real money moves.':'Monthly subscription. Manage renewal and cancellation in your billing portal.'):'Plus coming soon. Purchases are not available here yet.';
+    if(find('plan-comparison-note'))find('plan-comparison-note').textContent=status.trial?
+      'Pre-launch trial: everyone currently receives '+status.access.dailyLimit+' AI requests a day. The comparison shows planned launch allowances; Plus does not increase the trial allowance.':
+      'Daily AI allowances reset at midnight Brisbane time. Service-wide and short-term limits still apply to both plans.';
+    const accountLink=doc.getElementById('settings-account-manage-plan');
+    if(accountLink)accountLink.textContent=status.access.tier==='plus'?'Manage plan':'View plans';
     find('plan-manage-btn').hidden=billing.status==='none';
     find('plan-code-hint').textContent=!status.codesEnabled?'Code redemption will be available soon.':
       ['active','past_due','trialing','paused'].includes(billing.status)?
       'Access codes do not change subscription billing. '+(billing.cancelAtPeriodEnd?'Your scheduled cancellation stays in place.':'Your renewal continues unless you cancel in Manage subscription.'):
       'Access codes grant Kairos access or features without starting a subscription. Subscription discounts are entered in Stripe Checkout.';
     setBusy(busy);
-    onStatus(status);
+    onStatus(status);renderNear();renderLimitActions();
   }
-  async function refresh({preserveMessage=false}={}) {
+  async function refresh({preserveMessage=false,fresh=false}={}) {
     if(destroyed)return;
     const uid=auth.currentUser?.uid;
     if(busy && !preserveMessage && boundUid===uid)return;
@@ -95,21 +141,33 @@ export function mountPlanUsage({root,auth,request,onStatus=()=>{},navigate=url=>
     boundUid=uid;setBusy(true);
     if(!preserveMessage)message.textContent='Loading your plan…';
     try {
-      const status=await request('status');
+      const status=await request('status',null,{fresh:fresh||pending?.uid===uid});
       if(destroyed || ticket!==generation)return;
       if(auth.currentUser?.uid!==uid){clear();onStatus(null);return;}
-      boundUid=uid;render(status);
+      boundUid=uid;lastRefresh=Date.now();render(status);
       const welcomed=confirmUpgrade(status,uid);
       if(!preserveMessage)message.textContent=welcomed?'Your Kairos Plus upgrade is ready.':pending?.uid===uid?'Confirming your upgrade… Your plan will update once payment is verified. You can refresh here at any time.':'Usage is up to date.';
     } catch(error) {
       if(destroyed || ticket!==generation || auth.currentUser?.uid!==uid)return;
-      clear();message.textContent=error.message||'Plan service is temporarily unavailable.';onStatus(null);
+      stale=true;retryAt=error.retryAt||0;hideNear();renderLimitActions();
+      if(!current){clear();retryAt=error.retryAt||0;onStatus(null);}
+      message.textContent=(current?'We couldn’t refresh your plan. Showing your last update. ':'')+(error.message||'Plan service is temporarily unavailable.')+
+        (retryAt>Date.now()?' Retry after '+dateLabel(retryAt)+'.':'');
+      if(find('plan-offer-status'))find('plan-offer-status').textContent='Refresh your plan before purchasing. Plan availability could not be confirmed.';
+      clearTimeout(retryTimer);
+      if(retryAt>Date.now()){retryTimer=setTimeout(()=>{retryTimer=null;if(!destroyed&&auth.currentUser?.uid===uid)setBusy(busy);},retryAt-Date.now()+10);retryTimer.unref?.();}
     } finally {if(!destroyed && ticket===generation && !preserveMessage)setBusy(false);}
   }
   async function action(route,body) {
     if(busy || destroyed || !auth.currentUser?.uid || boundUid!==auth.currentUser.uid)return;
     const uid=auth.currentUser.uid;setBusy(true);message.textContent=route==='redeem'?'Checking your code…':'Opening subscription management…';
     try {
+      if(route==='checkout'){
+        const status=await request('status',null,{fresh:true});
+        if(destroyed||auth.currentUser?.uid!==uid)return;
+        render(status);
+        if(!status.offers?.some(offer=>offer.planId==='plus'))throw Error('Plus purchases are not available here yet.');
+      }
       const result=await request(route,body);
       if(destroyed || auth.currentUser?.uid!==uid)return;
       if(route==='redeem') {
@@ -122,10 +180,10 @@ export function mountPlanUsage({root,auth,request,onStatus=()=>{},navigate=url=>
         if(route==='checkout'&&url.origin==='https://checkout.stripe.com')try {storage?.setItem(pendingKey,JSON.stringify({uid,startedAt:Date.now()}));}catch{}
         navigate(url.href);
       }
-    }catch(error){if(!destroyed && auth.currentUser?.uid===uid)message.textContent=error.message||'Please try again.';}
+    }catch(error){if(!destroyed && auth.currentUser?.uid===uid){if(route==='checkout'){stale=true;hideNear();renderLimitActions();}message.textContent=error.message||'Please try again.';}}
     finally{if(!destroyed)setBusy(false);}
   }
-  const refreshClick=()=>{if(!busy)void refresh();};
+  const refreshClick=()=>{if(!busy)void refresh({fresh:true});};
   let checkoutUid=null,checkoutRequestId=null;
   const upgradeClick=()=>{
     if(checkoutUid!==auth.currentUser?.uid){checkoutUid=auth.currentUser?.uid;checkoutRequestId=null;}
@@ -138,9 +196,16 @@ export function mountPlanUsage({root,auth,request,onStatus=()=>{},navigate=url=>
   find('plan-upgrade-btn').addEventListener('click',upgradeClick);
   find('plan-manage-btn').addEventListener('click',manageClick);
   find('plan-code-form').addEventListener('submit',redeem);
-  return {refresh,destroy(){
+  function usageChanged({success=false}={}){
+    request.invalidate?.();showNear=success;
+    if(!usageTimer){usageTimer=setTimeout(()=>{usageTimer=null;if(!destroyed)void refresh();},Math.max(300,10000-(Date.now()-lastRefresh)));usageTimer.unref?.();}
+  }
+  return {refresh,usageChanged,reset(){generation++;request.clear?.();clear();onStatus(null);},destroy(){
     destroyed=true;generation++;
-    clearTimeout(pollTimer);closeWelcome();
+    clearTimeout(pollTimer);clearTimeout(usageTimer);clearTimeout(retryTimer);closeWelcome();
+    doc.removeEventListener('click',viewPlans);
+    doc.removeEventListener('kairos-plan-notices',renderLimitActions);
+    doc.getElementById('ai-plan-notice-dismiss')?.removeEventListener('click',dismissNear);
     doc.getElementById('settings-account-manage-plan')?.removeEventListener('click',accountManage);
     doc.getElementById('plan-welcome-close')?.removeEventListener('click',closeWelcome);
     doc.getElementById('plan-welcome-start')?.removeEventListener('click',explore);

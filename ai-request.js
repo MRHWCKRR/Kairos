@@ -26,7 +26,8 @@ export function createAiRequester({ getUser, getAppToken, fetchImpl = fetch, onU
       ...options, method: 'POST', credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}`, 'X-Firebase-AppCheck': appToken }
     });
-    if (![401,403,413].includes(response.status)) { try { onUsage(); } catch {} }
+    if(getUser()?.uid!==user.uid)throw protectionError('Please sign in again to use Kairos AI.');
+    if (![401,403,413].includes(response.status)) { try { onUsage({success:response.ok}); } catch {} }
     if (response.status === 429) {
       let budget;
       try { budget = await response.json(); } catch {}
@@ -36,9 +37,9 @@ export function createAiRequester({ getUser, getAppToken, fetchImpl = fetch, onU
           ? ` Resets at ${new Intl.DateTimeFormat('en-AU', { timeZone: 'Australia/Brisbane', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }).format(date)} Brisbane time.`
           : ' Please try again after the next daily reset.';
         const message = budget.code === 'daily-account' ? 'You have reached your daily Kairos AI allowance.' : 'Kairos has reached its daily AI allowance.';
-        throw protectionError(message + reset);
+        throw Object.assign(protectionError(message + reset),{reason:budget.code,resetsAt:budget.resetsAt,retryAfter:Number(response.headers.get('Retry-After'))||60});
       }
-      throw protectionError('rate');
+      throw Object.assign(protectionError('rate'),{reason:budget?.code==='rate'?'rate':'unavailable',retryAfter:Number(response.headers.get('Retry-After'))||60});
     }
     if (response.status === 401) throw protectionError('Please sign in again to use Kairos AI.');
     if (response.status === 403) throw protectionError('Verify your email, then refresh Kairos and try again.');
