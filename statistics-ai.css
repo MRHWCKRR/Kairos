@@ -1,0 +1,25 @@
+.ai-activity { margin-top: 28px; padding: 24px 0; border-top: 1px solid var(--border-subtle); }
+.ai-activity-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+#statistics-page .ai-activity h3 { font-size: 16px; font-weight: 600; margin: 0; }
+.ai-activity-refresh { padding: 5px 0; border: 0; background: none; color: var(--text-muted); font: inherit; font-size: 12px; cursor: pointer; }
+.ai-activity-summary { display: flex; gap: 36px; margin: 18px 0 20px; }
+.ai-activity-summary div { display: flex; flex-direction: column-reverse; gap: 4px; }
+.ai-activity-summary dt { font-size: 12px; color: var(--text-muted); }
+.ai-activity-summary dd { font-size: 24px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.ai-activity-scroll { overflow-x: auto; max-width: 100%; padding: 3px; }
+.ai-activity-months { display: grid; grid-auto-flow: column; grid-auto-columns: 12px; gap: 3px; width: max-content; margin-bottom: 6px; font-size: 10px; color: var(--text-muted); }
+.ai-activity-grid { display: grid; grid-template-rows: repeat(7,12px); grid-auto-flow: column; grid-auto-columns: 12px; gap: 3px; width: max-content; }
+.ai-activity-day { width: 12px; height: 12px; padding: 0; border: 1px solid var(--border-subtle); border-radius: 2px; background: var(--bg-card); cursor: pointer; }
+.ai-activity-day[data-level="1"] { background: color-mix(in srgb,var(--accent-glow) 25%,var(--bg-card)); }
+.ai-activity-day[data-level="2"] { background: color-mix(in srgb,var(--accent-glow) 45%,var(--bg-card)); }
+.ai-activity-day[data-level="3"] { background: color-mix(in srgb,var(--accent-glow) 70%,var(--bg-card)); }
+.ai-activity-day[data-level="4"] { background: var(--accent-glow); }
+.ai-activity-day:focus-visible,.ai-activity-refresh:focus-visible { outline: 2px solid var(--text-primary); outline-offset: 2px; }
+.ai-activity-padding { visibility: hidden; }
+.ai-activity-day.ai-activity-unknown { background: transparent; border-style: dashed; }
+.ai-activity-footer { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-top: 10px; font-size: 11px; color: var(--text-muted); }
+.ai-activity-legend { display: flex; align-items: center; gap: 4px; }
+.ai-activity-legend .ai-activity-day { cursor: default; }
+#statistics-page .ai-activity-note { font-size: 11px; color: var(--text-muted); margin: 12px 0 0; }
+#statistics-page .ai-activity-status { font-size: 12px; margin: 12px 0; }
+.ai-activity [hidden] { display: none !important; }
