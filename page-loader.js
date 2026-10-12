@@ -29,7 +29,7 @@ export function createPageLoader({importModule=url=>import(url),loadStyle=loadPa
         await waitForChat();
       }
       if(page==='statistics-page') {
-        await loadStyle('statistics-ai.css?v=1');
+        await loadStyle('statistics-ai.css?v=2');
         await importModule('./statistics-ai.js?v=1');
       }
       if(page==='schedule-page'&&scheduleEnabled) {

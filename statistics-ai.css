@@ -1,4 +1,4 @@
-.ai-activity { margin-top: 28px; padding: 24px 0; border-top: 1px solid var(--border-subtle); }
+.ai-activity { margin-top: 28px; padding: 24px; border: 1px solid var(--border-subtle); border-radius: 12px; background: var(--bg-card); color: var(--text-primary); }
 .ai-activity-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 #statistics-page .ai-activity h3 { font-size: 16px; font-weight: 600; margin: 0; }
 .ai-activity-refresh { padding: 5px 0; border: 0; background: none; color: var(--text-muted); font: inherit; font-size: 12px; cursor: pointer; }
@@ -16,7 +16,7 @@
 .ai-activity-day[data-level="4"] { background: var(--accent-glow); }
 .ai-activity-day:focus-visible,.ai-activity-refresh:focus-visible { outline: 2px solid var(--text-primary); outline-offset: 2px; }
 .ai-activity-padding { visibility: hidden; }
-.ai-activity-day.ai-activity-unknown { background: transparent; border-style: dashed; }
+.ai-activity-day.ai-activity-unknown { background: var(--bg-main); border-color: var(--text-muted); border-style: dashed; }
 .ai-activity-footer { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-top: 10px; font-size: 11px; color: var(--text-muted); }
 .ai-activity-legend { display: flex; align-items: center; gap: 4px; }
 .ai-activity-legend .ai-activity-day { cursor: default; }
