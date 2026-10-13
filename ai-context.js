@@ -178,13 +178,14 @@ async function loadContextData(user) {
         tasks: tasks.slice(0, 120),
         tasksOmitted: Math.max(0, tasks.length - 120),
         scheduleEvents,
-        boards: boards.filter(b => !b.archived).slice(0, 30).map(b => ({
+        boards: [...boards].sort((a,b)=>Number(!!a.archived)-Number(!!b.archived)).slice(0, 30).map(b => ({
             id: clean(b.id, 120),
             title: clean(b.title, 100),
+            archived: b.archived === true,
             sections: (Array.isArray(b.sections) ? b.sections : [])
-                .filter(s => !s.archived)
+                .slice().sort((a,b)=>Number(!!a.archived)-Number(!!b.archived))
                 .slice(0, 30)
-                .map(s => ({ id: clean(s.id, 120), title: clean(s.title, 100) }))
+                .map(s => ({ id: clean(s.id, 120), title: clean(s.title, 100), archived: s.archived === true }))
         }))
     };
 
@@ -201,9 +202,13 @@ export async function getKairosContext() {
     try {
         const data = await loadContextData(user);
         const nowDate = new Date();
+        const dateParts = Object.fromEntries(new Intl.DateTimeFormat('en-CA', {
+            timeZone: data.timeZone, year: 'numeric', month: '2-digit', day: '2-digit'
+        }).formatToParts(nowDate).filter(part => part.type !== 'literal').map(part => [part.type, part.value]));
         const lines = [
             'Kairos context (read-only; use this only when relevant):',
             'Current date: ' + formatDate(nowDate, data.timeZone),
+            'Current local date (YYYY-MM-DD): ' + dateParts.year + '-' + dateParts.month + '-' + dateParts.day,
             'Current time: ' + formatTime(nowDate, data.timeZone),
             'User timezone: ' + data.timeZone,
             'Kairos language setting: ' + data.language,

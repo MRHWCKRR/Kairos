@@ -1,11 +1,13 @@
 import { auth, db } from './firebase.js';
-import { persistAiPlanAction } from './plan-store.js';
+import { persistAiPlanAction, getConfirmedAiAction } from './plan-store.js';
+import { validateActionShape } from './ai-action-schema.js';
+import { stableStringify, planState } from './plan-merge.js';
 import { taskDurationMinutes } from './schedule-utils.js';
 import {
-    collection, getDocs, query, where
+    collection, getDocs, query, where, doc, getDoc
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-const ACTIONS_REQUIRING_CONFIRMATION = new Set(['delete_task', 'delete_schedule_event']);
+const ACTIONS_REQUIRING_CONFIRMATION = new Set(['delete_task', 'delete_schedule_event', 'delete_board', 'delete_section']);
 
 const clean = (value, max = 240) => String(value ?? '').replace(/\s+/g, ' ').trim().slice(0, max);
 const makeId = prefix => prefix + '-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 7);
@@ -63,31 +65,93 @@ function findScheduleEvent(plan, args) {
     return matches[0];
 }
 
+function resolveBoard(plan, args, includeArchived = true) {
+    const id = clean(args.boardId, 120), name = clean(args.board || args.title, 100).toLowerCase();
+    const matches = (plan.boards || []).filter(board => (includeArchived || !board.archived) &&
+        (id ? board.id === id : name && clean(board.title, 100).toLowerCase() === name));
+    if (matches.length !== 1) throw new Error(matches.length ? 'Multiple boards match. Specify a board ID.' : 'Board not found.');
+    return matches[0];
+}
+
+function resolveSection(plan, args, includeArchived = true) {
+    const id = clean(args.sectionId, 120), name = clean(args.section || args.title, 100).toLowerCase();
+    const scoped = args.boardId !== undefined || args.board !== undefined;
+    const boards = scoped ? [resolveBoard(plan, args, includeArchived)] : plan.boards || [];
+    const matches = boards.flatMap(board => (board.sections || []).filter(section =>
+        (includeArchived || (!board.archived && !section.archived)) &&
+        (id ? section.id === id : name && clean(section.title, 100).toLowerCase() === name)
+    ).map(section => ({ board, section })));
+    if (matches.length !== 1) throw new Error(matches.length ? 'Multiple sections match. Specify a section ID or its board.' : 'Section not found or does not belong to the specified board.');
+    return matches[0];
+}
+
 function findSection(plan, args) {
-    const boardId = clean(args.boardId, 120);
-    const boardName = clean(args.board, 100).toLowerCase();
-    const sectionName = clean(args.section, 100).toLowerCase();
-    const boards = Array.isArray(plan.boards) ? plan.boards : [];
-    const matches = boards.filter(b => !b.archived && (boardId ? b.id === boardId : (!boardName || clean(b.title, 100).toLowerCase() === boardName)));
-    if ((boardId || boardName) && matches.length > 1) throw new Error('Multiple boards match. Choose a uniquely named board.');
-    let board = matches[0];
-    if (!board && !boardName) {
+    if (args.sectionId !== undefined) return resolveSection(plan, args, false);
+    const hasBoard = args.boardId !== undefined || args.board !== undefined;
+    let board = hasBoard ? resolveBoard(plan, args, false) : (plan.boards || []).find(item => !item.archived);
+    if (!board) {
         board = { id: makeId('board'), title: 'AI Tasks', archived: false, sections: [] };
-        boards.push(board);
-        plan.boards = boards;
+        plan.boards = [...(plan.boards || []), board];
     }
-    if (!board) throw new Error('Board not found.');
-    const sections = Array.isArray(board.sections) ? board.sections : [];
-    const sectionMatches = sections.filter(s => !s.archived && (!sectionName || clean(s.title, 100).toLowerCase() === sectionName));
-    if (sectionName && sectionMatches.length > 1) throw new Error('Multiple sections match. Choose a uniquely named section.');
-    let section = sectionMatches[0];
-    if (!section && !sectionName) {
+    if (args.section !== undefined) return resolveSection(plan, { boardId: board.id, section: args.section }, false);
+    let section = (board.sections || []).find(item => !item.archived);
+    if (!section) {
         section = { id: makeId('section'), title: 'General', archived: false, tasks: [] };
-        sections.push(section);
-        board.sections = sections;
+        board.sections = [...(board.sections || []), section];
     }
-    if (!section) throw new Error('Section not found.');
     return { board, section };
+}
+
+function actionPreview(plan, action) {
+    const args = action.args;
+    let entity, kind, pinned;
+    if (action.type.endsWith('_board')) {
+        entity = resolveBoard(plan, args); kind = 'board';
+        pinned = { ...args, boardId: entity.id };
+    } else if (action.type.endsWith('_section')) {
+        const found = resolveSection(plan, args); entity = found.section; kind = 'section';
+        pinned = { ...args, boardId: found.board.id, sectionId: entity.id };
+    } else if (action.type === 'delete_task') {
+        entity = findTask(plan, args).task; kind = 'task'; pinned = { ...args, taskId: entity.id };
+    } else {
+        entity = findScheduleEvent(plan, args); kind = 'event'; pinned = { ...args, eventId: entity.id };
+    }
+    const sections = kind === 'board' ? entity.sections || [] : kind === 'section' ? [entity] : [];
+    return {
+        action: { type: action.type, args: pinned },
+        approval: { signature: stableStringify({ kind, entity }) },
+        summary: { kind, title: entity.title, sectionCount: sections.length,
+            taskCount: sections.reduce((total, section) => total + (section.tasks || []).length, 0),
+            sections: sections.map(section => ({ title: section.title,
+                tasks: (section.tasks || []).map(task => ({ title: task.title }))
+            }))
+        }
+    };
+}
+
+export async function previewKairosAction(action, options = {}) {
+    const user = auth.currentUser;
+    if (!user || (options.ownerId && options.ownerId !== user.uid)) throw new Error('The signed-in account changed.');
+    validateActionArgs(action.type, action.args);
+    const planId = options.planId || await getAiPlanId();
+    const snapshot = await getDoc(doc(db, 'study_plans', planId));
+    if (!snapshot.exists()) throw new Error('Planner not found.');
+    const data = snapshot.data();
+    if (data.userID !== user.uid) throw new Error('This planner belongs to another account.');
+    return actionPreview(planState(data), action);
+}
+
+export async function confirmedKairosAction(action, options) {
+    const user = auth.currentUser;
+    if (!user || options.ownerId !== user.uid) throw new Error('The signed-in account changed.');
+    return getConfirmedAiAction(options.planId, user.uid, action, options.operationId);
+}
+
+function requireReviewedContents(plan, action, confirmation) {
+    if (!confirmation?.signature) throw new Error('A current preview and confirmation are required.');
+    if (confirmation.signature !== actionPreview(plan, action).approval.signature) {
+        throw new Error('The contents changed. Review the new preview before confirming again.');
+    }
 }
 
 function createBoard(plan, title) {
@@ -115,7 +179,7 @@ function createBoard(plan, title) {
 }
 
 export function actionNeedsConfirmation(action) {
-    return ACTIONS_REQUIRING_CONFIRMATION.has(action?.type) || Number(action?.count || 1) > 1;
+    return ACTIONS_REQUIRING_CONFIRMATION.has(action?.type) || (['update_board', 'update_section'].includes(action?.type) && action.args?.archived === true) || Number(action?.count || 1) > 1;
 }
 
 export async function executeKairosAction(action, options = {}) {
@@ -131,12 +195,78 @@ export async function executeKairosAction(action, options = {}) {
     const operationId = options.operationId || makeId('operation');
     const createdAt = options.createdAt ?? Date.now();
     if (typeof operationId !== 'string' || !operationId || operationId.length > 160 || !Number.isFinite(createdAt) || createdAt <= 0) throw new Error('Invalid operation identity.');
-    const result = await persistAiPlanAction(planId, user.uid, { type, args }, operationId, createdAt, plan => applyKairosAction(plan, type, args));
+    const result = await persistAiPlanAction(planId, user.uid, { type, args }, operationId, createdAt, plan => applyKairosAction(plan, type, args, options));
     window.dispatchEvent(new CustomEvent('kairos-data-changed'));
     return result;
 }
 
-function applyKairosAction(plan, type, args) {
+function applyKairosAction(plan, type, args, options) {
+    if (['delete_board', 'delete_section'].includes(type) || (['update_board', 'update_section'].includes(type) && args.archived === true)) {
+        requireReviewedContents(plan.data, { type, args }, options.confirmation);
+    }
+    if (type === 'update_board' || type === 'delete_board') {
+        const board = resolveBoard(plan.data, args), originalTitle = board.title;
+        if (type === 'delete_board') {
+            const affectedCount = (board.sections || []).reduce((n, section) => n + (section.tasks || []).length, 0);
+            plan.data.boards = plan.data.boards.filter(item => item.id !== board.id);
+            return { type, board, affectedCount };
+        }
+        if (args.newTitle !== undefined) {
+            const name = clean(args.newTitle, 100);
+            if ((plan.data.boards || []).some(item => item.id !== board.id && !item.archived && clean(item.title, 100).toLowerCase() === name.toLowerCase())) throw new Error('Another board already uses that name.');
+            board.title = name;
+        }
+        if (args.archived !== undefined) board.archived = args.archived;
+        return { type, board, ...(args.archived !== undefined ? { archiveChanged: args.archived } : {}), ...(args.newTitle !== undefined ? { originalTitle } : {}) };
+    }
+    if (type === 'create_section') {
+        const board = resolveBoard(plan.data, args, false), title = clean(args.title, 100);
+        if (!title) throw new Error('A section title is required.');
+        const matches = (board.sections || []).filter(section => !section.archived && clean(section.title, 100).toLowerCase() === title.toLowerCase());
+        if (matches.length > 1) throw new Error('Multiple sections match. Choose a unique name.');
+        const section = matches[0] || { id: makeId('section'), title, archived: false, tasks: [] };
+        if (!matches.length) board.sections = [...(board.sections || []), section];
+        return { type, section, board: board.title, sectionCreated: !matches.length };
+    }
+    if (type === 'update_section' || type === 'delete_section') {
+        const { board, section } = resolveSection(plan.data, args), originalTitle = section.title;
+        if (type === 'delete_section') {
+            board.sections = board.sections.filter(item => item.id !== section.id);
+            return { type, section, board: board.title, affectedCount: (section.tasks || []).length };
+        }
+        if (args.newTitle !== undefined) {
+            const name = clean(args.newTitle, 100);
+            if ((board.sections || []).some(item => item.id !== section.id && !item.archived && clean(item.title, 100).toLowerCase() === name.toLowerCase())) throw new Error('Another section already uses that name.');
+            section.title = name;
+        }
+        if (args.archived !== undefined) section.archived = args.archived;
+        return { type, section, board: board.title, ...(args.archived !== undefined ? { archiveChanged: args.archived } : {}), ...(args.newTitle !== undefined ? { originalTitle } : {}) };
+    }
+    if (type === 'resize_task') {
+        if (options.allowDurationChange !== true) throw new Error('An explicit duration change request is required.');
+        const found = findTask(plan.data, args), task = found.task;
+        if (task.scheduleLocked) throw new Error('This task schedule is locked.');
+        if (task.recurrence?.enabled) throw new Error('Use the schedule to change recurring task occurrences.');
+        const next = { ...task };
+        for (const key of ['date', 'startTime', 'endTime']) if (args[key] !== undefined) next[key] = args[key];
+        const scheduled = next.startTime != null && next.startTime !== '';
+        let duration = args.durationMinutes;
+        if (scheduled) {
+            if (duration !== undefined) {
+                const end = timeMinutes(next.startTime) + duration;
+                if (end >= 1440) throw new Error('Invalid duration: the task must end on the same day.');
+                const endTime = String(Math.floor(end / 60)).padStart(2, '0') + ':' + String(end % 60).padStart(2, '0');
+                if (args.endTime !== undefined && args.endTime !== endTime) throw new Error('Invalid duration: end time and duration do not agree.');
+                next.endTime = endTime;
+            }
+            validateTaskSchedule(next);
+            duration = timeMinutes(next.endTime) - timeMinutes(next.startTime);
+        } else if (args.endTime !== undefined || duration === undefined) throw new Error('Invalid duration: provide a start time or duration.');
+        validateTaskSchedule(next);
+        Object.assign(task, next, { estimatedMinutes: duration, lastScheduledMinutes: duration });
+        return { type, task, board: found.board.title, section: found.section.title };
+    }
+
 
     if (type === 'create_board') {
         // Resolve the task first when this is a "move task to a new board"
@@ -164,7 +294,7 @@ function applyKairosAction(plan, type, args) {
 
         // Move the existing task into the board's first section.
         if (found) {
-            const section = board.sections[0];
+            const { section } = findSection(plan.data, { boardId: board.id });
             found.section.tasks = found.section.tasks.filter(task => task.id !== found.task.id);
             section.tasks = Array.isArray(section.tasks) ? section.tasks : [];
             section.tasks.push(found.task);
@@ -197,8 +327,14 @@ function applyKairosAction(plan, type, args) {
         let finalLocation = found;
         if (['date', 'startTime', 'endTime'].some(key => args[key] !== undefined)) {
             if (found.task.scheduleLocked) throw new Error('This task schedule is locked.');
-            if (found.task.recurrence) throw new Error('Use the schedule to change recurring task occurrences.');
+            if (found.task.recurrence?.enabled) throw new Error('Use the schedule to change recurring task occurrences.');
             const next = { ...found.task, ...args };
+            if (args.startTime && args.endTime === undefined) {
+                const end = timeMinutes(args.startTime) + taskDurationMinutes(found.task);
+                if (end >= 1440) throw new Error('Invalid schedule duration: the task must end on the same day.');
+                args = { ...args, endTime: String(Math.floor(end / 60)).padStart(2, '0') + ':' + String(end % 60).padStart(2, '0') };
+                next.endTime = args.endTime;
+            }
             validateTaskSchedule(next);
             if (next.startTime && next.endTime &&
                 timeMinutes(next.endTime) - timeMinutes(next.startTime) !== taskDurationMinutes(found.task)) {
@@ -212,10 +348,11 @@ function applyKairosAction(plan, type, args) {
         if (args.completed !== undefined) found.task.completed = Boolean(args.completed);
         if (args.archived !== undefined) found.task.archived = Boolean(args.archived);
 
-        if (args.board !== undefined || args.section !== undefined) {
+        if (args.boardId !== undefined || args.sectionId !== undefined || args.board !== undefined || args.section !== undefined) {
             const destination = findSection(plan.data, {
                 board: args.board,
-                boardId: args.board === undefined ? found.board.id : undefined,
+                boardId: args.boardId !== undefined ? args.boardId : (args.board === undefined && args.sectionId === undefined ? found.board.id : undefined),
+                sectionId: args.sectionId,
                 section: args.section
             });
             finalLocation = destination;
@@ -285,15 +422,6 @@ function applyKairosAction(plan, type, args) {
     throw new Error('Unsupported AI action: ' + type);
 }
 
-const actionFields = {
-    create_board: ['title', 'moveTaskId', 'moveTaskTitle'],
-    create_task: ['title', 'board', 'section', 'date', 'startTime', 'endTime'],
-    update_task: ['taskId', 'title', 'newTitle', 'board', 'section', 'date', 'startTime', 'endTime', 'completed', 'archived'],
-    complete_task: ['taskId', 'title'], delete_task: ['taskId', 'title'],
-    create_schedule_event: ['title', 'category', 'day', 'start', 'end'],
-    update_schedule_event: ['eventId', 'title', 'newTitle', 'category', 'day', 'start', 'end'],
-    delete_schedule_event: ['eventId', 'title']
-};
 function timeMinutes(value) {
     if (typeof value !== 'string' || !/^([01]\d|2[0-3]):[0-5]\d$/.test(value)) throw new Error('Invalid schedule time.');
     return Number(value.slice(0, 2)) * 60 + Number(value.slice(3));
@@ -313,16 +441,10 @@ function validateEvent(args) {
     if (timeMinutes(args.end) <= timeMinutes(args.start)) throw new Error('Invalid schedule event duration.');
 }
 function validateActionArgs(type, args) {
-    const fields = actionFields[type];
-    if (!fields || !args || Array.isArray(args) || Object.keys(args).some(key => !fields.includes(key))) throw new Error('Unsupported or invalid AI action fields.');
-    for (const [key, value] of Object.entries(args)) {
-        if (['completed', 'archived'].includes(key)) {
-            if (typeof value !== 'boolean') throw new Error('Invalid task status.');
-        } else if (key === 'day') {
-            if (!Number.isInteger(value) || value < 0 || value > 6) throw new Error('Invalid schedule event day.');
-        } else if (value !== null && typeof value !== 'string') throw new Error('Invalid AI action value.');
-    }
+    validateActionShape({ type, args });
     if (args.newTitle !== undefined && !clean(args.newTitle)) throw new Error('Invalid task or event title.');
+    if (type === 'create_section' && args.boardId === undefined && !clean(args.board, 100)) throw new Error('A board is required.');
+    if (type === 'resize_task' && args.endTime === undefined && args.durationMinutes === undefined) throw new Error('Invalid duration change.');
     if (type === 'create_task') validateTaskSchedule(args);
     if (type === 'create_schedule_event') validateEvent(args);
 }

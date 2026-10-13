@@ -21,11 +21,11 @@ export function createPageLoader({importModule=url=>import(url),loadStyle=loadPa
     if(loaded.has(page))return loaded.get(page);
     const task=(async()=>{
       if(page==='ai-page') {
-        await loadStyle('ai-workspace.css?v=1');
+        await loadStyle('ai-workspace.css?v=2');
         // Markdown enhances already-escaped text; a CDN outage must not prevent
         // authentication or plain-text chat. Sanitisation stays in ai-markdown.
         void importModule('./ai-markdown.js?v=1').catch(error=>warn('[Kairos] Markdown unavailable; using plain text.',error));
-        await importModule('./ai-workspace.js?v=26');
+        await importModule('./ai-workspace.js?v=27');
         await waitForChat();
       }
       if(page==='statistics-page') {

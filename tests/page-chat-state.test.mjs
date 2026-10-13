@@ -6,6 +6,7 @@ import {parseHTML} from 'linkedom';
 import {mountPageRouter} from '../page-router.js';
 import {aiConversationMessages,aiErrorMessage} from '../ai-request.js';
 import {appendPlanLimitActions} from '../plan-usage.js';
+import {ACTION_TYPES,ACTION_INSTRUCTIONS,validateActionShape} from '../ai-action-schema.js';
 
 const html=await readFile(new URL('../app.html',import.meta.url),'utf8');
 const source=(await readFile(new URL('../ai-workspace.js',import.meta.url),'utf8')).replace(/^import[^\n]*\n/gm,'');
@@ -20,7 +21,7 @@ function setup(data=workspace,{getDoc,aiFetch}={}) {
   window.history={state:null,pushState(_,__,url){window.location.href=url;},replaceState(_,__,url){window.location.href=url;}};
   const auth={currentUser:{uid:'fixture',emailVerified:true}};
   let saved=data;const activityEvents=[];
-  const context=vm.createContext({document,window,auth,db:{},console,
+  const context=vm.createContext({ACTION_TYPES,ACTION_INSTRUCTIONS,validateActionShape,document,window,auth,db:{},console,
     localStorage:{getItem:()=>null,setItem(){}},
     requestAnimationFrame:fn=>fn(),setTimeout,clearTimeout,
     onAuthStateChanged:(_,callback)=>void callback(auth.currentUser),

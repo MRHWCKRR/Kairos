@@ -82,7 +82,8 @@
     "ui-controls.css",
     "auth-feedback.js",
     "plan-store.js",
-    "plan-merge.js"
+    "plan-merge.js",
+    "ai-action-schema.js"
   ],
   "directories": [
     "images",

@@ -1,5 +1,5 @@
 import { db } from './firebase.js';
-import { doc, runTransaction, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { doc, getDoc, runTransaction, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { mergePlanEdits, planState, stableStringify } from './plan-merge.js';
 
 function ownedPlan(snapshot, uid) {
@@ -24,13 +24,26 @@ function receiptResult(result) {
     const compact = { type: result.type };
     for (const field of ['task', 'event', 'movedTask']) {
         const item = result[field];
-        if (item) compact[field] = Object.fromEntries(['id', 'title', 'date', 'startTime', 'endTime', 'completed', 'archived', 'day', 'start', 'end'].filter(key => item[key] !== undefined).map(key => [key, item[key]]));
+        if (item) compact[field] = Object.fromEntries(['id', 'title', 'date', 'startTime', 'endTime', 'completed', 'archived', 'day', 'start', 'end', 'estimatedMinutes', 'lastScheduledMinutes'].filter(key => item[key] !== undefined).map(key => [key, item[key]]));
     }
-    if (result.board) compact.board = typeof result.board === 'string' ? result.board : { id: result.board.id, title: result.board.title };
-    if (result.section) compact.section = result.section;
+    if (result.board) compact.board = typeof result.board === 'string' ? result.board : { id: result.board.id, title: result.board.title, archived: result.board.archived ?? false };
+    if (result.section) compact.section = typeof result.section === 'string' ? result.section : { id: result.section.id, title: result.section.title, archived: result.section.archived ?? false };
     if (result.originalTitle) compact.originalTitle = result.originalTitle;
     if (result.boardCreated !== undefined) compact.boardCreated = result.boardCreated;
+    if (result.sectionCreated !== undefined) compact.sectionCreated = result.sectionCreated;
+    if (result.archiveChanged !== undefined) compact.archiveChanged = result.archiveChanged;
+    if (result.affectedCount !== undefined) compact.affectedCount = result.affectedCount;
     return compact;
+}
+
+export async function getConfirmedAiAction(planId, uid, action, operationId) {
+    const snapshot = await getDoc(doc(db, 'study_plans', planId));
+    if (!snapshot.exists()) return null;
+    const data = ownedPlan(snapshot, uid);
+    const receipt = (data.aiActionReceipts || []).find(item => item.id === operationId);
+    if (!receipt) return null;
+    if (receipt.fingerprint !== stableStringify(action)) throw new Error('This operation ID already belongs to a different action.');
+    return structuredClone(receipt.result);
 }
 
 export async function persistAiPlanAction(planId, uid, action, operationId, createdAt, apply) {

@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import vm from 'node:vm';
+import {ACTION_INSTRUCTIONS} from '../ai-action-schema.js';
 
 const source = await readFile(new URL('../ai-context.js', import.meta.url), 'utf8');
 
@@ -19,7 +20,7 @@ function fixture({ owner = 'one', name = 'Local name', cloudName = 'Cloud name' 
   ]);
   const auth = { currentUser: { uid: 'one', displayName: 'Auth name' } };
   let reads = 0;
-  const context = vm.createContext({ auth, db: {}, console,
+  const context = vm.createContext({ ACTION_INSTRUCTIONS,auth, db: {}, console,
     localStorage: { getItem: key => storage.get(key) ?? null },
     doc: (...args) => args, collection: (...args) => args, query: (...args) => args, where: (...args) => args,
     getDoc: async () => { reads++; return { exists: () => true, data: () => ({ settings: { profile: { displayName: cloudName } } }) }; },

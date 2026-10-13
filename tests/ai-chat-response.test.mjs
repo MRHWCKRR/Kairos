@@ -2,10 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import vm from 'node:vm';
+import {ACTION_TYPES,validateActionShape} from '../ai-action-schema.js';
 
 async function ask(result) {
   const source = (await fs.readFile(new URL('../ai-workspace.js', import.meta.url), 'utf8')).replace(/^import[^\n]*\n/gm, '');
-  const context = vm.createContext({ document: { readyState: 'loading', addEventListener() {} }, console,
+  const context = vm.createContext({ ACTION_TYPES,validateActionShape,document: { readyState: 'loading', addEventListener() {} }, console,
     aiFetch: async () => Response.json({ choices: [{ message: { content: typeof result === 'string' ? result : JSON.stringify(result) } }] }) });
   vm.runInContext(source, context);
   return context.ask([]);
@@ -24,4 +25,13 @@ test('passive and terse success claims without actions are rejected', async () =
 test('valid advice and executable flat actions remain supported', async () => {
   assert.equal((await ask({ reply: 'Try outlining first.', actions: [] })).reply, 'Try outlining first.');
   assert.equal((await ask({ reply: 'Proposed rename.', actions: [{ type: 'update_task', taskId: 'one', newTitle: 'Essay' }] })).actions[0].args.taskId, 'one');
+});
+
+test('the shared chat parser accepts Stage 2 actions and rejects unknown fields',async()=>{
+  for(const action of [
+    {type:'update_board',args:{boardId:'b',newTitle:'Science'}},
+    {type:'create_section',args:{boardId:'b',title:'Research'}},
+    {type:'resize_task',args:{taskId:'t',durationMinutes:90}}
+  ])assert.equal((await ask({reply:'I will apply it.',actions:[action]})).actions[0].type,action.type);
+  await assert.rejects(ask({reply:'I will apply it.',actions:[{type:'update_board',args:{boardId:'b',documentPath:'other/user'}}]}),/relay-format/);
 });

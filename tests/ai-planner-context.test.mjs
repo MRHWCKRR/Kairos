@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import vm from 'node:vm';
+import {ACTION_INSTRUCTIONS} from '../ai-action-schema.js';
 
 async function fixture() {
   const events = {};
@@ -9,7 +10,7 @@ async function fixture() {
     {id:'task-1',title:'Revision',date:'2026-10-14',startTime:'13:00',endTime:'15:00',scheduleLocked:true,recurrence:{enabled:true}},
     {id:'task-2',title:'Revision',completed:true}
   ]}]}],scheduleEvents:[{id:'event-1',title:'School',day:3,start:'08:00',end:'15:00'}]};
-  const context=vm.createContext({console,auth:{currentUser:{uid:'one'}},db:{},
+  const context=vm.createContext({ACTION_INSTRUCTIONS,console,auth:{currentUser:{uid:'one'}},db:{},
     localStorage:{getItem:()=>null},doc:()=>({}),collection:()=>({}),query:x=>x,where:()=>({}),
     getDoc:async()=>({exists:()=>true,data:()=>({settings:{profile:{timezone:'Australia/Brisbane'}}})}),
     getDocs:async()=>({docs:[{data:()=>structuredClone(plan)}]}),
@@ -61,4 +62,21 @@ test('completed historical tasks cannot crowd current work out of the context qu
   tasks.unshift(...Array.from({length:130},(_,i)=>({id:'old-'+i,title:'Historical',date:'2020-01-01',completed:true})));
   const data=await context.loadContextData(context.auth.currentUser);
   assert.equal(data.tasks.some(task=>task.id==='task-1'),true);
+});
+
+test('the request date follows the profile timezone across a UTC year boundary',async()=>{
+  const {context}=await fixture();
+  const instant=Date.parse('2026-12-31T15:00:00Z');
+  context.Date=class extends Date {constructor(value){super(value===undefined?instant:value)}static now(){return instant}};
+  assert.match(await context.getKairosContext(),/Current local date \(YYYY-MM-DD\): 2027-01-01/);
+});
+
+test('archived board and section IDs are available for precise restoration in a fresh chat',async()=>{
+  const {context,plan}=await fixture();
+  plan.boards.push({id:'archive-b',title:'Study',archived:true,sections:[{id:'archive-s',title:'Science',archived:true,tasks:[]}]});
+  const data=await context.loadContextData(context.auth.currentUser);
+  const archived=data.boards.find(board=>board.id==='archive-b');
+  assert.equal(archived?.archived,true);
+  assert.equal(archived.sections[0].id,'archive-s');
+  assert.equal(archived.sections[0].archived,true);
 });
