@@ -27,6 +27,16 @@ resize_task is separate from update_task. Recognised explicit end-time or durati
 
 The context catalog includes archived board/section IDs for restoration. Rename follow-ups select the update action matching the confirmed target kind. The current local ISO date uses the configured timezone, including UTC date/year boundaries.
 
-Existing billing, account deletion, verification and anti-abuse paths are unchanged. Reminder commands remain Stage 3.
+Existing billing, account deletion, verification and anti-abuse paths are unchanged.
+
+## Stage 3
+
+set_task_reminder and remove_task_reminder use the existing task.reminderMinutes field and transactional AI action receipts. Lead times are whole minutes from 1 through 10080. Setting a new lead replaces the old one; removal leaves the task intact. Unscheduled tasks can save a reminder, which activates once they have a scheduled start. Recurring changes apply to the series and clear per-occurrence reminder overrides. The inspector preserves custom lead times.
+
+Task reminders run through the existing app notification minute loop, also checking on focus, visibility and plan load. They require Kairos to remain open. A late check can deliver before the task starts; it does not deliver missed reminders after the start. No email, SMS, standalone absolute-time alarms or closed-app delivery is added. AI feedback distinguishes a saved reminder from enabled delivery; browser permission remains controlled by the user's existing Settings actions.
+
+Delivery uses the profile timezone, including midnight crossings and elapsed-minute offsets across DST. Nonexistent local starts are skipped; ambiguous starts use the earlier instant. Completed tasks/occurrences and archived tasks, boards or sections are excluded. The delivery transaction rechecks the current plan, ownership and notification settings before committing.
+
+The user document has additive taskReminderReceipts entries keyed by task/occurrence, start instant and lead time. Receipts retain every active delivery window, so repeated checks and multiple tabs cannot duplicate an alert. Expired windows are removed on the next delivery; active receipts are not evicted by count or a global timestamp. Notifications retain the existing 50-item limit and merge concurrent panel edits. Legacy sections-only plans remain supported. Notification titles, messages and IDs render as escaped text.
 
 Validation: run npm test, npm run build:cloudflare, npm run test:runtime, then verify planner persistence with a verified test account on a preview deployment. Unit/integration fixtures cover transactions and chat flows but do not verify deployed Firestore rules or notification delivery.

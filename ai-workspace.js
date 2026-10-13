@@ -22,7 +22,7 @@ const id=()=> 'chat-'+Date.now().toString(36)+'-'+Math.random().toString(36).sli
 const title=c=>c.title||((c.messages.find(m=>m.role==='user'&&m.content.trim())?.content||'New chat').replace(/\s+/g,' ').trim().slice(0,42)||'New chat');
 function norm(c, fallbackOrder){return {id:String(c.id||id()),title:String(c.title||''),createdAt:+c.createdAt||Date.now(),updatedAt:+c.updatedAt||Date.now(),order:Number.isFinite(+c.order)?+c.order:(Number.isFinite(+fallbackOrder)?+fallbackOrder:+c.updatedAt||Date.now()),summary:String(c.summary||'').slice(0,3000),autoSummary:String(c.autoSummary||'').slice(0,2400),summarizedCount:Math.max(0,+c.summarizedCount||0),memoryRevision:Math.max(0,+c.memoryRevision||0),messageTotal:Math.max((Array.isArray(c.messages)?c.messages.length:0),+c.messageTotal||0),autoMemoryEnabled:c.autoMemoryEnabled!==false,projectId:typeof c.projectId==='string'?c.projectId:'',pendingActionRequest:typeof c.pendingActionRequest==='string'?c.pendingActionRequest:'',lastActionTarget:normActionTarget(c.lastActionTarget),pendingActionBatch:normActionBatch(c.pendingActionBatch),messages:(Array.isArray(c.messages)?c.messages:[]).filter(m=>m&&(m.role==='user'||m.role==='assistant')&&typeof m.content==='string').slice(-MAX_MESSAGES)}}
 function normActionTarget(value){
-  return value&&['task','event','board','section'].includes(value.kind)&&typeof value.id==='string'&&value.id
+  return value&&['task','event','board','section','reminder'].includes(value.kind)&&typeof value.id==='string'&&value.id
     ? {kind:value.kind,id:value.id.slice(0,120),title:String(value.title||'').slice(0,180)} : null;
 }
 function normActionBatch(value){
@@ -33,7 +33,7 @@ function normActionBatch(value){
 function rememberActionTarget(chat,result){
   const item=result.task||result.movedTask||result.event||((typeof result.section==='object')?result.section:null)||((typeof result.board==='object')?result.board:null);
   if(!item?.id)return;
-  const kind=result.task||result.movedTask?'task':result.event?'event':typeof result.section==='object'?'section':'board';
+  const kind=['set_task_reminder','remove_task_reminder'].includes(result.type)?'reminder':result.task||result.movedTask?'task':result.event?'event':typeof result.section==='object'?'section':'board';
   if(result.type.startsWith('delete_')){
     chat.lastActionTarget=null;
   }else chat.lastActionTarget={kind,id:String(item.id),title:String(item.title||'')};
@@ -137,6 +137,19 @@ function actionResultReply(results){return results.filter(Boolean).map(result=>s
 function singleActionResultReply(results){
   const r=results.filter(Boolean).at(-1);
   if(!r)return 'Done.';
+  if(r.type==='remove_task_reminder'&&r.task)return 'Removed the reminder for "'+r.task.title+'".';
+  if(r.type==='set_task_reminder'&&r.task){
+    const status=window.__kairosTaskReminders?.status?.();
+    let text='Saved a '+r.task.reminderMinutes+' minute reminder for "'+r.task.title+'".';
+    if(!r.task.date||!r.task.startTime)text+=' It will activate when the task has a scheduled start time.';
+    text+=' Kairos must remain open for reminder delivery.';
+    if(!status)text+=' Check notification settings before relying on delivery.';
+    else if(!status.enabled)text+=' Notifications are disabled; enable them in [Settings](app.html?page=settings).';
+    else if(status.permission==='denied')text+=' In-app reminders are enabled, but browser notifications are blocked. Allow them in your browser site settings.';
+    else if(!status.browserEnabled||status.permission!=='granted')text+=' In-app reminders are enabled. Enable browser notifications in [Settings](app.html?page=settings) if you want desktop alerts.';
+    else text+=' In-app and browser notifications are enabled.';
+    return text;
+  }
   if(r.type==='update_board'&&r.board)return entityUpdateReply('board',r.board,r);
   if(r.type==='update_section'&&r.section)return entityUpdateReply('section',r.section,r);
   if(r.type==='create_section'&&r.section)return (r.sectionCreated===false?'Used the existing':'Created the')+' "'+r.section.title+'" section'+(r.board?' on the "'+r.board+'" board':'')+'.';
@@ -287,7 +300,8 @@ async function send(){
     if(batch.ownerId!==ownerId)throw new Error('The signed-in account changed.');
     for(const entry of batch.entries){
       if(!entry.result){
-        const options={ownerId,planId:batch.planId,operationId:entry.operationId,createdAt:batch.createdAt,allowDurationChange:explicitDurationIntent(requestText)};
+        const options={ownerId,planId:batch.planId,operationId:entry.operationId,createdAt:batch.createdAt,allowDurationChange:explicitDurationIntent(requestText),reminderFollowup:chat.lastActionTarget?.kind==="reminder"&&/^(remove|delete|cancel)\b/i.test(requestText)&&/\b(it|that|reminder)\b/i.test(requestText)&&!/\btask\b/i.test(requestText)};
+        if(options.reminderFollowup&&entry.action.type==='delete_task')throw new Error('Removing a reminder must not delete its task. Ask to remove the reminder explicitly.');
         entry.result=actionNeedsConfirmation(entry.action)
           ? await requestActionConfirmation(chatId,entry.action,options)
           : await runAction(chatId,entry.action,options);
@@ -329,6 +343,7 @@ async function send(){
   }
 }
 async function runAction(chatId,action,options={}){
+  if(options.reminderFollowup&&action.type==='delete_task')throw new Error('Removing a reminder must not delete its task. Ask to remove the reminder explicitly.');
   if(!chats.some(chat=>chat.id===chatId)||auth.currentUser?.uid!==options.ownerId)throw new Error('The signed-in account or conversation changed.');
   return executeKairosAction(action,options);
 }
