@@ -65,9 +65,24 @@ function calculateAge(birthday, now, timeZone) {
     return age >= 0 && age <= 130 ? String(age) : '';
 }
 
+function refreshCachedProfile(data, user) {
+    try {
+        const settings = JSON.parse(localStorage.getItem('kairos_settings_cache') || '{}');
+        const profile = settings?.profile;
+        if (!profile || typeof profile !== 'object') return data;
+
+        if (Object.prototype.hasOwnProperty.call(profile, 'displayName')) {
+            data.displayName = clean(profile.displayName, 80) || clean(user.displayName, 80);
+        }
+    } catch {
+        // Ignore malformed local settings cache and use the cached cloud-backed value.
+    }
+    return data;
+}
+
 async function loadContextData(user) {
     const now = Date.now();
-    if (cached && cachedUid === user.uid && now - cachedAt < PLAN_CACHE_MS) return cached;
+    if (cached && cachedUid === user.uid && now - cachedAt < PLAN_CACHE_MS) return refreshCachedProfile(cached, user);
 
     const [userSnap, plansSnap] = await Promise.all([
         getDoc(doc(db, 'users', user.uid)),
@@ -161,7 +176,7 @@ async function loadContextData(user) {
     cached = result;
     cachedAt = now;
     cachedUid = user.uid;
-    return result;
+    return refreshCachedProfile(result, user);
 }
 
 export async function getKairosContext() {
@@ -176,7 +191,8 @@ export async function getKairosContext() {
             'Current date: ' + formatDate(nowDate, data.timeZone),
             'Current time: ' + formatTime(nowDate, data.timeZone),
             'User timezone: ' + data.timeZone,
-            'Kairos language setting: ' + data.language
+            'Kairos language setting: ' + data.language,
+            'Current profile values override any older or conflicting profile values in conversation history, summaries, or memory.'
         ];
 
         if (data.displayName) {
