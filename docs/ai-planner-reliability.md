@@ -17,6 +17,16 @@ Transactions require a connection. Offline or conflicting UI edits show a sync e
 
 Multi-action requests execute in order. Confirmed actions stay applied after a later failure or cancellation. Feedback lists completed actions, and retry skips their receipts. Independent requests stay associated with their originating chats.
 
-Existing billing, account deletion, verification and anti-abuse paths are unchanged. Board/section CRUD expansion, reminder commands and explicit task duration changes are later stages.
+## Stage 2
+
+The shared ai-action-schema.js defines supported actions, argument shapes and prompt instructions. Board rename/archive/restore/delete and section create/rename/archive/restore/delete use the same nested objects as the manual UI. Destination boardId/sectionId select exact objects; supplied invalid IDs never fall back to names.
+
+Deleting or archiving a board/section shows child counts and a bounded list of escaped section/task titles. Confirmation pins the IDs, persists the proposal, and records the current contents' canonical signature. The transaction rejects changed contents and requires a fresh review. Confirmed deletion receipts reconcile lost responses even when the original object no longer exists.
+
+resize_task is separate from update_task. Recognised explicit end-time or duration requests allow it; ordinary start-time moves, reminders and refusals do not. Normal moves preserve duration; explicit resizes update estimatedMinutes and lastScheduledMinutes and validate the resulting date/time state. Locks and enabled recurrence still block schedule changes. Unscheduled tasks can receive a duration without inventing dates.
+
+The context catalog includes archived board/section IDs for restoration. Rename follow-ups select the update action matching the confirmed target kind. The current local ISO date uses the configured timezone, including UTC date/year boundaries.
+
+Existing billing, account deletion, verification and anti-abuse paths are unchanged. Reminder commands remain Stage 3.
 
 Validation: run npm test, npm run build:cloudflare, npm run test:runtime, then verify planner persistence with a verified test account on a preview deployment. Unit/integration fixtures cover transactions and chat flows but do not verify deployed Firestore rules or notification delivery.

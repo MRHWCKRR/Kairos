@@ -22,6 +22,7 @@ export async function plannerFixture(data, {failAfterCommit=false,retryTransacti
     },
     window:{dispatchEvent(){events++}},CustomEvent:class{},invalidateKairosContext(){}});
   const strip=s=>s.replace(/^import[\s\S]*?;\s*/gm,'').replace(/^export /gm,'');
+  vm.runInContext(strip(await readFile(new URL('../../ai-action-schema.js',import.meta.url),'utf8')),context);
   let store='';
   try{store=await readFile(new URL('../../plan-store.js',import.meta.url),'utf8')}catch(e){if(e.code!=='ENOENT')throw e}
   vm.runInContext(strip(store),context);
