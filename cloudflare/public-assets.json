@@ -73,7 +73,14 @@
     "verify-email.js",
     "waitlist.css",
     "waitlist.html",
-    "waitlist.js"
+    "waitlist.js",
+    "ui-styles.js",
+    "ui-dialogs.js",
+    "ui-selects.js",
+    "ui-bootstrap.js",
+    "ui-validation.js",
+    "ui-controls.css",
+    "auth-feedback.js"
   ],
   "directories": [
     "images",

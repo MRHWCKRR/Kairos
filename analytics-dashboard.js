@@ -1,3 +1,4 @@
+import { showNotice, confirmDialog, promptDialog } from './ui-dialogs.js?v=1';
 import { auth } from "./firebase.js";
 import { signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
@@ -113,8 +114,9 @@ range.addEventListener("change", () => currentUser && loadAnalytics(currentUser)
 refresh.addEventListener("click", () => currentUser && loadAnalytics(currentUser));
 
 clearButton.addEventListener("click", async () => {
-  const confirmed = window.confirm("Clear ALL Kairos analytics data?\n\nThis permanently deletes every stored analytics event and cannot be undone. New visits will start being recorded again immediately afterward.");
-  if (!confirmed || !currentUser) return;
+  const owner = currentUser?.uid;
+  const confirmed = await confirmDialog("Clear ALL Kairos analytics data?\n\nThis permanently deletes every stored analytics event and cannot be undone. New visits will start being recorded again immediately afterward.");
+  if (!confirmed || !currentUser || owner !== currentUser.uid) return;
 
   clearButton.disabled = true;
   clearStatus.hidden = false;

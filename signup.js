@@ -1,3 +1,4 @@
+import { createAuthFeedback } from './auth-feedback.js?v=1';
 import { auth, authProtectionReady } from './firebase.js';
 import {
     createUserWithEmailAndPassword,
@@ -6,6 +7,7 @@ import {
     sendEmailVerification
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
+const feedback = createAuthFeedback(document);
 const form = document.getElementById('signup-form');
 const password = document.getElementById('password');
 const confirmPassword = document.getElementById('confirm-password');
@@ -54,6 +56,8 @@ function verificationActionSettings(email) {
 }
 function showSignupError(error) {
     const messages = {
+        'auth/popup-closed-by-user': 'Sign-in cancelled. You can try again.',
+        'auth/popup-blocked': 'Your browser blocked Google sign-in. Allow popups for Kairos and try again.',
         'auth/email-already-in-use': 'An account with this email already exists. Try logging in instead.',
         'auth/invalid-email': 'Please enter a valid email address.',
         'auth/weak-password': 'Please choose a stronger password.',
@@ -63,7 +67,7 @@ function showSignupError(error) {
         'auth/invalid-recaptcha-token': 'Security verification failed. Please try again.',
         'auth/invalid-recaptcha-action': 'Security verification failed. Please refresh the page and try again.'
     };
-    alert(messages[error?.code] || error?.message || 'Sign up failed. Please try again.');
+    feedback(messages[error?.code] || error?.message || 'Sign up failed. Please try again.', { fields: error?.code === 'auth/weak-password' ? ['password'] : ['auth/email-already-in-use', 'auth/invalid-email'].includes(error?.code) ? ['email'] : [] });
 }
 async function createEmailAccount() {
     enforceSignupRateLimit();
@@ -84,7 +88,9 @@ async function createEmailAccount() {
 
 form?.addEventListener('submit', async e => {
     e.preventDefault();
-    if (password.value !== confirmPassword.value) { alert('Passwords do not match.'); return; }
+    feedback('');
+    if (!form.checkValidity()) { form.reportValidity(); return; }
+    if (password.value !== confirmPassword.value) { feedback('Passwords do not match.', { fields: ['password', 'confirm-password'] }); return; }
     submit.textContent = 'Checking security...';
     submit.disabled = true;
     try {
@@ -99,6 +105,7 @@ form?.addEventListener('submit', async e => {
 });
 
 googleBtn?.addEventListener('click', async () => {
+    feedback('');
     try {
         enforceSignupRateLimit();
         if (isLikelyBot()) throw new Error('Sign up could not be completed. Please refresh the page and try again.');

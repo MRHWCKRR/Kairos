@@ -1,3 +1,4 @@
+import { showNotice, confirmDialog, promptDialog } from './ui-dialogs.js?v=1';
 /* Kairos Web onboarding — shared Firebase onboarding state across web/iOS/Android. */
 import { auth, db } from "./firebase.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
@@ -55,7 +56,7 @@ function hydrateFromProfile(data){
  const birthday=profile.birthday||'';if(/^\d{4}-\d{2}-\d{2}$/.test(birthday))state.birthDate=birthday;else if(/^\d{2}\/\d{2}\/\d{4}$/.test(birthday)){const [d,m,y]=birthday.split('/');state.birthDate=`${y}-${m}-${d}`}
 }
 
-async function save(){captureInputs();const button=root.querySelector('#ko-start');button.disabled=true;button.textContent='Saving…';try{await setDoc(doc(db,'users',auth.currentUser.uid),{'settings.profile.displayName':state.name,'settings.profile.birthday':state.birthDate?state.birthDate.split('-').reverse().join('/'):'','settings.profile.country':state.country,'settings.profile.timezone':state.timezone,'settings.accessibility.language':state.language||'en',onboardingCompleted:true},{merge:true});if(typeof window.confetti==='function')window.confetti({particleCount:220,spread:120,origin:{y:.6},zIndex:2147483647});root.remove();window.dispatchEvent(new CustomEvent('kairos:onboarding-complete'))}catch(error){console.error('Kairos onboarding save failed',error);button.disabled=false;button.textContent='Get Started';alert("We couldn't save your onboarding details. Please try again.")}}
+async function save(){captureInputs();const button=root.querySelector('#ko-start');button.disabled=true;button.textContent='Saving…';try{await setDoc(doc(db,'users',auth.currentUser.uid),{'settings.profile.displayName':state.name,'settings.profile.birthday':state.birthDate?state.birthDate.split('-').reverse().join('/'):'','settings.profile.country':state.country,'settings.profile.timezone':state.timezone,'settings.accessibility.language':state.language||'en',onboardingCompleted:true},{merge:true});if(typeof window.confetti==='function')window.confetti({particleCount:220,spread:120,origin:{y:.6},zIndex:2147483647});root.remove();window.dispatchEvent(new CustomEvent('kairos:onboarding-complete'))}catch(error){console.error('Kairos onboarding save failed',error);button.disabled=false;button.textContent='Get Started';showNotice("We couldn't save your onboarding details. Please try again.")}}
 
 async function start(user){
  if(!user)return;
