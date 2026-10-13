@@ -2,7 +2,7 @@ import { showNotice, confirmDialog, promptDialog } from './ui-dialogs.js?v=1';
 import { aiFetch, aiErrorMessage } from './ai-client.js';
 import { requestBilling } from './billing-client.js';
 import { mountPlanUsage } from './plan-usage.js?v=3';
-import { createPageLoader } from './page-loader.js?v=7';
+import { createPageLoader } from './page-loader.js?v=8';
 import { mountPageRouter } from './page-router.js?v=2';
 import { createPageRenderCache } from './page-render-cache.js?v=1';
 import './boards-recurrence.js?v=10';
@@ -26,6 +26,8 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { LANGUAGES, applyTranslations, getLocale, getLanguageName, t, ACHIEVEMENT_I18N } from './i18n.js';
 import { invalidateKairosContext } from './ai-context.js';
+import { dueTaskReminders, reminderDeliveryStatus } from './task-reminders.js';
+import { deliverTaskReminder, saveNotificationEdits, escapeNotificationText } from './reminder-notifications.js';
 import { savePlannerEdits } from './plan-store.js';
 import { mergePlanEdits, planState } from './plan-merge.js';
 console.log("APP.js is loaded and running");
@@ -377,6 +379,7 @@ function bootApp() {
 
     // --- Notifications state ---
     let notificationsData = [];
+    let notificationsSnapshot = [], notificationsOwner = null, taskReminderChecking = false;
     let unsubscribeNotifications = null;
 
     let pendingInitialLoads = 0;
@@ -1218,6 +1221,7 @@ function bootApp() {
                 scheduleData = Array.isArray(latestPlan.scheduleEvents) ? latestPlan.scheduleEvents : [];
                 planSnapshot = planState({ boards: boardsData, dayInsights, scheduleEvents: scheduleData });
                 invalidateKairosContext();
+                void window.__kairosTaskReminders?.check();
 
                 console.log("Successfully loaded latest study plan from Firestore!");
                 renderApp();
@@ -2722,14 +2726,18 @@ function bootApp() {
     // --- 12 Notifications Engine (Firestore-synced) ---
 
     function setupNotificationsSync(user) {
+        if (notificationsOwner !== user.uid) { notificationsData = []; notificationsSnapshot = []; }
+        notificationsOwner = user.uid;
         if (unsubscribeNotifications) unsubscribeNotifications();
 
         const ref = doc(db, 'users', user.uid);
         unsubscribeNotifications = onSnapshot(ref, (snap) => {
+            if (auth.currentUser?.uid !== user.uid) return;
             const data = snap.exists() ? snap.data() : null;
 
             if (data && Array.isArray(data.notifications)) {
                 notificationsData = data.notifications;
+                notificationsSnapshot = structuredClone(data.notifications);
             } else if (!data || data.notifications === undefined) {
                 if (notificationsData.length === 0) {
                     notificationsData = [{
@@ -2763,13 +2771,13 @@ function bootApp() {
 
     async function saveNotificationsToFirestore() {
         const user = auth.currentUser;
-        if (!user) return;
+        if (!user || notificationsOwner !== user.uid) return;
+        const local = structuredClone(notificationsData);
         try {
-            const ref = doc(db, 'users', user.uid);
-            await setDoc(ref, { notifications: notificationsData }, { merge: true });
-        } catch (error) {
-            console.error('Error saving notifications:', error);
-        }
+            const merged = await saveNotificationEdits(user.uid, structuredClone(notificationsSnapshot), local);
+            if (auth.currentUser?.uid !== user.uid) return;
+            notificationsSnapshot = merged;
+        } catch (error) { console.error('Error saving notifications:', error); }
     }
 
     function pushNotification(title, message) {
@@ -2824,17 +2832,17 @@ function bootApp() {
         }
 
         list.innerHTML = notificationsData.map(n => `
-            <div class="notif-item ${n.read ? '' : 'unread'}" data-notif-id="${n.id}">
+            <div class="notif-item ${n.read ? '' : 'unread'}" data-notif-id="${escapeNotificationText(n.id)}">
                 <div class="notif-item-dot"></div>
                 <div class="notif-item-body">
-                    <p class="notif-item-title">${n.title}</p>
-                    <p class="notif-item-message">${n.message}</p>
+                    <p class="notif-item-title">${escapeNotificationText(n.title)}</p>
+                    <p class="notif-item-message">${escapeNotificationText(n.message)}</p>
                     <p class="notif-item-time">${notifTimeAgo(n.time)}</p>
                 </div>
                 <div class="dots-menu-wrapper notif-dots-wrapper">
                     <button type="button" class="dots-menu-btn notif-dots-btn" title="Options">⋮</button>
                     <div class="dots-menu notif-dots-menu">
-                        <button type="button" class="notif-delete-btn danger-option" data-notif-id="${n.id}">Delete</button>
+                        <button type="button" class="notif-delete-btn danger-option" data-notif-id="${escapeNotificationText(n.id)}">Delete</button>
                     </div>
                 </div>
             </div>
@@ -3290,6 +3298,28 @@ function bootApp() {
             console.error('Browser notification error:', e);
         }
     }
+
+    async function checkTaskReminders() {
+        const user = auth.currentUser, planId = currentPlanDocId;
+        if (!user || !planId || !userSettings.notifications.enabled || taskReminderChecking) return;
+        taskReminderChecking = true;
+        const zone = userSettings.profile.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+        try {
+            for (const reminder of dueTaskReminders(boardsData, Date.now(), zone)) {
+                if (auth.currentUser?.uid !== user.uid) break;
+                const result = await deliverTaskReminder(planId, user.uid, reminder, { timeZone: zone });
+                if (result.delivered && auth.currentUser?.uid === user.uid) showBrowserNotification(result.title, result.message);
+            }
+        } catch (error) { console.warn('Task reminder delivery will retry:', error); }
+        finally { taskReminderChecking = false; }
+    }
+
+    window.__kairosTaskReminders = {
+        check: checkTaskReminders,
+        status: () => reminderDeliveryStatus(userSettings.notifications, typeof Notification === 'undefined' ? 'unsupported' : Notification.permission)
+    };
+
+    function checkPlanReminders() { checkBedtimeReminders(); void checkTaskReminders(); }
 
     function getBedtimeReminderStorageKey() {
         return 'kairos_bedtime_fired';
@@ -3748,8 +3778,10 @@ function bootApp() {
     renderStatisticsPage();
     void pageRouter.start();
 
-    checkBedtimeReminders();
-    setInterval(checkBedtimeReminders, 60000);
+    checkPlanReminders();
+    setInterval(checkPlanReminders, 60000);
+    window.addEventListener("focus", checkPlanReminders);
+    document.addEventListener("visibilitychange", () => { if (!document.hidden) checkPlanReminders(); });
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bootApp,{once:true});else bootApp();
 

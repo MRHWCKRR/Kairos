@@ -201,6 +201,16 @@ export async function executeKairosAction(action, options = {}) {
 }
 
 function applyKairosAction(plan, type, args, options) {
+    if (type === 'set_task_reminder' || type === 'remove_task_reminder') {
+        const found = findTask(plan.data, args);
+        found.task.reminderMinutes = type === 'remove_task_reminder' ? null : args.minutesBefore;
+        if (found.task.recurrence?.exceptions) {
+            for (const exception of Object.values(found.task.recurrence.exceptions)) {
+                if (exception?.override) delete exception.override.reminderMinutes;
+            }
+        }
+        return { type, task: found.task, board: found.board.title, section: found.section.title };
+    }
     if (['delete_board', 'delete_section'].includes(type) || (['update_board', 'update_section'].includes(type) && args.archived === true)) {
         requireReviewedContents(plan.data, { type, args }, options.confirmation);
     }

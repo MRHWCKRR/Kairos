@@ -10,6 +10,8 @@ export const ACTION_FIELDS = {
     resize_task: ['taskId', 'title', 'date', 'startTime', 'endTime', 'durationMinutes'],
     complete_task: ['taskId', 'title'],
     delete_task: ['taskId', 'title'],
+    set_task_reminder: ['taskId', 'title', 'minutesBefore'],
+    remove_task_reminder: ['taskId', 'title'],
     create_schedule_event: ['title', 'category', 'day', 'start', 'end'],
     update_schedule_event: ['eventId', 'title', 'newTitle', 'category', 'day', 'start', 'end'],
     delete_schedule_event: ['eventId', 'title']
@@ -35,6 +37,8 @@ export function validateActionShape(action) {
     for (const [key, value] of Object.entries(args)) {
         if (['completed', 'archived'].includes(key)) {
             if (typeof value !== 'boolean') throw new Error('Invalid task status.');
+        } else if (key === 'minutesBefore') {
+            if (!Number.isInteger(value) || value < 1 || value > 10080) throw new Error('Invalid reminder lead time.');
         } else if (key === 'durationMinutes') {
             if (!Number.isInteger(value) || value < 1 || value >= 1440) throw new Error('Invalid task duration.');
         } else if (key.endsWith('Id')) {
@@ -46,6 +50,7 @@ export function validateActionShape(action) {
     if (args.newTitle !== undefined && (typeof args.newTitle !== 'string' || !args.newTitle.trim())) throw new Error('Invalid entity title.');
     if (action.type === 'create_section' && args.boardId === undefined && !args.board?.trim()) throw new Error('A board is required.');
     if (action.type === 'resize_task' && args.endTime === undefined && args.durationMinutes === undefined) throw new Error('Invalid duration change.');
+    if (action.type === 'set_task_reminder' && args.minutesBefore === undefined) throw new Error('A reminder lead time is required.');
     if (action.type === 'resize_task' && ['date','startTime','endTime'].some(key => args[key] !== undefined && (typeof args[key] !== 'string' || !args[key].trim()))) throw new Error('Invalid schedule values for resizing.');
     if (['update_board', 'update_section'].includes(action.type) && args.newTitle === undefined && args.archived === undefined) throw new Error('A name or archive status change is required.');
 }
@@ -57,4 +62,5 @@ export const ACTION_INSTRUCTIONS = 'Supported actions and allowed args: ' +
     'For create_section, title is the new section name and boardId/board is required. Archive/restore a board or section through its update action with archived true/false. Permanent deletions use delete actions and require a preview and confirmation. ' +
     'Ordinary task moves use update_task and preserve duration. Only use resize_task when the user explicitly changes the duration or end time, such as "end at 5pm" or "make it 90 minutes". ' +
     'resize_task requires endTime or durationMinutes (a positive whole number), and may provide date/startTime. An unscheduled task can have its duration set without inventing a schedule. Locked or recurring task schedules cannot be edited in chat. ' +
+    'Task reminders use set_task_reminder with minutesBefore (whole minutes, 1 to 10080) or remove_task_reminder. When the last confirmed target kind is reminder, its ID is a taskId: implicit remove/delete/cancel requests remove the reminder, never the task. They use the task start time in the profile timezone and follow task rescheduling; do not create a separate event. For recurring tasks this changes the series reminder. Absolute reminder dates/times, unrelated standalone reminders, email/SMS and background delivery are unsupported; explain that and offer a relative task reminder. If the target or lead time is missing, ask a clarification with actions: []. Saving does not grant browser notification permission. ' +
     'If a target is unclear, ask a specific clarification with actions: []. Do not silently substitute a different entity.';

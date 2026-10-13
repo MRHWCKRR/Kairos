@@ -83,7 +83,9 @@
     "auth-feedback.js",
     "plan-store.js",
     "plan-merge.js",
-    "ai-action-schema.js"
+    "ai-action-schema.js",
+    "task-reminders.js",
+    "reminder-notifications.js"
   ],
   "directories": [
     "images",

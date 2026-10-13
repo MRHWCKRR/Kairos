@@ -141,6 +141,7 @@ async function loadContextData(user) {
                     startTime: task.startTime || null,
                     endTime: task.endTime || null,
                     completed: task.completed === true,
+                    reminderMinutes: task.reminderMinutes ?? null,
                     scheduleLocked: task.scheduleLocked === true,
                     recurrence: task.recurrence || null
                 });
@@ -170,6 +171,7 @@ async function loadContextData(user) {
     const birthday = clean(profile.birthday, 20);
     const result = {
         timeZone,
+        notifications: { enabled: cloudSettings.notifications?.enabled !== false, browserEnabled: cloudSettings.notifications?.browserPush === true },
         language: clean(accessibility.language, 20) || 'en',
         displayName: clean(profile.displayName, 80) || clean(user.displayName, 80),
         birthday,
@@ -212,6 +214,7 @@ export async function getKairosContext() {
             'Current time: ' + formatTime(nowDate, data.timeZone),
             'User timezone: ' + data.timeZone,
             'Kairos language setting: ' + data.language,
+            'Notification settings: '+JSON.stringify(data.notifications)+'. Browser permission is separate; saving a reminder does not grant it.',
             'Current profile values override any older or conflicting profile values in conversation history, summaries, or memory.'
         ];
 
