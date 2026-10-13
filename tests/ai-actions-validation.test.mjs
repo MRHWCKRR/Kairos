@@ -1,21 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import fs from 'node:fs/promises';
-import vm from 'node:vm';
-import { taskDurationMinutes } from '../schedule-utils.js';
+import { plannerFixture } from './helpers/planner-fixture.mjs';
 
 async function fixture(tasks) {
-  const data = { boards: [{ id: 'b', title: 'Study', sections: [{ id: 's', title: 'General', tasks }] }] };
-  const writes = [];
-  const source = (await fs.readFile(new URL('../ai-actions.js', import.meta.url), 'utf8')).replace(/^import[\s\S]*?;\s*/gm, '').replace(/export /g, '');
-  const context = vm.createContext({ auth: { currentUser: { uid: 'one' } }, db: {},
-    collection: () => ({}), query: x => x, where: () => ({}), doc: () => ({}), getDoc: async () => ({}),
-    getDocs: async () => ({ docs: [{ id: 'plan', data: () => structuredClone(data) }] }),
-    setDoc: async (_, next) => { writes.push(structuredClone(next)); },
-    window: { dispatchEvent() {} }, CustomEvent: class {}, taskDurationMinutes, console });
-  vm.runInContext(source, context);
-  return { writes, execute: action => context.executeKairosAction(action) };
+  return plannerFixture({ userID: 'one', boards: [{ id: 'b', title: 'Study', sections: [{ id: 's', title: 'General', tasks }] }] });
 }
+
 
 test('a supplied nonexistent ID never falls back to another task title', async () => {
   const f = await fixture([{ id: 'real', title: 'Essay outline' }]);
