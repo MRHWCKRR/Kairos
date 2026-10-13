@@ -2,7 +2,7 @@ import { showNotice, confirmDialog, promptDialog } from './ui-dialogs.js?v=1';
 import { aiFetch, aiErrorMessage } from './ai-client.js';
 import { requestBilling } from './billing-client.js';
 import { mountPlanUsage } from './plan-usage.js?v=3';
-import { createPageLoader } from './page-loader.js?v=5';
+import { createPageLoader } from './page-loader.js?v=6';
 import { mountPageRouter } from './page-router.js?v=2';
 import { createPageRenderCache } from './page-render-cache.js?v=1';
 import './boards-recurrence.js?v=10';
@@ -26,6 +26,8 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { LANGUAGES, applyTranslations, getLocale, getLanguageName, t, ACHIEVEMENT_I18N } from './i18n.js';
 import { invalidateKairosContext } from './ai-context.js';
+import { savePlannerEdits } from './plan-store.js';
+import { mergePlanEdits, planState } from './plan-merge.js';
 console.log("APP.js is loaded and running");
 
 // ===========================================================
@@ -261,10 +263,7 @@ function bootApp() {
     ];
 
     function migrateToBoards(loadedDoc) {
-    if (Array.isArray(loadedDoc.boards)) return loadedDoc.boards;
-    if (Array.isArray(loadedDoc.sections)) {
-        return [{ id: 'board-' + Date.now(), title: 'My Routine', sections: loadedDoc.sections }];
-    }
+    if (Array.isArray(loadedDoc.boards) || Array.isArray(loadedDoc.sections)) return planState(loadedDoc).boards;
     return null;
 }
 
@@ -1150,52 +1149,54 @@ function bootApp() {
     }
 
     // --- 6 Cloud Sync Data Actions ---
+    let planSnapshot = null, planSaveQueue = Promise.resolve(), planEditRevision = 0, planLoadRevision = 0;
+
     async function savePlanToFirestore(planData) {
-        const user = auth.currentUser;
-        if (!user) {
-            console.error("Cannot save plan: no user signed in.");
-            return;
-        }
-        try {
-            const plansColRef = collection(db, "study_plans");
-            const docRef = await addDoc(plansColRef, {
-                boards: planData,
-                dayInsights: dayInsights,
-                scheduleEvents: scheduleData,
-                userID: user.uid,
-                createdAt: serverTimestamp()
-            });
-            currentPlanDocId = docRef.id;
-            console.log("Study plan successfully saved. ID:", docRef.id);
-        } catch (error) {
-            console.error("Error saving plan to Firestore:", error);
-        }
+        boardsData = planData;
+        return updatePlanInFirestore();
     }
 
     async function updatePlanInFirestore() {
-        window.__kairosScheduleWorkspace?.invalidate();
-        if (!currentPlanDocId) {
-            console.warn("No active plan doc ID found. Cannot sync progress.");
-            return;
-        }
-        try {
-            const planDocRef = doc(db, "study_plans", currentPlanDocId);
-            await updateDoc(planDocRef, {
-                boards: boardsData,
-                dayInsights: dayInsights,
-                scheduleEvents: scheduleData
-            });
-            console.log("Task progress successfully synced to Firestore.");
-        } catch (error) {
-            console.error("Error syncing task progress:", error);
+        const user = auth.currentUser;
+        if (!user) return false;
+        planEditRevision++;
+        const work = planSaveQueue.catch(() => {}).then(async () => {
+            if (auth.currentUser?.uid !== user.uid) throw new Error('The signed-in account changed.');
+            const planId = currentPlanDocId || 'plan-' + user.uid;
+            const local = planState({ boards: boardsData, dayInsights, scheduleEvents: scheduleData });
+            const saved = await savePlannerEdits(planId, user.uid, planSnapshot || planState({}), local);
+            if (auth.currentUser?.uid !== user.uid) throw new Error('The signed-in account changed.');
+            const live = planState({ boards: boardsData, dayInsights, scheduleEvents: scheduleData });
+            const rebased = mergePlanEdits(local, live, saved);
+            const remoteChanges = JSON.stringify(rebased) !== JSON.stringify(live);
+            boardsData = rebased.boards;
+            dayInsights = rebased.dayInsights;
+            scheduleData = rebased.scheduleEvents;
+            planSnapshot = saved;
+            currentPlanDocId = planId;
+            invalidateKairosContext();
+            window.__kairosScheduleWorkspace?.invalidate();
+            if (remoteChanges) renderApp();
+            return true;
+        });
+        planSaveQueue = work;
+        try { return await work; }
+        catch (error) {
+            console.error('Error syncing task progress:', error);
+            showNotice('Your changes could not be synced. ' + error.message);
+            return false;
         }
     }
 
     async function loadLatestPlanFromFirestore(user) {
+        const loadRevision = ++planLoadRevision;
+        await planSaveQueue.catch(() => {});
+        const editRevision = planEditRevision;
         try {
             const plansColRef = collection(db, "study_plans");
             const q = query(plansColRef, where("userID", "==", user.uid));
             const querySnapshot = await getDocs(q);
+            if (auth.currentUser?.uid !== user.uid || loadRevision !== planLoadRevision || editRevision !== planEditRevision) return;
             
             if (!querySnapshot.empty) {
                 const plans = querySnapshot.docs.map(doc => ({
@@ -1215,11 +1216,15 @@ function bootApp() {
                 boardsData = normalizeArchiveFields(migrated || boardsData);
                 dayInsights = latestPlan.dayInsights || {};
                 scheduleData = Array.isArray(latestPlan.scheduleEvents) ? latestPlan.scheduleEvents : [];
+                planSnapshot = planState({ boards: boardsData, dayInsights, scheduleEvents: scheduleData });
+                invalidateKairosContext();
 
                 console.log("Successfully loaded latest study plan from Firestore!");
                 renderApp();
             } else {
                 console.log("No saved study plans found in Firestore. Using default placeholder routines.");
+                currentPlanDocId = null;
+                planSnapshot = null;
                 renderApp();
             }
         } catch (error) {

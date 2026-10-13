@@ -80,7 +80,9 @@
     "ui-bootstrap.js",
     "ui-validation.js",
     "ui-controls.css",
-    "auth-feedback.js"
+    "auth-feedback.js",
+    "plan-store.js",
+    "plan-merge.js"
   ],
   "directories": [
     "images",

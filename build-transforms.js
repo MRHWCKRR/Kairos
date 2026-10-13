@@ -28,11 +28,7 @@ const BRIDGE=`
                 if (!currentPlanDocId) throw new Error('Could not create a plan document.');
                 return;
             }
-            await updateDoc(doc(db, 'study_plans', currentPlanDocId), {
-                boards: boardsData,
-                dayInsights: dayInsights,
-                scheduleEvents: scheduleData
-            });
+            if (!await updatePlanInFirestore()) throw new Error('Could not save planner changes.');
         },
         openRecurringEventEditor: (eventId = null) => openScheduleModal(eventId),
         requestAiPlan: async (context) => {

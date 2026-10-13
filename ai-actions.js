@@ -1,7 +1,8 @@
 import { auth, db } from './firebase.js';
+import { persistAiPlanAction } from './plan-store.js';
 import { taskDurationMinutes } from './schedule-utils.js';
 import {
-    collection, getDocs, query, where, doc, getDoc, setDoc
+    collection, getDocs, query, where
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
 const ACTIONS_REQUIRING_CONFIRMATION = new Set(['delete_task', 'delete_schedule_event']);
@@ -19,15 +20,13 @@ async function latestPlan(user) {
     }
     if (latest) return latest;
 
-    const planRef = doc(collection(db, 'study_plans'));
-    const data = { boards: [], dayInsights: {}, scheduleEvents: [], userID: user.uid, createdAt: { seconds: Math.floor(Date.now() / 1000) } };
-    await setDoc(planRef, data);
-    return { id: planRef.id, data, seconds: data.createdAt.seconds };
+    return { id: 'plan-' + user.uid };
 }
 
-async function writePlan(plan) {
-    await setDoc(doc(db, 'study_plans', plan.id), plan.data, { merge: true });
-    window.dispatchEvent(new CustomEvent('kairos-data-changed'));
+export async function getAiPlanId() {
+    const user = auth.currentUser;
+    if (!user) throw new Error('You must be signed in.');
+    return (await latestPlan(user)).id;
 }
 
 function allTasks(plan) {
@@ -65,10 +64,13 @@ function findScheduleEvent(plan, args) {
 }
 
 function findSection(plan, args) {
+    const boardId = clean(args.boardId, 120);
     const boardName = clean(args.board, 100).toLowerCase();
     const sectionName = clean(args.section, 100).toLowerCase();
     const boards = Array.isArray(plan.boards) ? plan.boards : [];
-    let board = boards.find(b => !b.archived && (!boardName || clean(b.title, 100).toLowerCase() === boardName));
+    const matches = boards.filter(b => !b.archived && (boardId ? b.id === boardId : (!boardName || clean(b.title, 100).toLowerCase() === boardName)));
+    if ((boardId || boardName) && matches.length > 1) throw new Error('Multiple boards match. Choose a uniquely named board.');
+    let board = matches[0];
     if (!board && !boardName) {
         board = { id: makeId('board'), title: 'AI Tasks', archived: false, sections: [] };
         boards.push(board);
@@ -76,7 +78,9 @@ function findSection(plan, args) {
     }
     if (!board) throw new Error('Board not found.');
     const sections = Array.isArray(board.sections) ? board.sections : [];
-    let section = sections.find(s => !s.archived && (!sectionName || clean(s.title, 100).toLowerCase() === sectionName));
+    const sectionMatches = sections.filter(s => !s.archived && (!sectionName || clean(s.title, 100).toLowerCase() === sectionName));
+    if (sectionName && sectionMatches.length > 1) throw new Error('Multiple sections match. Choose a uniquely named section.');
+    let section = sectionMatches[0];
     if (!section && !sectionName) {
         section = { id: makeId('section'), title: 'General', archived: false, tasks: [] };
         sections.push(section);
@@ -90,7 +94,9 @@ function createBoard(plan, title) {
     const name = clean(title, 100);
     if (!name) throw new Error('A board title is required.');
     const boards = Array.isArray(plan.boards) ? plan.boards : [];
-    const existing = boards.find(b => !b.archived && clean(b.title, 100).toLowerCase() === name.toLowerCase());
+    const matches = boards.filter(b => !b.archived && clean(b.title, 100).toLowerCase() === name.toLowerCase());
+    if (matches.length > 1) throw new Error('Multiple boards match. Choose a uniquely named board.');
+    const existing = matches[0];
     if (existing) return existing;
     const board = {
         id: makeId('board'),
@@ -112,15 +118,25 @@ export function actionNeedsConfirmation(action) {
     return ACTIONS_REQUIRING_CONFIRMATION.has(action?.type) || Number(action?.count || 1) > 1;
 }
 
-export async function executeKairosAction(action) {
+export async function executeKairosAction(action, options = {}) {
     const user = auth.currentUser;
     if (!user) throw new Error('You must be signed in.');
+    if (options.ownerId && options.ownerId !== user.uid) throw new Error('The signed-in account changed.');
     if (!action || typeof action !== 'object' || typeof action.type !== 'string') throw new Error('Invalid AI action.');
 
     const args = action.args && typeof action.args === 'object' ? action.args : Object.fromEntries(Object.entries(action).filter(([key]) => key !== 'type'));
     const type = action.type;
     validateActionArgs(type, args);
-    const plan = await latestPlan(user);
+    const planId = options.planId || (await latestPlan(user)).id;
+    const operationId = options.operationId || makeId('operation');
+    const createdAt = options.createdAt ?? Date.now();
+    if (typeof operationId !== 'string' || !operationId || operationId.length > 160 || !Number.isFinite(createdAt) || createdAt <= 0) throw new Error('Invalid operation identity.');
+    const result = await persistAiPlanAction(planId, user.uid, { type, args }, operationId, createdAt, plan => applyKairosAction(plan, type, args));
+    window.dispatchEvent(new CustomEvent('kairos-data-changed'));
+    return result;
+}
+
+function applyKairosAction(plan, type, args) {
 
     if (type === 'create_board') {
         // Resolve the task first when this is a "move task to a new board"
@@ -143,7 +159,8 @@ export async function executeKairosAction(action) {
         }
         if (!boardTitle) throw new Error('A board title is required.');
 
-        const board = createBoard(plan.data, boardTitle);
+    const boardCreated = !(plan.data.boards || []).some(board => !board.archived && clean(board.title, 100).toLowerCase() === boardTitle.toLowerCase());
+    const board = createBoard(plan.data, boardTitle);
 
         // Move the existing task into the board's first section.
         if (found) {
@@ -153,8 +170,7 @@ export async function executeKairosAction(action) {
             section.tasks.push(found.task);
         }
 
-        await writePlan(plan);
-        return { type, board, movedTask: found?.task || null };
+        return { type, board, boardCreated, movedTask: found?.task || null };
     }
 
     if (type === 'create_task') {
@@ -172,12 +188,13 @@ export async function executeKairosAction(action) {
         };
         section.tasks = Array.isArray(section.tasks) ? section.tasks : [];
         section.tasks.push(task);
-        await writePlan(plan);
         return { type, task, board: board.title, section: section.title };
     }
 
     if (type === 'update_task') {
         const found = findTask(plan.data, args);
+        const originalTitle = found.task.title;
+        let finalLocation = found;
         if (['date', 'startTime', 'endTime'].some(key => args[key] !== undefined)) {
             if (found.task.scheduleLocked) throw new Error('This task schedule is locked.');
             if (found.task.recurrence) throw new Error('Use the schedule to change recurring task occurrences.');
@@ -198,8 +215,10 @@ export async function executeKairosAction(action) {
         if (args.board !== undefined || args.section !== undefined) {
             const destination = findSection(plan.data, {
                 board: args.board,
+                boardId: args.board === undefined ? found.board.id : undefined,
                 section: args.section
             });
+            finalLocation = destination;
             if (destination.board.id !== found.board.id || destination.section.id !== found.section.id) {
                 found.section.tasks = found.section.tasks.filter(task => task.id !== found.task.id);
                 destination.section.tasks = Array.isArray(destination.section.tasks) ? destination.section.tasks : [];
@@ -207,26 +226,24 @@ export async function executeKairosAction(action) {
             }
         }
 
-        await writePlan(plan);
         return {
             type,
             task: found.task,
-            board: args.board !== undefined ? clean(args.board, 100) : found.board.title,
-            section: args.section !== undefined ? clean(args.section, 100) : found.section.title
+            ...(args.newTitle !== undefined ? { originalTitle } : {}),
+            board: finalLocation.board.title,
+            section: finalLocation.section.title
         };
     }
 
     if (type === 'complete_task') {
         const found = findTask(plan.data, args);
         found.task.completed = true;
-        await writePlan(plan);
         return { type, task: found.task };
     }
 
     if (type === 'delete_task') {
         const found = findTask(plan.data, args);
         found.section.tasks = found.section.tasks.filter(task => task.id !== found.task.id);
-        await writePlan(plan);
         return { type, task: found.task };
     }
 
@@ -244,7 +261,6 @@ export async function executeKairosAction(action) {
         if (event.day < 0 || event.day > 6 || !event.start || !event.end) throw new Error('A valid day, start time, and end time are required.');
         plan.data.scheduleEvents = Array.isArray(plan.data.scheduleEvents) ? plan.data.scheduleEvents : [];
         plan.data.scheduleEvents.push(event);
-        await writePlan(plan);
         return { type, event };
     }
 
@@ -257,14 +273,12 @@ export async function executeKairosAction(action) {
         if (args.end !== undefined) event.end = clean(args.end, 10);
         validateEvent(event);
         if (event.day < 0 || event.day > 6 || !event.start || !event.end) throw new Error('Invalid schedule event details.');
-        await writePlan(plan);
         return { type, event };
     }
 
     if (type === 'delete_schedule_event') {
         const event = findScheduleEvent(plan.data, args);
         plan.data.scheduleEvents = (plan.data.scheduleEvents || []).filter(item => item.id !== event.id);
-        await writePlan(plan);
         return { type, event };
     }
 
