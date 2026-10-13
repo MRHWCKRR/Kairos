@@ -371,7 +371,7 @@ function bootApp() {
     let userSettings = defaultSettings();
     try {
         const cached = JSON.parse(localStorage.getItem('kairos_settings_cache') || 'null');
-        if (cached) userSettings = deepMerge(defaultSettings(), cached);
+        if (cached && auth.currentUser?.uid === localStorage.getItem('kairos_settings_cache_uid')) userSettings = deepMerge(defaultSettings(), cached);
     } catch (e) { /* ignore malformed cache */ }
     let pendingSettings = cloneDeep(userSettings);
     let confettiEnabled = userSettings.appearance.confetti;
@@ -1900,6 +1900,12 @@ function bootApp() {
     }
 
     async function loadUserSettingsFromFirestore(user) {
+        userSettings = defaultSettings();
+        try {
+            if (localStorage.getItem('kairos_settings_cache_uid') === user.uid) {
+                userSettings = deepMerge(defaultSettings(), JSON.parse(localStorage.getItem('kairos_settings_cache') || '{}'));
+            }
+        } catch { /* Ignore malformed local settings. */ }
         try {
             const ref = doc(db, 'users', user.uid);
             const snap = await getDoc(ref);
@@ -1911,6 +1917,8 @@ function bootApp() {
         }
         pendingSettings = cloneDeep(userSettings);
         localStorage.setItem('kairos_settings_cache', JSON.stringify(userSettings));
+        localStorage.setItem('kairos_settings_cache_uid', user.uid);
+        invalidateKairosContext();
         applyAllSettings();
         populateSettingsForm();
         document.dispatchEvent(new Event('kairos-controls-refresh'));
@@ -2442,6 +2450,7 @@ function bootApp() {
             userSettings = cloneDeep(pendingSettings);
             if (userSettings.appearance.mode === 'light') triggerMiscAchievement('light_mode');
             localStorage.setItem('kairos_settings_cache', JSON.stringify(userSettings));
+            if (auth.currentUser) localStorage.setItem('kairos_settings_cache_uid', auth.currentUser.uid);
             applyAllSettings();
             const settingsSaved = await saveUserSettingsToFirestore();
             if (settingsSaved) invalidateKairosContext();
@@ -2664,6 +2673,7 @@ function bootApp() {
                 await deleteUser(user);
 
                 localStorage.removeItem('kairos_settings_cache');
+                localStorage.removeItem('kairos_settings_cache_uid');
                 localStorage.removeItem('kairos_bedtime_fired');
                 overlay.classList.remove('active');
                 document.body.classList.remove('modal-open');

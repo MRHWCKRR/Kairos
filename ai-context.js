@@ -67,6 +67,7 @@ function calculateAge(birthday, now, timeZone) {
 
 function refreshCachedProfile(data, user) {
     try {
+        if (localStorage.getItem('kairos_settings_cache_uid') !== user.uid) return data;
         const settings = JSON.parse(localStorage.getItem('kairos_settings_cache') || '{}');
         const profile = settings?.profile;
         if (!profile || typeof profile !== 'object') return data;
@@ -100,7 +101,8 @@ async function loadContextData(user) {
     const cloudSettings = userData.settings || {};
     let cachedSettings = {};
     try {
-        const local = JSON.parse(localStorage.getItem('kairos_settings_cache') || '{}');
+        const local = localStorage.getItem('kairos_settings_cache_uid') === user.uid
+            ? JSON.parse(localStorage.getItem('kairos_settings_cache') || '{}') : {};
         if (local && typeof local === 'object') cachedSettings = local;
     } catch {
         // Ignore malformed local settings cache.
