@@ -22,7 +22,29 @@
 #tasks-page .section-title-row .editable-title{flex:1;min-width:120px;overflow-wrap:anywhere}
 #tasks-page .section-title-row .task-section-control{margin-left:0}
 #tasks-page .board-card-header .editable-title{min-width:0;overflow-wrap:anywhere}
-#tasks-page .task-section-focus{max-width:none;min-width:0;container-type:inline-size}
+#tasks-page .task-section-focus{max-width:none;min-width:0;container-type:inline-size;background:var(--bg-card);color:var(--text-primary);border:1px solid var(--border-subtle);border-radius:12px;padding:clamp(20px,2vw,32px)}
+#tasks-page .task-section-focus .task-section-heading{padding-bottom:24px;margin-bottom:12px}
+#tasks-page .task-section-focus .task-section-heading h2{font-size:1.5rem;font-weight:700;line-height:1.35;color:var(--text-primary);margin:12px 0}
+#tasks-page .task-section-focus .task-section-heading p{font-size:.875rem;line-height:1.5;margin:16px 0 8px;color:var(--text-primary);opacity:.8}
+#tasks-page .task-section-focus [data-section-count]{font-size:.875rem;color:var(--text-primary)}
+#tasks-page .task-section-focus button{font-family:inherit;font-size:.875rem;line-height:1.4;min-height:36px;border-radius:7px;padding:8px 12px;background:var(--bg-main);color:var(--text-primary);border:1px solid var(--border-subtle)}
+#tasks-page .task-section-focus button:hover:not(:disabled){border-color:var(--accent-glow);background:var(--accent-glow-soft)}
+#tasks-page .task-section-focus [data-show-completed][aria-pressed="true"]{border-color:var(--accent-glow);background:var(--accent-glow-soft)}
+#tasks-page .task-section-focus .task-text{font:inherit;font-size:1rem;line-height:1.5;padding:8px;min-height:40px;background:transparent;color:var(--text-primary);border:1px solid transparent;border-radius:6px}
+#tasks-page .task-section-focus .task-text:hover{border-color:var(--border-subtle)}
+#tasks-page .task-section-focus .task-text:focus-visible{background:var(--bg-main);border-color:var(--accent-glow)}
+#tasks-page .task-section-focus .task-item.completed .task-text{color:var(--text-primary);opacity:.65}
+#tasks-page .task-section-focus .task-date-input{width:145px;max-width:145px;min-height:36px;font:inherit;font-size:.875rem;background:var(--bg-main);color:var(--text-primary);border:1px solid var(--border-subtle);border-radius:7px;padding:6px 8px}
+#tasks-page .task-section-focus .task-scheduled-time,#tasks-page .task-section-focus .task-checklist-count{font-size:.875rem;color:var(--text-primary)}
+#tasks-page .task-section-focus [data-section-state]{font-size:.95rem;line-height:1.5;color:var(--text-primary);margin:16px 0}
+#tasks-page .task-section-focus [data-section-state]:empty{display:none}
+#tasks-page .task-section-focus .task-quick-add{margin-top:20px;padding:24px 0 0;gap:12px}
+#tasks-page .task-section-focus .task-quick-add label{font-size:.875rem;color:var(--text-primary);gap:10px}
+#tasks-page .task-section-focus .task-quick-add input{font:inherit;font-size:1rem;line-height:1.5;min-height:44px;padding:10px 12px;border-radius:7px;background:var(--bg-main);color:var(--text-primary)}
+#tasks-page .task-section-focus .task-quick-add input::placeholder{color:var(--text-primary);opacity:.65}
+#tasks-page .task-section-focus .task-quick-add [data-quick-save]{min-height:44px;background:var(--accent-glow);border-color:var(--accent-glow);color:#fff;font-weight:600}
+#tasks-page .task-section-focus .task-quick-add [role="status"]{font-size:.875rem;line-height:1.5;color:var(--text-primary);margin:0}
+#tasks-page .task-section-focus button:focus-visible,#tasks-page .task-section-focus input:focus-visible{outline:2px solid var(--accent-glow);outline-offset:3px}
 /* A title gets its own line in board cards; actions cannot squeeze it out. */
 #tasks-page .board-card .task-item[data-detail-row]{display:grid;grid-template-columns:24px minmax(0,1fr) 120px auto 28px;gap:10px 8px;padding:var(--task-padding);margin-block:4px}
 #tasks-page .board-card .custom-checkbox{grid-column:1;grid-row:1}
