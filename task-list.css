@@ -1,5 +1,19 @@
 .task-detail-open{margin-left:auto;flex-shrink:0;border:0;background:transparent;color:var(--text-muted);font:inherit;font-size:.7rem;padding:5px 7px;cursor:pointer}.task-detail-open:hover,.task-detail-open:focus-visible{color:var(--text-primary);outline:1px solid var(--accent-glow);border-radius:4px}.task-item[data-detail-row]:focus-visible{outline:1px solid var(--accent-glow);outline-offset:2px}
 /* Tasks uses the desktop workspace instead of the shared reading-width page. */
+/* Updates retain existing nodes; overview cards should never replay entrance effects. */
+#tasks-page .fade-in-section{animation:none}
+#tasks-page .board-card-header .dots-menu-btn,#tasks-page .section-title-row .dots-menu-btn{display:grid;place-items:center;width:36px;height:36px;padding:0;font-size:24px;opacity:1;background:var(--bg-main);border:1px solid var(--border-subtle)}
+#tasks-page .section-title-row{align-items:center}
+#tasks-page .section-title-row .dots-menu-wrapper{margin-left:auto;order:2}
+#tasks-page .section-title-row [data-section-collapse]{display:grid;place-items:center;width:36px;height:36px;padding:0;border:1px solid transparent;background:transparent;flex:0 0 36px;color:var(--text-muted)}
+#tasks-page [data-section-collapse] svg,#tasks-page [data-open-section] svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+#tasks-page [data-section-collapse][aria-expanded="true"] svg{transform:rotate(90deg)}
+#tasks-page .section-title-row [data-open-section]{display:inline-flex;align-items:center;justify-content:center;gap:9px;min-height:36px;padding:8px 12px;border-radius:7px;background:var(--bg-main);border:1px solid var(--border-subtle);font-size:.8rem;color:var(--text-primary);white-space:nowrap}
+#tasks-page .section-title-row [data-open-section]:hover,#tasks-page .section-title-row [data-section-collapse]:hover{background:var(--accent-glow-soft);border-color:var(--accent-glow);color:var(--text-primary)}
+#tasks-page .task-order-controls{gap:4px}
+#tasks-page .task-order-controls svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}
+#tasks-page .task-order-controls [data-task-action]{display:grid;place-items:center;min-width:32px;min-height:32px;padding:5px;font-size:16px;border-radius:6px}
+#tasks-page .task-order-controls [data-task-action]:hover:not(:disabled){background:var(--border-subtle)}
 #tasks-page.page-view{max-width:none;min-width:0;padding-inline:clamp(24px,2.5vw,64px)}
 #tasks-page .boards-grid{grid-template-columns:repeat(auto-fit,minmax(min(100%,560px),1fr));gap:28px;align-items:start}
 #tasks-page .board-card{min-width:0;container-type:inline-size}

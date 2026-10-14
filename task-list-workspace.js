@@ -4,9 +4,37 @@ import {confirmDialog} from './ui-dialogs.js?v=1';
 
 const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 const sectionKey=target=>JSON.stringify([target.boardId,target.sectionId]);
+const orderIcon=action=>'<svg aria-hidden="true" viewBox="0 0 24 24"><path d="'+({drag:'M8 5h1m6 0h1M8 12h1m6 0h1M8 19h1m6 0h1',up:'m6 14 6-6 6 6',down:'m6 10 6 6 6-6',move:'M4 12h16m-5-5 5 5-5 5'}[action])+'"/></svg>';
+// Reconcile the overview within one account/planner. Retain DOM identity so a
+// confirmed save does not restart every board animation or replace live inputs.
+function reconcileOverview(parent,next,active){
+    const owned=node=>node.nodeType===1&&node.matches('[data-open-section],[data-section-collapse]');
+    const key=node=>node.nodeType===1?(node.dataset.detailRow?'task:'+node.dataset.detailRow:node.classList.contains('board-section-block')?'section:'+node.dataset.sectionId:node.classList.contains('board-card')?'board:'+node.dataset.boardId:null):null;
+    const old=[...parent.childNodes].filter(node=>!owned(node)),keyed=new Map(old.map(node=>[key(node),node]).filter(([id])=>id)),used=new Set();
+    let cursor=parent.firstChild;
+    for(const [index,incoming] of [...next.childNodes].entries()){
+        const id=key(incoming),candidate=id?keyed.get(id):old[index];
+        let node=candidate&&!used.has(candidate)&&key(candidate)===id&&candidate.nodeType===incoming.nodeType&&candidate.nodeName===incoming.nodeName?candidate:null;
+        if(!node)node=incoming.cloneNode(true);
+        else if(node.nodeType===1){
+            const menuOpen=node.matches('.dots-menu-wrapper.active'),editing=node===active&&node.matches('.task-text,.task-date-input,[contenteditable="true"]');
+            for(const attribute of [...node.attributes])if(!incoming.hasAttribute(attribute.name)&&!(editing&&['value','contenteditable'].includes(attribute.name)))node.removeAttribute(attribute.name);
+            for(const attribute of [...incoming.attributes])if(!(editing&&attribute.name==='value')&&node.getAttribute(attribute.name)!==attribute.value)node.setAttribute(attribute.name,attribute.value);
+            if(menuOpen)node.classList.add('active');
+            if(node.matches('input')){
+                if(!editing&&node.value!==incoming.value)node.value=incoming.value;
+                if(node.type==='checkbox')node.checked=incoming.hasAttribute('checked');
+            }else if(!editing)reconcileOverview(node,incoming,active);
+        }else if(node.nodeValue!==incoming.nodeValue)node.nodeValue=incoming.nodeValue;
+        while(cursor&&owned(cursor))cursor=cursor.nextSibling;
+        used.add(node);if(cursor!==node)parent.insertBefore(node,cursor||null);cursor=node.nextSibling;
+    }
+    for(const node of old)if(!used.has(node))node.remove();
+}
 export function replaceTaskOverview(overview,html,{document=overview.ownerDocument,scrollElement=overview.closest('.main-content')||overview,preserveActive=true}={}){
     const active=document.activeElement,editable=preserveActive&&overview.contains(active)&&active.matches?.('.task-text,.task-date-input'),snapshot=editable?{id:active.dataset.task,title:active.matches('.task-text'),value:active.value,start:active.selectionStart,end:active.selectionEnd}:null,scroll=scrollElement.scrollTop;
-    overview.innerHTML=html;
+    if(!preserveActive)overview.innerHTML=html;
+    else{const template=document.createElement('template');template.innerHTML=html;reconcileOverview(overview,template.content,active)}
     if(snapshot){const field=[...overview.querySelectorAll(snapshot.title?'.task-text':'.task-date-input')].find(el=>el.dataset.task===snapshot.id);
         if(field){field.value=snapshot.value;field.focus?.({preventScroll:true});if(Number.isInteger(snapshot.start)&&Number.isInteger(snapshot.end))field.setSelectionRange?.(snapshot.start,snapshot.end)}
     }
@@ -15,13 +43,13 @@ export function replaceTaskOverview(overview,html,{document=overview.ownerDocume
 export function renderTaskListRow(task,sectionId,copy=key=>t('task_list_'+key)){
     const id=esc(task.id),section=esc(sectionId),progress=Array.isArray(task.checklist)?task.checklist:[];
     return `<li class="task-item ${task.completed?'completed':''}" tabindex="0" data-detail-row="${id}">
-      <span class="task-order-controls">${['drag','up','down','move'].map(action=>`<button type="button" data-task-action="${action}" aria-label="${esc(t('task_order_'+action)+' '+task.title)}" title="${esc(t('task_order_'+action))}">${{drag:'⋮⋮',up:'↑',down:'↓',move:'↗'}[action]}</button>`).join('')}</span>
+      <span class="task-order-controls">${['drag','up','down','move'].map(action=>`<button type="button" data-task-action="${action}" aria-label="${esc(t('task_order_'+action)+' '+task.title)}" title="${esc(t('task_order_'+action))}">${orderIcon(action)}</button>`).join('')}</span>
       <label class="custom-checkbox"><input type="checkbox" data-task-list-complete data-section="${section}" data-task="${id}" aria-label="${esc(copy('complete')+' '+task.title)}" ${task.completed?'checked':''} ${task.recurrence?.enabled?'disabled':''}><span class="checkmark"></span></label>
       <input type="text" class="task-text" data-section="${section}" data-task="${id}" value="${esc(task.title)}" aria-label="${esc(copy('title'))}" maxlength="180" style="text-decoration:${task.completed?'line-through':'none'}">
-      <span class="task-scheduled-time" ${task.startTime?'':'hidden'}>${esc(task.startTime)}${task.endTime?' – '+esc(task.endTime):''}</span>
+      <span class="task-scheduled-time" ${task.startTime?'':'hidden'}>${esc(task.startTime)}${task.endTime?' - '+esc(task.endTime):''}</span>
       <span class="task-checklist-count" ${progress.length?'':'hidden'}>${task.recurrence?.enabled?0:progress.filter(item=>item.completed).length}/${progress.length}</span>
       <input type="date" class="task-date-input" data-section="${section}" data-task="${id}" value="${esc(task.date)}" aria-label="${esc(copy('date'))}">
-      <button type="button" class="task-delete-btn" data-task-list-archive data-section="${section}" data-task="${id}" aria-label="${esc(copy('archive')+' '+task.title)}" title="${esc(copy('archive'))}">×</button>
+      <button type="button" class="task-delete-btn" data-task-list-archive data-section="${section}" data-task="${id}" aria-label="${esc(copy('archive')+' '+task.title)}" title="${esc(copy('archive'))}">x</button>
       <button type="button" class="task-detail-open" data-task-detail="${id}">${esc(t('task_detail_heading'))}</button></li>`;
 }
 
@@ -78,7 +106,7 @@ export function mountTaskListWorkspace({root,overview,scrollElement=root.closest
             const title=row.querySelector('.task-text'),date=row.querySelector('.task-date-input'),check=row.querySelector('[type="checkbox"]');
             if(active!==title)title.value=task.title;title.style.textDecoration=task.completed?'line-through':'none';
             if(active!==date)date.value=task.date||'';check.checked=task.completed===true;check.setAttribute('aria-label',copy('complete')+' '+task.title);
-            const time=row.querySelector('.task-scheduled-time');time.hidden=!task.startTime;time.textContent=(task.startTime||'')+(task.endTime?' – '+task.endTime:'');
+            const time=row.querySelector('.task-scheduled-time');time.hidden=!task.startTime;time.textContent=(task.startTime||'')+(task.endTime?' - '+task.endTime:'');
             const progress=Array.isArray(task.checklist)?task.checklist:[],count=row.querySelector('.task-checklist-count');count.hidden=!progress.length;count.textContent=(task.recurrence?.enabled?0:progress.filter(item=>item.completed).length)+'/'+progress.length;
         }
         for(const row of rows.values())row.remove();
@@ -95,7 +123,8 @@ export function mountTaskListWorkspace({root,overview,scrollElement=root.closest
             if(!header.querySelector('[data-open-section]')){
                 for(const [attribute,label] of [['data-section-collapse','collapse'],['data-open-section','open']]){const button=document.createElement('button');button.type='button';button.setAttribute(attribute,'');button.className='task-section-control';button.textContent=copy(label);header.appendChild(button)}
             }
-            const collapse=header.querySelector('[data-section-collapse]');collapse.setAttribute('aria-expanded',String(!pref.collapsed));collapse.textContent=copy(pref.collapsed?'expand':'collapse');
+            const collapse=header.querySelector('[data-section-collapse]'),label=copy(pref.collapsed?'expand':'collapse');collapse.setAttribute('aria-expanded',String(!pref.collapsed));collapse.setAttribute('aria-label',label);collapse.title=label;if(!collapse.querySelector('svg'))collapse.innerHTML='<svg aria-hidden="true" viewBox="0 0 24 24"><path d="m8 5 7 7-7 7"/></svg>';if(header.firstElementChild!==collapse)header.prepend(collapse);
+            const open=header.querySelector('[data-open-section]');if(!open.querySelector('svg'))open.innerHTML=esc(copy('open'))+'<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M5 12h14m-6-6 6 6-6 6"/></svg>';
             for(const el of block.querySelectorAll('.task-list,.add-task-btn'))el.hidden=pref.collapsed;
         }
         onRender();

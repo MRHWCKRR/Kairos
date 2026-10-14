@@ -23,6 +23,7 @@ async function fixture({persist,storage=new Map(),rebuildOverview=false}={}){
 }
 test('focused navigation restores board scroll, selected row and local collapse preference',async()=>{
   const f=await fixture();f.workspace.decorateOverview();f.overview.querySelector('[data-section-collapse]').click();assert.equal(f.overview.querySelector('ul').hidden,true);
+  const collapse=f.overview.querySelector('[data-section-collapse]');assert.equal(collapse.textContent,'');assert.ok(collapse.getAttribute('aria-label'));assert.equal(collapse.getAttribute('aria-expanded'),'false');assert.ok(collapse.querySelector('svg[aria-hidden="true"]'));assert.ok(f.overview.querySelector('[data-open-section] svg'));
   f.scroll.scrollTop=240;const source=f.overview.querySelector('[data-open-section]');await f.workspace.openSection({boardId:'b',sectionId:'s'},source);
   assert.equal(f.scroll.scrollTop,0);
   assert.equal(f.overview.hidden,true);assert.match(f.root.querySelector('[data-section-heading]').textContent,/Work/);
