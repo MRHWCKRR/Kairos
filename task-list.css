@@ -64,7 +64,9 @@
 /* Reserve action space so revealing controls never shifts a task or drop target. */
 @media(hover:hover) and (pointer:fine){
  #tasks-page .task-item .task-order-controls,#tasks-page .task-item .task-delete-btn{opacity:0}
- #tasks-page .task-item:hover .task-order-controls,#tasks-page .task-item:focus-within .task-order-controls,#tasks-page .task-item:focus .task-order-controls,#tasks-page .task-item:hover .task-delete-btn,#tasks-page .task-item:focus-within .task-delete-btn,#tasks-page .task-item:focus .task-delete-btn,#tasks-page .task-dragging .task-order-controls{opacity:1}
+ /* A mouse click may retain focus after reordering; only keyboard-visible focus
+    should keep that row's actions revealed when the pointer moves elsewhere. */
+ #tasks-page .task-item:hover .task-order-controls,#tasks-page .task-item:has(:focus-visible) .task-order-controls,#tasks-page .task-item:focus-visible .task-order-controls,#tasks-page .task-item:hover .task-delete-btn,#tasks-page .task-item:has(:focus-visible) .task-delete-btn,#tasks-page .task-item:focus-visible .task-delete-btn,#tasks-page .task-dragging .task-order-controls{opacity:1}
 }
 @media(hover:none){#tasks-page .task-delete-btn{opacity:1}}
 @container(max-width:480px){
