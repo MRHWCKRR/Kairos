@@ -53,9 +53,11 @@ test('uncertain creation survives remount and reconciles the exact operation onc
 });
 test('completed visibility and unrelated refresh preserve drafts and title caret',async()=>{
   const f=await fixture();await f.workspace.openSection({boardId:'b',sectionId:'s'});const quick=f.type('Draft'),title=f.root.querySelector('.task-text');title.value='Typing';f.data().boards[0].sections[0].tasks[0].title='Remote';
+  const toggle=f.root.querySelector('[data-show-completed]');assert.equal(toggle.textContent,'Hide completed');assert.equal(toggle.getAttribute('aria-pressed'),'true');
   // linkedom has no native focus; emulate the browser active element here.
   Object.defineProperty(f.document,'activeElement',{configurable:true,value:title});title.selectionStart=2;f.workspace.render();assert.equal(f.root.querySelector('.task-text'),title);assert.equal(title.value,'Typing');assert.equal(title.selectionStart,2);assert.equal(quick.value,'Draft');
   f.root.querySelector('[data-show-completed]').click();assert.equal(f.root.querySelector('[data-detail-row="done"]').hidden,true);assert.match(f.root.querySelector('[data-section-count]').textContent,/1.*2/);
+  assert.equal(toggle.textContent,'Show completed');assert.equal(toggle.getAttribute('aria-pressed'),'false');toggle.click();assert.equal(toggle.textContent,'Hide completed');assert.equal(f.root.querySelector('[data-detail-row="done"]').hidden,false);
 });
 test('empty, archived and deleted sections have explicit states; labels and rows escape user content',async()=>{
   const f=await fixture();await f.workspace.openSection({boardId:'b',sectionId:'s'});assert.equal(f.root.querySelector('img,script'),null);assert.equal(f.root.querySelector('.task-text').value,'<img src=x onerror=x>');

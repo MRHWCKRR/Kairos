@@ -95,6 +95,7 @@ export function mountTaskListWorkspace({root,overview,scrollElement=root.closest
         find('[data-section-heading]').textContent=found.section?.title||copy('section');find('[data-section-breadcrumb]').textContent=found.board?.title||'';
         find('[data-section-count]').textContent=tasks.filter(task=>task.completed).length+' / '+tasks.length+' '+copy('completed');
         find('[data-show-completed]').setAttribute('aria-pressed',String(pref.showCompleted));
+        find('[data-show-completed]').textContent=copy(pref.showCompleted?'hide_completed':'show_completed');
         find('[data-section-state]').textContent=found.message||(tasks.length?(tasks.every(task=>task.completed)&&!pref.showCompleted?copy('hidden_completed'):''):copy('empty'));
         const rows=new Map([...list.children].map(row=>[row.dataset.detailRow,row])),active=document.activeElement,selection=active===input?null:[active?.selectionStart,active?.selectionEnd];
         for(const [index,task] of tasks.entries()){
