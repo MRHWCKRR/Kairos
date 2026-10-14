@@ -2,7 +2,7 @@ import { showNotice, confirmDialog, promptDialog } from './ui-dialogs.js?v=1';
 import { aiFetch, aiErrorMessage } from './ai-client.js';
 import { requestBilling } from './billing-client.js';
 import { mountPlanUsage } from './plan-usage.js?v=3';
-import { createPageLoader } from './page-loader.js?v=12';
+import { createPageLoader } from './page-loader.js?v=13';
 import { mountPageRouter } from './page-router.js?v=2';
 import { createPageRenderCache } from './page-render-cache.js?v=1';
 import './boards-recurrence.js?v=10';
@@ -473,6 +473,7 @@ function bootApp() {
     },{once:true});
 
     onAuthStateChanged(auth, async (user) => {
+        taskWorkspace?.sync();
         planUsage.reset();
         if(!user)void planUsage.refresh();
         if (!user) {
@@ -546,7 +547,7 @@ function bootApp() {
 
     let aiPageAutoCollapsed = false;
     let sidebarManuallyToggledOnAI = false;
-    let taskDetails=null;
+    let taskDetails=null,taskWorkspace=null;
     async function commitTaskDetails(command,expected,identity){
         const user=auth.currentUser;
         if(!user||identity.ownerId!==user.uid||identity.planId!==currentPlanDocId)throw new Error('The signed-in account or planner changed.');
@@ -574,6 +575,12 @@ function bootApp() {
     const pageLoader = createPageLoader({scheduleEnabled:!!document.getElementById('schedule-calendar'),taskDetailsEnabled:true,setupTaskDetails:module=>{
         taskDetails=module.mountTaskDetailPane({root:document.getElementById('tasks-page'),getOwnerId:()=>auth.currentUser?.uid||null,getPlanId:()=>currentPlanDocId,
             resolveTarget:target=>resolveTaskDetail({boards:boardsData},target),commit:commitTaskDetails,openSchedule:openTaskDetailsInSchedule});
+    },setupTaskWorkspace:module=>{
+        taskWorkspace=module.mountTaskListWorkspace({root:document.getElementById('tasks-page'),overview:document.getElementById('tasks-manager-container'),
+            getState:()=>({boards:boardsData}),getOwnerId:()=>auth.currentUser?.uid||null,getPlanId:()=>currentPlanDocId,commit:commitTaskDetails,
+            ensurePlan:async()=>{const owner=auth.currentUser?.uid;if(!owner)return false;if(!currentPlanDocId&&!await updatePlanInFirestore())return false;return auth.currentUser?.uid===owner},
+            requestCloseDetails:()=>taskDetails?.requestClose()??true,renderOverview:renderBoardsGrid});
+        renderBoardsGrid();
     }});
     window.__kairosPreparePage = pageLoader.prepare;
     async function openTaskDetailsFromList(taskId,source){
@@ -640,6 +647,7 @@ function bootApp() {
     const managerContainer = document.getElementById("tasks-manager-container");
 
     function createTaskHTML(task, sectionId, showDatePicker = false) {
+        if(showDatePicker&&taskWorkspace)return taskWorkspace.rowHTML(task,sectionId);
         return `
             <li class="task-item ${task.completed ? 'completed' : ''}" ${showDatePicker?`tabindex="0" data-detail-row="${escapeNotificationText(task.id)}"`:''}>
                 <label class="custom-checkbox">
@@ -657,6 +665,7 @@ function bootApp() {
     }
 
     function renderApp() {
+        taskWorkspace?.sync();
         taskDetails?.sync();
         window.__kairosScheduleWorkspace?.invalidate();
         renderFocusMode();
@@ -752,12 +761,14 @@ function bootApp() {
     function renderBoardsGrid() {
         if (!managerContainer) return;
         if (pageRenders.defer('tasks-page',renderBoardsGrid)) return;
+        if(taskWorkspace?.isFocused()){taskWorkspace.render();return}
         const visibleBoards = boardsData.filter(b => !b.archived);
         if (!visibleBoards.length) {
             managerContainer.innerHTML = `<p class="boards-empty-state text-muted">${tr('no_boards_yet')}</p>`;
             return;
         }
         managerContainer.innerHTML = visibleBoards.map(renderBoardCardHTML).join('');
+        taskWorkspace?.decorateOverview();
     }
 
     // --- 3 Interactive State Updates ---
@@ -814,6 +825,7 @@ function bootApp() {
 
             updateRoutineStats();
             updatePlanInFirestore();
+            taskWorkspace?.render();
             updateWhatsNextWidget();
             if (selectedCalendarDate) renderDayPanel();
 
@@ -981,23 +993,6 @@ function bootApp() {
                 if (board) {
                     const section = board.sections.find(s => s.id === sectionId);
                     if (section) section.archived = true;
-                    updatePlanInFirestore();
-                    renderApp();
-                }
-            }
-            return;
-        }
-
-        const addTaskBtn = e.target.closest('.add-task-btn');
-        if (addTaskBtn) {
-            const sectionId = addTaskBtn.getAttribute('data-section-id');
-            let found = findSection(sectionId);
-            if (found) {
-                const title = await requestName(tr('new_task_prompt'));
-                found = findSection(sectionId);
-                if (!found) return;
-                if (title && title.trim()) {
-                    found.section.tasks.push({ id: 'task-' + Date.now(), title: title.trim(), completed: false, date: null, archived: false });
                     updatePlanInFirestore();
                     renderApp();
                 }

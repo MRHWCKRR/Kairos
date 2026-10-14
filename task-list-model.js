@@ -70,6 +70,16 @@ function checklistCommand(state,command,expected){
     applied.result.type=command.type;return applied;
 }
 export function applyTaskListCommand(state,command,expected){
+    if(command?.type==='create_task'){
+        const item=command.task;
+        if(!item||typeof item!=='object'||Array.isArray(item)||Object.keys(item).some(key=>!['id','title'].includes(key))||typeof item.id!=='string'||!item.id.trim()||item.id.length>160||typeof item.title!=='string'||!item.title.trim()||item.title.length>180)throw new Error('Enter a task title up to 180 characters and a valid ID.');
+        const next=structuredClone(state),matches=(next.boards||[]).flatMap(board=>(board.sections||[]).filter(section=>board.id===command.target?.boardId&&section.id===command.target?.sectionId).map(section=>({board,section})));
+        if(matches.length!==1||matches[0].board.archived||matches[0].section.archived||expected?.boardId!==command.target?.boardId||expected?.sectionId!==command.target?.sectionId)throw new Error('This section is missing, archived or ambiguous.');
+        if((next.boards||[]).some(board=>(board.sections||[]).some(section=>(section.tasks||[]).some(task=>task.id===item.id))))throw new Error('This task ID already exists. Reconcile the original save.');
+        const {board,section}=matches[0],task={id:item.id,title:item.title.trim(),completed:false,date:null,archived:false};
+        (section.tasks??=[]).push(task);
+        return {next,result:{type:'create_task',task,board:board.title,section:section.title}};
+    }
     if(['add_checklist_item','edit_checklist_item','remove_checklist_item','reorder_checklist'].includes(command?.type))return checklistCommand(state,command,expected);
     if(command?.type!=='edit_task'||!command.changes||Array.isArray(command.changes))throw new Error('Unsupported task detail command.');
     const next=structuredClone(state),found=resolveTaskDetail(next,command.target),task=found.task,values=taskDetailValues(task,command.target),changes=command.changes;
