@@ -21,13 +21,22 @@ export function mergePlanEdits(base, local, remote) {
             throw new Error('Conflicting duplicate planner IDs.');
         }
         const baseIds = base.map(item => item.id), localIds = local.map(item => item.id);
+        const common=baseIds.filter(id=>maps[1].has(id)&&maps[2].has(id)),commonOrder=list=>list.map(item=>item.id).filter(id=>common.includes(id)),oldOrder=stableStringify(common),localOrder=stableStringify(commonOrder(local)),remoteOrder=stableStringify(commonOrder(remote));
+        if(localOrder!==oldOrder&&remoteOrder!==oldOrder&&localOrder!==remoteOrder)throw new Error('The order changed in another window or chat.');
         const order = equal(baseIds, localIds) ? remote.map(item => item.id) : localIds;
         const ids = [...new Set([...order, ...remote.map(item => item.id), ...localIds])];
         return ids.map(id => mergePlanEdits(maps[0].get(id), maps[1].get(id), maps[2].get(id))).filter(item => item !== undefined);
     }
     if (object(local) && object(remote) && (base === undefined || object(base))) {
         const keys = new Set([...Object.keys(base || {}), ...Object.keys(local), ...Object.keys(remote)]);
-        return Object.fromEntries([...keys].map(key => [key, mergePlanEdits(base?.[key], local[key], remote[key])]).filter(([, value]) => value !== undefined));
+        const merged=Object.fromEntries([...keys].map(key => [key, mergePlanEdits(base?.[key], local[key], remote[key])]).filter(([, value]) => value !== undefined));
+        if(Array.isArray(merged.boards)){
+            const taskIds=new Set();for(const board of merged.boards)for(const section of board.sections||[])for(const task of section.tasks||[]){
+                if(typeof task.id!=='string'||!task.id)continue;
+                if(taskIds.has(task.id))throw new Error('Conflicting moves created a duplicate task ID. Review the planner.');taskIds.add(task.id);
+            }
+        }
+        return merged;
     }
     throw new Error('This item changed in another window or chat. Reload the planner before retrying.');
 }

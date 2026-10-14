@@ -3,11 +3,12 @@ import assert from 'node:assert/strict';
 import {parseHTML} from 'linkedom';
 import {applyTaskListCommand,resolveTaskDetail} from '../task-list-model.js';
 
-async function fixture(){
+async function fixture({storage=new Map()}={}){
   const {mountTaskDetailPane}=await import('../task-detail-pane.js');
   const {document,window}=parseHTML('<html><body><section id="tasks-page"><button id="opener">Details</button></section></body></html>');
   let data={boards:[{id:'b',title:'Study',sections:[{id:'s',title:'General',tasks:[{id:'t',title:'<img src=x onerror=x>',notes:'Old',date:null,startTime:null,endTime:null}]}]}]},owner='one',calls=[],fail=false;
   const root=document.getElementById('tasks-page');
+  window.sessionStorage={getItem:key=>storage.get(key)||null,setItem:(key,value)=>storage.set(key,value),removeItem:key=>storage.delete(key)};
   const pane=mountTaskDetailPane({root,document,window,getOwnerId:()=>owner,getPlanId:()=> 'plan',resolveTarget:target=>resolveTaskDetail(data,target),commit:async(command,expected,identity)=>{calls.push(structuredClone({command,expected,identity}));if(fail)throw new Error('Network failure');const result=applyTaskListCommand(data,command,expected);data=result.next;return result.result;}});
   const open=()=>pane.open({taskId:'t'},document.getElementById('opener'));
   const input=(name,value)=>{const el=root.querySelector('[name="'+name+'"]');el.value=value;el.dispatchEvent(new window.Event('input',{bubbles:true}));};
@@ -111,4 +112,9 @@ test('confirmed saves refresh unrelated metadata displayed by the editor',async(
   const f=await fixture();await f.open();f.data().boards[0].sections[0].tasks[0].reminderMinutes=15;
   f.input('notes','New');assert.equal(await f.pane.save(),true);
   assert.equal(f.root.querySelector('[name="reminderMinutes"]').value,'15');
+});
+test('restored pending repeat changes display the draft rule and retry the exact original command',async()=>{
+  const storage=new Map(),first=await fixture({storage}),task=first.data().boards[0].sections[0].tasks[0];task.date='2026-10-15';task.recurrence={enabled:true,frequency:'daily',interval:1,startDate:'2026-10-15',mode:'flexible',exceptions:{}};
+  await first.open();const preset=first.root.querySelector('[data-recurrence-preset]');preset.querySelector('[value="weekly"]').selected=true;preset.dispatchEvent(new first.window.Event('change',{bubbles:true}));first.setFail(true);assert.equal(await first.pane.save(),false);assert.equal(first.calls.length,1);const original=first.calls[0];first.pane.dispose();
+  const restored=await fixture({storage});Object.assign(restored.data().boards[0].sections[0].tasks[0],task);await restored.open();assert.equal(restored.root.querySelector('[data-recurrence-preset]').value,'weekly');assert.equal(await restored.pane.save(),true);assert.deepEqual(restored.calls[0],original);assert.equal(restored.data().boards[0].sections[0].tasks[0].recurrence.frequency,'weekly');restored.pane.dispose();
 });

@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main, codex/task-list-stage1-details, codex/task-list-stage2-checklists]
+    branches: [main, codex/task-list-stage1-details, codex/task-list-stage2-checklists, codex/task-list-stage3-sections]
 
 permissions:
   contents: read

@@ -4,30 +4,43 @@ import {confirmDialog} from './ui-dialogs.js?v=1';
 
 const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 const sectionKey=target=>JSON.stringify([target.boardId,target.sectionId]);
+export function replaceTaskOverview(overview,html,{document=overview.ownerDocument,scrollElement=overview.closest('.main-content')||overview,preserveActive=true}={}){
+    const active=document.activeElement,editable=preserveActive&&overview.contains(active)&&active.matches?.('.task-text,.task-date-input'),snapshot=editable?{id:active.dataset.task,title:active.matches('.task-text'),value:active.value,start:active.selectionStart,end:active.selectionEnd}:null,scroll=scrollElement.scrollTop;
+    overview.innerHTML=html;
+    if(snapshot){const field=[...overview.querySelectorAll(snapshot.title?'.task-text':'.task-date-input')].find(el=>el.dataset.task===snapshot.id);
+        if(field){field.value=snapshot.value;field.focus?.({preventScroll:true});if(Number.isInteger(snapshot.start)&&Number.isInteger(snapshot.end))field.setSelectionRange?.(snapshot.start,snapshot.end)}
+    }
+    scrollElement.scrollTop=scroll;
+}
 export function renderTaskListRow(task,sectionId,copy=key=>t('task_list_'+key)){
     const id=esc(task.id),section=esc(sectionId),progress=Array.isArray(task.checklist)?task.checklist:[];
     return `<li class="task-item ${task.completed?'completed':''}" tabindex="0" data-detail-row="${id}">
-      <label class="custom-checkbox"><input type="checkbox" data-section="${section}" data-task="${id}" aria-label="${esc(copy('complete')+' '+task.title)}" ${task.completed?'checked':''}><span class="checkmark"></span></label>
+      <span class="task-order-controls">${['drag','up','down','move'].map(action=>`<button type="button" data-task-action="${action}" aria-label="${esc(t('task_order_'+action)+' '+task.title)}" title="${esc(t('task_order_'+action))}">${{drag:'⋮⋮',up:'↑',down:'↓',move:'↗'}[action]}</button>`).join('')}</span>
+      <label class="custom-checkbox"><input type="checkbox" data-task-list-complete data-section="${section}" data-task="${id}" aria-label="${esc(copy('complete')+' '+task.title)}" ${task.completed?'checked':''} ${task.recurrence?.enabled?'disabled':''}><span class="checkmark"></span></label>
       <input type="text" class="task-text" data-section="${section}" data-task="${id}" value="${esc(task.title)}" aria-label="${esc(copy('title'))}" maxlength="180" style="text-decoration:${task.completed?'line-through':'none'}">
       <span class="task-scheduled-time" ${task.startTime?'':'hidden'}>${esc(task.startTime)}${task.endTime?' – '+esc(task.endTime):''}</span>
       <span class="task-checklist-count" ${progress.length?'':'hidden'}>${task.recurrence?.enabled?0:progress.filter(item=>item.completed).length}/${progress.length}</span>
       <input type="date" class="task-date-input" data-section="${section}" data-task="${id}" value="${esc(task.date)}" aria-label="${esc(copy('date'))}">
-      <button type="button" class="task-delete-btn" data-section="${section}" data-task="${id}" aria-label="${esc(copy('archive')+' '+task.title)}" title="${esc(copy('archive'))}">×</button>
+      <button type="button" class="task-delete-btn" data-task-list-archive data-section="${section}" data-task="${id}" aria-label="${esc(copy('archive')+' '+task.title)}" title="${esc(copy('archive'))}">×</button>
       <button type="button" class="task-detail-open" data-task-detail="${id}">${esc(t('task_detail_heading'))}</button></li>`;
 }
 
-export function mountTaskListWorkspace({root,overview,scrollElement=root.closest('.main-content')||root,getState,getOwnerId,getPlanId,commit,ensurePlan=async()=>true,requestCloseDetails=async()=>true,confirmDiscard=warning=>confirmDialog(warning),renderOverview=()=>{},document=root.ownerDocument,window=document.defaultView,storage}={}){
+export function mountTaskListWorkspace({root,overview,scrollElement=root.closest('.main-content')||root,getState,getOwnerId,getPlanId,commit,ensurePlan=async()=>true,requestCloseDetails=async()=>true,confirmDiscard=warning=>confirmDialog(warning),renderOverview=()=>{},onRender=()=>{},document=root.ownerDocument,window=document.defaultView,storage}={}){
     const copy=key=>t('task_list_'+key,document.documentElement.lang||'en');
     try{storage??=window.sessionStorage}catch{}
     const surface=document.createElement('section');surface.dataset.focusedSection='';surface.className='task-section-focus';surface.hidden=true;overview.before(surface);
     surface.innerHTML=`<header class="task-section-heading"><button type="button" data-section-back>${esc(copy('back'))}</button><p data-section-breadcrumb></p><h2 data-section-heading tabindex="-1"></h2><div><span data-section-count></span><button type="button" data-show-completed aria-pressed="true">${esc(copy('show_completed'))}</button></div></header><p data-section-state role="status"></p><ul class="task-list" data-section-tasks></ul><form class="task-quick-add"><label>${esc(copy('quick_add'))}<input type="text" data-quick-title maxlength="180" autocomplete="off" placeholder="${esc(copy('quick_hint'))}"></label><button type="submit" data-quick-save>${esc(copy('add'))}</button><button type="button" data-quick-discard hidden>${esc(copy('discard'))}</button><p data-quick-status role="status" aria-live="polite"></p></form>`;
     const find=selector=>surface.querySelector(selector),input=find('[data-quick-title]'),list=find('[data-section-tasks]'),form=find('form');
-    let owner,plan,current=null,entries=new Map(),preferences={},selected=new Map(),scrollBack=0,opener=null,returnTarget=null,generation=0,navigation=0,disposed=false;
+    let owner,plan,current=null,entries=new Map(),preferences={},selected=new Map(),scrollBack=0,opener=null,returnTarget=null,generation=0,navigation=0,disposed=false,overviewOwner=null,overviewPlan=null;
     const pendingKey=()=> 'kairos-task-quick-pending:'+owner+':'+plan;
     const preferenceKey=()=> 'kairos-task-list-view:'+owner+':'+plan;
     const readStorage=key=>{try{return JSON.parse(storage?.getItem(key)||'null')}catch{return null}};
     function remember(){try{storage?.setItem(pendingKey(),JSON.stringify([...entries].filter(([,entry])=>entry.pending).map(([key,entry])=>[key,entry.pending])))}catch{}}
     function rememberView(){try{storage?.setItem(preferenceKey(),JSON.stringify(preferences))}catch{}}
+    function replaceOverview(html){
+        sync();const sameScope=overviewOwner===owner&&(overviewPlan===plan||(overviewPlan===null&&plan==='plan-'+owner));
+        replaceTaskOverview(overview,html,{document,scrollElement,preserveActive:sameScope});overviewOwner=owner;overviewPlan=plan;
+    }
     function sync(){
         if(owner===getOwnerId()&&plan===getPlanId())return false;
         generation++;navigation++;owner=getOwnerId();plan=getPlanId();current=null;entries=new Map();selected=new Map();const savedView=readStorage(preferenceKey());preferences=savedView&&typeof savedView==='object'&&!Array.isArray(savedView)?savedView:{};
@@ -49,6 +62,7 @@ export function mountTaskListWorkspace({root,overview,scrollElement=root.closest
     function render(){
         if(disposed)return;sync();if(!current)return;
         surface.hidden=false;overview.hidden=true;
+        surface.dataset.boardId=current.boardId;surface.dataset.sectionId=current.sectionId;
         const found=locate(current),entry=entryFor(current),pref=preference(current),tasks=found.message?[]:(found.section.tasks||[]).filter(task=>!task.archived);
         find('[data-section-heading]').textContent=found.section?.title||copy('section');find('[data-section-breadcrumb]').textContent=found.board?.title||'';
         find('[data-section-count]').textContent=tasks.filter(task=>task.completed).length+' / '+tasks.length+' '+copy('completed');
@@ -62,8 +76,8 @@ export function mountTaskListWorkspace({root,overview,scrollElement=root.closest
             // Keep row controls alive, especially title typing/caret and completion focus.
             row.classList.toggle('completed',task.completed===true);row.classList.toggle('is-selected',selected.get(sectionKey(current))===task.id);row.hidden=!pref.showCompleted&&task.completed===true;
             const title=row.querySelector('.task-text'),date=row.querySelector('.task-date-input'),check=row.querySelector('[type="checkbox"]');
-            if(document.activeElement!==title)title.value=task.title;title.style.textDecoration=task.completed?'line-through':'none';
-            if(document.activeElement!==date)date.value=task.date||'';check.checked=task.completed===true;check.setAttribute('aria-label',copy('complete')+' '+task.title);
+            if(active!==title)title.value=task.title;title.style.textDecoration=task.completed?'line-through':'none';
+            if(active!==date)date.value=task.date||'';check.checked=task.completed===true;check.setAttribute('aria-label',copy('complete')+' '+task.title);
             const time=row.querySelector('.task-scheduled-time');time.hidden=!task.startTime;time.textContent=(task.startTime||'')+(task.endTime?' – '+task.endTime:'');
             const progress=Array.isArray(task.checklist)?task.checklist:[],count=row.querySelector('.task-checklist-count');count.hidden=!progress.length;count.textContent=(task.recurrence?.enabled?0:progress.filter(item=>item.completed).length)+'/'+progress.length;
         }
@@ -73,6 +87,7 @@ export function mountTaskListWorkspace({root,overview,scrollElement=root.closest
         input.disabled=!!found.message||entry.busy||!!entry.pending;find('[data-quick-save]').disabled=(!!found.message&&!entry.pending)||entry.busy;
         find('[data-quick-save]').textContent=copy(entry.busy?'saving':entry.pending?'retry':'add');find('[data-quick-status]').textContent=entry.message;
         find('[data-quick-discard]').hidden=!entry.pending;find('[data-quick-discard]').disabled=entry.busy;
+        onRender();
     }
     function decorateOverview(){
         sync();for(const block of overview.querySelectorAll('.board-section-block')){
@@ -83,6 +98,7 @@ export function mountTaskListWorkspace({root,overview,scrollElement=root.closest
             const collapse=header.querySelector('[data-section-collapse]');collapse.setAttribute('aria-expanded',String(!pref.collapsed));collapse.textContent=copy(pref.collapsed?'expand':'collapse');
             for(const el of block.querySelectorAll('.task-list,.add-task-btn'))el.hidden=pref.collapsed;
         }
+        onRender();
     }
     async function openSection(target,source=null){
         sync();if(!getOwnerId())return false;const ticket=++navigation,actor=owner;
@@ -140,5 +156,5 @@ export function mountTaskListWorkspace({root,overview,scrollElement=root.closest
         const row=event.target.closest('[data-detail-row]');if(current&&row&&surface.contains(row)){selected.set(sectionKey(current),row.dataset.detailRow);for(const item of list.children)item.classList.toggle('is-selected',item===row)}
     };
     root.addEventListener('click',onClick);root.addEventListener('keydown',onKey);root.addEventListener('input',onInput);form.addEventListener('submit',onSubmit);sync();
-    return {openSection,back,submit,discard,render,sync,decorateOverview,rowHTML:(task,sectionId)=>renderTaskListRow(task,sectionId,copy),isFocused:()=>!!current,dispose(){disposed=true;generation++;navigation++;root.removeEventListener('click',onClick);root.removeEventListener('keydown',onKey);root.removeEventListener('input',onInput);form.removeEventListener('submit',onSubmit);surface.remove();overview.hidden=false}};
+    return {openSection,back,submit,discard,render,sync,decorateOverview,replaceOverview,rowHTML:(task,sectionId)=>renderTaskListRow(task,sectionId,copy),isFocused:()=>!!current,getViewKey:()=>current?sectionKey(current):'overview',dispose(){disposed=true;generation++;navigation++;root.removeEventListener('click',onClick);root.removeEventListener('keydown',onKey);root.removeEventListener('input',onInput);form.removeEventListener('submit',onSubmit);surface.remove();overview.hidden=false}};
 }

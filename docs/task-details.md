@@ -1,4 +1,4 @@
-# Task details, checklists and focused sections - Stages 1 to 3
+# Task details, checklists and task organisation - Stages 1 to 4
 
 In Tasks, use **Task details** on a task row, or focus the row and press Enter/F2. Wide desktop windows show a side pane; smaller desktop windows use the expanded dialog. Expand opens the same draft in a larger dialog.
 
@@ -22,6 +22,16 @@ Use **Open section** to work through a full-width section list. **Back to boards
 
 If a pending creation cannot reconcile (for example, its receipt has expired), **Discard pending draft** offers explicit recovery. A confirmation explains that the task may already have saved. Discard clears only the local pending draft and does not undo a saved task; inspect the section before entering the same task again. Retry keeps its original identity throughout.
 
-Section/task drag reordering and guarded Undo remain Stage 4. Known polish items from Stage 1: focus wrapping can include advanced inputs in collapsed details; a pending repeat-rule change restored after reload is retried correctly but the Repeat controls may still show the pre-save rule.
+Tasks rows now expose a dedicated drag grip, Move up/down buttons and a Move to section dialog. Alt+Up/Down on a row or its controls also moves it; typing shortcuts remain untouched. Dragging shows an insertion line, scrolls near the list edges, and cancels with Escape or release outside a valid destination. Completed/archived entries retain their underlying order; visible anchors translate to the full array, so filtering does not silently reorder hidden tasks. The move dialog uses explicit section IDs even when labels match. Section groups themselves retain their existing order.
+
+Completion, archive, move and reorder in Tasks use confirmed transactions and offer **Undo** for 10 seconds. Undo validates affected flags, location and order before reverting; newer conflicting changes or an expired window are never overwritten. Unrelated task text/checklist edits survive. Completion achievements remain counted once after confirmed completion, including if undone, consistent with existing lifetime award semantics. Home and Schedule keep their existing controls; recurring occurrence completion/date edits stay in Schedule.
+
+Order/move actions require unchanged affected section ID orders; concurrent additions require reviewing a fresh action. Uncertain actions retain their command, inverse baseline and operation identity in session storage. Retry reconciles the original receipt; confirmed local Discard clears only the pending action, with a warning that its save may already have succeeded. Undo itself does not survive reload after a confirmed save. Sorted views cannot offer manual reordering until their order semantics are defined. Reduced motion removes row animation.
+
+Retries recheck unsaved detail drafts before archive/move. Awaited actions remain bound to their original account/planner; explicit first-plan creation is the only permitted identity transition. Overview refresh preserves the active title/date draft and caret in the same account/planner, while later focus or scrolling is respected. Drag grips take focus so Escape remains scoped to Tasks. Overview rows wrap to retain readable titles beside their controls.
+
+Duplicate destination labels include visible board/section positions so users can distinguish them while commands retain explicit IDs. Restored pending repeat changes show their draft rule while Retry retains the exact original command. Modal focus wrapping includes summaries and excludes closed advanced content, hidden/inert controls and disabled fieldsets.
+
+Real pointer/keyboard feel, browser layout/focus and verified-account preview smoke remain release checks. Local browser verification attempts were blocked: debugger connections were denied by the sandbox, and headless rendering produced no usable output. The regression suite covers the restored repeat draft, distinct move choices, retries and account/planner boundaries; it does not establish authenticated Firestore behavior or visual verification.
 
 Verification covers model validation, unknown-field preservation, concurrent changes, uncertain response/retry, first-planner creation, legacy normalisation, canonical title baselines, drafts, escaping, account changes, module load-once behaviour, checklist limits/order, compact receipts and recurring snapshots. Real-browser layout/focus and verified-account Firestore smoke checks still require a preview session.
