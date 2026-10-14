@@ -14,7 +14,7 @@ export function mountTaskListInteractions({root,getState,getOwnerId,getPlanId,co
     const message=document.createElement('span');message.setAttribute('role','status');bar.appendChild(message);
     const button=(attribute,label)=>{const el=document.createElement('button');el.type='button';el.setAttribute(attribute,'');el.textContent=copy(label);el.hidden=true;bar.appendChild(el);return el};
     const undoButton=button('data-task-undo','undo'),retryButton=button('data-task-retry','retry'),discardButton=button('data-task-discard','discard');root.appendChild(bar);
-    let owner,plan,generation=0,busy=false,pending=null,undoState=null,timer=null,drag=null,frame=null,moveDialog=null,disposed=false;
+    let owner,plan,generation=0,busy=false,pending=null,preview=null,undoState=null,timer=null,drag=null,frame=null,moveDialog=null,disposed=false;
     const storageKey=()=> 'kairos-task-order-pending:'+owner+':'+plan;
     function remember(){try{if(pending)storage?.setItem(storageKey(),JSON.stringify(pending));else storage?.removeItem(storageKey())}catch{}}
     function clearUndo(){if(timer!==null)clearTimer(timer);timer=null;undoState=null;undoButton.hidden=true;if(message.textContent===copy('saved_undo'))message.textContent=copy('saved')}
@@ -25,9 +25,17 @@ export function mountTaskListInteractions({root,getState,getOwnerId,getPlanId,co
     }
     function sync(){
         if(owner===getOwnerId()&&plan===getPlanId())return false;
-        generation++;owner=getOwnerId();plan=getPlanId();cancelDrag();moveDialog?.remove();moveDialog=null;clearUndo();pending=null;busy=false;message.textContent='';
+        generation++;owner=getOwnerId();plan=getPlanId();cancelDrag();moveDialog?.remove();moveDialog=null;clearUndo();pending=null;preview=null;busy=false;message.textContent='';
         try{const saved=JSON.parse(storage?.getItem(storageKey())||'null');if(owner&&plan&&saved?.identity?.ownerId===owner&&saved.identity.planId===plan&&typeof saved.identity.operationId==='string'&&saved.identity.operationId&&Number.isFinite(saved.identity.createdAt)&&saved.identity.createdAt>0&&actionTypes.includes(saved.command?.type)&&saved.expected&&typeof saved.expected==='object')pending=saved}catch{}
         if(pending)message.textContent=copy('uncertain');return true;
+    }
+    // The optimistic state is display-only. Canonical planner data and durable
+    // receipts remain untouched until the host confirms and reloads the save.
+    function getDisplayState(){
+        const state=getState(),operation=preview;
+        if(!operation||operation.identity.ownerId!==getOwnerId()||operation.identity.planId!==getPlanId())return state;
+        try{return applyTaskListCommand(state,operation.command,operation.expected,{now:clock()}).next}
+        catch{return state} // The saved result or a conflicting update is already visible.
     }
     function decorate(){
         if(disposed)return;sync();
@@ -63,14 +71,17 @@ export function mountTaskListInteractions({root,getState,getOwnerId,getPlanId,co
             const kind=original.command.type==='undo_task_list'?original.command.inverse?.command?.type:original.command.type;
             if(['archive_task','move_task'].includes(kind)&&!await requestCloseDetails()){message.textContent=copy('uncertain');return false}
             if(disposed||ticket!==generation||pending!==original||getOwnerId()!==original.identity.ownerId||getPlanId()!==original.identity.planId)return false;
+            if(['complete_task','reorder_tasks'].includes(original.command.type)){
+                preview=original;refresh();decorate();
+            }
             const result=await commit(original.command,original.expected,original.identity);
             if(disposed||ticket!==generation||getOwnerId()!==original.identity.ownerId||getPlanId()!==original.identity.planId)return false;
-            pending=null;remember();message.textContent=copy('saved');
+            preview=null;pending=null;remember();message.textContent=copy('saved');
             if(original.command.type!=='undo_task_list'&&original.inverse){undoState={inverse:original.inverse,expiresAt:clock()+10000};message.textContent=copy('saved_undo');undoButton.hidden=false;timer=setTimer(()=>{clearUndo();decorate()},10000);timer?.unref?.()}
             try{await onConfirmed(original.command,result)}catch(error){console.warn('[Kairos] Post-save task update failed.',error)}
             return true;
         }catch(error){if(!disposed&&ticket===generation&&getOwnerId()===original.identity.ownerId&&getPlanId()===original.identity.planId){message.textContent=copy('uncertain')+' '+error.message;remember()}return false}
-        finally{if(!disposed&&ticket===generation&&getOwnerId()===original.identity.ownerId&&getPlanId()===original.identity.planId){busy=false;refresh();decorate();restoreFocus(snapshot)}else if(!disposed){sync();decorate()}}
+        finally{if(preview===original)preview=null;if(!disposed&&ticket===generation&&getOwnerId()===original.identity.ownerId&&getPlanId()===original.identity.planId){busy=false;refresh();decorate();restoreFocus(snapshot)}else if(!disposed){sync();decorate()}}
     }
     async function execute(command,expected){
         sync();if(busy||pending||!owner)return false;busy=true;const actor=owner,originalPlan=plan,originalGeneration=generation;let operationGeneration=generation;
@@ -180,5 +191,5 @@ export function mountTaskListInteractions({root,getState,getOwnerId,getPlanId,co
     };
     const onCancel=()=>cancelDrag();
     root.addEventListener('click',onClick);root.addEventListener('change',onChange);root.addEventListener('keydown',onKey);root.addEventListener('pointerdown',onDown);root.addEventListener('pointermove',onMove);root.addEventListener('pointerup',onUp);root.addEventListener('pointercancel',onCancel);sync();decorate();
-    return {execute,retry:reconcile,undo,discard,sync,decorate,cancelDrag,dispose(){disposed=true;generation++;cancelDrag();clearUndo();moveDialog?.remove();bar.remove();for(const [type,handler] of [['click',onClick],['change',onChange],['keydown',onKey],['pointerdown',onDown],['pointermove',onMove],['pointerup',onUp],['pointercancel',onCancel]])root.removeEventListener(type,handler)}};
+    return {getDisplayState,execute,retry:reconcile,undo,discard,sync,decorate,cancelDrag,dispose(){disposed=true;preview=null;generation++;cancelDrag();clearUndo();moveDialog?.remove();bar.remove();for(const [type,handler] of [['click',onClick],['change',onChange],['keydown',onKey],['pointerdown',onDown],['pointermove',onMove],['pointerup',onUp],['pointercancel',onCancel]])root.removeEventListener(type,handler)}};
 }
