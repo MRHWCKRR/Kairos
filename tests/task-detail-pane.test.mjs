@@ -13,6 +13,47 @@ async function fixture(){
   const input=(name,value)=>{const el=root.querySelector('[name="'+name+'"]');el.value=value;el.dispatchEvent(new window.Event('input',{bubbles:true}));};
   return {pane,document,window,root,open,input,calls,data:()=>data,setFail:value=>fail=value,setOwner:value=>owner=value};
 }
+test('checklist entry, completion, reordering and removal save without completing the parent',async()=>{
+  const f=await fixture();await f.open();
+  const add=title=>{const el=f.root.querySelector('[data-checklist-new]');assert.ok(el,'checklist quick entry exists');el.value=title;f.root.querySelector('[data-checklist-add]').click()};
+  add('Read');add('Write');
+  const checks=f.root.querySelectorAll('[data-step-check]');checks[0].checked=true;checks[0].dispatchEvent(new f.window.Event('change',{bubbles:true}));
+  f.root.querySelector('[data-step-action="down"]').click();
+  assert.match(f.root.querySelector('[data-checklist-progress]').textContent,/1.*2/);
+  assert.equal(await f.pane.save(),true);
+  const task=f.data().boards[0].sections[0].tasks[0];assert.equal(task.checklist[0].title,'Write');assert.equal(task.checklist[1].completed,true);assert.equal(task.completed,undefined);
+  f.root.querySelector('[data-step-action="remove"]').click();assert.equal(await f.pane.save(),true);assert.equal(f.data().boards[0].sections[0].tasks[0].checklist.length,1);
+});
+test('checklist draft survives failed persistence with exact step identities on retry',async()=>{
+  const f=await fixture();await f.open();const input=f.root.querySelector('[data-checklist-new]');assert.ok(input);input.value='Read';f.root.querySelector('[data-checklist-add]').click();f.setFail(true);
+  assert.equal(await f.pane.save(),false);f.setFail(false);assert.equal(await f.pane.save(),true);
+  assert.deepEqual(f.calls[0].command.changes.checklist,f.calls[1].command.changes.checklist);
+  assert.equal(f.calls[0].identity.operationId,f.calls[1].identity.operationId);
+});
+test('recurring progress edits one occurrence and starts unchecked on the next',async()=>{
+  const f=await fixture(),task=f.data().boards[0].sections[0].tasks[0];
+  task.date='2026-10-15';task.checklist=[{id:'a',title:'Read',completed:false}];task.recurrence={enabled:true,frequency:'daily',interval:1,startDate:'2026-10-15',mode:'flexible',exceptions:{'2026-10-15':{override:{date:'2026-10-17',reminderMinutes:10}}}};
+  assert.equal(await f.pane.open({taskId:'t',occurrenceDate:'2026-10-15'}),true);
+  assert.ok(f.root.querySelector('fieldset[disabled]'));
+  const check=f.root.querySelector('[data-step-check]');check.checked=true;check.dispatchEvent(new f.window.Event('change',{bubbles:true}));
+  assert.equal(await f.pane.save(),true);
+  const saved=f.data().boards[0].sections[0].tasks[0];assert.equal(saved.checklist[0].completed,false);assert.equal(saved.recurrence.exceptions['2026-10-15'].override.checklist[0].completed,true);
+  assert.equal(saved.recurrence.exceptions['2026-10-15'].override.reminderMinutes,10);
+  assert.equal(await f.pane.open({taskId:'t',occurrenceDate:'2026-10-16'}),true);assert.notEqual(f.root.querySelector('[data-step-check]').checked,true);
+});
+test('series completion is disabled and invalid occurrence selection preserves the open editor',async()=>{
+  const f=await fixture(),task=f.data().boards[0].sections[0].tasks[0];task.date='2026-10-15';task.checklist=[{id:'a',title:'Read',completed:false}];task.recurrence={enabled:true,frequency:'weekly',interval:1,weekdays:[4],startDate:'2026-10-15',mode:'flexible',exceptions:{}};
+  await f.open();assert.equal(f.root.querySelector('[data-step-check]').disabled,true);
+  assert.equal(await f.pane.open({taskId:'t',occurrenceDate:'2026-10-16'}),false);
+  assert.ok(f.root.querySelector('[data-task-detail-pane]'));
+});
+test('a recurring task converted in Schedule opens an editable unchecked template',async()=>{
+  const f=await fixture(),task=f.data().boards[0].sections[0].tasks[0];task.date='2026-10-15';task.checklist=[{id:'a',title:'Read',completed:true}];task.recurrence={enabled:true,frequency:'daily',interval:1,startDate:'2026-10-15',mode:'flexible',exceptions:{}};
+  await f.open();const check=f.root.querySelector('[data-step-check]');assert.equal(check.disabled,true);assert.notEqual(check.checked,true);
+  const title=f.root.querySelector('[data-step-title]');title.value='Read again';title.dispatchEvent(new f.window.Event('input',{bubbles:true}));
+  assert.equal(await f.pane.save(),true);
+  const saved=f.data().boards[0].sections[0].tasks[0];assert.equal(saved.checklist[0].title,'Read again');assert.equal(saved.checklist[0].completed,false);
+});
 test('task detail values are escaped and successful edits preserve unknown metadata',async()=>{
   const f=await fixture();await f.open();
   assert.equal(f.root.querySelector('[name="title"]').value,'<img src=x onerror=x>');

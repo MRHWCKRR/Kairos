@@ -2,10 +2,11 @@ import vm from 'node:vm';
 import {readFile} from 'node:fs/promises';
 import {mergePlanEdits,planState,stableStringify} from '../../plan-merge.js';
 import {taskDurationMinutes} from '../../schedule-utils.js';
+import {taskListFingerprint} from '../../task-list-model.js';
 
 export async function plannerFixture(data, {failAfterCommit=false,retryTransaction=false}={}) {
   let stored=structuredClone(data), writes=[], events=0, fail=failAfterCommit;
-  const context=vm.createContext({structuredClone,console,Date,mergePlanEdits,planState,stableStringify,taskDurationMinutes,
+  const context=vm.createContext({structuredClone,console,Date,mergePlanEdits,planState,stableStringify,taskDurationMinutes,taskListFingerprint,
     auth:{currentUser:{uid:'one'}},db:{},collection:()=>({}),query:x=>x,where:()=>({}),doc:(...args)=>args,
     serverTimestamp:()=>({seconds:1}),getDoc:async()=>({exists:()=>!!stored,data:()=>structuredClone(stored)}),
     getDocs:async()=>({docs:stored?[{id:'plan',data:()=>structuredClone(stored)}]:[]}),

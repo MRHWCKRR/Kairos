@@ -12,7 +12,7 @@ async function fixture(empty=false){
   const source=await readFile(new URL('../app.js',import.meta.url),'utf8');
   vm.runInContext(source.slice(source.indexOf('    async function commitTaskDetails('),source.indexOf('    const pageLoader =')),f.context);
   vm.runInContext(source.slice(source.indexOf('    async function updatePlanInFirestore('),source.indexOf('    async function loadLatestPlanFromFirestore(')),f.context);
-  vm.runInContext('let taskDetails={open:async target=>({planId:currentPlanDocId,target})};const pageLoader={prepare:async()=>{}};',f.context);
+  vm.runInContext('let taskDetails={open:async target=>({planId:currentPlanDocId,target})};const pageLoader={prepare:async()=>{}};const pageRouter={navigate:async()=>{}};',f.context);
   const opening=source.indexOf('    async function openTaskDetailsFromList(');
   if(opening>=0)vm.runInContext(source.slice(opening,source.indexOf("    document.getElementById('tasks-page')?.addEventListener('click'",opening)),f.context);
   return f;
@@ -28,6 +28,13 @@ test('host refresh keeps remote unrelated fields and retries after an uncertain 
   const live=vm.runInContext('boardsData[0].sections[0].tasks[0]',f.context);
   assert.equal(live.notes,'New');assert.equal(live.reminderMinutes,15);
   assert.equal(f.data().aiActionReceipts.filter(r=>r.id==='detail-host').length,1);
+});
+test('More actions navigation retains the exact recurring occurrence target',async()=>{
+  const f=await fixture();let selected;
+  f.context.window.__kairosScheduleWorkspace={selectItem:()=>{throw new Error('Must not select the entire series')},selectOccurrence:value=>selected=value};
+  assert.equal(typeof f.context.openTaskDetailsInSchedule,'function');
+  await f.context.openTaskDetailsInSchedule({taskId:'t',occurrenceDate:'2026-10-15'});
+  assert.equal(selected.seriesId,'t');assert.equal(selected.occurrenceId,'t::2026-10-15');assert.equal(selected.occurrenceDate,'2026-10-15');
 });
 test('host reconciles normalized legacy metadata after a saved detail edit',async()=>{
   const f=await fixture();

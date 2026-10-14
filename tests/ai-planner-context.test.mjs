@@ -34,6 +34,16 @@ test('AI context includes stable targets, schedule times, locks and recurrence',
   assert.match(await context.getKairosContext(),/task-1/);
   assert.match(await context.getKairosContext(),/13:00/);
 });
+test('AI context exposes checklist counts without carrying every step title',async()=>{
+  const {context,plan}=await fixture();const task=plan.boards[0].sections[0].tasks[1];task.checklist=[{id:'a',title:'Private step text',completed:true},{id:'b',title:'Another step',completed:false}];
+  const data=await context.loadContextData(context.auth.currentUser);
+  assert.equal(data.tasks[1].checklistProgress.total,2);assert.equal(data.tasks[1].checklistProgress.completed,1);
+  const prompt=await context.getKairosContext();assert.match(prompt,/checklistProgress/);assert.doesNotMatch(prompt,/Private step text/);
+});
+test('historical occurrence step titles are omitted from AI recurrence metadata',async()=>{
+  const {context,plan}=await fixture();plan.boards[0].sections[0].tasks[0].recurrence.exceptions={'2026-10-15':{override:{checklist:[{id:'a',title:'Historical private step',completed:true}],date:'2026-10-16'}}};
+  const prompt=await context.getKairosContext();assert.doesNotMatch(prompt,/Historical private step/);assert.match(prompt,/2026-10-16/);
+});
 
 test('planner change invalidates cached tasks before the next AI request',async()=>{
   const {context,plan,events}=await fixture();
