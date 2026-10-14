@@ -161,7 +161,8 @@ export function rewriteRelaySource(source){
 
 export function rewriteScheduleRecurrenceImports(source){
   return source
-    .replaceAll("'./recurrence-utils.js'","'./recurrence-utils.js?v=10'")
+    .replaceAll("'./recurrence-utils.js'","'./recurrence-utils.js?v=11'")
+    .replaceAll("'./recurrence-utils.js?v=10'","'./recurrence-utils.js?v=11'")
     .replaceAll("'./schedule-recurrence-ui.js'","'./schedule-recurrence-ui.js?v=10'");
 }
 

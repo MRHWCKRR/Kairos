@@ -66,6 +66,8 @@ export function generateTaskOccurrences(task,rangeStart,rangeEnd,options={}){
   const logicalDates=generateOccurrenceDates(rule,rangeStart,rangeEnd),seriesId=String(task?.id??'');
   return logicalDates.map(occurrenceDate=>{
     const exception=rule.exceptions?.[occurrenceDate]&&typeof rule.exceptions[occurrenceDate]==='object'?rule.exceptions[occurrenceDate]:null,override=exception?.override&&typeof exception.override==='object'?exception.override:{},effectiveTask={...task,...override,recurrence:task.recurrence},displayDate=validDateKey(override.date)?override.date:occurrenceDate,status=['completed','skipped','deleted'].includes(exception?.status)?exception.status:'pending',duration=override.durationMinutes?Math.max(1,Math.round(Number(override.durationMinutes))):taskDuration(effectiveTask);
+    if(Array.isArray(override.checklist))effectiveTask.checklist=structuredClone(override.checklist);
+    else if(Array.isArray(task.checklist))effectiveTask.checklist=task.checklist.map(item=>({...item,completed:false}));
     let startTime=null,endTime=null;
     if(rule.mode==='fixed'){startTime=effectiveTask.startTime||null;endTime=effectiveTask.endTime||null;const start=parseMinutes(startTime);if(start!==null&&(!endTime||parseMinutes(endTime)===null))endTime=formatMinutes(start+duration)}
     else if(Object.prototype.hasOwnProperty.call(override,'startTime')){startTime=override.startTime||null;endTime=override.endTime||null;const start=parseMinutes(startTime);if(start!==null&&(!endTime||parseMinutes(endTime)===null))endTime=formatMinutes(start+duration)}
@@ -108,11 +110,12 @@ export function setOccurrenceStatus(task,occurrenceDate,status,timestamp=new Dat
 }
 
 export function applyOccurrenceOverride(task,occurrenceDate,changes={}){
-  const next=structuredClone(task),rule=normalizeRecurrence(next,next?.date||occurrenceDate),existing=rule.exceptions?.[occurrenceDate]&&typeof rule.exceptions[occurrenceDate]==='object'?structuredClone(rule.exceptions[occurrenceDate]):{},override={};
+  const next=structuredClone(task),rule=normalizeRecurrence(next,next?.date||occurrenceDate),existing=rule.exceptions?.[occurrenceDate]&&typeof rule.exceptions[occurrenceDate]==='object'?structuredClone(rule.exceptions[occurrenceDate]):{},override=structuredClone(existing.override||{});
   for(const [key,value] of Object.entries(changes||{})){
     if(value===undefined||key==='recurrence')continue;
     const baseline=key==='date'?occurrenceDate:key==='durationMinutes'?taskDuration(task):task?.[key];
-    if(JSON.stringify(value)!==JSON.stringify(baseline))override[key]=structuredClone(value);
+    if(key==='checklist'||JSON.stringify(value)!==JSON.stringify(baseline))override[key]=structuredClone(value);
+    else delete override[key];
   }
   if(Object.keys(override).length)existing.override=override;else delete existing.override;
   rule.exceptions={...rule.exceptions,[occurrenceDate]:existing};next.recurrence=rule;return next;

@@ -12,7 +12,7 @@ async function boot() {
     location.replace(url.href);
     return;
   }
-  try {await import('./app.js?v=25');}
+  try {await import('./app.js?v=26');}
   catch(error) {
     console.error('[Kairos] Application could not start.',error);
     const root=document.getElementById('app-loading-screen');

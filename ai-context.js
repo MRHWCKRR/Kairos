@@ -142,8 +142,9 @@ async function loadContextData(user) {
                     endTime: task.endTime || null,
                     completed: task.completed === true,
                     reminderMinutes: task.reminderMinutes ?? null,
+                    checklistProgress: {total:Array.isArray(task.checklist)?task.checklist.length:0,completed:task.recurrence?.enabled?0:(Array.isArray(task.checklist)?task.checklist.filter(item=>item?.completed===true).length:0)},
                     scheduleLocked: task.scheduleLocked === true,
-                    recurrence: task.recurrence || null
+                    recurrence: task.recurrence ? {...task.recurrence,exceptions:Object.fromEntries(Object.entries(task.recurrence.exceptions||{}).map(([date,exception])=>[date,{...exception,override:Object.fromEntries(Object.entries(exception?.override||{}).filter(([key])=>key!=='checklist'))}]))} : null
                 });
             }
         }

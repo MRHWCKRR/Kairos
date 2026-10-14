@@ -2,7 +2,7 @@ import { showNotice, confirmDialog, promptDialog } from './ui-dialogs.js?v=1';
 import { aiFetch, aiErrorMessage } from './ai-client.js';
 import { requestBilling } from './billing-client.js';
 import { mountPlanUsage } from './plan-usage.js?v=3';
-import { createPageLoader } from './page-loader.js?v=11';
+import { createPageLoader } from './page-loader.js?v=12';
 import { mountPageRouter } from './page-router.js?v=2';
 import { createPageRenderCache } from './page-render-cache.js?v=1';
 import './boards-recurrence.js?v=10';
@@ -29,6 +29,7 @@ import { invalidateKairosContext } from './ai-context.js';
 import { dueTaskReminders, reminderDeliveryStatus } from './task-reminders.js';
 import { deliverTaskReminder, saveNotificationEdits, escapeNotificationText } from './reminder-notifications.js';
 import { savePlannerEdits, persistTaskListCommand } from './plan-store.js';
+import { resolveTaskDetail } from './task-list-model.js';
 import { mergePlanEdits, planState } from './plan-merge.js';
 console.log("APP.js is loaded and running");
 
@@ -565,15 +566,14 @@ function bootApp() {
         planSaveQueue=work;
         return work;
     }
+    async function openTaskDetailsInSchedule(target){
+        await pageRouter.navigate('schedule-page');
+        if(target.occurrenceDate)window.__kairosScheduleWorkspace?.selectOccurrence?.({seriesId:target.taskId,occurrenceId:target.taskId+'::'+target.occurrenceDate,occurrenceDate:target.occurrenceDate});
+        else window.__kairosScheduleWorkspace?.selectItem?.('task',target.taskId);
+    }
     const pageLoader = createPageLoader({scheduleEnabled:!!document.getElementById('schedule-calendar'),taskDetailsEnabled:true,setupTaskDetails:module=>{
         taskDetails=module.mountTaskDetailPane({root:document.getElementById('tasks-page'),getOwnerId:()=>auth.currentUser?.uid||null,getPlanId:()=>currentPlanDocId,
-            resolveTarget:target=>{
-                const matches=boardsData.flatMap(board=>(board.sections||[]).flatMap(section=>(section.tasks||[]).filter(task=>task.id===target.taskId).map(task=>({board,section,task}))));
-                if(matches.length!==1||matches[0].task.archived||matches[0].board.archived||matches[0].section.archived)throw new Error('This task is missing, archived or ambiguous.');
-                return matches[0];
-            },commit:commitTaskDetails,openSchedule:async target=>{
-                await pageRouter.navigate('schedule-page');window.__kairosScheduleWorkspace?.selectItem?.('task',target.taskId);
-            }});
+            resolveTarget:target=>resolveTaskDetail({boards:boardsData},target),commit:commitTaskDetails,openSchedule:openTaskDetailsInSchedule});
     }});
     window.__kairosPreparePage = pageLoader.prepare;
     async function openTaskDetailsFromList(taskId,source){
@@ -648,6 +648,7 @@ function bootApp() {
                 </label>
                 <input type="text" class="task-text" data-section="${sectionId}" data-task="${task.id}" value="${escapeNotificationText(task.title)}" style="text-decoration: ${task.completed ? 'line-through' : 'none'};">
                 ${task.startTime ? `<span class="task-scheduled-time">${task.startTime}${task.endTime ? '–' + task.endTime : ''}</span>` : ''}
+                ${task.checklist?.length?`<span class="task-checklist-count">${task.recurrence?.enabled?'0':task.checklist.filter(item=>item.completed).length}/${task.checklist.length}</span>`:''}
                 ${showDatePicker ? `<input type="date" class="task-date-input" data-section="${sectionId}" data-task="${task.id}" value="${task.date || ''}" title="Schedule this task on the calendar">` : ''}
                 ${showDatePicker ? `<button type="button" class="task-delete-btn" data-section="${sectionId}" data-task="${task.id}" title="${tr('delete_task')}">✕</button>` : ''}
                 ${showDatePicker ? `<button type="button" class="task-detail-open" data-task-detail="${escapeNotificationText(task.id)}" aria-label="${escapeNotificationText(tr('task_detail_open'))}">${tr('task_detail_heading')}</button>` : ''}

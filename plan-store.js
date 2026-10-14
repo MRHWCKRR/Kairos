@@ -1,15 +1,16 @@
 import { db } from './firebase.js';
 import { doc, getDoc, runTransaction, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { mergePlanEdits, planState, stableStringify } from './plan-merge.js';
-import { applyTaskListCommand } from './task-list-model.js';
+import { applyTaskListCommand, taskListFingerprint } from './task-list-model.js';
 
 export async function persistTaskListCommand(planId, uid, command, expected, operationId, createdAt) {
     if(typeof operationId!=='string'||!operationId||operationId.length>160||!Number.isFinite(createdAt)||createdAt<=0)throw new Error('Invalid operation identity.');
-    return persistAiPlanAction(planId,uid,{command,expected},operationId,createdAt,plan=>{
+    const commandHash=await taskListFingerprint(command,expected);
+    return persistAiPlanAction(planId,uid,{type:'task_list',commandHash},operationId,createdAt,plan=>{
         const applied=applyTaskListCommand(plan.data,command,expected);
         Object.assign(plan.data,applied.next);
         return applied.result;
-    });
+    },{legacyFingerprint:stableStringify({command,expected})});
 }
 
 function ownedPlan(snapshot, uid) {
@@ -56,7 +57,7 @@ export async function getConfirmedAiAction(planId, uid, action, operationId) {
     return structuredClone(receipt.result);
 }
 
-export async function persistAiPlanAction(planId, uid, action, operationId, createdAt, apply) {
+export async function persistAiPlanAction(planId, uid, action, operationId, createdAt, apply, options={}) {
     const ref = doc(db, 'study_plans', planId);
     const fingerprint = stableStringify(action);
     return runTransaction(db, async transaction => {
@@ -65,7 +66,7 @@ export async function persistAiPlanAction(planId, uid, action, operationId, crea
         const receipts = Array.isArray(data.aiActionReceipts) ? data.aiActionReceipts : [];
         const existing = receipts.find(receipt => receipt.id === operationId);
         if (existing) {
-            if (existing.fingerprint !== fingerprint) throw new Error('This operation ID already belongs to a different action.');
+            if (existing.fingerprint !== fingerprint && (typeof options.legacyFingerprint !== 'string' || existing.fingerprint !== options.legacyFingerprint)) throw new Error('This operation ID already belongs to a different action.');
             return structuredClone(existing.result);
         }
         // Never replay an evicted receipt: its save may already have succeeded.
