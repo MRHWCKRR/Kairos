@@ -13,8 +13,8 @@ async function fixture({persist,savedStorage=new Map(),preserveOverview=false}={
   const root=document.getElementById('tasks'),overview=document.getElementById('overview'),scroll=document.querySelector('main');let data=initial(),owner='one',plan='plan',now=Date.now(),calls=[],confirmations=[],fail=false,wait=null,focused=null,frames=[],timer=null,sorted=false,view='overview',allowClose=true,closeWait=null,ensureHook=null;
   window.HTMLElement.prototype.focus=function(){focused=this};const storage=savedStorage;
   Object.defineProperty(document,'activeElement',{configurable:true,get:()=>focused?.isConnected?focused:document.body});window.HTMLInputElement.prototype.setSelectionRange=function(start,end){this.selectionStart=start;this.selectionEnd=end};
-  const refresh=()=>{let html='';for(const section of data.boards[0].sections){const block=document.createElement('div');block.className='board-section-block';block.dataset.boardId='b';block.dataset.sectionId=section.id;block.innerHTML='<ul class="task-list">'+section.tasks.filter(t=>!t.archived).map(t=>renderTaskListRow(t,section.id)).join('')+'</ul>';for(const row of block.querySelectorAll('[data-detail-row="hidden"]'))row.hidden=true;html+=block.outerHTML;}if(preserveOverview&&workspaceModule.replaceTaskOverview)workspaceModule.replaceTaskOverview(overview,html,{document,scrollElement:scroll});else overview.innerHTML=html;interactions?.decorate()};
-  let interactions;refresh();
+  let interactions;const refresh=()=>{let html='';for(const section of (interactions?.getDisplayState?.()||data).boards[0].sections){const block=document.createElement('div');block.className='board-section-block';block.dataset.boardId='b';block.dataset.sectionId=section.id;block.innerHTML='<ul class="task-list">'+section.tasks.filter(t=>!t.archived).map(t=>renderTaskListRow(t,section.id)).join('')+'</ul>';for(const row of block.querySelectorAll('[data-detail-row="hidden"]'))row.hidden=true;html+=block.outerHTML;}if(preserveOverview&&workspaceModule.replaceTaskOverview)workspaceModule.replaceTaskOverview(overview,html,{document,scrollElement:scroll});else overview.innerHTML=html;interactions?.decorate()};
+  refresh();
   interactions=module.mountTaskListInteractions({root,scrollElement:scroll,document,window,getState:()=>data,getOwnerId:()=>owner,getPlanId:()=>plan,getViewKey:()=>view,isSorted:()=>sorted,ensurePlan:async()=>ensureHook?ensureHook():true,requestCloseDetails:async()=>closeWait??allowClose,refresh,clock:()=>now,storage:{getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,v),removeItem:k=>storage.delete(k)},confirmArchive:async()=>true,confirmDiscard:async()=>true,onConfirmed:(c,r)=>confirmations.push({c,r}),setTimer:fn=>{timer=fn;return 1},clearTimer:()=>timer=null,requestFrame:fn=>{frames.push(fn);return frames.length},cancelFrame:()=>{},commit:async(command,expected,identity)=>{
     calls.push(structuredClone({command,expected,identity}));if(wait)await wait;if(fail)throw new Error('Network failure');
     if(persist){const result=await persist(command,expected,identity);data=persist.data();refresh();return result}
@@ -106,4 +106,36 @@ test('initial planner creation is explicit while switches during ensure are reje
 });
 test('duplicate Move destination labels show visible board and section positions',async()=>{
   const f=await fixture();f.data().boards[0].sections.push({id:'empty2',title:'Same',tasks:[]});f.refresh();f.control('a','move').click();await tick();const dialog=f.document.querySelector('[data-task-move-dialog]'),options=[...dialog.querySelectorAll('option')];assert.equal(options.length,2);assert.notEqual(options[0].textContent,options[1].textContent);assert.match(options[0].textContent,/Board 1.*Section 2/);assert.match(options[1].textContent,/Board 1.*Section 3/);options[1].selected=true;dialog.querySelector('[data-move-confirm]').click();await tick();assert.equal(f.data().boards[0].sections[2].tasks[0].id,'a');f.interactions.dispose();
+});
+
+test('slow completion previews immediately without changing canonical data or awarding early',async()=>{
+  const f=await fixture({preserveOverview:true});let release;f.block(new Promise(resolve=>release=resolve));
+  const saving=f.interactions.execute({type:'complete_task',target:{taskId:'a'},value:true},{boardId:'b',sectionId:'s',value:false});await tick();
+  assert.equal(f.data().boards[0].sections[0].tasks[0].completed,false);
+  assert.equal(f.root.querySelector('[data-detail-row="a"]').classList.contains('completed'),true);
+  assert.equal(f.confirmations.length,0);assert.equal(f.root.querySelector('[data-task-undo]').hidden,true);
+  f.data().boards[0].sections[0].tasks[0].title='Edited while saving';f.refresh();
+  assert.equal(f.root.querySelector('[data-detail-row="a"] .task-text').value,'Edited while saving');
+  release();assert.equal(await saving,true);assert.equal(f.data().boards[0].sections[0].tasks[0].completed,true);assert.equal(f.confirmations.length,1);f.interactions.dispose();
+});
+test('slow reorder previews, rolls back on failure and retries the original operation',async()=>{
+  const f=await fixture({preserveOverview:true});let release;f.block(new Promise(resolve=>release=resolve));f.setFail(true);
+  const command={type:'reorder_tasks',target:{boardId:'b',sectionId:'s',taskId:'c'},taskIds:['c','a','hidden']},expected={boardId:'b',sectionId:'s',order:['a','hidden','c']};
+  const saving=f.interactions.execute(command,expected);await tick();
+  assert.equal(f.root.querySelector('[data-detail-row]').dataset.detailRow,'c');assert.equal(f.data().boards[0].sections[0].tasks[0].id,'a');
+  assert.equal(await f.interactions.execute(command,expected),false);assert.equal(f.calls.length,1);
+  release();assert.equal(await saving,false);assert.equal(f.root.querySelector('[data-detail-row]').dataset.detailRow,'a');assert.equal(f.root.querySelector('[data-task-undo]').hidden,true);
+  f.setFail(false);assert.equal(await f.interactions.retry(),true);assert.deepEqual(f.calls[0],f.calls[1]);assert.equal(f.root.querySelector('[data-detail-row]').dataset.detailRow,'c');f.interactions.dispose();
+});
+test('failed completion clears the preview without overwriting unrelated edits',async()=>{
+  const f=await fixture();let release;f.block(new Promise(resolve=>release=resolve));f.setFail(true);
+  const saving=f.interactions.execute({type:'complete_task',target:{taskId:'a'},value:true},{boardId:'b',sectionId:'s',value:false});await tick();
+  assert.equal(f.root.querySelector('[data-detail-row="a"]').classList.contains('completed'),true);
+  f.data().boards[0].sections[0].tasks[0].title='New title';release();assert.equal(await saving,false);
+  assert.equal(f.root.querySelector('[data-detail-row="a"]').classList.contains('completed'),false);assert.equal(f.data().boards[0].sections[0].tasks[0].title,'New title');assert.equal(f.confirmations.length,0);f.interactions.dispose();
+});
+test('a preview never crosses account or planner boundaries',async()=>{
+  const f=await fixture();let release;f.block(new Promise(resolve=>release=resolve));
+  const saving=f.interactions.execute({type:'complete_task',target:{taskId:'a'},value:true},{boardId:'b',sectionId:'s',value:false});await tick();
+  f.setPlan('replacement');assert.equal(f.interactions.getDisplayState().boards[0].sections[0].tasks[0].completed,false);f.setPlan('plan');f.setOwner('other');assert.equal(f.interactions.getDisplayState().boards[0].sections[0].tasks[0].completed,false);f.interactions.sync();f.setFail(true);release();await saving;assert.equal(f.confirmations.length,0);f.interactions.dispose();
 });
