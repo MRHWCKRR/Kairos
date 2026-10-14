@@ -98,8 +98,9 @@ function onMove(event){
   if(interaction.mode==='resize'){
     const grid=interaction.originElement.closest('.ks-day-grid'),rect=grid?.getBoundingClientRect(),start=parseTime(task.startTime);
     if(rect?.height&&start!==null){
-      const rawEnd=snapMinutes(((event.clientY-rect.top)/rect.height)*DAY_MINUTES,SNAP_MINUTES),resized=applyResize(task,rawEnd,SNAP_MINUTES),parsed=parseTime(resized.endTime),end=parsed===0&&start>0?1440:parsed;
-      if(end!==null){interaction.preview={endMin:end};placePreview(grid,task,start,end);interaction.ghost.querySelector('span').textContent=`End ${formatClock(end>=1440?0:end)}`}
+      const original=interaction.original||task,originalEnd=parseTime(original.startTime)+taskDurationMinutes(original);
+      const rawEnd=snapMinutes(originalEnd+((event.clientY-interaction.startY)/rect.height)*DAY_MINUTES,SNAP_MINUTES),resized=applyResize(task,rawEnd,SNAP_MINUTES),parsed=parseTime(resized.endTime),end=parsed===0&&start>0?1440:parsed;
+      if(end!==null){interaction.preview={endMin:end};placePreview(grid,task,start,end);interaction.ghost.querySelector('span').textContent=`${end-start} min · End ${formatClock(end>=1440?0:end)}`}
     }
     return;
   }
@@ -134,11 +135,11 @@ function cancel(){if(!interaction)return;interaction.originElement?.classList.re
 
 function decorate(){
   document.querySelectorAll('.ks-task-block[data-task-id]').forEach(el=>{
-    if(!el.querySelector('[data-resize-handle]')){const h=document.createElement('span');h.className='ks-resize-handle';h.dataset.resizeHandle='';h.setAttribute('aria-hidden','true');el.appendChild(h)}
+    if(!el.querySelector('[data-resize-handle]')){const h=document.createElement('span');h.className='ks-resize-handle';h.dataset.resizeHandle='';h.title='Drag to change duration';h.setAttribute('aria-hidden','true');el.appendChild(h)}
     if(el.dataset.pointerBound)return;el.dataset.pointerBound='1';el.addEventListener('pointerdown',event=>begin(event.target.closest('[data-resize-handle]')?'resize':'move',el.dataset.taskId,event,el));
   });
   document.querySelectorAll('.ks-task-block[data-occurrence-id]').forEach(el=>{
-    if(!el.querySelector('[data-resize-handle]')){const h=document.createElement('span');h.className='ks-resize-handle';h.dataset.resizeHandle='';h.setAttribute('aria-hidden','true');el.appendChild(h)}
+    if(!el.querySelector('[data-resize-handle]')){const h=document.createElement('span');h.className='ks-resize-handle';h.dataset.resizeHandle='';h.title='Drag to change duration';h.setAttribute('aria-hidden','true');el.appendChild(h)}
     if(el.dataset.pointerBound)return;el.dataset.pointerBound='1';el.addEventListener('pointerdown',event=>beginOccurrence(event.target.closest('[data-resize-handle]')?'resize':'move',event,el));
   });
   document.querySelectorAll('.ks-backlog-row[data-task-id]').forEach(el=>{if(el.dataset.pointerBound)return;el.dataset.pointerBound='1';el.addEventListener('pointerdown',event=>begin('backlog',el.dataset.taskId,event,el))});
