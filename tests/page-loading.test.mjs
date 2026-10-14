@@ -20,6 +20,12 @@ test('task detail editor mounts once and does not load Schedule workspace',async
   assert.equal(mounts,1);assert.equal(imports.length,1);assert.match(imports[0],/task-detail-pane/);
   assert.ok(styles.some(url=>url.startsWith('task-list.css')));assert.ok(!imports.some(url=>url.includes('schedule-workspace')));
 });
+test('focused Tasks workspace mounts once after details without loading Schedule',async()=>{
+  const imports=[],mounts=[];
+  const loader=createPageLoader({taskDetailsEnabled:true,setupTaskDetails:()=>mounts.push('details'),setupTaskWorkspace:()=>mounts.push('sections'),loadStyle:async()=>{},importModule:async url=>{imports.push(url);return {}}});
+  await Promise.all([loader.prepare('tasks-page'),loader.prepare('tasks-page')]);await loader.prepare('tasks-page');
+  assert.deepEqual(mounts,['details','sections']);assert.equal(imports.filter(url=>url.includes('task-list-workspace')).length,1);assert.ok(!imports.some(url=>url.includes('schedule-workspace')));
+});
 
 test('schedule core initializes before its dependent feature modules', async () => {
   const imports=[];

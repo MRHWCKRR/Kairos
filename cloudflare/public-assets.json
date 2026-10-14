@@ -88,7 +88,8 @@
     "reminder-notifications.js",
     "task-list-model.js",
     "task-detail-pane.js",
-    "task-list.css"
+    "task-list.css",
+    "task-list-workspace.js"
   ],
   "directories": [
     "images",

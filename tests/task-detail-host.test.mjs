@@ -29,6 +29,12 @@ test('host refresh keeps remote unrelated fields and retries after an uncertain 
   assert.equal(live.notes,'New');assert.equal(live.reminderMinutes,15);
   assert.equal(f.data().aiActionReceipts.filter(r=>r.id==='detail-host').length,1);
 });
+test('quick create reconciles a lost refresh response through the existing host queue',async()=>{
+  const f=await fixture(),get=f.context.getDoc;let fail=true;f.context.getDoc=async ref=>{if(fail){fail=false;throw new Error('Response lost')}return get(ref)};
+  const create={type:'create_task',target:{boardId:'b',sectionId:'s'},task:{id:'quick',title:'Read'}},location={boardId:'b',sectionId:'s'},id={...identity(),operationId:'host-create'};
+  await assert.rejects(f.context.commitTaskDetails(create,location,id),/Response lost/);await f.context.commitTaskDetails(create,location,id);
+  assert.equal(f.data().boards[0].sections[0].tasks.filter(task=>task.id==='quick').length,1);assert.equal(vm.runInContext('boardsData[0].sections[0].tasks.at(-1).title',f.context),'Read');
+});
 test('More actions navigation retains the exact recurring occurrence target',async()=>{
   const f=await fixture();let selected;
   f.context.window.__kairosScheduleWorkspace={selectItem:()=>{throw new Error('Must not select the entire series')},selectOccurrence:value=>selected=value};

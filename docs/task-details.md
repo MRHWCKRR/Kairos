@@ -1,4 +1,4 @@
-# Task details and checklists - Stages 1 and 2
+# Task details, checklists and focused sections - Stages 1 to 3
 
 In Tasks, use **Task details** on a task row, or focus the row and press Enter/F2. Wide desktop windows show a side pane; smaller desktop windows use the expanded dialog. Expand opens the same draft in a larger dialog.
 
@@ -16,6 +16,12 @@ Recurring tasks expose an unchecked **Series template**. Choose a logical date w
 
 Independent changes to different step IDs merge. Conflicting changes to the same field or competing existing-step orders fail with a notice and preserve the draft. New steps retain their chosen insertion position when saved. Lost-response retries use the same operation and step identities. Durable receipts store a compact SHA-256 command fingerprint and accept existing Stage 1 receipts for retry compatibility. AI context includes checklist counts but omits step titles and historical checklist snapshots.
 
-Section focus and section/task reordering are later stages. Known polish items: focus wrapping can include advanced inputs in collapsed details; a pending repeat-rule change restored after reload is retried correctly but the Repeat controls may still show the pre-save rule.
+Use **Open section** to work through a full-width section list. **Back to boards** restores the prior board scroll and section control. Section collapse and completed visibility are local, per-account/per-planner session preferences. Selected rows remain selected when revisiting a section. An empty, archived or deleted section shows a clear state; unavailable destinations cannot create tasks.
+
+**Add task** opens the focused section's inline quick entry. Enter submits one ordinary task and keeps the same input ready; blank input does nothing and Escape clears a draft before saving. New task titles are limited to 180 characters. Navigation retains ordinary drafts per section; these unsaved drafts do not survive reload. Pending saves survive reload and remain locked to their original destination, task ID and operation receipt; Retry reconciles that task even after the section is archived. A late result cannot clear another section's draft. Account/planner changes clear the active workspace. Focused rows update without rebuilding the quick input or an actively edited title.
+
+If a pending creation cannot reconcile (for example, its receipt has expired), **Discard pending draft** offers explicit recovery. A confirmation explains that the task may already have saved. Discard clears only the local pending draft and does not undo a saved task; inspect the section before entering the same task again. Retry keeps its original identity throughout.
+
+Section/task drag reordering and guarded Undo remain Stage 4. Known polish items from Stage 1: focus wrapping can include advanced inputs in collapsed details; a pending repeat-rule change restored after reload is retried correctly but the Repeat controls may still show the pre-save rule.
 
 Verification covers model validation, unknown-field preservation, concurrent changes, uncertain response/retry, first-planner creation, legacy normalisation, canonical title baselines, drafts, escaping, account changes, module load-once behaviour, checklist limits/order, compact receipts and recurring snapshots. Real-browser layout/focus and verified-account Firestore smoke checks still require a preview session.
