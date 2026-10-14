@@ -4,6 +4,7 @@ import { generateTaskOccurrences, applyOccurrenceOverride } from './recurrence-u
 const DAY_MINUTES=1440;
 const HOUR_HEIGHT=56;
 const SNAP_MINUTES=1;
+const RESIZE_SNAP_MINUTES=5;
 let interaction=null;
 let suppressClickUntil=0;
 
@@ -99,7 +100,7 @@ function onMove(event){
     const grid=interaction.originElement.closest('.ks-day-grid'),rect=grid?.getBoundingClientRect(),start=parseTime(task.startTime);
     if(rect?.height&&start!==null){
       const original=interaction.original||task,originalEnd=parseTime(original.startTime)+taskDurationMinutes(original);
-      const rawEnd=snapMinutes(originalEnd+((event.clientY-interaction.startY)/rect.height)*DAY_MINUTES,SNAP_MINUTES),resized=applyResize(task,rawEnd,SNAP_MINUTES),parsed=parseTime(resized.endTime),end=parsed===0&&start>0?1440:parsed;
+      const rawEnd=Math.max(Math.ceil((start+1)/RESIZE_SNAP_MINUTES)*RESIZE_SNAP_MINUTES,snapMinutes(originalEnd+((event.clientY-interaction.startY)/rect.height)*DAY_MINUTES,RESIZE_SNAP_MINUTES)),resized=applyResize(task,rawEnd,RESIZE_SNAP_MINUTES),parsed=parseTime(resized.endTime),end=parsed===0&&start>0?1440:parsed;
       if(end!==null){interaction.preview={endMin:end};placePreview(grid,task,start,end);interaction.ghost.querySelector('span').textContent=`${end-start} min · End ${formatClock(end>=1440?0:end)}`}
     }
     return;
@@ -118,7 +119,7 @@ async function finish(event,cancel=false){
   if(current.isOccurrence){
     const task=current.effectiveTask;
     if(current.mode==='resize'&&current.preview){
-      const next=applyResize(task,current.preview.endMin,SNAP_MINUTES);await persistOccurrenceMutation(current.seriesId,current.occurrenceDate,{startTime:next.startTime,endTime:next.endTime,durationMinutes:taskDurationMinutes(next)});return;
+      const next=applyResize(task,current.preview.endMin,RESIZE_SNAP_MINUTES);await persistOccurrenceMutation(current.seriesId,current.occurrenceDate,{startTime:next.startTime,endTime:next.endTime,durationMinutes:taskDurationMinutes(next)});return;
     }
     if(current.mode==='move'&&current.overBacklog){await persistOccurrenceMutation(current.seriesId,current.occurrenceDate,{date:current.occurrenceDate,startTime:null,endTime:null,durationMinutes:current.durationMinutes});return}
     if(!current.preview)return;
@@ -126,7 +127,7 @@ async function finish(event,cancel=false){
     await persistOccurrenceMutation(current.seriesId,current.occurrenceDate,{date:next.date,startTime:next.startTime,endTime:next.endTime,durationMinutes:current.durationMinutes});return;
   }
   const found=findTask(current.taskId);if(!found)return;const task=found.task;
-  if(current.mode==='resize'){if(current.preview)await persistMutation(task,current.original,applyResize(task,current.preview.endMin,SNAP_MINUTES));return}
+  if(current.mode==='resize'){if(current.preview)await persistMutation(task,current.original,applyResize(task,current.preview.endMin,RESIZE_SNAP_MINUTES));return}
   if(current.mode==='move'&&current.overBacklog){const next={...task};preserveScheduledDuration(next);clearScheduledFields(next);await persistMutation(task,current.original,next);return}
   if(!current.preview)return;
   const base=current.mode==='backlog'?{...task,startTime:null,endTime:null}:task;await persistMutation(task,current.original,applyScheduledMove(base,current.preview.dateKey,current.preview.startMin,SNAP_MINUTES));

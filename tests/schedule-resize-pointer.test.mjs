@@ -18,7 +18,9 @@ test('resizing from anywhere inside the grip follows pointer distance without ju
     context.onMove({pointerId:1,clientX:0,clientY:665});
     assert.equal(vm.runInContext('interaction.preview.endMin',context),675);
     assert.match(label.textContent,/75 min/);
+    context.onMove({pointerId:1,clientX:0,clientY:657});
+    assert.equal(vm.runInContext('interaction.preview.endMin',context),665);
     context.onMove({pointerId:1,clientX:0,clientY:500});
-    assert.equal(vm.runInContext('interaction.preview.endMin',context),601);
+    assert.equal(vm.runInContext('interaction.preview.endMin',context),605);
   }
 });

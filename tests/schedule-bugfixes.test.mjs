@@ -16,7 +16,8 @@ test('Schedule responsive logic never toggles the global sidebar', () => {
 test('manual pointer scheduling uses one-minute snapping', () => {
   assert.match(interactions, /const SNAP_MINUTES=1;/);
   assert.match(interactions, /snapMinutes\([^;]+SNAP_MINUTES\)/);
-  assert.match(interactions, /applyResize\([^;]+SNAP_MINUTES\)/);
+  assert.match(interactions, /const RESIZE_SNAP_MINUTES=5;/);
+  assert.match(interactions, /applyResize\([^;]+RESIZE_SNAP_MINUTES\)/);
   assert.match(interactions, /applyScheduledMove\([^;]+SNAP_MINUTES\)/);
 });
 
