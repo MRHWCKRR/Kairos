@@ -85,7 +85,10 @@
     "plan-merge.js",
     "ai-action-schema.js",
     "task-reminders.js",
-    "reminder-notifications.js"
+    "reminder-notifications.js",
+    "task-list-model.js",
+    "task-detail-pane.js",
+    "task-list.css"
   ],
   "directories": [
     "images",
