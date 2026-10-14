@@ -35,6 +35,14 @@ test('quick create reconciles a lost refresh response through the existing host 
   await assert.rejects(f.context.commitTaskDetails(create,location,id),/Response lost/);await f.context.commitTaskDetails(create,location,id);
   assert.equal(f.data().boards[0].sections[0].tasks.filter(task=>task.id==='quick').length,1);assert.equal(vm.runInContext('boardsData[0].sections[0].tasks.at(-1).title',f.context),'Read');
 });
+test('confirmed Tasks completion awards once and an undone task retains the single lifetime award',async()=>{
+  const f=await fixture();vm.runInContext('let achievementsData={countedTaskIds:[],lifetimeTasksCompleted:0},statsCalls=0;function logTaskCompletionForStats(){statsCalls++}function checkTaskAchievements(){}function saveAchievementsToFirestore(){}function renderMiniAchievementsWidget(){}',f.context);
+  assert.equal(typeof f.context.recordTaskListCompletion,'function');
+  const complete={type:'complete_task',target:{taskId:'t'},value:true},expected={boardId:'b',sectionId:'s',value:false},id={...identity(),operationId:'complete-host'};
+  const result=await f.context.commitTaskDetails(complete,expected,id);f.context.recordTaskListCompletion(complete,result);f.context.recordTaskListCompletion(complete,await f.context.commitTaskDetails(complete,expected,id));
+  await f.context.commitTaskDetails({type:'complete_task',target:{taskId:'t'},value:false},{...expected,value:true},{...identity(),operationId:'undo-host'});
+  assert.equal(vm.runInContext('achievementsData.lifetimeTasksCompleted',f.context),1);assert.equal(vm.runInContext('statsCalls',f.context),1);assert.equal(f.data().boards[0].sections[0].tasks[0].completed,false);
+});
 test('More actions navigation retains the exact recurring occurrence target',async()=>{
   const f=await fixture();let selected;
   f.context.window.__kairosScheduleWorkspace={selectItem:()=>{throw new Error('Must not select the entire series')},selectOccurrence:value=>selected=value};

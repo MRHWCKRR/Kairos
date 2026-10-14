@@ -89,7 +89,8 @@
     "task-list-model.js",
     "task-detail-pane.js",
     "task-list.css",
-    "task-list-workspace.js"
+    "task-list-workspace.js",
+    "task-list-interactions.js"
   ],
   "directories": [
     "images",

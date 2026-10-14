@@ -69,7 +69,51 @@ function checklistCommand(state,command,expected){
     const applied=applyTaskListCommand(state,{type:'edit_task',target:command.target,changes:{checklist:entries}},expected);
     applied.result.type=command.type;return applied;
 }
-export function applyTaskListCommand(state,command,expected){
+export function taskListLocation(state,taskId,{allowArchived=false}={}){
+    const matches=(state.boards||[]).flatMap(board=>(board.sections||[]).flatMap(section=>(section.tasks||[]).filter(task=>task.id===taskId).map(task=>({board,section,task}))));
+    if(matches.length!==1)throw new Error('This task is missing or has ambiguous duplicate IDs.');
+    const found=matches[0];if(found.board.archived||found.section.archived||(!allowArchived&&found.task.archived))throw new Error('This task or section is archived.');return found;
+}
+export function taskListSection(state,target){
+    const matches=(state.boards||[]).flatMap(board=>(board.sections||[]).filter(section=>board.id===target?.boardId&&section.id===target?.sectionId).map(section=>({board,section})));
+    if(matches.length!==1||matches[0].board.archived||matches[0].section.archived)throw new Error('This section is missing, archived or ambiguous.');return matches[0];
+}
+const taskIds=section=>(section.tasks||[]).map(task=>task.id);
+function checkTaskOrder(state,section,expected){
+    const ids=taskIds(section);
+    if(!Array.isArray(expected)||stableStringify(ids)!==stableStringify(expected))throw new Error('The task order changed. Review the section before retrying.');
+    const counts=new Map();for(const board of state.boards||[])for(const section of board.sections||[])for(const task of section.tasks||[])counts.set(task.id,(counts.get(task.id)||0)+1);
+    if(ids.some(id=>typeof id!=='string'||!id||counts.get(id)!==1))throw new Error('Ambiguous duplicate task IDs.');return ids;
+}
+export function applyTaskListCommand(state,command,expected,{now=Date.now()}={}){
+    if(command?.type==='undo_task_list'){
+        if(!Number.isFinite(command.expiresAt)||command.expiresAt<=now||command.expiresAt>now+10000)throw new Error('Undo expired.');
+        if(!['reorder_tasks','move_task','complete_task','archive_task'].includes(command.inverse?.command?.type))throw new Error('Unsupported Undo action.');
+        const out=applyTaskListCommand(state,command.inverse.command,command.inverse.expected,{now});out.result.type='undo_task_list';return out;
+    }
+    if(command?.type==='reorder_tasks'){
+        const next=structuredClone(state),{board,section}=taskListSection(next,command.target),before=checkTaskOrder(next,section,expected?.order),ids=command.taskIds;
+        const beforeIds=new Set(before),byId=new Map(section.tasks.map(task=>[task.id,task]));
+        if(expected?.boardId!==board.id||expected?.sectionId!==section.id||!Array.isArray(ids)||ids.length!==before.length||new Set(ids).size!==before.length||ids.some(id=>!beforeIds.has(id)))throw new Error('Invalid task order.');
+        section.tasks=ids.map(id=>byId.get(id));
+        return {next,result:{type:command.type,inverse:{command:{type:command.type,target:command.target,taskIds:before},expected:{boardId:board.id,sectionId:section.id,order:ids}}}};
+    }
+    if(command?.type==='move_task'){
+        const next=structuredClone(state),source=taskListLocation(next,command.target?.taskId),destination=taskListSection(next,command.destination);
+        if(command.target?.occurrenceDate||source.board.id!==expected?.boardId||source.section.id!==expected?.sectionId)throw new Error('This task moved. Reopen its section.');
+        if(source.section===destination.section)throw new Error('Use reorder within the same section.');
+        const sourceOrder=checkTaskOrder(next,source.section,expected?.sourceOrder),destinationOrder=checkTaskOrder(next,destination.section,expected?.destinationOrder),index=command.destination.index;
+        if(!Number.isInteger(index)||index<0||index>destinationOrder.length)throw new Error('Invalid insertion position.');
+        const originalIndex=sourceOrder.indexOf(source.task.id);source.section.tasks.splice(originalIndex,1);(destination.section.tasks??=[]).splice(index,0,source.task);
+        return {next,result:{type:command.type,task:source.task,inverse:{command:{type:'move_task',target:command.target,destination:{boardId:source.board.id,sectionId:source.section.id,index:originalIndex}},expected:{boardId:destination.board.id,sectionId:destination.section.id,sourceOrder:taskIds(destination.section),destinationOrder:taskIds(source.section)}}}};
+    }
+    if(['complete_task','archive_task'].includes(command?.type)){
+        const next=structuredClone(state),found=taskListLocation(next,command.target?.taskId,{allowArchived:command.type==='archive_task'&&command.value===false}),key=command.type==='complete_task'?'completed':'archived',before=found.task[key]===true;
+        if(command.target?.occurrenceDate||found.board.id!==expected?.boardId||found.section.id!==expected?.sectionId||typeof command.value!=='boolean'||typeof expected.value!=='boolean'||before!==expected.value)throw new Error('This task moved or its affected field changed.');
+        if(command.type==='complete_task'&&found.task.recurrence?.enabled)throw new Error('Complete recurring occurrences from Schedule.');
+        found.task[key]=command.value;
+        return {next,result:{type:command.type,task:found.task,inverse:{command:{type:command.type,target:command.target,value:before},expected:{boardId:found.board.id,sectionId:found.section.id,value:command.value}}}};
+    }
     if(command?.type==='create_task'){
         const item=command.task;
         if(!item||typeof item!=='object'||Array.isArray(item)||Object.keys(item).some(key=>!['id','title'].includes(key))||typeof item.id!=='string'||!item.id.trim()||item.id.length>160||typeof item.title!=='string'||!item.title.trim()||item.title.length>180)throw new Error('Enter a task title up to 180 characters and a valid ID.');

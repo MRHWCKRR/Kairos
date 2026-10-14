@@ -100,3 +100,9 @@ test('Back resolves the originating section after the real overview rebuild',asy
   const f=await fixture({rebuildOverview:true});f.workspace.decorateOverview();const source=f.overview.querySelector('[data-section-id="s2"] [data-open-section]');await f.workspace.openSection({boardId:'b',sectionId:'s2'},source);await f.workspace.back();
   assert.equal(source.isConnected,false);assert.equal(f.focused().closest('.board-section-block').dataset.sectionId,'s2');
 });
+test('moving an active row during refresh preserves its draft when DOM movement temporarily loses focus',async()=>{
+  const f=await fixture();await f.workspace.openSection({boardId:'b',sectionId:'s'});const title=f.root.querySelector('[data-detail-row="done"] .task-text'),list=f.root.querySelector('[data-section-tasks]');let active=title;
+  Object.defineProperty(f.document,'activeElement',{configurable:true,get:()=>active});title.focus=()=>active=title;title.value='Typing';title.selectionStart=2;title.selectionEnd=4;title.setSelectionRange=(a,b)=>{title.selectionStart=a;title.selectionEnd=b};
+  const insert=list.insertBefore.bind(list);list.insertBefore=(row,before)=>{const movingActive=row.contains(active),out=insert(row,before);if(movingActive)active=f.document.body;return out};
+  f.data().boards[0].sections[0].tasks.reverse();f.data().boards[0].sections[0].tasks[0].title='Remote';f.workspace.render();assert.equal(title.value,'Typing');assert.ok(active===title);assert.equal(title.selectionStart,2);assert.equal(title.selectionEnd,4);
+});
