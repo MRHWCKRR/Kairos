@@ -13,6 +13,14 @@ test('page assets load once across hover, navigation and repeated visits', async
   assert.ok(!imports.some(url=>url.includes('schedule-workspace')));
 });
 
+test('task detail editor mounts once and does not load Schedule workspace',async()=>{
+  const imports=[],styles=[];let mounts=0;
+  const loader=createPageLoader({taskDetailsEnabled:true,setupTaskDetails:()=>mounts++,loadStyle:async url=>styles.push(url),importModule:async url=>{imports.push(url);return {}}});
+  await Promise.all([loader.prepare('tasks-page'),loader.prepare('tasks-page')]);await loader.prepare('tasks-page');
+  assert.equal(mounts,1);assert.equal(imports.length,1);assert.match(imports[0],/task-detail-pane/);
+  assert.ok(styles.some(url=>url.startsWith('task-list.css')));assert.ok(!imports.some(url=>url.includes('schedule-workspace')));
+});
+
 test('schedule core initializes before its dependent feature modules', async () => {
   const imports=[];
   const loader=createPageLoader({scheduleEnabled:true,loadStyle:async()=>{},importModule:async url=>imports.push(url)});

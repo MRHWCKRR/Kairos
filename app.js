@@ -2,7 +2,7 @@ import { showNotice, confirmDialog, promptDialog } from './ui-dialogs.js?v=1';
 import { aiFetch, aiErrorMessage } from './ai-client.js';
 import { requestBilling } from './billing-client.js';
 import { mountPlanUsage } from './plan-usage.js?v=3';
-import { createPageLoader } from './page-loader.js?v=10';
+import { createPageLoader } from './page-loader.js?v=11';
 import { mountPageRouter } from './page-router.js?v=2';
 import { createPageRenderCache } from './page-render-cache.js?v=1';
 import './boards-recurrence.js?v=10';
@@ -28,7 +28,7 @@ import { LANGUAGES, applyTranslations, getLocale, getLanguageName, t, ACHIEVEMEN
 import { invalidateKairosContext } from './ai-context.js';
 import { dueTaskReminders, reminderDeliveryStatus } from './task-reminders.js';
 import { deliverTaskReminder, saveNotificationEdits, escapeNotificationText } from './reminder-notifications.js';
-import { savePlannerEdits } from './plan-store.js';
+import { savePlannerEdits, persistTaskListCommand } from './plan-store.js';
 import { mergePlanEdits, planState } from './plan-merge.js';
 console.log("APP.js is loaded and running");
 
@@ -545,8 +545,54 @@ function bootApp() {
 
     let aiPageAutoCollapsed = false;
     let sidebarManuallyToggledOnAI = false;
-    const pageLoader = createPageLoader({scheduleEnabled:!!document.getElementById('schedule-calendar')});
+    let taskDetails=null;
+    async function commitTaskDetails(command,expected,identity){
+        const user=auth.currentUser;
+        if(!user||identity.ownerId!==user.uid||identity.planId!==currentPlanDocId)throw new Error('The signed-in account or planner changed.');
+        planEditRevision++;planLoadRevision++;
+        const work=planSaveQueue.catch(()=>{}).then(async()=>{
+            if(auth.currentUser?.uid!==user.uid||currentPlanDocId!==identity.planId)throw new Error('The signed-in account or planner changed.');
+            const before=planState({boards:boardsData,dayInsights,scheduleEvents:scheduleData});
+            const result=await persistTaskListCommand(identity.planId,user.uid,command,expected,identity.operationId,identity.createdAt);
+            const snapshot=await getDoc(doc(db,'study_plans',identity.planId));
+            if(auth.currentUser?.uid!==user.uid||currentPlanDocId!==identity.planId)throw new Error('The signed-in account or planner changed.');
+            if(!snapshot.exists()||snapshot.data().userID!==user.uid)throw new Error('The planner is no longer available.');
+            const saved=planState(snapshot.data()),live=planState({boards:boardsData,dayInsights,scheduleEvents:scheduleData});
+            const rebased=mergePlanEdits(before,live,saved);
+            boardsData=rebased.boards;dayInsights=rebased.dayInsights;scheduleData=rebased.scheduleEvents;planSnapshot=saved;
+            invalidateKairosContext();renderApp();return result;
+        });
+        planSaveQueue=work;
+        return work;
+    }
+    const pageLoader = createPageLoader({scheduleEnabled:!!document.getElementById('schedule-calendar'),taskDetailsEnabled:true,setupTaskDetails:module=>{
+        taskDetails=module.mountTaskDetailPane({root:document.getElementById('tasks-page'),getOwnerId:()=>auth.currentUser?.uid||null,getPlanId:()=>currentPlanDocId,
+            resolveTarget:target=>{
+                const matches=boardsData.flatMap(board=>(board.sections||[]).flatMap(section=>(section.tasks||[]).filter(task=>task.id===target.taskId).map(task=>({board,section,task}))));
+                if(matches.length!==1||matches[0].task.archived||matches[0].board.archived||matches[0].section.archived)throw new Error('This task is missing, archived or ambiguous.');
+                return matches[0];
+            },commit:commitTaskDetails,openSchedule:async target=>{
+                await pageRouter.navigate('schedule-page');window.__kairosScheduleWorkspace?.selectItem?.('task',target.taskId);
+            }});
+    }});
     window.__kairosPreparePage = pageLoader.prepare;
+    async function openTaskDetailsFromList(taskId,source){
+        const owner=auth.currentUser?.uid;if(!owner)return false;
+        await pageLoader.prepare('tasks-page');
+        if(auth.currentUser?.uid!==owner)return false;
+        if(!currentPlanDocId&&!await updatePlanInFirestore())return false;
+        if(auth.currentUser?.uid!==owner)return false;
+        return taskDetails?.open({taskId},source);
+    }
+    document.getElementById('tasks-page')?.addEventListener('click',async event=>{
+        const button=event.target.closest?.('[data-task-detail]');if(!button)return;
+        event.preventDefault();await openTaskDetailsFromList(button.dataset.taskDetail,button);
+    });
+    document.getElementById('tasks-page')?.addEventListener('keydown',event=>{
+        if(!['Enter','F2'].includes(event.key)||event.target.closest('input,textarea,select,button'))return;
+        const row=event.target.closest('[data-detail-row]');if(!row)return;
+        event.preventDefault();void openTaskDetailsFromList(row.dataset.detailRow,row);
+    });
     const pageRouter = mountPageRouter({preparePage:pageLoader.prepare,onNavigate:targetName=>{
             pageRenders.activate(targetName);
             if (targetName === 'plans-page') location.replace('plans.html');
@@ -595,20 +641,22 @@ function bootApp() {
 
     function createTaskHTML(task, sectionId, showDatePicker = false) {
         return `
-            <li class="task-item ${task.completed ? 'completed' : ''}">
+            <li class="task-item ${task.completed ? 'completed' : ''}" ${showDatePicker?`tabindex="0" data-detail-row="${escapeNotificationText(task.id)}"`:''}>
                 <label class="custom-checkbox">
                     <input type="checkbox" data-section="${sectionId}" data-task="${task.id}" ${task.completed ? 'checked' : ''}>
                     <span class="checkmark"></span>
                 </label>
-                <input type="text" class="task-text" data-section="${sectionId}" data-task="${task.id}" value="${task.title}" style="text-decoration: ${task.completed ? 'line-through' : 'none'};">
+                <input type="text" class="task-text" data-section="${sectionId}" data-task="${task.id}" value="${escapeNotificationText(task.title)}" style="text-decoration: ${task.completed ? 'line-through' : 'none'};">
                 ${task.startTime ? `<span class="task-scheduled-time">${task.startTime}${task.endTime ? '–' + task.endTime : ''}</span>` : ''}
                 ${showDatePicker ? `<input type="date" class="task-date-input" data-section="${sectionId}" data-task="${task.id}" value="${task.date || ''}" title="Schedule this task on the calendar">` : ''}
                 ${showDatePicker ? `<button type="button" class="task-delete-btn" data-section="${sectionId}" data-task="${task.id}" title="${tr('delete_task')}">✕</button>` : ''}
+                ${showDatePicker ? `<button type="button" class="task-detail-open" data-task-detail="${escapeNotificationText(task.id)}" aria-label="${escapeNotificationText(tr('task_detail_open'))}">${tr('task_detail_heading')}</button>` : ''}
             </li>
         `;
     }
 
     function renderApp() {
+        taskDetails?.sync();
         window.__kairosScheduleWorkspace?.invalidate();
         renderFocusMode();
         renderBoardsGrid();
@@ -664,7 +712,7 @@ function bootApp() {
         return `
             <div class="board-section-block fade-in-section" data-board-id="${board.id}" data-section-id="${section.id}">
                 <div class="section-title-row">
-                    <h4 class="editable-title" spellcheck="false">${section.title}</h4>
+                    <h4 class="editable-title" spellcheck="false">${escapeNotificationText(section.title)}</h4>
                     <div class="dots-menu-wrapper">
                         <button type="button" class="dots-menu-btn section-dots-btn" title="${tr('section_options')}">⋮</button>
                         <div class="dots-menu section-dots-menu">
@@ -685,7 +733,7 @@ function bootApp() {
         return `
             <div class="board-card fade-in-section" data-board-id="${board.id}">
                 <div class="board-card-header">
-                    <h3 class="editable-title" spellcheck="false">${board.title}</h3>
+                    <h3 class="editable-title" spellcheck="false">${escapeNotificationText(board.title)}</h3>
                     <div class="dots-menu-wrapper">
                         <button type="button" class="dots-menu-btn board-dots-btn" title="${tr('board_options')}">⋮</button>
                         <div class="dots-menu board-dots-menu">

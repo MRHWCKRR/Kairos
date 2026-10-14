@@ -15,11 +15,15 @@ export function loadPageStyle(href, document=globalThis.document) {
   });
 }
 
-export function createPageLoader({importModule=url=>import(url),loadStyle=loadPageStyle,scheduleEnabled=false,warn=console.warn,waitForChat=()=>globalThis.window?.__kairosAiWorkspaceReady}={}) {
+export function createPageLoader({importModule=url=>import(url),loadStyle=loadPageStyle,scheduleEnabled=false,taskDetailsEnabled=false,setupTaskDetails=()=>{},warn=console.warn,waitForChat=()=>globalThis.window?.__kairosAiWorkspaceReady}={}) {
   const loaded=new Map();
   function prepare(page) {
     if(loaded.has(page))return loaded.get(page);
     const task=(async()=>{
+      if(page==='tasks-page'&&taskDetailsEnabled){
+        await Promise.all([loadStyle('task-list.css?v=1'),loadStyle('schedule-inspector.css?v=10')]);
+        await setupTaskDetails(await importModule('./task-detail-pane.js?v=1'));
+      }
       if(page==='ai-page') {
         await loadStyle('ai-workspace.css?v=2');
         // Markdown enhances already-escaped text; a CDN outage must not prevent
