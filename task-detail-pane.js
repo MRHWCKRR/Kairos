@@ -79,7 +79,11 @@ export function mountTaskDetailPane({root,resolveTarget,commit,getOwnerId,getPla
     }
     function trap(event,surface){
         if(event.key!=='Tab')return;
-        const controls=[...surface.querySelectorAll('button,input,select,textarea')].filter(el=>!el.disabled&&el.type!=='hidden'&&!el.closest('[hidden]'));
+        const controls=[...surface.querySelectorAll('button,input,select,textarea,summary')].filter(el=>{
+            if(el.disabled||el.type==='hidden'||el.closest('[hidden],[inert],fieldset[disabled]')||(el.hasAttribute('tabindex')&&Number(el.getAttribute('tabindex'))<0))return false;
+            for(let details=el.closest('details');details;details=details.parentElement?.closest('details'))if(!details.open&&![...details.children].find(child=>child.tagName==='SUMMARY')?.contains(el))return false;
+            return true;
+        });
         if(!controls.length)return;
         if(event.shiftKey&&document.activeElement===controls[0]){event.preventDefault();controls.at(-1).focus?.()}
         else if(!event.shiftKey&&document.activeElement===controls.at(-1)){event.preventDefault();controls[0].focus?.()}
@@ -94,6 +98,7 @@ export function mountTaskDetailPane({root,resolveTarget,commit,getOwnerId,getPla
     }
     function render(found){
         const values=baseline;
+        const recurrenceTask=pending&&Object.hasOwn(pending.command.changes,'recurrence')?{...found.task,recurrence:pending.command.changes.recurrence}:found.task;
         checklistDraft=structuredClone(pending?.command?.changes?.checklist||values.checklist||[]);
         panel=document.createElement('aside');panel.className='task-detail-pane';panel.dataset.taskDetailPane='';panel.setAttribute('aria-labelledby','task-detail-heading');
         const input=(name,label,type='text',attrs='')=>`<label>${esc(label)}<input name="${name}" type="${type}" ${attrs} value="${esc(values[name])}"></label>`;
@@ -110,7 +115,7 @@ export function mountTaskDetailPane({root,resolveTarget,commit,getOwnerId,getPla
           <div class="task-detail-grid">${select('priority',copy('priority'),[['',copy('none')],['low',copy('low')],['medium',copy('medium')],['high',copy('high')]])}${input('reminderMinutes',copy('reminder'),'number','min="1" max="10080" step="1"')}</div>
           <p class="task-detail-hint">${esc(copy('reminder_hint'))}</p>
           ${values.recurrence?.enabled?'<p class="task-detail-series">'+esc(copy('series'))+'</p>':''}
-          ${recurrenceFieldsMarkup(found.task,{fallbackDate:found.task.date||null})}
+          ${recurrenceFieldsMarkup(recurrenceTask,{fallbackDate:found.task.date||null})}
           <details><summary>${esc(copy('more'))}</summary><div class="task-detail-grid">${select('schedulingPreference',copy('preference'),[['',copy('none')],['morning',copy('morning')],['afternoon',copy('afternoon')],['evening',copy('evening')]])}${input('color',copy('color'),'text','maxlength="7" placeholder="#a855f7"')}</div>
           <label class="task-detail-check"><input name="scheduleLocked" type="checkbox" ${values.scheduleLocked?'checked':''}>${esc(copy('lock'))}</label></details></fieldset>
           <section class="task-checklist" aria-label="${esc(copy('checklist'))}"><header><h3>${esc(copy('checklist'))}</h3><span data-checklist-progress></span></header><p class="task-detail-hint">${esc(values.recurrence?.enabled&&!target.occurrenceDate?copy('template_hint'):target.occurrenceDate?copy('occurrence_hint'):copy('checklist_hint'))}</p><ul data-checklist-list></ul><div class="task-checklist-add"><input type="text" data-checklist-new maxlength="180" placeholder="${esc(copy('step_add'))}" aria-label="${esc(copy('step_add'))}"><button type="button" data-checklist-add>${esc(copy('step_add'))}</button></div></section>
