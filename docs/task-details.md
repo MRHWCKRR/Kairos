@@ -1,5 +1,11 @@
 # Task details, checklists and task organisation - Stages 1 to 4
 
+Tasks now consolidates secondary row actions into the three-dot **Task actions** button. The same menu opens by right-clicking non-editable task space or using Shift+F10/the Context Menu key from a focused row. Native context menus remain available inside title/date inputs, textareas, editable content and links. Completion and dragging remain direct controls; Enter/F2 still opens details and Alt+Up/Down still reorders.
+
+The menu provides details, Rename (the existing explicit-save title editor), Schedule navigation, completion status, move up/down, move to section, copy title and Archive. Labels and availability are rechecked against exact task IDs, current identity and canonical state at invocation. Recurring-series completion, pending saves, sorted movement and first/last boundaries retain their existing restrictions. Existing commands, receipt-safe Retry, confirmed Undo and instant completion/reorder previews are reused.
+
+Use Up/Down, Home/End and Enter/Space inside the menu. Escape dismisses it and restores the invoker; Tab leaves it. Outside pointer-down, task-workspace scrolling, viewport resize, section navigation and account/planner changes dismiss it. Failed clipboard access reports an error. Multi-selection, Duplicate and bulk actions remain later stages.
+
 In Tasks, use **Task details** on a task row, or focus the row and press Enter/F2. Wide desktop windows show a side pane; smaller desktop windows use the expanded dialog. Expand opens the same draft in a larger dialog.
 
 The editor saves title, notes, scheduled date/start/duration, deadline, priority, reminder lead, repeat rule, colour, preferred time and AI schedule lock. Ordinary start-time moves preserve duration; an explicit duration edit resizes the task. Existing fields not exposed here are retained. Repeat changes apply to the entire series; individual occurrence actions remain in Schedule. Move/completion/archive/permanent-delete actions continue through their existing controls or **More actions in Schedule**.

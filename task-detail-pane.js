@@ -159,8 +159,10 @@ export function mountTaskDetailPane({root,resolveTarget,commit,getOwnerId,getPla
         updateControls();field('title').focus?.();
     }
     async function open(selected,source=document.activeElement){
+        const actor=getOwnerId(),actorPlan=getPlanId();if(!actor)return false;
         try{resolveTarget(selected)}catch(error){status(error.message,true);return false}
         if(panel&&!await requestClose())return false;
+        if(getOwnerId()!==actor||getPlanId()!==actorPlan)return false;
         let found;try{found=resolveTarget(selected)}catch{return false}
         owner=getOwnerId();if(!owner)return false;planId=getPlanId();target={...selected};opener=source;baseline=taskDetailValues(found.task,target);location={boardId:found.board.id,sectionId:found.section.id};pending=null;
         try{const stored=JSON.parse(window.sessionStorage?.getItem(key())||'null');if(stored?.command?.target?.taskId===target.taskId&&(stored.command.target.occurrenceDate||null)===(target.occurrenceDate||null)&&stored.identity?.ownerId===owner&&stored.identity?.planId===planId&&stored.baseline){pending=stored;baseline=stored.baseline;location={boardId:stored.expected.boardId,sectionId:stored.expected.sectionId}}}catch{}

@@ -56,7 +56,7 @@ test('Statistics refreshes its current month after rollover without redrawing a 
   const {document}=parseHTML(html),root=document.getElementById('statistics-page');root.classList.add('active');
   let now=new Date(2026,9,31,23,59);
   class Clock extends Date {constructor(...args){super(...(args.length?args:[now.getTime()]));}}
-  const context=vm.createContext({document,Date:Clock,statisticsRenderedDate:null,statsRange:'month',
+  const context=vm.createContext({document,Date:Clock,statisticsRenderedDate:null,statsRange:'month',taskMenus:null,
     pageRenders:createPageRenderCache({isActive:page=>document.getElementById(page).classList.contains('active'),scheduleIdle:()=>{}}),
     toDateKey:scheduleUtils.toDateKey,getLocale:()=> 'en',tr:key=>key,trFmt:(_,values)=>String(values.n),formatHMS:String,
     userSettings:{accessibility:{language:'en'}},achievementsData:{lifetimeTasksCompleted:0},

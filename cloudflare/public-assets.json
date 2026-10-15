@@ -90,7 +90,9 @@
     "task-detail-pane.js",
     "task-list.css",
     "task-list-workspace.js",
-    "task-list-interactions.js"
+    "task-list-interactions.js",
+    "task-actions.js",
+    "task-action-menu.js"
   ],
   "directories": [
     "images",
