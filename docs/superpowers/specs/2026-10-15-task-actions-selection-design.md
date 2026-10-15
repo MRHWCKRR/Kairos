@@ -1,6 +1,6 @@
 # Task actions, context menus and selection
 
-Status: design for review. No product implementation is included in this document.
+Status: design approved by the user on 15 October 2026. No product implementation is included in this document.
 
 ## Goal and agreed direction
 
