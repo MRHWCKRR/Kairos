@@ -53,3 +53,16 @@ test('unsupported input menus stay native; canceled beforeinput and canceled asy
  f.field.addEventListener('beforeinput',event=>event.preventDefault());f.event(f.field,'contextmenu');f.event(f.action('paste'),'click');await tick();assert.equal(f.field.value,'hello world');
  let finish;f.delayRead(resolve=>finish=resolve);f.event(f.field,'contextmenu');f.event(f.action('paste'),'click');f.menu.close();finish('late');await tick();assert.equal(f.field.value,'hello world');f.menu.dispose();
 });
+test('canceling beforeinput prevents the browser execCommand mutation path too',async()=>{
+ const f=await fixture();f.document.execCommand=()=>{f.field.value='WRITTEN';return true};f.field.addEventListener('beforeinput',event=>event.preventDefault());f.event(f.field,'contextmenu');f.event(f.action('paste'),'click');await tick();assert.equal(f.field.value,'hello world');f.menu.dispose();
+});
+test('a delayed paste cannot enter a rich editor after its contenteditable permission changes',async()=>{
+ const f=await fixture(),rich=f.document.createElement('div');rich.setAttribute('contenteditable','true');rich.textContent='original';f.document.body.appendChild(rich);let finish;
+ const range={startContainer:rich.firstChild,endContainer:rich.firstChild,cloneRange(){return this}};
+ f.window.getSelection=()=>({rangeCount:1,getRangeAt:()=>range,toString:()=>'original',removeAllRanges(){},addRange(){}});f.document.execCommand=()=>{rich.textContent='WRITTEN';return true};f.delayRead(resolve=>finish=resolve);
+ f.event(rich,'contextmenu');f.event(f.action('paste'),'click');rich.setAttribute('contenteditable','false');finish('WRITTEN');await tick();assert.equal(rich.textContent,'original');assert.match(f.popup().textContent,/changed/);f.menu.dispose();
+});
+test('a noneditable descendant cannot inherit Paste from the surrounding rich editor',async()=>{
+ const f=await fixture(),rich=f.document.createElement('div');rich.setAttribute('contenteditable','true');rich.innerHTML='<span contenteditable="false">Protected</span>';f.document.body.appendChild(rich);const child=rich.firstChild;
+ const range={startContainer:child.firstChild,endContainer:child.firstChild,cloneRange(){return this}};f.window.getSelection=()=>({rangeCount:1,getRangeAt:()=>range,toString:()=>'Protected'});f.event(child,'contextmenu');assert.equal(f.action('paste').getAttribute('aria-disabled'),'true');f.menu.dispose();
+});

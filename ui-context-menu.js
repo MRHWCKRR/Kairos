@@ -5,12 +5,13 @@ export function mountSiteContextMenu({document=globalThis.document,window=docume
   let popup=null,context=null,busy=false,revision=0,disposed=false;
   const mac=/Mac|iPhone|iPad/.test(window.navigator?.platform||''),mod=mac?'Cmd':'Ctrl';
   const safeUrl=value=>{try {const url=new URL(value,window.location.href);return ['http:','https:','mailto:','tel:'].includes(url.protocol)?url.href:null} catch {return null}};
+  const editorFor=target=>{const editor=target.closest?.('[contenteditable]');return editor&&['','true','plaintext-only'].includes(editor.getAttribute('contenteditable'))?editor:null};
   function close({restoreFocus=false}={}) {
     const source=context?.target;revision++;popup?.remove();popup=null;context=null;busy=false;
     if(restoreFocus&&source?.isConnected)source.focus?.({preventScroll:true});
   }
   function capture(target) {
-    const field=target.closest?.('textarea,input'),rich=target.closest?.('[contenteditable="true"],[contenteditable=""]');
+    const field=target.closest?.('textarea,input'),rich=editorFor(target);
     const password=field?.type==='password',supported=field&&(field.localName==='textarea'||['text','search','url','tel','email','password'].includes(field.type||'text'));
     // Controls without a text selection API keep their native context menu.
     if(field&&(!supported||!password&&typeof field.selectionStart!=='number'))return null;
@@ -25,11 +26,12 @@ export function mountSiteContextMenu({document=globalThis.document,window=docume
   }
   function valid(c) {
     return c.target.isConnected&&window.location.href===c.href&&!c.target.closest('[hidden],[inert]')&&(!c.page||c.page.classList.contains('active'))&&
-      (!c.field||!c.field.disabled&&!c.field.readOnly&&c.field.value===c.value)&&(!c.rich||c.rich.isConnected&&c.rich.textContent===c.richValue);
+      (!c.field||!c.field.disabled&&!c.field.readOnly&&c.field.value===c.value)&&(!c.rich||c.rich.isConnected&&editorFor(c.target)===c.rich&&c.rich.textContent===c.richValue);
   }
   function inputEvent(c,value,type) {
     const target=c.field||c.rich;
     const make=name=>window.InputEvent?new window.InputEvent(name,{bubbles:true,cancelable:name==='beforeinput',inputType:type,data:value}):new window.Event(name,{bubbles:true,cancelable:name==='beforeinput'});
+    if(!target.dispatchEvent(make('beforeinput')))return false;
     target.focus?.({preventScroll:true});
     if(c.field){
       c.field.setSelectionRange(c.start,c.end);
@@ -38,7 +40,6 @@ export function mountSiteContextMenu({document=globalThis.document,window=docume
     } else {const selection=window.getSelection();selection.removeAllRanges();selection.addRange(c.range)}
     // Browser editing retains its normal undo history where supported.
     if(document.execCommand?.('insertText',false,value))return true;
-    if(!target.dispatchEvent(make('beforeinput')))return false;
     if(c.field)c.field.setRangeText(value,c.start,c.end,'end');
     else {c.range.deleteContents();const text=document.createTextNode(value);c.range.insertNode(text);c.range.setStartAfter(text);c.range.collapse(true);const selection=window.getSelection();selection.removeAllRanges();selection.addRange(c.range)}
     target.dispatchEvent(make('input'));return true;

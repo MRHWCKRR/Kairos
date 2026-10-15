@@ -1,0 +1,34 @@
+name: Schedule build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main, codex/task-bulk-stage3, codex/task-selection-stage2, codex/task-action-menus-stage1, codex/task-list-stage1-details, codex/task-list-stage2-checklists, codex/task-list-stage3-sections]
+
+permissions:
+  contents: read
+
+jobs:
+  schedule-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install dependencies
+        run: npm ci
+      - name: Run full regression suite
+        run: npm test
+      - name: Run Cloudflare tests and build
+        run: npm run build:cloudflare
+      - name: Verify Cloudflare runtime and bundle
+        run: |
+          npm run test:runtime
+          npx wrangler deploy --dry-run --env preview
+      - name: Run Schedule tests and build
+        run: npm run build
