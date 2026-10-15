@@ -1,6 +1,6 @@
 # Task details, checklists and task organisation - Stages 1 to 4
 
-Tasks now consolidates secondary row actions into the three-dot **Task actions** button. The same menu opens by right-clicking non-editable task space or using Shift+F10/the Context Menu key from a focused row. Native context menus remain available inside title/date inputs, textareas, editable content and links. Completion and dragging remain direct controls; Enter/F2 still opens details and Alt+Up/Down still reorders.
+Tasks now consolidates secondary row actions into the three-dot **Task actions** button. The same menu opens by right-clicking non-editable task space or using Shift+F10/the Context Menu key from a focused row. The shared site menu handles text editors and links; Shift-right-click retains the native browser menu everywhere. Controls without text selection APIs retain their native menu. Completion and dragging remain direct controls; Enter/F2 still opens details and Alt+Up/Down still reorders.
 
 The menu provides details, Rename (the existing explicit-save title editor), Schedule navigation, completion status, move up/down, move to section, copy title and Archive. Labels and availability are rechecked against exact task IDs, current identity and canonical state at invocation. Recurring-series completion, pending saves, sorted movement and first/last boundaries retain their existing restrictions. Existing commands, receipt-safe Retry, confirmed Undo and instant completion/reorder previews are reused.
 

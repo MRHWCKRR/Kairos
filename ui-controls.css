@@ -34,3 +34,13 @@ select:not(.kairos-native-select) { color-scheme: dark; }
 select option,select optgroup { background: var(--bg-card,#161616); color: var(--text-primary,#f4f4f5); }
 input[type="date"],input[type="time"],input[type="datetime-local"] { color-scheme: dark; }
 .mode-light input[type="date"],.mode-light input[type="time"],.mode-light input[type="datetime-local"] { color-scheme: light; }
+
+/* Available on every desktop page, with the same surfaces as task actions. */
+.kairos-context-menu { --ku-bg:var(--bg-card,#161616); --ku-main:var(--bg-main,#0f0f13); --ku-text:var(--text-primary,#f4f4f5); --ku-muted:var(--text-muted,#a1a1aa); --ku-border:var(--border-subtle,#33333b); --ku-accent:var(--accent-glow,#a855f7); position:fixed; z-index:2147483647; box-sizing:border-box; width:288px; overflow:auto; overscroll-behavior:contain; padding:6px; border:1px solid var(--ku-border); border-radius:8px; background:var(--ku-bg); color:var(--ku-text); box-shadow:0 8px 24px rgba(0,0,0,.2); font-family:var(--font-family,Inter,system-ui,sans-serif); }
+.kairos-context-menu [role="menuitem"] { display:flex; justify-content:space-between; align-items:center; gap:18px; width:100%; min-height:36px; box-sizing:border-box; border:0; border-radius:5px; padding:8px 10px; background:transparent; color:var(--ku-text); text-align:left; font:inherit; font-size:13px; line-height:1.4; cursor:pointer; }
+.kairos-context-menu [role="menuitem"]:hover,.kairos-context-menu [role="menuitem"]:focus-visible { background:color-mix(in srgb,var(--ku-accent) 15%,var(--ku-bg)); outline:2px solid var(--ku-accent); outline-offset:-2px; }
+.kairos-context-menu [aria-disabled="true"] { color:var(--ku-muted); opacity:.6; cursor:not-allowed; }
+.kairos-context-menu .context-shortcut { flex-shrink:0; color:var(--ku-muted); font-size:11px; }
+.kairos-context-menu [role="separator"] { height:1px; margin:5px 4px; background:var(--ku-border); }
+.kairos-context-menu [role="status"] { margin:8px 10px; color:var(--ku-muted); font-size:12px; line-height:1.5; }
+.kairos-context-menu [role="status"]:empty { display:none; }
