@@ -47,6 +47,7 @@ export function isRTL(lang) {
 
 export const TRANSLATIONS = {
     en: {
+        task_selection_count:'{n} tasks selected',task_selection_one:'1 task selected',task_selection_more:'More',task_selection_clear:'Clear selection',task_selection_heading:'Selected task actions',task_selection_select:'Select task',task_selection_deselect:'Deselect task',task_selection_copy:'Copy titles',task_selection_menu_one:'Actions for 1 task',task_selection_menu:'Actions for {n} tasks',
         task_order_board:'Board',task_order_section:'Section',
         task_order_saved_undo:'Saved. Undo is available for 10 seconds.',
         task_order_drag:'Drag task',task_order_up:'Move task up',task_order_down:'Move task down',task_order_move:'Move to section',task_order_undo:'Undo',task_order_retry:'Retry original save',task_order_discard:'Discard pending action',task_order_saving:'Saving…',task_order_saved:'Saved.',task_order_uncertain:'Save could not be confirmed. Retry reconciles the original action.',task_order_changed:'The task order changed. Review the section.',task_order_cancel:'Cancel',task_order_destination:'Destination section',task_order_archive_warning:'Archive this task? You can restore it from Archive.',task_order_discard_warning:'This action may already have saved. Discard only clears the local pending action; it does not undo a saved change. Inspect the section before repeating it. Continue?',task_order_discarded:'Local pending action cleared. Inspect the section before repeating it.',

@@ -2,30 +2,41 @@ const labels={details:'Task details',rename:'Rename',schedule:'Open in Schedule'
 const definitions=[['details','details','open'],['rename','rename','open'],['schedule','schedule','open'],['complete','complete','status'],['up','up','organise'],['down','down','organise'],['move','move','organise'],['copy-title','copy','copy'],['archive','archive','archive']];
 const mutations=new Set(['complete','up','down','move','archive']);
 
-export function createTaskActions({resolveTarget,getIdentity,getInteractionState,runTaskAction,openDetails,openSchedule,copyText,reportError=()=>{},translate}={}){
+export function createTaskActions({resolveTarget,getIdentity,getInteractionState,runTaskAction,openDetails,openSchedule,copyText,reportError=()=>{},translate,selection}={}){
  const text=name=>{const key='task_menu_'+name,value=translate?.(key);return value&&value!==key?value:labels[name]};
  const same=context=>{const current=getIdentity();return !!context&&!!context.ownerId&&context.ownerId===current.ownerId&&context.planId===current.planId};
- function target(context){if(!same(context)||!Array.isArray(context.taskIds)||context.taskIds.length!==1||typeof context.taskIds[0]!=='string')return null;return resolveTarget({taskId:context.taskIds[0]})}
+ function targets(context){
+  if(!same(context)||!Array.isArray(context.taskIds)||!context.taskIds.length||(!selection&&context.taskIds.length!==1)||new Set(context.taskIds).size!==context.taskIds.length)return null;
+  const found=context.taskIds.map(taskId=>typeof taskId==='string'?resolveTarget({taskId}):null);
+  return found.every(item=>item&&!item.task.archived&&!item.board.archived&&!item.section.archived)?found:null;
+ }
+ const target=context=>targets(context)?.[0];
+ const selectionItem=(context)=>{const id=context.primaryTaskId||context.taskIds[0],checked=selection.has(id);return {id:'select',label:selectionText(checked?'deselect':'select'),group:'selection',enabled:true,disabledReason:'',checked}};
+ const selectionText=key=>{const name='task_selection_'+key,value=translate?.(name);return value&&value!==name?value:({select:'Select task',deselect:'Deselect task',clear:'Clear selection',copy:'Copy titles'})[key]};
  function items(context){
   let found;try{found=target(context)}catch{return []}if(!found)return [];
+  const extra=selection?[selectionItem(context),...(selection.ids().length?[{id:'clear-selection',label:selectionText('clear'),group:'selection',enabled:true,disabledReason:''}]:[])]:[];
+  if(context.taskIds.length>1)return context.taskIds.every(id=>selection.has(id))?[{id:'copy-titles',label:selectionText('copy'),group:'copy',enabled:true,disabledReason:''},...extra]:[];
   const state=getInteractionState({taskId:context.taskIds[0]}),task=found.task;
-  return definitions.map(([id,name,group])=>{
+  return [...definitions.map(([id,name,group])=>{
    let reason='';if(mutations.has(id)&&(state.busy||state.pending))reason=text('saving');
    else if(id==='complete'&&task.recurrence?.enabled)reason=text('recurring');
    else if(['up','down','move'].includes(id)&&state.sorted)reason=text('sorted');
    else if(id==='up'&&!state.canMoveUp)reason=text('first');else if(id==='down'&&!state.canMoveDown)reason=text('last');
    return {id,label:text(id==='complete'&&task.completed?'incomplete':name),group,enabled:!reason,disabledReason:reason};
-  });
+  }),...extra];
  }
  async function invoke(id,context,sourceElement){
   if(!same(context))return false;
   try{
    const item=items(context).find(action=>action.id===id);if(!item||!item.enabled)return false;
    const found=target(context);if(!found)return false;const ref={taskId:context.taskIds[0]};
+   if(id==='select')return selection.toggle(context.primaryTaskId||ref.taskId);
+   if(id==='clear-selection')return selection.clear();
    if(id==='details'||id==='rename')return (await openDetails(ref,sourceElement,{focusField:id==='rename'?'title':null}))!==false;
    if(id==='schedule')return (await openSchedule(ref,sourceElement))!==false;
-   if(id==='copy-title'){
-    try{if(typeof copyText!=='function')throw Error('Clipboard unavailable');await copyText(String(found.task.title??''));return same(context)}
+   if(id==='copy-title'||id==='copy-titles'){
+    try{if(typeof copyText!=='function')throw Error('Clipboard unavailable');const text=targets(context).map(item=>String(item.task.title??'')).join('\n');await copyText(text);return same(context)}
     catch{if(same(context))reportError(text('clipboard'));return false}
    }
    return (await runTaskAction(id,ref,sourceElement))!==false;
