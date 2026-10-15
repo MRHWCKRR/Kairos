@@ -50,4 +50,3 @@ Click task row space to select one task; Ctrl/Cmd-click toggles tasks across vis
 Selected rows have a surface and border highlight. The count and toolbar appear above the task content, clear of save/Undo status. Select task/Deselect task is available in the task menu without modifier keys. Right-clicking a selected task retains the set; an unselected task replaces it. Multi-task menus display the affected count and support Copy titles and Clear selection; atomic bulk Complete/Move/Archive arrive in Stage 3.
 
 Selection is transient and does not write planner data. Refresh/reorder preserves valid IDs, hidden/archived/missing tasks are pruned, and changing account, planner or overview/expanded section clears the selection and range anchor.
-
