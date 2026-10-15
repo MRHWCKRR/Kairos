@@ -1,5 +1,6 @@
 {
   "files": [
+    "ui-context-menu.js",
     "task-section-actions.js",
     "task-tools-dialog.js",
     "task-tools-model.js",
