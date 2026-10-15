@@ -1,5 +1,8 @@
 {
   "files": [
+    "task-section-actions.js",
+    "task-tools-dialog.js",
+    "task-tools-model.js",
     "task-selection.js",
     "billing-request.js",
     "billing-client.js",

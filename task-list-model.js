@@ -1,4 +1,5 @@
 import {stableStringify,mergePlanEdits} from './plan-merge.js';
+import {buildTaskToolCommand,applyTaskToolCommand} from './task-tools-model.js';
 import {parseTime,formatTime,taskDurationMinutes} from './schedule-utils.js';
 import {normalizeRecurrence,validateRecurrence,generateTaskOccurrences,applyOccurrenceOverride} from './recurrence-utils.js';
 
@@ -100,7 +101,7 @@ export function buildTaskBatch(state,action,ids,destination){
     batchIds(ids);if(!['complete','incomplete','archive','move'].includes(action))throw new Error('Unsupported batch action.');
     const found=ids.map(id=>taskListLocation(state,id)),field=action==='archive'?'archived':'completed';
     const command={type:'task_batch',action,taskIds:[...ids]},expected={tasks:found.map(item=>({...batchLocation(item),...(action==='move'?{}:{value:item.task[field]===true})}))};
-    if(action==='move'){const target=taskListSection(state,destination);command.destination={boardId:target.board.id,sectionId:target.section.id};expected.sections=batchSections(found,target)}
+    if(action==='move'){const target=taskListSection(state,destination);command.destination={boardId:target.board.id,sectionId:target.section.id,...(destination.anchorTaskId!==undefined?{anchorTaskId:destination.anchorTaskId,after:destination.after===true}:{})};expected.sections=batchSections(found,target)}
     return {command,expected};
 }
 function applyTaskBatch(state,command,expected,restore=false){
@@ -138,14 +139,19 @@ function applyTaskBatch(state,command,expected,restore=false){
         for(const section of desired)taskListSection(next,section).section.tasks=section.order.map(id=>byId.get(id));
     }else{
         for(const section of snapshots){const item=taskListSection(next,section).section;item.tasks=(item.tasks||[]).filter(task=>!ids.includes(task.id))}
-        (destination.section.tasks??=[]).push(...found.map(item=>item.task));
+        const anchor=command.destination.anchorTaskId;let index=(destination.section.tasks||[]).length;
+        if(anchor!==undefined){if(typeof anchor!=='string'||ids.includes(anchor)||(index=destination.section.tasks.findIndex(task=>task.id===anchor))<0)throw Error('The drop anchor is missing or selected.');if(command.destination.after)index++}
+        (destination.section.tasks??=[]).splice(index,0,...found.map(item=>item.task));
         result.inverse={command:{type:'restore_task_batch',action:'move',taskIds:[...ids],sections:snapshots},expected:{tasks:ids.map(id=>batchLocation(taskListLocation(next,id))),sections:snapshots.map(section=>({...section,order:taskIds(taskListSection(next,section).section)}))}};
     }
     return {next,result};
 }
+export function buildTaskTool(state,action,ids,options={}){batchIds(ids);return buildTaskToolCommand(state,action,ids,options,{resolve:taskListLocation,values:taskDetailValues})}
 export function applyTaskListCommand(state,command,expected,{now=Date.now()}={}){
+    if(command?.type==='task_tool'){batchIds(command.taskIds);return applyTaskToolCommand(state,command,expected,{resolve:taskListLocation,values:taskDetailValues,apply:applyTaskListCommand})}
     if(command?.type==='undo_task_list'){
         if(!Number.isFinite(command.expiresAt)||command.expiresAt<=now||command.expiresAt>now+10000)throw new Error('Undo expired.');
+        if(command.inverse?.command?.type==='restore_task_fields'){batchIds(command.inverse.command.taskIds);const out=applyTaskToolCommand(state,command.inverse.command,command.inverse.expected,{resolve:taskListLocation,values:taskDetailValues,apply:applyTaskListCommand},true);out.result.type='undo_task_list';return out}
         if(command.inverse?.command?.type==='restore_task_batch'){const out=applyTaskBatch(state,command.inverse.command,command.inverse.expected,true);out.result.type='undo_task_list';return out}
         if(!['reorder_tasks','move_task','complete_task','archive_task'].includes(command.inverse?.command?.type))throw new Error('Unsupported Undo action.');
         const out=applyTaskListCommand(state,command.inverse.command,command.inverse.expected,{now});out.result.type='undo_task_list';return out;

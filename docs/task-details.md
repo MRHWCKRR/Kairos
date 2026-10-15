@@ -43,6 +43,16 @@ Real pointer/keyboard feel, browser layout/focus and verified-account preview sm
 Verification covers model validation, unknown-field preservation, concurrent changes, uncertain response/retry, first-planner creation, legacy normalisation, canonical title baselines, drafts, escaping, account changes, module load-once behaviour, checklist limits/order, compact receipts and recurring snapshots. Real-browser layout/focus and verified-account Firestore smoke checks still require a preview session.
 
 Tasks completion and within-section reordering now preview immediately while their original durable operation saves. This preview is derived only for the Tasks overview and focused section; it never changes the canonical planner, receipts, or other pages before confirmation. New actions remain locked during the save. The saving status stays visible, and Undo and completion awards appear only after confirmation. A failed or uncertain save removes the preview and retains the original Retry/Discard recovery; no rollback write can overwrite unrelated edits. A reload or account/planner switch does not carry an unconfirmed visual preview into the new view. Cross-section moves, archive, and Undo retain confirmed-save behavior.
+# Additional task tools (Stage 4)
+
+Task menus include Duplicate and scheduled date, deadline, priority, duration, reminder and AI-lock tools for one or up to 50 selected ordinary tasks. Each field tool changes only that field (plus the existing duration-derived times), validates the whole set and uses one recoverable receipt with guarded field Undo. Mixed values are identified in the dialog. Recurring parents direct users to their existing Details/Schedule editors.
+
+Duplicate creates unscheduled ordinary copies with fresh task/checklist IDs and unchecked progress, preserving supported notes/priority/deadline/duration/reminder/colour metadata. It excludes recurring rules, occurrence exceptions and operation history. IDs remain stable through Retry. Like quick-add, creation has no Undo; archive unwanted copies.
+
+Dragging a selected task's grip moves the visible selected set in traversal order with a count indicator, one batch Move and one Undo. Drop above/below an unselected task or into section space. Dragging an unselected task stays a single-task action. Escape, invalid/outside drops, scope changes and sorted views cancel group dragging.
+
+Right-click section space for Add task, Select tasks in section or Collapse section; keyboard context-menu entry also works from section controls. One shared menu handles task/section contexts and preserves native editing/page menus. Add opens the existing quick-add form; it does not create a blank task.
+
 # Atomic bulk actions (Stage 3)
 
 Select up to 50 tasks, then choose Complete, Mark incomplete, Move to section or Archive (under More). Completion actions explicitly set every selected task to the requested state; they never flip each task individually. Recurring parent series cannot be bulk-completed: use their occurrences in Schedule.

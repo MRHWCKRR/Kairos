@@ -2,7 +2,7 @@ import { showNotice, confirmDialog, promptDialog } from './ui-dialogs.js?v=1';
 import { aiFetch, aiErrorMessage } from './ai-client.js';
 import { requestBilling } from './billing-client.js';
 import { mountPlanUsage } from './plan-usage.js?v=3';
-import { createPageLoader } from './page-loader.js?v=24';
+import { createPageLoader } from './page-loader.js?v=25';
 import { mountPageRouter } from './page-router.js?v=2';
 import { createPageRenderCache } from './page-render-cache.js?v=1';
 import './boards-recurrence.js?v=10';
@@ -29,7 +29,7 @@ import { invalidateKairosContext } from './ai-context.js';
 import { dueTaskReminders, reminderDeliveryStatus } from './task-reminders.js';
 import { deliverTaskReminder, saveNotificationEdits, escapeNotificationText } from './reminder-notifications.js';
 import { savePlannerEdits, persistTaskListCommand } from './plan-store.js';
-import { resolveTaskDetail } from './task-list-model.js';
+import { resolveTaskDetail, taskListSection } from './task-list-model.js';
 import { mergePlanEdits, planState } from './plan-merge.js';
 console.log("APP.js is loaded and running");
 
@@ -596,7 +596,7 @@ function bootApp() {
         renderBoardsGrid();
     },setupTaskInteractions:module=>{
         taskInteractions=module.mountTaskListInteractions({root:document.getElementById('tasks-page'),getState:()=>({boards:boardsData}),getOwnerId:()=>auth.currentUser?.uid||null,getPlanId:()=>currentPlanDocId,
-            getViewKey:()=>taskWorkspace?.getViewKey(),commit:commitTaskDetails,refresh:renderBoardsGrid,onConfirmed:recordTaskListCompletion,requestCloseDetails:()=>taskDetails?.requestClose()??true,
+            getViewKey:()=>taskWorkspace?.getViewKey(),getSelectedTaskIds:()=>taskSelection?.ids()||[],commit:commitTaskDetails,refresh:renderBoardsGrid,onConfirmed:recordTaskListCompletion,requestCloseDetails:()=>taskDetails?.requestClose()??true,
             ensurePlan:async()=>{const owner=auth.currentUser?.uid,expectedPlan=currentPlanDocId||'plan-'+owner;if(!owner)return false;if(!currentPlanDocId&&!await updatePlanInFirestore())return false;return auth.currentUser?.uid===owner&&currentPlanDocId===expectedPlan?expectedPlan:false}});
     },setupTaskSelection:module=>{
         taskSelection=module.mountTaskSelection({root:document.getElementById('tasks-page'),getIdentity:()=>({ownerId:auth.currentUser?.uid||null,planId:currentPlanDocId}),getViewKey:()=>taskWorkspace?.getViewKey(),
@@ -605,11 +605,13 @@ function bootApp() {
     },setupTaskMenus:({actions,menu})=>{
         const root=document.getElementById('tasks-page'),getIdentity=()=>({ownerId:auth.currentUser?.uid||null,planId:currentPlanDocId});
         const registry=actions.createTaskActions({resolveTarget:target=>resolveTaskDetail({boards:boardsData},target),getIdentity,selection:taskSelection,
-            getInteractionState:target=>taskInteractions.getActionState(target),runTaskAction:(id,target,source)=>taskInteractions.runTaskAction(id,target,source),runTaskBatch:(id,target,source)=>taskInteractions.runTaskBatch(id,target,source),
+            getInteractionState:target=>taskInteractions.getActionState(target),runTaskAction:(id,target,source)=>taskInteractions.runTaskAction(id,target,source),runTaskBatch:(id,target,source)=>taskInteractions.runTaskBatch(id,target,source),runTaskTool:(id,target,source)=>taskInteractions.runTaskTool(id,target,source),
             openDetails:(target,source)=>openTaskDetailsFromList(target.taskId,source),openSchedule:openTaskDetailsInSchedule,
             copyText:text=>navigator.clipboard?.writeText?navigator.clipboard.writeText(text):Promise.reject(Error('Clipboard unavailable')),
             reportError:text=>taskInteractions.reportError(text),translate:tr});
-        taskMenus=menu.mountTaskActionMenu({root,actions:registry,getIdentity,getViewKey:()=>taskWorkspace?.getViewKey(),label:tr('task_menu_heading'),
+        const sectionActions=actions.createTaskSectionActions({getIdentity,resolveSection:target=>taskListSection({boards:boardsData},target),getInteractionState:()=>taskInteractions.getActionState({taskId:''}),addTask:(target,source)=>taskWorkspace.addTask(target,source),selectSection:target=>taskSelection.selectSection(target),collapseSection:target=>taskWorkspace.collapseSection(target),translate:tr});
+        taskMenus=menu.mountTaskActionMenu({root,actions:registry,getIdentity,getViewKey:()=>taskWorkspace?.getViewKey(),label:tr('task_menu_heading'),sectionActions,sectionLabel:tr('task_section_heading'),
+            resolveSection:element=>{const block=element?.closest?.('.board-section-block,[data-focused-section]');if(!block||!root.contains(block)||block.closest('[hidden]'))return null;const section={boardId:block.dataset.boardId,sectionId:block.dataset.sectionId};try{taskListSection({boards:boardsData},section);return {element:block,section}}catch{return null}},
             getContext:(found,options)=>taskSelection.contextFor(found.taskId,options),getLabel:context=>tr(context.taskIds.length===1?'task_selection_menu_one':'task_selection_menu').replace('{n}',context.taskIds.length),
             resolveRow:element=>{const row=element?.closest?.('[data-detail-row]');return row&&root.contains(row)?{taskId:row.dataset.detailRow,row}:null},onError:text=>taskInteractions.reportError(text)});
         taskSelection.setActions(registry,taskMenus.open);
@@ -634,6 +636,7 @@ function bootApp() {
     });
     const pageRouter = mountPageRouter({preparePage:pageLoader.prepare,onNavigate:targetName=>{
             taskMenus?.close();
+            taskInteractions?.sync();
             taskSelection?.sync();
             pageRenders.activate(targetName);
             if (targetName === 'plans-page') location.replace('plans.html');

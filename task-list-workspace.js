@@ -131,14 +131,14 @@ export function mountTaskListWorkspace({root,overview,scrollElement=root.closest
         onRender();
     }
     async function openSection(target,source=null){
-        sync();if(!getOwnerId())return false;const ticket=++navigation,actor=owner;
-        if(!await requestCloseDetails()||ticket!==navigation||actor!==getOwnerId())return false;
-        if(!await ensurePlan()||ticket!==navigation||actor!==getOwnerId())return false;
+        sync();if(!getOwnerId())return false;const ticket=++navigation,actor=owner,actorPlan=plan;
+        if(!await requestCloseDetails()||ticket!==navigation||actor!==getOwnerId()||actorPlan!==getPlanId())return false;
+        if(!await ensurePlan()||ticket!==navigation||actor!==getOwnerId()||(actorPlan!==null&&actorPlan!==getPlanId()))return false;
         sync();if(!current){scrollBack=scrollElement.scrollTop;opener=source;returnTarget={...target,add:source?.matches('.add-task-btn')===true}}
         current={...target};render();scrollElement.scrollTop=0;find('[data-section-heading]').focus?.({preventScroll:true});return true;
     }
     async function back(){
-        sync();const ticket=++navigation;if(!await requestCloseDetails()||ticket!==navigation)return false;
+        sync();const ticket=++navigation,actor=owner,actorPlan=plan;if(!await requestCloseDetails()||ticket!==navigation||actor!==getOwnerId()||actorPlan!==getPlanId())return false;
         current=null;surface.hidden=true;overview.hidden=false;renderOverview();decorateOverview();scrollElement.scrollTop=scrollBack;
         const block=[...overview.querySelectorAll('.board-section-block')].find(el=>el.dataset.boardId===returnTarget?.boardId&&el.dataset.sectionId===returnTarget?.sectionId),returnControl=block?.querySelector(returnTarget?.add?'.add-task-btn':'[data-open-section]');
         if(opener?.isConnected)opener.focus?.({preventScroll:true});else (returnControl&&!returnControl.hidden?returnControl:block?.querySelector('[data-open-section]')||overview.querySelector('[data-open-section]'))?.focus?.({preventScroll:true});return true;
@@ -185,5 +185,5 @@ export function mountTaskListWorkspace({root,overview,scrollElement=root.closest
         if(button?.matches('[data-open-section],.add-task-btn')&&block){void openSection({boardId:block.dataset.boardId,sectionId:block.dataset.sectionId},button).then(opened=>{if(opened&&button.matches('.add-task-btn'))input.focus?.()});return}
     };
     root.addEventListener('click',onClick);root.addEventListener('keydown',onKey);root.addEventListener('input',onInput);form.addEventListener('submit',onSubmit);sync();
-    return {openSection,back,submit,discard,render,sync,decorateOverview,replaceOverview,rowHTML:(task,sectionId)=>renderTaskListRow(task,sectionId,copy),isFocused:()=>!!current,getViewKey:()=>current?sectionKey(current):'overview',dispose(){disposed=true;generation++;navigation++;root.removeEventListener('click',onClick);root.removeEventListener('keydown',onKey);root.removeEventListener('input',onInput);form.removeEventListener('submit',onSubmit);surface.remove();overview.hidden=false}};
+    return {openSection,back,submit,discard,render,sync,decorateOverview,replaceOverview,async addTask(target,source){if(!await openSection(target,source))return false;input.focus?.();return true},async collapseSection(target){if(locate(target).message)return false;if(current&&sectionKey(current)===sectionKey(target)&&!await back())return false;preference(target).collapsed=true;rememberView();decorateOverview();return true},rowHTML:(task,sectionId)=>renderTaskListRow(task,sectionId,copy),isFocused:()=>!!current,getViewKey:()=>current?sectionKey(current):'overview',dispose(){disposed=true;generation++;navigation++;root.removeEventListener('click',onClick);root.removeEventListener('keydown',onKey);root.removeEventListener('input',onInput);form.removeEventListener('submit',onSubmit);surface.remove();overview.hidden=false}};
 }

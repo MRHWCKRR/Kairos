@@ -1,34 +1,39 @@
-import {applyTaskListCommand,buildTaskBatch,taskListLocation,taskListSection} from './task-list-model.js';
+import {applyTaskListCommand,buildTaskBatch,buildTaskTool,taskDetailValues,taskListLocation,taskListSection} from './task-list-model.js';
+import {openTaskFieldDialog} from './task-tools-dialog.js';
 import {t} from './i18n.js';
 import {confirmDialog} from './ui-dialogs.js?v=1';
 
 const ids=section=>(section.tasks||[]).map(task=>task.id);
 const location=found=>({boardId:found.board.id,sectionId:found.section.id});
 const key=target=>JSON.stringify([target.boardId,target.sectionId]);
-const actionTypes=['reorder_tasks','move_task','complete_task','archive_task','task_batch','undo_task_list'];
-const closesDetails=command=>{const value=command.type==='undo_task_list'?command.inverse?.command:command;return ['archive_task','move_task'].includes(value?.type)||(['task_batch','restore_task_batch'].includes(value?.type)&&['archive','archived','move'].includes(value.action))};
+const actionTypes=['reorder_tasks','move_task','complete_task','archive_task','task_batch','task_tool','undo_task_list'];
+const closesDetails=command=>{const value=command.type==='undo_task_list'?command.inverse?.command:command;return ['task_tool','restore_task_fields','archive_task','move_task'].includes(value?.type)||(['task_batch','restore_task_batch'].includes(value?.type)&&['archive','archived','move'].includes(value.action))};
 const previews=command=>['complete_task','reorder_tasks'].includes(command.type)||(command.type==='task_batch'&&['complete','incomplete','move'].includes(command.action));
 
-export function mountTaskListInteractions({root,getState,getOwnerId,getPlanId,commit,refresh=()=>{},ensurePlan=async()=>true,requestCloseDetails=async()=>true,onConfirmed=()=>{},getViewKey=()=>'',isSorted=()=>false,scrollElement=root.closest('.main-content')||root,document=root.ownerDocument,window=document.defaultView,clock=()=>Date.now(),storage,setTimer=(fn,ms)=>window.setTimeout(fn,ms),clearTimer=id=>window.clearTimeout(id),requestFrame=fn=>window.requestAnimationFrame(fn),cancelFrame=id=>window.cancelAnimationFrame(id),confirmArchive=message=>confirmDialog(message),confirmDiscard=message=>confirmDialog(message)}={}){
+export function mountTaskListInteractions({root,getState,getOwnerId,getPlanId,commit,refresh=()=>{},ensurePlan=async()=>true,requestCloseDetails=async()=>true,onConfirmed=()=>{},getViewKey=()=>'',getSelectedTaskIds=()=>[],isSorted=()=>false,scrollElement=root.closest('.main-content')||root,document=root.ownerDocument,window=document.defaultView,clock=()=>Date.now(),storage,setTimer=(fn,ms)=>window.setTimeout(fn,ms),clearTimer=id=>window.clearTimeout(id),requestFrame=fn=>window.requestAnimationFrame(fn),cancelFrame=id=>window.cancelAnimationFrame(id),confirmArchive=message=>confirmDialog(message),confirmDiscard=message=>confirmDialog(message)}={}){
     const copy=name=>t('task_order_'+name,document.documentElement.lang||'en');
-    const sameBatchView=(command,view)=>!(command.type==='task_batch'||command.inverse?.command?.type==='restore_task_batch')||(root.classList.contains('active')&&getViewKey()===view);
+    const sameBatchView=(command,view)=>!(['task_batch','task_tool'].includes(command.type)||['restore_task_batch','restore_task_fields'].includes(command.inverse?.command?.type))||(root.classList.contains('active')&&getViewKey()===view);
     try{storage??=window.sessionStorage}catch{}
     const bar=document.createElement('div');bar.className='task-order-status';bar.dataset.taskOrderStatus='';bar.setAttribute('aria-live','polite');
     const message=document.createElement('span');message.setAttribute('role','status');bar.appendChild(message);
     const button=(attribute,label)=>{const el=document.createElement('button');el.type='button';el.setAttribute(attribute,'');el.textContent=copy(label);el.hidden=true;bar.appendChild(el);return el};
     const undoButton=button('data-task-undo','undo'),retryButton=button('data-task-retry','retry'),discardButton=button('data-task-discard','discard');root.appendChild(bar);
-    let owner,plan,generation=0,busy=false,pending=null,preview=null,undoState=null,timer=null,drag=null,frame=null,moveDialog=null,disposed=false;
+    let owner,plan,generation=0,busy=false,pending=null,preview=null,undoState=null,timer=null,drag=null,frame=null,moveDialog=null,moveDialogView=null,fieldDialog=null,fieldDialogView=null,disposed=false;
     const storageKey=()=> 'kairos-task-order-pending:'+owner+':'+plan;
     function remember(){try{if(pending)storage?.setItem(storageKey(),JSON.stringify(pending));else storage?.removeItem(storageKey())}catch{}}
     function clearUndo(){if(timer!==null)clearTimer(timer);timer=null;undoState=null;undoButton.hidden=true;if(message.textContent===copy('saved_undo'))message.textContent=copy('saved')}
     function cancelDrag(){
         if(frame!==null)cancelFrame(frame);frame=null;
-        if(drag){try{root.releasePointerCapture?.(drag.pointerId)}catch{}drag.row?.classList.remove('task-dragging')}
+        if(drag){try{root.releasePointerCapture?.(drag.pointerId)}catch{}drag.row?.classList.remove('task-dragging');drag.badge?.remove()}
+        for(const row of root.querySelectorAll('.task-group-dragging'))row.classList.remove('task-group-dragging');
         for(const el of root.querySelectorAll('.task-drop-before,.task-drop-after,.task-drop-empty'))el.classList.remove('task-drop-before','task-drop-after','task-drop-empty');drag=null;
     }
     function sync(){
+        if(!root.classList.contains('active'))cancelDrag();
+        if(moveDialog&&(!root.classList.contains('active')||moveDialogView!==getViewKey())){moveDialog.remove();moveDialog=null}
+        if(fieldDialog&&(!root.classList.contains('active')||fieldDialogView!==getViewKey()))fieldDialog.dispose();
         if(owner===getOwnerId()&&plan===getPlanId())return false;
-        generation++;owner=getOwnerId();plan=getPlanId();cancelDrag();moveDialog?.remove();moveDialog=null;clearUndo();pending=null;preview=null;busy=false;message.textContent='';
+        generation++;owner=getOwnerId();plan=getPlanId();cancelDrag();moveDialog?.remove();moveDialog=null;fieldDialog?.dispose();fieldDialog=null;clearUndo();pending=null;preview=null;busy=false;message.textContent='';
         try{const saved=JSON.parse(storage?.getItem(storageKey())||'null');if(owner&&plan&&saved?.identity?.ownerId===owner&&saved.identity.planId===plan&&typeof saved.identity.operationId==='string'&&saved.identity.operationId&&Number.isFinite(saved.identity.createdAt)&&saved.identity.createdAt>0&&actionTypes.includes(saved.command?.type)&&saved.expected&&typeof saved.expected==='object')pending=saved}catch{}
         if(pending)message.textContent=copy('uncertain');return true;
     }
@@ -142,7 +147,7 @@ export function mountTaskListInteractions({root,getState,getOwnerId,getPlanId,co
         const labelCounts=new Map();for(const choice of choices)labelCounts.set(choice.label,(labelCounts.get(choice.label)||0)+1);
         const dialog=document.createElement('dialog');dialog.dataset.taskMoveDialog='';dialog.className='task-move-dialog';dialog.setAttribute('aria-label',copy('move'));const label=document.createElement('label');label.textContent=copy('destination');const select=document.createElement('select');label.appendChild(select);dialog.appendChild(label);
         for(const [index,choice] of choices.entries()){const option=document.createElement('option');option.value=String(index);option.textContent=choice.label+(labelCounts.get(choice.label)>1?' ('+copy('board')+' '+choice.boardPosition+', '+copy('section')+' '+choice.sectionPosition+')':'');select.appendChild(option)}
-        const cancel=document.createElement('button');cancel.type='button';cancel.textContent=copy('cancel');const save=document.createElement('button');save.type='button';save.dataset.moveConfirm='';save.textContent=copy('move');save.disabled=!choices.length;dialog.append(cancel,save);document.body.appendChild(dialog);moveDialog=dialog;
+        const cancel=document.createElement('button');cancel.type='button';cancel.textContent=copy('cancel');const save=document.createElement('button');save.type='button';save.dataset.moveConfirm='';save.textContent=copy('move');save.disabled=!choices.length;dialog.append(cancel,save);document.body.appendChild(dialog);moveDialog=dialog;moveDialogView=originalView;
         const close=()=>{dialog.close?.();dialog.remove();moveDialog=null;if(root.classList.contains('active')&&getOwnerId()===originalOwner&&getPlanId()===originalPlan&&getViewKey()===originalView&&!row.closest('[hidden]'))(row.querySelector('[data-task-menu],[data-task-action="move"]')||row)?.focus?.({preventScroll:true})};cancel.addEventListener('click',close);dialog.addEventListener('cancel',event=>{event.preventDefault();close()});
         save.addEventListener('click',()=>{
             if(ticket!==generation||getOwnerId()!==originalOwner||getPlanId()!==originalPlan||getViewKey()!==originalView||!root.classList.contains('active')){close();return}
@@ -183,6 +188,22 @@ export function mountTaskListInteractions({root,getState,getOwnerId,getPlanId,co
             return execute(operation.command,operation.expected);
         }catch(error){message.textContent=error.message;decorate()}return false;
     }
+    async function runTaskTool(id,{taskIds},sourceElement){
+        sync();if(disposed||busy||pending||fieldDialog||!owner||!root.classList.contains('active'))return false;
+        try{
+            if(!Array.isArray(taskIds)||!taskIds.length||taskIds.length>50||new Set(taskIds).size!==taskIds.length||taskIds.some(id=>!actionRow({taskId:id})))throw Error(copy('batch_limit'));
+            if(id==='duplicate'){const operation=buildTaskTool(getState(),'duplicate',taskIds);return execute(operation.command,operation.expected)}
+            const field=id.startsWith('set-')?id.slice(4):'',snapshot=structuredClone(getState()),values=taskIds.map(taskId=>taskDetailValues(taskListLocation(snapshot,taskId).task)[field]),initialValue=values.every(value=>JSON.stringify(value)===JSON.stringify(values[0]))?values[0]:undefined;
+            const ticket=generation,actor=owner,capturedPlan=plan,view=getViewKey(),label=t('task_tool_'+field,document.documentElement.lang||'en');
+            // Validate field/recurrence scope before presenting an editor.
+            buildTaskTool(snapshot,'edit',taskIds,{field,value:initialValue});
+            fieldDialogView=view;fieldDialog=openTaskFieldDialog({field,label,count:taskIds.length,initialValue,document,translate:key=>t(key,document.documentElement.lang||'en'),onClose:()=>{fieldDialog=null;if(!disposed&&getOwnerId()===actor&&getPlanId()===capturedPlan&&getViewKey()===view&&root.classList.contains('active')&&sourceElement?.isConnected)sourceElement.focus?.({preventScroll:true})},onSubmit:value=>{
+                if(disposed||ticket!==generation||getOwnerId()!==actor||getPlanId()!==capturedPlan||getViewKey()!==view||!root.classList.contains('active')){fieldDialog?.dispose();return false}
+                if(busy||pending)throw Error(copy('uncertain'));
+                const operation=buildTaskTool(snapshot,'edit',taskIds,{field,value});applyTaskListCommand(getState(),operation.command,operation.expected);fieldDialog?.dispose();return execute(operation.command,operation.expected);
+            }});return true;
+        }catch(error){message.textContent=error.message;decorate()}return false;
+    }
     const onClick=event=>{
         const button=event.target.closest?.('button');if(!button)return;
         if(button===undoButton){void undo();return}if(button===retryButton){void reconcile();return}if(button===discardButton){void discard();return}
@@ -203,7 +224,11 @@ export function mountTaskListInteractions({root,getState,getOwnerId,getPlanId,co
     const onDown=event=>{
         const grip=event.target.closest?.('[data-task-action="drag"]');if(!grip||grip.disabled||event.button!==0||busy||pending||isSorted())return;
         sync();cancelDrag();grip.focus?.({preventScroll:true});const row=grip.closest('[data-detail-row]');try{const source=sourceFor(row),orders=new Map((getState().boards||[]).flatMap(board=>(board.sections||[]).map(section=>[key({boardId:board.id,sectionId:section.id}),ids(section)])));
-            drag={row,source,orders,pointerId:event.pointerId,startX:event.clientX,startY:event.clientY,x:event.clientX,y:event.clientY,active:false,drop:null,view:getViewKey(),owner,plan};event.preventDefault();try{root.setPointerCapture?.(event.pointerId)}catch{}
+            const selected=getSelectedTaskIds(),group=selected.includes(source.task.id)&&selected.length>1;
+            if(group&&(selected.length>50||new Set(selected).size!==selected.length))throw Error(copy('batch_limit'));
+            const groupIds=group?[...root.querySelectorAll('[data-detail-row]')].filter(row=>!row.closest('[hidden]')&&selected.includes(row.dataset.detailRow)).map(row=>row.dataset.detailRow):null;
+            if(group&&groupIds.length!==selected.length)throw Error('A selected task is no longer visible.');
+            drag={row,source,orders,groupIds,state:group?structuredClone(getState()):null,pointerId:event.pointerId,startX:event.clientX,startY:event.clientY,x:event.clientX,y:event.clientY,active:false,drop:null,view:getViewKey(),owner,plan};event.preventDefault();try{root.setPointerCapture?.(event.pointerId)}catch{}
         }catch(error){message.textContent=error.message;decorate()}
     };
     function autoScroll(){
@@ -215,21 +240,22 @@ export function mountTaskListInteractions({root,getState,getOwnerId,getPlanId,co
         if(!drag)return;
         for(const el of root.querySelectorAll('.task-drop-before,.task-drop-after,.task-drop-empty'))el.classList.remove('task-drop-before','task-drop-after','task-drop-empty');
         const element=document.elementFromPoint?.(x,y),destination=destinationFor(element);drag.drop=null;
-        if(destination){const row=element.closest('[data-detail-row]');if(row&&!row.hidden&&root.contains(row)){const rect=row.getBoundingClientRect(),after=y>rect.top+rect.height/2;row.classList.add(after?'task-drop-after':'task-drop-before');drag.drop={destination,anchorId:row.dataset.detailRow,after}}else{destination.block.classList.add('task-drop-empty');drag.drop={destination,anchorId:null,after:false}}}
+        if(destination){const row=element.closest('[data-detail-row]');if(row&&!row.closest('[hidden]')&&root.contains(row)){if(drag.groupIds?.includes(row.dataset.detailRow))return;const rect=row.getBoundingClientRect(),after=y>rect.top+rect.height/2;row.classList.add(after?'task-drop-after':'task-drop-before');drag.drop={destination,anchorId:row.dataset.detailRow,after}}else{destination.block.classList.add('task-drop-empty');drag.drop={destination,anchorId:null,after:false}}}
     }
     const onMove=event=>{
         if(!drag||event.pointerId!==drag.pointerId)return;
         if(owner!==getOwnerId()||plan!==getPlanId()||drag.view!==getViewKey()||!root.classList.contains('active')||isSorted()){cancelDrag();return}
         if(!drag.active&&Math.hypot(event.clientX-drag.startX,event.clientY-drag.startY)<4)return;
         drag.active=true;drag.x=event.clientX;drag.y=event.clientY;drag.row.classList.add('task-dragging');updateDrop(event.clientX,event.clientY);
+        if(drag.groupIds){if(!drag.badge){drag.badge=document.createElement('span');drag.badge.dataset.taskDragCount='';drag.badge.className='task-group-drag-count';drag.badge.setAttribute('role','status');drag.badge.textContent=copy('drag')+' · '+drag.groupIds.length;document.body.appendChild(drag.badge);for(const row of root.querySelectorAll('[data-detail-row]'))if(drag.groupIds.includes(row.dataset.detailRow)&&!row.closest('[hidden]'))row.classList.add('task-group-dragging')}drag.badge.style.left=Math.max(8,Math.min(event.clientX+16,(window.innerWidth||800)-180))+'px';drag.badge.style.top=Math.max(8,Math.min(event.clientY+16,(window.innerHeight||600)-48))+'px'}
         if(frame===null)frame=requestFrame(autoScroll);event.preventDefault();
     };
     const onUp=event=>{
         if(!drag||event.pointerId!==drag.pointerId)return;if(drag.active)updateDrop(event.clientX,event.clientY);const saved=drag;cancelDrag();
-        if(!saved.active||!saved.drop||saved.owner!==getOwnerId()||saved.plan!==getPlanId()||saved.view!==getViewKey()||!root.classList.contains('active'))return;
-        try{const action=orderedAction(saved.source,saved.drop.destination,saved.drop.anchorId,saved.drop.after,saved.orders);if(action)void execute(action.command,action.expected)}catch(error){message.textContent=error.message;decorate()}
+        if(!saved.active||!saved.drop||saved.owner!==getOwnerId()||saved.plan!==getPlanId()||saved.view!==getViewKey()||!root.classList.contains('active')||isSorted())return;
+        try{const action=saved.groupIds?buildTaskBatch(saved.state,'move',saved.groupIds,{...saved.drop.destination.target,...(saved.drop.anchorId?{anchorTaskId:saved.drop.anchorId,after:saved.drop.after}:{})}):orderedAction(saved.source,saved.drop.destination,saved.drop.anchorId,saved.drop.after,saved.orders);if(action)void execute(action.command,action.expected)}catch(error){message.textContent=error.message;decorate()}
     };
     const onCancel=()=>cancelDrag();
     root.addEventListener('click',onClick);root.addEventListener('change',onChange);root.addEventListener('keydown',onKey);root.addEventListener('pointerdown',onDown);root.addEventListener('pointermove',onMove);root.addEventListener('pointerup',onUp);root.addEventListener('pointercancel',onCancel);sync();decorate();
-    return {getDisplayState,getActionState,runTaskAction,runTaskBatch,execute,retry:reconcile,undo,discard,sync,decorate,cancelDrag,isDragging:()=>!!drag,reportError(text){message.textContent=text;decorate()},dispose(){disposed=true;preview=null;generation++;cancelDrag();clearUndo();moveDialog?.remove();bar.remove();for(const [type,handler] of [['click',onClick],['change',onChange],['keydown',onKey],['pointerdown',onDown],['pointermove',onMove],['pointerup',onUp],['pointercancel',onCancel]])root.removeEventListener(type,handler)}};
+    return {getDisplayState,getActionState,runTaskAction,runTaskBatch,runTaskTool,execute,retry:reconcile,undo,discard,sync,decorate,cancelDrag,isDragging:()=>!!drag,reportError(text){message.textContent=text;decorate()},dispose(){disposed=true;preview=null;generation++;cancelDrag();clearUndo();moveDialog?.remove();fieldDialog?.dispose();bar.remove();for(const [type,handler] of [['click',onClick],['change',onChange],['keydown',onKey],['pointerdown',onDown],['pointermove',onMove],['pointerup',onUp],['pointercancel',onCancel]])root.removeEventListener(type,handler)}};
 }
