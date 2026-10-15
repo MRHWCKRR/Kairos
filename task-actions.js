@@ -1,9 +1,10 @@
 const labels={details:'Task details',rename:'Rename',schedule:'Open in Schedule',complete:'Complete',incomplete:'Mark incomplete',up:'Move up',down:'Move down',move:'Move to section…',copy:'Copy title',archive:'Archive task…',saving:'Wait for the current save or resolve its Retry/Discard recovery.',recurring:'Complete individual occurrences in Schedule.',sorted:'Manual movement is unavailable in this sorted view.',first:'Already the first visible task.',last:'Already the last visible task.',missing:'This task is no longer available.',clipboard:'Could not copy the title. Allow clipboard access and try again.'};
 const definitions=[['details','details','open'],['rename','rename','open'],['schedule','schedule','open'],['complete','complete','status'],['up','up','organise'],['down','down','organise'],['move','move','organise'],['copy-title','copy','copy'],['archive','archive','archive']];
 const mutations=new Set(['complete','up','down','move','archive']);
+const batchLabels={batch_complete:'Complete',batch_incomplete:'Mark incomplete',batch_move:'Move to section',batch_archive:'Archive tasks',batch_limit:'Select at most 50 tasks for one batch.'};
 
-export function createTaskActions({resolveTarget,getIdentity,getInteractionState,runTaskAction,openDetails,openSchedule,copyText,reportError=()=>{},translate,selection}={}){
- const text=name=>{const key='task_menu_'+name,value=translate?.(key);return value&&value!==key?value:labels[name]};
+export function createTaskActions({resolveTarget,getIdentity,getInteractionState,runTaskAction,runTaskBatch,openDetails,openSchedule,copyText,reportError=()=>{},translate,selection}={}){
+ const text=name=>{const key='task_menu_'+name,value=translate?.(key);return value&&value!==key?value:labels[name]||batchLabels[name]};
  const same=context=>{const current=getIdentity();return !!context&&!!context.ownerId&&context.ownerId===current.ownerId&&context.planId===current.planId};
  function targets(context){
   if(!same(context)||!Array.isArray(context.taskIds)||!context.taskIds.length||(!selection&&context.taskIds.length!==1)||new Set(context.taskIds).size!==context.taskIds.length)return null;
@@ -16,7 +17,15 @@ export function createTaskActions({resolveTarget,getIdentity,getInteractionState
  function items(context){
   let found;try{found=target(context)}catch{return []}if(!found)return [];
   const extra=selection?[selectionItem(context),...(selection.ids().length?[{id:'clear-selection',label:selectionText('clear'),group:'selection',enabled:true,disabledReason:''}]:[])]:[];
-  if(context.taskIds.length>1)return context.taskIds.every(id=>selection.has(id))?[{id:'copy-titles',label:selectionText('copy'),group:'copy',enabled:true,disabledReason:''},...extra]:[];
+  if(context.taskIds.length>1){
+   if(!context.taskIds.every(id=>selection.has(id)))return [];
+   const state=getInteractionState({taskId:context.taskIds[0]}),recurring=targets(context).some(item=>item.task.recurrence?.enabled);
+   const batch=typeof runTaskBatch==='function'?['complete','incomplete','move','archive'].map(action=>{
+    const reason=context.taskIds.length>50?text('batch_limit'):state.busy||state.pending?text('saving'):['complete','incomplete'].includes(action)&&recurring?text('recurring'):action==='move'&&state.sorted?text('sorted'):'';
+    return {id:'bulk-'+action,label:text('batch_'+action),group:action==='complete'||action==='incomplete'?'status':action==='archive'?'archive':'organise',enabled:!reason,disabledReason:reason};
+   }):[];
+   return [...batch,{id:'copy-titles',label:selectionText('copy'),group:'copy',enabled:true,disabledReason:''},...extra];
+  }
   const state=getInteractionState({taskId:context.taskIds[0]}),task=found.task;
   return [...definitions.map(([id,name,group])=>{
    let reason='';if(mutations.has(id)&&(state.busy||state.pending))reason=text('saving');
@@ -31,6 +40,7 @@ export function createTaskActions({resolveTarget,getIdentity,getInteractionState
   try{
    const item=items(context).find(action=>action.id===id);if(!item||!item.enabled)return false;
    const found=target(context);if(!found)return false;const ref={taskId:context.taskIds[0]};
+   if(id.startsWith('bulk-'))return (await runTaskBatch(id.slice(5),{taskIds:[...context.taskIds]},sourceElement))!==false;
    if(id==='select')return selection.toggle(context.primaryTaskId||ref.taskId);
    if(id==='clear-selection')return selection.clear();
    if(id==='details'||id==='rename')return (await openDetails(ref,sourceElement,{focusField:id==='rename'?'title':null}))!==false;

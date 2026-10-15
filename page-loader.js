@@ -24,9 +24,9 @@ export function createPageLoader({importModule=url=>import(url),loadStyle=loadPa
         await Promise.all([loadStyle('task-list.css?v=10'),loadStyle('schedule-inspector.css?v=10')]);
         await setupTaskDetails(await importModule('./task-detail-pane.js?v=4'));
         if(setupTaskWorkspace)await setupTaskWorkspace(await importModule('./task-list-workspace.js?v=6'));
-        if(setupTaskInteractions)await setupTaskInteractions(await importModule('./task-list-interactions.js?v=5'));
-        if(setupTaskSelection)await setupTaskSelection(await importModule('./task-selection.js?v=1'));
-        if(setupTaskMenus){const [actions,menu]=await Promise.all([importModule('./task-actions.js?v=2'),importModule('./task-action-menu.js?v=2')]);await setupTaskMenus({actions,menu})}
+        if(setupTaskInteractions)await setupTaskInteractions(await importModule('./task-list-interactions.js?v=6'));
+        if(setupTaskSelection)await setupTaskSelection(await importModule('./task-selection.js?v=2'));
+        if(setupTaskMenus){const [actions,menu]=await Promise.all([importModule('./task-actions.js?v=3'),importModule('./task-action-menu.js?v=3')]);await setupTaskMenus({actions,menu})}
       }
       if(page==='ai-page') {
         await loadStyle('ai-workspace.css?v=2');

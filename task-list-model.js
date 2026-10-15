@@ -85,12 +85,72 @@ function checkTaskOrder(state,section,expected){
     const counts=new Map();for(const board of state.boards||[])for(const section of board.sections||[])for(const task of section.tasks||[])counts.set(task.id,(counts.get(task.id)||0)+1);
     if(ids.some(id=>typeof id!=='string'||!id||counts.get(id)!==1))throw new Error('Ambiguous duplicate task IDs.');return ids;
 }
+function batchIds(ids){
+    if(!Array.isArray(ids)||!ids.length||ids.length>50)throw new Error('Select between 1 and 50 tasks for one batch.');
+    if(new Set(ids).size!==ids.length||ids.some(id=>typeof id!=='string'||!id.trim()||id.length>160))throw new Error('Invalid or duplicate batch task IDs.');
+    return ids;
+}
+const batchLocation=found=>({taskId:found.task.id,boardId:found.board.id,sectionId:found.section.id});
+const batchSectionKey=value=>JSON.stringify([value.boardId,value.sectionId]);
+function batchSections(found,destination){
+    const all=[...found.map(item=>({boardId:item.board.id,sectionId:item.section.id,order:taskIds(item.section)})),...(destination?[{boardId:destination.board.id,sectionId:destination.section.id,order:taskIds(destination.section)}]:[])];
+    return [...new Map(all.map(item=>[batchSectionKey(item),item])).values()];
+}
+export function buildTaskBatch(state,action,ids,destination){
+    batchIds(ids);if(!['complete','incomplete','archive','move'].includes(action))throw new Error('Unsupported batch action.');
+    const found=ids.map(id=>taskListLocation(state,id)),field=action==='archive'?'archived':'completed';
+    const command={type:'task_batch',action,taskIds:[...ids]},expected={tasks:found.map(item=>({...batchLocation(item),...(action==='move'?{}:{value:item.task[field]===true})}))};
+    if(action==='move'){const target=taskListSection(state,destination);command.destination={boardId:target.board.id,sectionId:target.section.id};expected.sections=batchSections(found,target)}
+    return {command,expected};
+}
+function applyTaskBatch(state,command,expected,restore=false){
+    const ids=batchIds(command.taskIds),action=command.action,field=action==='archive'||action==='archived'?'archived':'completed';
+    if(!(restore?['completed','archived','move']:['complete','incomplete','archive','move']).includes(action))throw new Error('Unsupported batch action.');
+    const next=structuredClone(state),found=ids.map(id=>taskListLocation(next,id,{allowArchived:restore&&action==='archived'}));
+    if(!Array.isArray(expected?.tasks)||expected.tasks.length!==ids.length||new Set(expected.tasks.map(item=>item?.taskId)).size!==ids.length)throw new Error('Invalid batch expectations.');
+    for(const item of found){const old=expected.tasks.find(value=>value?.taskId===item.task.id);
+        if(!old||old.boardId!==item.board.id||old.sectionId!==item.section.id||(action!=='move'&&(typeof old.value!=='boolean'||old.value!==(item.task[field]===true))))throw new Error('A selected task moved or its affected field changed. No tasks were changed.');
+        if(field==='completed'&&action!=='move'&&item.task.recurrence?.enabled)throw new Error('Complete recurring occurrences from Schedule. No tasks were changed.');
+    }
+    const result={type:command.type,action,taskIds:[...ids],completedTaskIds:[],affectedCount:ids.length};
+    if(action!=='move'){
+        let desired;
+        if(restore){
+            desired=command.tasks;if(!Array.isArray(desired)||desired.length!==ids.length||new Set(desired.map(item=>item?.taskId)).size!==ids.length)throw new Error('Invalid batch inverse.');
+            if(desired.some(item=>!ids.includes(item?.taskId)||typeof item.value!=='boolean'))throw new Error('Invalid batch inverse values.');
+        }
+        const before=found.map(item=>({...batchLocation(item),value:item.task[field]===true})),value=action==='complete'||action==='archive';
+        for(const item of found){if(action==='complete'&&!item.task.completed)result.completedTaskIds.push(item.task.id);item.task[field]=restore?desired.find(old=>old.taskId===item.task.id).value:value}
+        if(!restore)result.inverse={command:{type:'restore_task_batch',action:field,taskIds:[...ids],tasks:before},expected:{tasks:found.map(item=>({...batchLocation(item),value:item.task[field]===true}))}};
+        return {next,result};
+    }
+    const destination=restore?null:taskListSection(next,command.destination),sections=restore?expected?.sections:batchSections(found,destination);
+    if(!Array.isArray(sections)||!sections.length||!Array.isArray(expected?.sections)||expected.sections.length!==sections.length||new Set(expected.sections.map(batchSectionKey)).size!==sections.length)throw new Error('Invalid batch section expectations.');
+    const snapshots=sections.map(section=>{const location=taskListSection(next,section),old=expected.sections.find(item=>batchSectionKey(item)===batchSectionKey(section));checkTaskOrder(next,location.section,old?.order);return {boardId:location.board.id,sectionId:location.section.id,order:taskIds(location.section)}});
+    if(found.some(item=>!snapshots.some(section=>section.boardId===item.board.id&&section.sectionId===item.section.id)))throw new Error('Missing selected source section.');
+    if(restore){
+        const desired=command.sections;
+        if(!Array.isArray(desired)||desired.length!==snapshots.length||new Set(desired.map(batchSectionKey)).size!==desired.length)throw new Error('Invalid batch inverse sections.');
+        const currentIds=snapshots.flatMap(item=>item.order),desiredIds=desired.flatMap(item=>Array.isArray(item.order)?item.order:[]),all=new Set(currentIds);
+        if(desiredIds.length!==currentIds.length||new Set(desiredIds).size!==all.size||desiredIds.some(id=>!all.has(id)))throw new Error('Invalid batch inverse order.');
+        for(const section of snapshots){const old=desired.find(item=>batchSectionKey(item)===batchSectionKey(section));if(!old||stableStringify(old.order.filter(id=>!ids.includes(id)))!==stableStringify(section.order.filter(id=>!ids.includes(id))))throw new Error('Unrelated tasks changed order.');}
+        const byId=new Map(snapshots.flatMap(section=>taskListSection(next,section).section.tasks.map(task=>[task.id,task])));
+        for(const section of desired)taskListSection(next,section).section.tasks=section.order.map(id=>byId.get(id));
+    }else{
+        for(const section of snapshots){const item=taskListSection(next,section).section;item.tasks=(item.tasks||[]).filter(task=>!ids.includes(task.id))}
+        (destination.section.tasks??=[]).push(...found.map(item=>item.task));
+        result.inverse={command:{type:'restore_task_batch',action:'move',taskIds:[...ids],sections:snapshots},expected:{tasks:ids.map(id=>batchLocation(taskListLocation(next,id))),sections:snapshots.map(section=>({...section,order:taskIds(taskListSection(next,section).section)}))}};
+    }
+    return {next,result};
+}
 export function applyTaskListCommand(state,command,expected,{now=Date.now()}={}){
     if(command?.type==='undo_task_list'){
         if(!Number.isFinite(command.expiresAt)||command.expiresAt<=now||command.expiresAt>now+10000)throw new Error('Undo expired.');
+        if(command.inverse?.command?.type==='restore_task_batch'){const out=applyTaskBatch(state,command.inverse.command,command.inverse.expected,true);out.result.type='undo_task_list';return out}
         if(!['reorder_tasks','move_task','complete_task','archive_task'].includes(command.inverse?.command?.type))throw new Error('Unsupported Undo action.');
         const out=applyTaskListCommand(state,command.inverse.command,command.inverse.expected,{now});out.result.type='undo_task_list';return out;
     }
+    if(command?.type==='task_batch')return applyTaskBatch(state,command,expected);
     if(command?.type==='reorder_tasks'){
         const next=structuredClone(state),{board,section}=taskListSection(next,command.target),before=checkTaskOrder(next,section,expected?.order),ids=command.taskIds;
         const beforeIds=new Set(before),byId=new Map(section.tasks.map(task=>[task.id,task]));

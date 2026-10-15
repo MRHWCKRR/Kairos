@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {readFile} from 'node:fs/promises';
 import {plannerFixture} from './helpers/planner-fixture.mjs';
-import {applyTaskListCommand} from '../task-list-model.js';
+import {applyTaskListCommand,buildTaskBatch} from '../task-list-model.js';
 
 async function fixture(empty=false){
   const data={userID:'one',boards:[{id:'b',sections:[{id:'s',tasks:[{id:'t',title:'Science',notes:'Old'}]}]}]};
@@ -51,6 +51,13 @@ test('confirmed Tasks completion awards once and an undone task retains the sing
   const result=await f.context.commitTaskDetails(complete,expected,id);f.context.recordTaskListCompletion(complete,result);f.context.recordTaskListCompletion(complete,await f.context.commitTaskDetails(complete,expected,id));
   await f.context.commitTaskDetails({type:'complete_task',target:{taskId:'t'},value:false},{...expected,value:true},{...identity(),operationId:'undo-host'});
   assert.equal(vm.runInContext('achievementsData.lifetimeTasksCompleted',f.context),1);assert.equal(vm.runInContext('statsCalls',f.context),1);assert.equal(f.data().boards[0].sections[0].tasks[0].completed,false);
+});
+test('confirmed bulk completion rewards only new IDs once across retry and never Undo',async()=>{
+ const f=await fixture();vm.runInContext('let achievementsData={countedTaskIds:[],lifetimeTasksCompleted:0},statsCounts=[];function logTaskCompletionForStats(count=1){statsCounts.push(count)}function checkTaskAchievements(){}function saveAchievementsToFirestore(){}function renderMiniAchievementsWidget(){}',f.context);
+ await f.context.commitTaskDetails({type:'create_task',target:{boardId:'b',sectionId:'s'},task:{id:'q',title:'Q'}},{boardId:'b',sectionId:'s'},{...identity(),operationId:'create-q'});
+ const state=f.data(),operation=buildTaskBatch(state,'complete',['t','q']);assert.equal(vm.runInContext('achievementsData.lifetimeTasksCompleted',f.context),0);
+ const result=await f.context.commitTaskDetails(operation.command,operation.expected,{...identity(),operationId:'bulk-reward'});f.context.recordTaskListCompletion(operation.command,result);f.context.recordTaskListCompletion(operation.command,result);assert.equal(vm.runInContext('achievementsData.lifetimeTasksCompleted',f.context),2);assert.equal(vm.runInContext('statsCounts.length',f.context),1);assert.equal(vm.runInContext('statsCounts[0]',f.context),2);
+ const inverse=applyTaskListCommand(state,operation.command,operation.expected).result.inverse;await f.context.commitTaskDetails({type:'undo_task_list',inverse,expiresAt:Date.now()+9000},{},{...identity(),operationId:'undo-bulk'});f.context.recordTaskListCompletion({type:'undo_task_list'},result);assert.equal(vm.runInContext('achievementsData.lifetimeTasksCompleted',f.context),2);
 });
 test('More actions navigation retains the exact recurring occurrence target',async()=>{
   const f=await fixture();let selected;

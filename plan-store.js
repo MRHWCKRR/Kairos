@@ -33,6 +33,7 @@ export async function savePlannerEdits(planId, uid, base, local) {
 
 function receiptResult(result) {
     const compact = { type: result.type };
+    if(Array.isArray(result.taskIds)){compact.taskIds=structuredClone(result.taskIds);compact.completedTaskIds=structuredClone(result.completedTaskIds||[]);compact.action=result.action;}
     for (const field of ['task', 'event', 'movedTask']) {
         const item = result[field];
         if (item) compact[field] = Object.fromEntries(['id', 'title', 'date', 'startTime', 'endTime', 'completed', 'archived', 'day', 'start', 'end', 'estimatedMinutes', 'lastScheduledMinutes', 'reminderMinutes'].filter(key => item[key] !== undefined).map(key => [key, item[key]]));
@@ -75,10 +76,14 @@ export async function persistAiPlanAction(planId, uid, action, operationId, crea
         const result = receiptResult(apply({ data: next }));
         const updated = [...receipts, { id: operationId, createdAt, fingerprint, result }];
         const removed = updated.slice(0, Math.max(0, updated.length - 100));
+        const retained=updated.slice(-100);
+        // Batch results stay small; bound the whole history as well as its count.
+        while(retained.length>1&&JSON.stringify(retained).length>65536)removed.push(retained.shift());
+        if(JSON.stringify(retained).length>65536)throw new Error('This operation receipt is too large to save safely.');
         transaction.set(ref, {
             ...(!snapshot.exists() ? data : {}),
             ...next,
-            aiActionReceipts: updated.slice(-100),
+            aiActionReceipts: retained,
             aiActionReceiptFloor: Math.max(data.aiActionReceiptFloor || 0, ...removed.map(receipt => receipt.createdAt))
         }, { merge: true });
         return result;

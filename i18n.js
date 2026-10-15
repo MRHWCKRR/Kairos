@@ -47,6 +47,8 @@ export function isRTL(lang) {
 
 export const TRANSLATIONS = {
     en: {
+        task_order_batch_move_wait:'This Move is awaiting confirmation. Use Retry or Discard before editing these tasks.',
+        task_order_batch_limit:'Select at most 50 tasks for one batch.',task_order_batch_archive_warning:'Archive {n} selected tasks? You can restore them from Archive.',task_menu_batch_complete:'Complete',task_menu_batch_incomplete:'Mark incomplete',task_menu_batch_move:'Move to section',task_menu_batch_archive:'Archive tasks',task_menu_batch_limit:'Select at most 50 tasks for one batch.',
         task_selection_count:'{n} tasks selected',task_selection_one:'1 task selected',task_selection_more:'More',task_selection_clear:'Clear selection',task_selection_heading:'Selected task actions',task_selection_select:'Select task',task_selection_deselect:'Deselect task',task_selection_copy:'Copy titles',task_selection_menu_one:'Actions for 1 task',task_selection_menu:'Actions for {n} tasks',
         task_order_board:'Board',task_order_section:'Section',
         task_order_saved_undo:'Saved. Undo is available for 10 seconds.',

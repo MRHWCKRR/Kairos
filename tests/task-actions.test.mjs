@@ -29,3 +29,10 @@ test('clipboard rejection reports a usable error only to the original session',a
  const f=await fixture();f.setClipboard(async()=>{throw Error('denied')});assert.equal(await f.actions.invoke('copy-title',f.context),false);assert.match(f.errors[0],/copy|clipboard/i);f.errors.length=0;
  f.setClipboard(async()=>{f.setIdentity({ownerId:'other',planId:'p'});throw Error('denied')});assert.equal(await f.actions.invoke('copy-title',f.context),false);assert.equal(f.errors.length,0);
 });
+test('selected batch actions are explicit, bounded, recurring-aware and blocked by pending recovery',async()=>{
+ const {createTaskActions}=await import('../task-actions.js');let state={canMoveUp:true},recurring=false,size=2;const calls=[];
+ const selection={has:()=>true,ids:()=>Array.from({length:size},(_,i)=>'t'+i)},actions=createTaskActions({selection,getIdentity:()=>({ownerId:'u',planId:'p'}),resolveTarget:({taskId})=>({task:{id:taskId,completed:taskId==='t1',recurrence:recurring&&taskId==='t1'?{enabled:true}:null},board:{id:'b'},section:{id:'s'}}),getInteractionState:()=>state,runTaskBatch:async(...args)=>{calls.push(args);return true}}),context=()=>({ownerId:'u',planId:'p',taskIds:selection.ids()});
+ assert.ok(actions.items(context()).some(item=>item.id==='bulk-incomplete'));assert.ok(actions.items(context()).some(item=>item.id==='bulk-complete'));assert.equal(await actions.invoke('bulk-incomplete',context()),true);assert.deepEqual(calls[0],['incomplete',{taskIds:['t0','t1']},undefined]);
+ recurring=true;for(const id of ['bulk-complete','bulk-incomplete']){const item=actions.items(context()).find(item=>item.id===id);assert.equal(item.enabled,false);assert.match(item.disabledReason,/Schedule/)}recurring=false;
+ state={pending:true};assert.equal(await actions.invoke('bulk-archive',context()),false);assert.equal(actions.items(context()).find(item=>item.id==='copy-titles').enabled,true);state={sorted:true};assert.equal(actions.items(context()).find(item=>item.id==='bulk-move').enabled,false);state={};size=51;assert.match(actions.items(context()).find(item=>item.id==='bulk-complete').disabledReason,/50/);assert.equal(calls.length,1);
+});
