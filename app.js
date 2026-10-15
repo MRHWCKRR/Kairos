@@ -2,7 +2,7 @@ import { showNotice, confirmDialog, promptDialog } from './ui-dialogs.js?v=1';
 import { aiFetch, aiErrorMessage } from './ai-client.js';
 import { requestBilling } from './billing-client.js';
 import { mountPlanUsage } from './plan-usage.js?v=3';
-import { createPageLoader } from './page-loader.js?v=23';
+import { createPageLoader } from './page-loader.js?v=24';
 import { mountPageRouter } from './page-router.js?v=2';
 import { createPageRenderCache } from './page-render-cache.js?v=1';
 import './boards-recurrence.js?v=10';
@@ -580,8 +580,10 @@ function bootApp() {
         return true;
     }
     function recordTaskListCompletion(command,result){
-        if(command.type!=='complete_task'||command.value!==true||!result.task?.completed||achievementsData.countedTaskIds.includes(result.task.id))return;
-        achievementsData.countedTaskIds.push(result.task.id);achievementsData.lifetimeTasksCompleted++;logTaskCompletionForStats();checkTaskAchievements();saveAchievementsToFirestore();renderMiniAchievementsWidget();
+        const candidates=command.type==='task_batch'&&command.action==='complete'?(result.completedTaskIds||[]).filter(id=>command.taskIds.includes(id)):
+            command.type==='complete_task'&&command.value===true&&result.task?.completed?[result.task.id]:[];
+        const ids=[...new Set(candidates)].filter(id=>typeof id==='string'&&!achievementsData.countedTaskIds.includes(id));if(!ids.length)return;
+        achievementsData.countedTaskIds.push(...ids);achievementsData.lifetimeTasksCompleted+=ids.length;logTaskCompletionForStats(ids.length);checkTaskAchievements();saveAchievementsToFirestore();renderMiniAchievementsWidget();
     }
     const pageLoader = createPageLoader({scheduleEnabled:!!document.getElementById('schedule-calendar'),taskDetailsEnabled:true,setupTaskDetails:module=>{
         taskDetails=module.mountTaskDetailPane({root:document.getElementById('tasks-page'),getOwnerId:()=>auth.currentUser?.uid||null,getPlanId:()=>currentPlanDocId,
@@ -603,7 +605,7 @@ function bootApp() {
     },setupTaskMenus:({actions,menu})=>{
         const root=document.getElementById('tasks-page'),getIdentity=()=>({ownerId:auth.currentUser?.uid||null,planId:currentPlanDocId});
         const registry=actions.createTaskActions({resolveTarget:target=>resolveTaskDetail({boards:boardsData},target),getIdentity,selection:taskSelection,
-            getInteractionState:target=>taskInteractions.getActionState(target),runTaskAction:(id,target,source)=>taskInteractions.runTaskAction(id,target,source),
+            getInteractionState:target=>taskInteractions.getActionState(target),runTaskAction:(id,target,source)=>taskInteractions.runTaskAction(id,target,source),runTaskBatch:(id,target,source)=>taskInteractions.runTaskBatch(id,target,source),
             openDetails:(target,source)=>openTaskDetailsFromList(target.taskId,source),openSchedule:openTaskDetailsInSchedule,
             copyText:text=>navigator.clipboard?.writeText?navigator.clipboard.writeText(text):Promise.reject(Error('Clipboard unavailable')),
             reportError:text=>taskInteractions.reportError(text),translate:tr});
@@ -3753,9 +3755,9 @@ function bootApp() {
         renderMiniAchievementsWidget();
     }
 
-    function logTaskCompletionForStats() {
+    function logTaskCompletionForStats(count=1) {
         const todayKey = toDateKey(new Date());
-        focusData.dailyTasksLog[todayKey] = (focusData.dailyTasksLog[todayKey] || 0) + 1;
+        focusData.dailyTasksLog[todayKey] = (focusData.dailyTasksLog[todayKey] || 0) + count;
         saveFocusDataToFirestore();
         renderStatisticsPage();
     }

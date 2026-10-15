@@ -1,11 +1,31 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {plannerFixture} from './helpers/planner-fixture.mjs';
-import {applyTaskListCommand} from '../task-list-model.js';
+import {applyTaskListCommand,buildTaskBatch} from '../task-list-model.js';
 import {stableStringify} from '../plan-merge.js';
 const data=()=>({userID:'one',boards:[{id:'b',sections:[{id:'s',tasks:[{id:'t',title:'Science',notes:'Old'}]}]}]});
 const command={type:'edit_task',target:{taskId:'t'},changes:{notes:'New'}};
 const expected={boardId:'b',sectionId:'s',fields:{notes:'Old'}};
+const batchData=()=>({userID:'one',boards:[{id:'b',sections:[{id:'s',tasks:[{id:'a',title:'A',notes:'X'.repeat(3000)},{id:'c',title:'C'}]}]}]});
+test('a lost batch response and transaction callback replay return one compact receipt',async()=>{
+ for(const options of [{failAfterCommit:true},{retryTransaction:true}]){
+  const input=batchData(),f=await plannerFixture(input,options);f.context.applyTaskListCommand=applyTaskListCommand;const op=buildTaskBatch(input,'complete',['a','c']),createdAt=Date.now();
+  if(options.failAfterCommit)await assert.rejects(f.context.persistTaskListCommand('plan','one',op.command,op.expected,'batch',createdAt),/response lost/);
+  const result=await f.context.persistTaskListCommand('plan','one',op.command,op.expected,'batch',createdAt);assert.deepEqual(Array.from(result.taskIds),['a','c']);assert.deepEqual(Array.from(result.completedTaskIds),['a','c']);assert.equal(result.action,'complete');assert.equal(f.writes.length,1);assert.ok(JSON.stringify(f.data().aiActionReceipts[0]).length<1000);assert.equal(f.data().boards[0].sections[0].tasks[0].notes.length,3000);
+ }
+});
+test('batch ownership, one-member conflicts, oversize and quota errors never partially write',async()=>{
+ const input=batchData(),f=await plannerFixture(input);f.context.applyTaskListCommand=applyTaskListCommand;const op=buildTaskBatch(input,'complete',['a','c']);
+ await assert.rejects(f.context.persistTaskListCommand('plan','other',op.command,op.expected,'wrong',Date.now()),/another account/);
+ const stale=structuredClone(op.expected);stale.tasks[1].value=true;await assert.rejects(f.context.persistTaskListCommand('plan','one',op.command,stale,'stale',Date.now()),/changed/);assert.equal(f.writes.length,0);
+ await assert.rejects(f.context.persistTaskListCommand('plan','one',{...op.command,taskIds:Array.from({length:51},(_,i)=>'t'+i)},op.expected,'size',Date.now()),/50/);assert.equal(f.writes.length,0);
+ f.context.runTransaction=async(_,callback)=>callback({get:async()=>({exists:()=>true,data:()=>structuredClone(input)}),set(){throw Error('Quota exceeded')}});await assert.rejects(f.context.persistTaskListCommand('plan','one',op.command,op.expected,'quota',Date.now()),/Quota/);assert.deepEqual(f.data(),input);
+});
+test('receipt size eviction advances the floor and refuses an evicted batch replay',async()=>{
+ const input=batchData(),createdAt=Date.now()-1000;input.aiActionReceipts=Array.from({length:90},(_,i)=>({id:'old'+i,createdAt:createdAt+i,fingerprint:'X'.repeat(2000),result:{type:'edit_task'}}));const f=await plannerFixture(input);f.context.applyTaskListCommand=applyTaskListCommand;const op=buildTaskBatch(input,'complete',['a','c']);
+ await f.context.persistTaskListCommand('plan','one',op.command,op.expected,'new',Date.now());assert.ok(JSON.stringify(f.data().aiActionReceipts).length<=65536);assert.ok(f.data().aiActionReceiptFloor>=createdAt);assert.equal(f.data().aiActionReceipts.at(-1).id,'new');
+ await assert.rejects(f.context.persistTaskListCommand('plan','one',op.command,op.expected,'old0',createdAt),/too old/);assert.equal(f.writes.length,1);
+});
 test('uncertain detail saves replay their receipt without applying twice',async()=>{
   const f=await plannerFixture(data(),{failAfterCommit:true});f.context.applyTaskListCommand=applyTaskListCommand;
   assert.equal(typeof f.context.persistTaskListCommand,'function');

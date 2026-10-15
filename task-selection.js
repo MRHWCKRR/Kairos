@@ -28,7 +28,7 @@ export function mountTaskSelection({root,getIdentity,getViewKey,resolveTarget,is
  let disposed=false,actions=null,openMenu=null,last='',visible=[];
  const bar=document.createElement('div');bar.className='task-selection-toolbar';bar.dataset.taskSelectionToolbar='';bar.setAttribute('role','group');bar.setAttribute('aria-label',text('heading'));bar.hidden=true;
  const count=document.createElement('span');count.dataset.taskSelectionCount='';bar.appendChild(count);
- const buttons=new Map();for(const id of ['details','complete','copy-title','copy-titles','more','clear']){const button=document.createElement('button');button.type='button';button.dataset.selectionAction=id;if(id==='more'){button.setAttribute('aria-haspopup','menu');button.setAttribute('aria-expanded','false')}buttons.set(id,button);bar.appendChild(button)}
+ const buttons=new Map();for(const id of ['details','complete','bulk-complete','bulk-incomplete','bulk-move','copy-title','copy-titles','more','clear']){const button=document.createElement('button');button.type='button';button.dataset.selectionAction=id;if(id==='more'){button.setAttribute('aria-haspopup','menu');button.setAttribute('aria-expanded','false')}buttons.set(id,button);bar.appendChild(button)}
  const announcement=document.createElement('span');announcement.className='task-selection-announcement';announcement.setAttribute('role','status');announcement.setAttribute('aria-live','polite');root.prepend(bar,announcement);
  const native=el=>!!el?.closest?.('input,textarea,select,button,label,a,[contenteditable]:not([contenteditable="false"]),.task-detail-pane,.task-quick-add');
  const rowFor=el=>{const row=el?.closest?.('[data-detail-row]');return row&&root.contains(row)&&!row.closest('[hidden]')?row:null};

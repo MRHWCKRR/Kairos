@@ -43,10 +43,20 @@ Real pointer/keyboard feel, browser layout/focus and verified-account preview sm
 Verification covers model validation, unknown-field preservation, concurrent changes, uncertain response/retry, first-planner creation, legacy normalisation, canonical title baselines, drafts, escaping, account changes, module load-once behaviour, checklist limits/order, compact receipts and recurring snapshots. Real-browser layout/focus and verified-account Firestore smoke checks still require a preview session.
 
 Tasks completion and within-section reordering now preview immediately while their original durable operation saves. This preview is derived only for the Tasks overview and focused section; it never changes the canonical planner, receipts, or other pages before confirmation. New actions remain locked during the save. The saving status stays visible, and Undo and completion awards appear only after confirmation. A failed or uncertain save removes the preview and retains the original Retry/Discard recovery; no rollback write can overwrite unrelated edits. A reload or account/planner switch does not carry an unconfirmed visual preview into the new view. Cross-section moves, archive, and Undo retain confirmed-save behavior.
+# Atomic bulk actions (Stage 3)
+
+Select up to 50 tasks, then choose Complete, Mark incomplete, Move to section or Archive (under More). Completion actions explicitly set every selected task to the requested state; they never flip each task individually. Recurring parent series cannot be bulk-completed: use their occurrences in Schedule.
+
+Each batch validates all selected task identities, locations and affected values before one transaction. A conflict rejects the whole batch. Move appends selected tasks in visible traversal order, retaining unselected/hidden task order and all task metadata. Archive confirms the count and retains the dirty-details guard.
+
+Completion and Move provide display-only previews; rewards and the single ten-second Undo appear only after confirmed persistence. Lost responses keep the original batch receipt for Retry, including after reload. Selection, Copy and Clear remain usable during recovery, while further mutations remain blocked. Undo checks the affected flags/order and preserves unrelated edits. More than 50 selected tasks disables bulk mutations with an explanation.
+
+Title/date editors on tasks in an unconfirmed bulk Move (or its Undo) are temporarily disabled, including during uncertain recovery. They become available after confirmation or explicit Discard. This prevents inline edits from addressing the preview destination before canonical location is confirmed; unrelated tasks remain editable.
+
 # Task selection (Stage 2)
 
 Click task row space to select one task; Ctrl/Cmd-click toggles tasks across visible boards/sections. Shift-click selects the visible range within the anchor section, and Ctrl/Cmd+Shift-click adds that range. Ctrl/Cmd+A selects visible Tasks rows outside editors. Escape clears selection after menus, dialogs and dragging have released it. Title/date/completion controls and drag grips retain their own behavior.
 
-Selected rows have a surface and border highlight. The count and toolbar appear above the task content, clear of save/Undo status. Select task/Deselect task is available in the task menu without modifier keys. Right-clicking a selected task retains the set; an unselected task replaces it. Multi-task menus display the affected count and support Copy titles and Clear selection; atomic bulk Complete/Move/Archive arrive in Stage 3.
+Selected rows have a surface and border highlight. The count and toolbar appear above the task content, clear of save/Undo status. Select task/Deselect task is available in the task menu without modifier keys. Right-clicking a selected task retains the set; an unselected task replaces it. Multi-task menus display the affected count and include Copy titles and Clear selection alongside eligible bulk actions.
 
 Selection is transient and does not write planner data. Refresh/reorder preserves valid IDs, hidden/archived/missing tasks are pruned, and changing account, planner or overview/expanded section clears the selection and range anchor.
