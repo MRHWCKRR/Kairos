@@ -73,13 +73,13 @@ export function mountTaskSelection({root,getIdentity,getViewKey,resolveTarget,is
   else if(event.key==='Escape'&&!isBlocked()){event.preventDefault();event.stopPropagation();clear()}
  };
  const onDown=event=>{if(event.shiftKey&&!native(event.target)&&rowFor(event.target))event.preventDefault()};
- const onOutsideDown=event=>{
-  if(event.button!==0||event.isPrimary===false||event.defaultPrevented||!root.classList.contains('active')||!state.ids().length)return;
+ const onOutsideClick=event=>{
+  if(event.button!==0||event.defaultPrevented||!root.classList.contains('active')||!state.ids().length)return;
   const target=event.target;
-  if(rowFor(target)||bar.contains(target)||target.closest?.('[data-task-action-menu],[data-site-context-menu],[data-task-order-status],.task-detail-pane,.task-quick-add,.kairos-select-popup,dialog'))return;
+  if(rowFor(target)||bar.contains(target)||target.closest?.('[data-task-action-menu],[data-site-context-menu],[data-task-order-status],[data-show-completed],.task-detail-pane,.task-quick-add,.kairos-select-popup,dialog'))return;
   clear();
  };
- document.addEventListener('pointerdown',onOutsideDown,true);
+ document.addEventListener('click',onOutsideClick,true);
  root.addEventListener('click',onClick);root.addEventListener('keydown',onKey);root.addEventListener('pointerdown',onDown);sync();
- return {sync,ids:()=>state.ids(),has:id=>state.has(id),toggle,clear,contextFor,selectSection(section){return change(()=>{state.clear();for(const row of visible)if(row.boardId===section.boardId&&row.sectionId===section.sectionId)state.select(row.taskId,{toggle:true})})},setActions(registry,open){actions=registry;openMenu=open;sync()},dispose(){disposed=true;document.removeEventListener('pointerdown',onOutsideDown,true);state.clear();for(const row of root.querySelectorAll('[data-detail-row]')){row.classList.remove('is-selected');delete row.dataset.taskSelected}bar.remove();announcement.remove();root.removeEventListener('click',onClick);root.removeEventListener('keydown',onKey);root.removeEventListener('pointerdown',onDown)}};
+ return {sync,ids:()=>state.ids(),has:id=>state.has(id),toggle,clear,contextFor,selectSection(section){return change(()=>{state.clear();for(const row of visible)if(row.boardId===section.boardId&&row.sectionId===section.sectionId)state.select(row.taskId,{toggle:true})})},setActions(registry,open){actions=registry;openMenu=open;sync()},dispose(){disposed=true;document.removeEventListener('click',onOutsideClick,true);state.clear();for(const row of root.querySelectorAll('[data-detail-row]')){row.classList.remove('is-selected');delete row.dataset.taskSelected}bar.remove();announcement.remove();root.removeEventListener('click',onClick);root.removeEventListener('keydown',onKey);root.removeEventListener('pointerdown',onDown)}};
 }
