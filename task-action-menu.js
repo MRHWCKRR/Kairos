@@ -7,14 +7,17 @@ export function positionTaskMenu({anchorRect,point,menuSize,viewport,padding=8})
  return {left:Math.max(left+padding,Math.min(x,right-width)),top:Math.max(top+padding,Math.min(y,bottom-height)),maxHeight};
 }
 
-export function mountTaskActionMenu({root,actions,getIdentity,resolveRow,getContext,getLabel,getViewKey=()=>'',label='Task actions',document=root.ownerDocument,window=document.defaultView,onError=()=>{}}={}){
+export function mountTaskActionMenu({root,actions,getIdentity,resolveRow,resolveSection,sectionActions,sectionLabel='Section actions',getContext,getLabel,getViewKey=()=>'',label='Task actions',document=root.ownerDocument,window=document.defaultView,onError=()=>{}}={}){
  let popup=null,current=null,source=null,point=null,disposed=false,lastItems='',view;
  const nativeTarget=el=>!!el?.closest?.('input,textarea,select,a,[contenteditable]:not([contenteditable="false"])');
  const rowFor=id=>[...root.querySelectorAll('[data-detail-row]')].find(row=>row.dataset.detailRow===id&&!row.closest('[hidden]'));
+ const registry=context=>context?.scope==='section'?sectionActions:actions;
+ const targetFor=context=>context?.scope==='section'?[...root.querySelectorAll('.board-section-block,[data-focused-section],[data-board-id][data-section-id]')].find(el=>!el.closest('[hidden]')&&el.dataset.boardId===context.section?.boardId&&el.dataset.sectionId===context.section?.sectionId):rowFor(context?.primaryTaskId||context?.taskIds?.[0]);
  const same=context=>{const identity=getIdentity();return !!context&&!!identity.ownerId&&context.ownerId===identity.ownerId&&context.planId===identity.planId};
+ const markSource=expanded=>{if(source?.matches?.('[data-task-menu],[data-selection-action="more"]'))source.setAttribute('aria-expanded',String(expanded))};
  function close({restoreFocus=false}={}){
-  const returnTo=source?.isConnected?source:rowFor(current?.taskIds?.[0]);
-  source?.setAttribute?.('aria-expanded','false');popup?.remove();popup=null;current=null;source=null;point=null;lastItems='';
+  const returnTo=source?.isConnected?source:targetFor(current);
+  markSource(false);popup?.remove();popup=null;current=null;source=null;point=null;lastItems='';
   if(restoreFocus&&returnTo?.isConnected)returnTo.focus?.({preventScroll:true});
  }
  function place(){
@@ -30,7 +33,7 @@ export function mountTaskActionMenu({root,actions,getIdentity,resolveRow,getCont
   else if(item.bottom>bounds.bottom)popup.scrollTop+=item.bottom-bounds.bottom;
  }
  function render(items){
-  const heading=getLabel?.(current)||label,fingerprint=JSON.stringify([items,heading]);if(lastItems===fingerprint)return;lastItems=fingerprint;popup.setAttribute('aria-label',heading);
+  const heading=current?.scope==='section'?sectionLabel:getLabel?.(current)||label,fingerprint=JSON.stringify([items,heading]);if(lastItems===fingerprint)return;lastItems=fingerprint;popup.setAttribute('aria-label',heading);
   const focused=popup.contains(document.activeElement)?document.activeElement?.dataset.taskMenuAction:null;popup.replaceChildren();let group;
   if(getLabel){const title=document.createElement('div');title.className='task-menu-heading';title.textContent=heading;popup.appendChild(title)}
   for(const item of items){
@@ -44,16 +47,16 @@ export function mountTaskActionMenu({root,actions,getIdentity,resolveRow,getCont
   if(focused){const button=[...popup.querySelectorAll('[data-task-menu-action]')].find(el=>el.dataset.taskMenuAction===focused)||popup.querySelector('[data-task-menu-action]');focusItem(button)}
  }
  function sync(){
-  if(!popup)return;const row=rowFor(current.primaryTaskId||current.taskIds[0]);
-  if(disposed||!root.classList.contains('active')||view!==getViewKey()||!same(current)||!row||!resolveRow(row)){close();return}
-  const items=actions.items(current);if(!items.length){close();return}source?.setAttribute?.('aria-expanded','true');render(items);place();
+  if(!popup)return;const row=targetFor(current);
+  if(disposed||!root.classList.contains('active')||view!==getViewKey()||!same(current)||!row||!(current.scope==='section'?resolveSection?.(row):resolveRow(row))){close();return}
+  const items=registry(current)?.items(current)||[];if(!items.length){close();return}markSource(true);render(items);place();
  }
  function activate(button){
   if(!button||button.getAttribute('aria-disabled')==='true')return;
   const id=button.dataset.taskMenuAction,context=current,invoker=source,activeView=view;
-  const active=()=>!disposed&&root.classList.contains('active')&&activeView===getViewKey()&&same(context)&&!!rowFor(context?.primaryTaskId||context?.taskIds?.[0]);
+  const active=()=>!disposed&&root.classList.contains('active')&&activeView===getViewKey()&&same(context)&&!!targetFor(context);
   if(!active()){close();return}
-  close({restoreFocus:true});Promise.resolve().then(()=>{if(active())return actions.invoke(id,context,invoker)}).catch(error=>{if(active())onError(error.message)});
+  close({restoreFocus:true});Promise.resolve().then(()=>{if(active())return registry(context)?.invoke(id,context,invoker)}).catch(error=>{if(active())onError(error.message)});
  }
  function menuClick(event){event.preventDefault();event.stopPropagation();activate(event.target.closest?.('[data-task-menu-action]'))}
  function menuKey(event){
@@ -65,16 +68,17 @@ export function mountTaskActionMenu({root,actions,getIdentity,resolveRow,getCont
   if(next!==undefined){event.preventDefault();focusItem(items[next])}
  }
  function open({context,sourceElement,point:position}={}){
-  if(disposed||!root.classList.contains('active')||!same(context)||!context.taskIds?.length)return false;
-  const items=actions.items(context);if(!items.length)return false;close();
+  if(disposed||!root.classList.contains('active')||!same(context)||(context.scope==='section'?!targetFor(context):!context.taskIds?.length))return false;
+  const items=registry(context)?.items(context)||[];if(!items.length)return false;close();
   current={...context,taskIds:[...context.taskIds]};source=sourceElement;point=position;view=getViewKey();
   popup=document.createElement('div');popup.className='task-action-menu';popup.dataset.taskActionMenu='';popup.setAttribute('role','menu');popup.setAttribute('aria-label',label);
-  source?.setAttribute?.('aria-expanded','true');render(items);document.body.appendChild(popup);place();popup.addEventListener('click',menuClick);popup.addEventListener('keydown',menuKey);popup.querySelector('[role="menuitem"]')?.focus?.({preventScroll:true});return true;
+  markSource(true);render(items);document.body.appendChild(popup);place();popup.addEventListener('click',menuClick);popup.addEventListener('keydown',menuKey);popup.querySelector('[role="menuitem"]')?.focus?.({preventScroll:true});return true;
  }
  function contextFor(element,options){const found=resolveRow(element),identity=getIdentity();return found?(getContext?getContext(found,options):{taskIds:[found.taskId],...identity}):null}
  function onClick(event){const button=event.target.closest?.('[data-task-menu]');if(!button||!root.contains(button))return;event.preventDefault();event.stopPropagation();if(popup&&source===button){close({restoreFocus:true});return}open({context:contextFor(button),sourceElement:button})}
- function onContext(event){if(nativeTarget(event.target))return;const found=resolveRow(event.target);if(!found)return;if(open({context:contextFor(found.row,{replaceSelection:true}),sourceElement:found.row.querySelector('[data-task-menu]')||found.row,point:{x:event.clientX,y:event.clientY}})){event.preventDefault();event.stopPropagation()}}
- function onKey(event){if(nativeTarget(event.target)||!(event.key==='ContextMenu'||(event.key==='F10'&&event.shiftKey)))return;const found=resolveRow(event.target);if(!found)return;if(open({context:contextFor(found.row),sourceElement:found.row.querySelector('[data-task-menu]')||found.row})){event.preventDefault();event.stopPropagation()}}
+ function sectionEntry(element){const found=resolveSection?.(element);return found?{context:{...getIdentity(),scope:'section',section:{...found.section},taskIds:[]},sourceElement:found.element.querySelector('button')||found.element}:null}
+ function onContext(event){if(nativeTarget(event.target))return;const found=resolveRow(event.target),entry=found?{context:contextFor(found.row,{replaceSelection:true}),sourceElement:found.row.querySelector('[data-task-menu]')||found.row}:event.target.closest?.('button,label,[data-detail-row]')?null:sectionEntry(event.target);if(entry&&open({...entry,point:{x:event.clientX,y:event.clientY}})){event.preventDefault();event.stopPropagation()}}
+ function onKey(event){if(nativeTarget(event.target)||!(event.key==='ContextMenu'||(event.key==='F10'&&event.shiftKey)))return;const found=resolveRow(event.target),entry=found?{context:contextFor(found.row),sourceElement:found.row.querySelector('[data-task-menu]')||found.row}:sectionEntry(event.target);if(entry&&open(entry)){event.preventDefault();event.stopPropagation()}}
  const outside=event=>{if(popup&&!popup.contains(event.target)&&!source?.contains?.(event.target))close()};
  const onScroll=event=>{if(popup&&!popup.contains(event.target))close()};const onResize=()=>close();
  root.addEventListener('click',onClick);root.addEventListener('contextmenu',onContext);root.addEventListener('keydown',onKey);document.addEventListener('pointerdown',outside,true);document.addEventListener('scroll',onScroll,true);window.addEventListener('resize',onResize);window.visualViewport?.addEventListener('resize',onResize);

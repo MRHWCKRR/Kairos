@@ -41,3 +41,6 @@ test('restore commands are private to expiring Undo and cannot move unrelated ta
  const out=apply(data(),build(data(),'move',['a','e'],{boardId:'b',sectionId:'d'}));assert.throws(()=>model.applyTaskListCommand(out.next,out.result.inverse.command,out.result.inverse.expected),/Unsupported/i);
  const bad=structuredClone(out.result.inverse);bad.command.sections.find(s=>s.boardId==='b'&&s.sectionId==='s').order.push('q');bad.command.sections.find(s=>s.boardId==='b'&&s.sectionId==='d').order=[];assert.throws(()=>undo(out.next,bad));
 });
+test('group Move inserts around an unselected anchor and Undo preserves original hidden order',()=>{
+ const input=data(),op=build(input,'move',['a','c'],{boardId:'b',sectionId:'s',anchorTaskId:'hidden',after:false}),out=apply(input,op);assert.deepEqual(order(out.next,'b','s'),['a','c','hidden']);assert.deepEqual(order(undo(out.next,out.result.inverse).next,'b','s'),['a','hidden','c']);assert.throws(()=>apply(input,build(input,'move',['a','c'],{boardId:'b',sectionId:'s',anchorTaskId:'c'})),/anchor|selected/i);
+});
