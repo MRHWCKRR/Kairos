@@ -973,8 +973,9 @@ body.font-round { --font-family: 'Quicksand', -apple-system, sans-serif; }
 body.font-mono { --font-family: 'JetBrains Mono', 'Courier New', monospace; }
 
 body.cursor-default { cursor: auto; }
-body.cursor-bunny, body.cursor-bunny * { cursor: url('cursors/bunny.png') 8 8, auto !important; }
-body.cursor-spaceship, body.cursor-spaceship * { cursor: url('cursors/spaceship.png') 8 8, auto !important; }
+/* Both cursor sprites point at their top-left pixel; align clicks with that tip. */
+body.cursor-bunny, body.cursor-bunny * { cursor: url('cursors/bunny.png') 0 0, auto !important; }
+body.cursor-spaceship, body.cursor-spaceship * { cursor: url('cursors/spaceship.png') 0 0, auto !important; }
 
 .app-bg-layer {
     position: fixed;
