@@ -51,7 +51,7 @@ test('activation rejects a menu after the Tasks surface becomes inactive',async(
 test('real host navigation closes the popup before another page loads',async()=>{
  const f=await fixture(),source=await readFile(new URL('../app.js',import.meta.url),'utf8');f.root.classList.add('page-view');const home=f.document.createElement('section');home.id='home-page';home.className='page-view';f.document.body.append(home);
  f.window.location={href:'https://example.test/app.html?page=tasks'};f.window.history={state:null,pushState(){},replaceState(){}};f.window.setTimeout=setTimeout;f.window.clearTimeout=clearTimeout;
- const context=vm.createContext({mountPageRouter:options=>mountPageRouter({...options,document:f.document,window:f.window}),pageLoader:{prepare:async()=>{}},taskMenus:f.menu,pageRenders:{activate(){}},aiPageAutoCollapsed:false,sidebarManuallyToggledOnAI:false,sidebar:null});
+ const context=vm.createContext({mountPageRouter:options=>mountPageRouter({...options,document:f.document,window:f.window}),pageLoader:{prepare:async()=>{}},taskMenus:f.menu,taskSelection:null,pageRenders:{activate(){}},aiPageAutoCollapsed:false,sidebarManuallyToggledOnAI:false,sidebar:null});
  vm.runInContext(source.slice(source.indexOf('    const pageRouter = mountPageRouter('),source.indexOf('    function updateClock()'))+';globalThis.router=pageRouter;',context);
  f.event(f.button,'click');assert.ok(f.popup());await context.router.navigate('home-page');assert.ok(!f.popup(),'navigation must remove the popup');f.menu.dispose();
 });

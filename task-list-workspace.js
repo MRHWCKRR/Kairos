@@ -59,7 +59,7 @@ export function mountTaskListWorkspace({root,overview,scrollElement=root.closest
     const surface=document.createElement('section');surface.dataset.focusedSection='';surface.className='task-section-focus';surface.hidden=true;overview.before(surface);
     surface.innerHTML=`<header class="task-section-heading"><button type="button" data-section-back>${esc(copy('back'))}</button><p data-section-breadcrumb></p><h2 data-section-heading tabindex="-1"></h2><div><span data-section-count></span><button type="button" data-show-completed aria-pressed="true">${esc(copy('show_completed'))}</button></div></header><p data-section-state role="status"></p><ul class="task-list" data-section-tasks></ul><form class="task-quick-add"><label>${esc(copy('quick_add'))}<input type="text" data-quick-title maxlength="180" autocomplete="off" placeholder="${esc(copy('quick_hint'))}"></label><button type="submit" data-quick-save>${esc(copy('add'))}</button><button type="button" data-quick-discard hidden>${esc(copy('discard'))}</button><p data-quick-status role="status" aria-live="polite"></p></form>`;
     const find=selector=>surface.querySelector(selector),input=find('[data-quick-title]'),list=find('[data-section-tasks]'),form=find('form');
-    let owner,plan,current=null,entries=new Map(),preferences={},selected=new Map(),scrollBack=0,opener=null,returnTarget=null,generation=0,navigation=0,disposed=false,overviewOwner=null,overviewPlan=null;
+    let owner,plan,current=null,entries=new Map(),preferences={},scrollBack=0,opener=null,returnTarget=null,generation=0,navigation=0,disposed=false,overviewOwner=null,overviewPlan=null;
     const pendingKey=()=> 'kairos-task-quick-pending:'+owner+':'+plan;
     const preferenceKey=()=> 'kairos-task-list-view:'+owner+':'+plan;
     const readStorage=key=>{try{return JSON.parse(storage?.getItem(key)||'null')}catch{return null}};
@@ -71,7 +71,7 @@ export function mountTaskListWorkspace({root,overview,scrollElement=root.closest
     }
     function sync(){
         if(owner===getOwnerId()&&plan===getPlanId())return false;
-        generation++;navigation++;owner=getOwnerId();plan=getPlanId();current=null;entries=new Map();selected=new Map();const savedView=readStorage(preferenceKey());preferences=savedView&&typeof savedView==='object'&&!Array.isArray(savedView)?savedView:{};
+        generation++;navigation++;owner=getOwnerId();plan=getPlanId();current=null;entries=new Map();const savedView=readStorage(preferenceKey());preferences=savedView&&typeof savedView==='object'&&!Array.isArray(savedView)?savedView:{};
         const savedPending=readStorage(pendingKey());
         if(owner&&plan)for(const pair of Array.isArray(savedPending)?savedPending:[]){
             if(!Array.isArray(pair)||pair.length!==2)continue;const [key,pending]=pair;
@@ -103,7 +103,7 @@ export function mountTaskListWorkspace({root,overview,scrollElement=root.closest
             if(!row){const template=document.createElement('template');template.innerHTML=renderTaskListRow(task,current.sectionId,copy);row=template.content.firstElementChild;list.appendChild(row)}
             if(list.children[index]!==row)list.insertBefore(row,list.children[index]||null);
             // Keep row controls alive, especially title typing/caret and completion focus.
-            row.classList.toggle('completed',task.completed===true);row.classList.toggle('is-selected',selected.get(sectionKey(current))===task.id);row.hidden=!pref.showCompleted&&task.completed===true;
+            row.classList.toggle('completed',task.completed===true);row.hidden=!pref.showCompleted&&task.completed===true;
             const title=row.querySelector('.task-text'),date=row.querySelector('.task-date-input'),check=row.querySelector('[type="checkbox"]');
             if(active!==title)title.value=task.title;title.style.textDecoration=task.completed?'line-through':'none';
             if(active!==date)date.value=task.date||'';check.checked=task.completed===true;check.setAttribute('aria-label',copy('complete')+' '+task.title);
@@ -183,7 +183,6 @@ export function mountTaskListWorkspace({root,overview,scrollElement=root.closest
         if(button?.matches('[data-show-completed]')&&current){preference(current).showCompleted=!preference(current).showCompleted;rememberView();render();return}
         if(block&&button?.matches('[data-section-collapse]')){const target={boardId:block.dataset.boardId,sectionId:block.dataset.sectionId};preference(target).collapsed=!preference(target).collapsed;rememberView();decorateOverview();return}
         if(button?.matches('[data-open-section],.add-task-btn')&&block){void openSection({boardId:block.dataset.boardId,sectionId:block.dataset.sectionId},button).then(opened=>{if(opened&&button.matches('.add-task-btn'))input.focus?.()});return}
-        const row=event.target.closest('[data-detail-row]');if(current&&row&&surface.contains(row)){selected.set(sectionKey(current),row.dataset.detailRow);for(const item of list.children)item.classList.toggle('is-selected',item===row)}
     };
     root.addEventListener('click',onClick);root.addEventListener('keydown',onKey);root.addEventListener('input',onInput);form.addEventListener('submit',onSubmit);sync();
     return {openSection,back,submit,discard,render,sync,decorateOverview,replaceOverview,rowHTML:(task,sectionId)=>renderTaskListRow(task,sectionId,copy),isFocused:()=>!!current,getViewKey:()=>current?sectionKey(current):'overview',dispose(){disposed=true;generation++;navigation++;root.removeEventListener('click',onClick);root.removeEventListener('keydown',onKey);root.removeEventListener('input',onInput);form.removeEventListener('submit',onSubmit);surface.remove();overview.hidden=false}};

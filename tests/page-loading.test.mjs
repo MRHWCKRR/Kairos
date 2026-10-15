@@ -31,6 +31,10 @@ test('focused Tasks workspace mounts once after details without loading Schedule
   await Promise.all([loader.prepare('tasks-page'),loader.prepare('tasks-page')]);await loader.prepare('tasks-page');
   assert.deepEqual(mounts,['details','sections']);assert.equal(imports.filter(url=>url.includes('task-list-workspace')).length,1);assert.ok(!imports.some(url=>url.includes('schedule-workspace')));
 });
+test('Tasks selection mounts once between interactions and menus',async()=>{
+ const mounts=[],imports=[];const loader=createPageLoader({taskDetailsEnabled:true,setupTaskInteractions:()=>mounts.push('interactions'),setupTaskSelection:()=>mounts.push('selection'),setupTaskMenus:()=>mounts.push('menus'),loadStyle:async()=>{},importModule:async url=>{imports.push(url);return {}}});
+ await Promise.all([loader.prepare('tasks-page'),loader.prepare('tasks-page')]);assert.deepEqual(mounts,['interactions','selection','menus']);assert.equal(imports.filter(url=>url.includes('task-selection.js')).length,1);
+});
 test('Tasks interaction handlers mount once after the section workspace',async()=>{
   const mounts=[],imports=[];const loader=createPageLoader({taskDetailsEnabled:true,setupTaskDetails:()=>mounts.push('details'),setupTaskWorkspace:()=>mounts.push('sections'),setupTaskInteractions:()=>mounts.push('interactions'),loadStyle:async()=>{},importModule:async url=>{imports.push(url);return {}}});
   await Promise.all([loader.prepare('tasks-page'),loader.prepare('tasks-page')]);assert.deepEqual(mounts,['details','sections','interactions']);assert.equal(imports.filter(url=>url.includes('task-list-interactions')).length,1);

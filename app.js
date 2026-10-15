@@ -2,7 +2,7 @@ import { showNotice, confirmDialog, promptDialog } from './ui-dialogs.js?v=1';
 import { aiFetch, aiErrorMessage } from './ai-client.js';
 import { requestBilling } from './billing-client.js';
 import { mountPlanUsage } from './plan-usage.js?v=3';
-import { createPageLoader } from './page-loader.js?v=22';
+import { createPageLoader } from './page-loader.js?v=23';
 import { mountPageRouter } from './page-router.js?v=2';
 import { createPageRenderCache } from './page-render-cache.js?v=1';
 import './boards-recurrence.js?v=10';
@@ -476,6 +476,7 @@ function bootApp() {
         taskMenus?.sync();
         taskInteractions?.sync();
         taskWorkspace?.sync();
+        taskSelection?.sync();
         planUsage.reset();
         if(!user)void planUsage.refresh();
         if (!user) {
@@ -549,7 +550,7 @@ function bootApp() {
 
     let aiPageAutoCollapsed = false;
     let sidebarManuallyToggledOnAI = false;
-    let taskDetails=null,taskWorkspace=null,taskInteractions=null,taskMenus=null;
+    let taskDetails=null,taskWorkspace=null,taskInteractions=null,taskMenus=null,taskSelection=null;
     async function commitTaskDetails(command,expected,identity){
         const user=auth.currentUser;
         if(!user||identity.ownerId!==user.uid||identity.planId!==currentPlanDocId)throw new Error('The signed-in account or planner changed.');
@@ -589,21 +590,27 @@ function bootApp() {
         taskWorkspace=module.mountTaskListWorkspace({root:document.getElementById('tasks-page'),overview:document.getElementById('tasks-manager-container'),
             getState:()=>taskInteractions?.getDisplayState()||({boards:boardsData}),getOwnerId:()=>auth.currentUser?.uid||null,getPlanId:()=>currentPlanDocId,commit:commitTaskDetails,
             ensurePlan:async()=>{const owner=auth.currentUser?.uid;if(!owner)return false;if(!currentPlanDocId&&!await updatePlanInFirestore())return false;return auth.currentUser?.uid===owner},
-            requestCloseDetails:()=>taskDetails?.requestClose()??true,renderOverview:renderBoardsGrid,onRender:()=>{taskInteractions?.decorate();taskMenus?.sync()}});
+            requestCloseDetails:()=>taskDetails?.requestClose()??true,renderOverview:renderBoardsGrid,onRender:()=>{taskInteractions?.decorate();taskSelection?.sync();taskMenus?.sync()}});
         renderBoardsGrid();
     },setupTaskInteractions:module=>{
         taskInteractions=module.mountTaskListInteractions({root:document.getElementById('tasks-page'),getState:()=>({boards:boardsData}),getOwnerId:()=>auth.currentUser?.uid||null,getPlanId:()=>currentPlanDocId,
             getViewKey:()=>taskWorkspace?.getViewKey(),commit:commitTaskDetails,refresh:renderBoardsGrid,onConfirmed:recordTaskListCompletion,requestCloseDetails:()=>taskDetails?.requestClose()??true,
             ensurePlan:async()=>{const owner=auth.currentUser?.uid,expectedPlan=currentPlanDocId||'plan-'+owner;if(!owner)return false;if(!currentPlanDocId&&!await updatePlanInFirestore())return false;return auth.currentUser?.uid===owner&&currentPlanDocId===expectedPlan?expectedPlan:false}});
+    },setupTaskSelection:module=>{
+        taskSelection=module.mountTaskSelection({root:document.getElementById('tasks-page'),getIdentity:()=>({ownerId:auth.currentUser?.uid||null,planId:currentPlanDocId}),getViewKey:()=>taskWorkspace?.getViewKey(),
+            resolveTarget:target=>resolveTaskDetail({boards:boardsData},target),translate:tr,onChange:()=>taskMenus?.close(),
+            isBlocked:()=>taskMenus?.isOpen()||taskInteractions?.isDragging()||!!document.querySelector('dialog[open]')});
     },setupTaskMenus:({actions,menu})=>{
         const root=document.getElementById('tasks-page'),getIdentity=()=>({ownerId:auth.currentUser?.uid||null,planId:currentPlanDocId});
-        const registry=actions.createTaskActions({resolveTarget:target=>resolveTaskDetail({boards:boardsData},target),getIdentity,
+        const registry=actions.createTaskActions({resolveTarget:target=>resolveTaskDetail({boards:boardsData},target),getIdentity,selection:taskSelection,
             getInteractionState:target=>taskInteractions.getActionState(target),runTaskAction:(id,target,source)=>taskInteractions.runTaskAction(id,target,source),
             openDetails:(target,source)=>openTaskDetailsFromList(target.taskId,source),openSchedule:openTaskDetailsInSchedule,
             copyText:text=>navigator.clipboard?.writeText?navigator.clipboard.writeText(text):Promise.reject(Error('Clipboard unavailable')),
             reportError:text=>taskInteractions.reportError(text),translate:tr});
         taskMenus=menu.mountTaskActionMenu({root,actions:registry,getIdentity,getViewKey:()=>taskWorkspace?.getViewKey(),label:tr('task_menu_heading'),
+            getContext:(found,options)=>taskSelection.contextFor(found.taskId,options),getLabel:context=>tr(context.taskIds.length===1?'task_selection_menu_one':'task_selection_menu').replace('{n}',context.taskIds.length),
             resolveRow:element=>{const row=element?.closest?.('[data-detail-row]');return row&&root.contains(row)?{taskId:row.dataset.detailRow,row}:null},onError:text=>taskInteractions.reportError(text)});
+        taskSelection.setActions(registry,taskMenus.open);
     }});
     window.__kairosPreparePage = pageLoader.prepare;
     async function openTaskDetailsFromList(taskId,source){
@@ -625,6 +632,7 @@ function bootApp() {
     });
     const pageRouter = mountPageRouter({preparePage:pageLoader.prepare,onNavigate:targetName=>{
             taskMenus?.close();
+            taskSelection?.sync();
             pageRenders.activate(targetName);
             if (targetName === 'plans-page') location.replace('plans.html');
             if (targetName === 'statistics-page' && statisticsRenderedDate !== toDateKey(new Date())) renderStatisticsPage();
@@ -692,6 +700,7 @@ function bootApp() {
         taskMenus?.sync();
         taskInteractions?.sync();
         taskWorkspace?.sync();
+        taskSelection?.sync();
         taskDetails?.sync();
         window.__kairosScheduleWorkspace?.invalidate();
         renderFocusMode();

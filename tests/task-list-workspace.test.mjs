@@ -26,7 +26,7 @@ async function fixture({persist,storage=new Map(),rebuildOverview=false}={}){
   const type=value=>{const el=root.querySelector('[data-quick-title]');el.value=value;el.dispatchEvent(new window.Event('input',{bubbles:true}));return el};
   return {workspace,document,window,root,overview,scroll,type,calls,confirmations,focused:()=>focused,data:()=>data,setOwner:value=>owner=value,setPlan:value=>plan=value,block:p=>wait=p,allowClose:value=>allow=value,setDiscard:value=>discard=value};
 }
-test('focused navigation restores board scroll, selected row and local collapse preference',async()=>{
+test('focused navigation restores board scroll and local collapse without owning selection',async()=>{
   const f=await fixture();f.workspace.decorateOverview();f.overview.querySelector('[data-section-collapse]').click();assert.equal(f.overview.querySelector('ul').hidden,true);
   const collapse=f.overview.querySelector('[data-section-collapse]');assert.equal(collapse.textContent,'');assert.ok(collapse.getAttribute('aria-label'));assert.equal(collapse.getAttribute('aria-expanded'),'false');assert.ok(collapse.querySelector('svg[aria-hidden="true"]'));assert.ok(f.overview.querySelector('[data-open-section] svg'));
   f.scroll.scrollTop=240;const source=f.overview.querySelector('[data-open-section]');await f.workspace.openSection({boardId:'b',sectionId:'s'},source);
@@ -34,7 +34,7 @@ test('focused navigation restores board scroll, selected row and local collapse 
   assert.equal(f.overview.hidden,true);assert.match(f.root.querySelector('[data-section-heading]').textContent,/Work/);
   const row=f.root.querySelector('[data-detail-row="t"]');row.dispatchEvent(new f.window.Event('click',{bubbles:true}));
   f.scroll.scrollTop=80;await f.workspace.back();assert.equal(f.overview.hidden,false);assert.equal(f.scroll.scrollTop,240);assert.equal(f.overview.querySelector('ul').hidden,true);
-  await f.workspace.openSection({boardId:'b',sectionId:'s'},source);assert.ok(f.root.querySelector('[data-detail-row="t"]').classList.contains('is-selected'));
+  await f.workspace.openSection({boardId:'b',sectionId:'s'},source);assert.ok(!f.root.querySelector('[data-detail-row="t"]').classList.contains('is-selected'));
 });
 test('quick Enter creates once, keeps the input node and blanks/Escape do not create',async()=>{
   const f=await fixture();await f.workspace.openSection({boardId:'b',sectionId:'s'});

@@ -105,3 +105,10 @@
 #tasks-page .board-card .task-item[data-detail-row]{grid-template-columns:24px minmax(0,1fr) 120px 36px}
 #tasks-page .board-card .task-menu-button{grid-column:4;grid-row:2}
 #tasks-page .task-section-focus .task-menu-button{width:36px;min-width:36px;min-height:36px;padding:6px}
+/* Selection stays in document flow, clear of the save/Undo status. */
+#tasks-page .task-item.is-selected{background:color-mix(in srgb,var(--accent-glow) 12%,var(--bg-card));outline:1px solid var(--accent-glow);outline-offset:-1px;border-radius:6px}
+.task-selection-toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:12px;margin:0 0 16px;border:1px solid var(--border-subtle);border-radius:8px;background:var(--bg-card);color:var(--text-primary);font-size:.85rem}
+.task-selection-toolbar[hidden],.task-selection-toolbar [hidden]{display:none!important}
+.task-selection-toolbar>span{margin-right:auto}.task-selection-toolbar button{min-height:36px;border:1px solid var(--border-subtle);border-radius:5px;padding:6px 10px;background:var(--bg-main);color:var(--text-primary);font:inherit;cursor:pointer}.task-selection-toolbar button:focus-visible{outline:2px solid var(--accent-glow);outline-offset:2px}.task-selection-toolbar button:disabled{opacity:.5;cursor:default}
+.task-selection-announcement{position:absolute;width:1px;height:1px;padding:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+.task-menu-heading{padding:8px 10px;font-size:.8rem;color:var(--text-muted);border-bottom:1px solid var(--border-subtle)}

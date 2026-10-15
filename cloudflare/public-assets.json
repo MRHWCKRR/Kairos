@@ -1,5 +1,6 @@
 {
   "files": [
+    "task-selection.js",
     "billing-request.js",
     "billing-client.js",
     "plan-usage.js",
