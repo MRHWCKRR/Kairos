@@ -43,14 +43,14 @@ export function replaceTaskOverview(overview,html,{document=overview.ownerDocume
 export function renderTaskListRow(task,sectionId,copy=key=>t('task_list_'+key)){
     const id=esc(task.id),section=esc(sectionId),progress=Array.isArray(task.checklist)?task.checklist:[];
     return `<li class="task-item ${task.completed?'completed':''}" tabindex="0" data-detail-row="${id}">
-      <span class="task-order-controls">${['drag','up','down','move'].map(action=>`<button type="button" data-task-action="${action}" aria-label="${esc(t('task_order_'+action)+' '+task.title)}" title="${esc(t('task_order_'+action))}">${orderIcon(action)}</button>`).join('')}</span>
+      <span class="task-order-controls"><button type="button" data-task-action="drag" aria-label="${esc(t('task_order_drag')+' '+task.title)}" title="${esc(t('task_order_drag'))}">${orderIcon('drag')}</button></span>
       <label class="custom-checkbox"><input type="checkbox" data-task-list-complete data-section="${section}" data-task="${id}" aria-label="${esc(copy('complete')+' '+task.title)}" ${task.completed?'checked':''} ${task.recurrence?.enabled?'disabled':''}><span class="checkmark"></span></label>
       <input type="text" class="task-text" data-section="${section}" data-task="${id}" value="${esc(task.title)}" aria-label="${esc(copy('title'))}" maxlength="180" style="text-decoration:${task.completed?'line-through':'none'}">
-      <span class="task-scheduled-time" ${task.startTime?'':'hidden'}>${esc(task.startTime)}${task.endTime?' - '+esc(task.endTime):''}</span>
+      <span class="task-scheduled-time" ${task.startTime?'':'hidden'}>${esc(task.startTime)}${task.endTime?' – '+esc(task.endTime):''}</span>
       <span class="task-checklist-count" ${progress.length?'':'hidden'}>${task.recurrence?.enabled?0:progress.filter(item=>item.completed).length}/${progress.length}</span>
       <input type="date" class="task-date-input" data-section="${section}" data-task="${id}" value="${esc(task.date)}" aria-label="${esc(copy('date'))}">
-      <button type="button" class="task-delete-btn" data-task-list-archive data-section="${section}" data-task="${id}" aria-label="${esc(copy('archive')+' '+task.title)}" title="${esc(copy('archive'))}">x</button>
-      <button type="button" class="task-detail-open" data-task-detail="${id}">${esc(t('task_detail_heading'))}</button></li>`;
+
+      <button type="button" class="task-menu-button" data-task-menu="${id}" aria-haspopup="menu" aria-expanded="false" aria-label="${esc((t('task_menu_heading')==='task_menu_heading'?'Task actions':t('task_menu_heading'))+': '+task.title)}" title="${esc(t('task_menu_heading')==='task_menu_heading'?'Task actions':t('task_menu_heading'))}"><svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></button></li>`;
 }
 
 export function mountTaskListWorkspace({root,overview,scrollElement=root.closest('.main-content')||root,getState,getOwnerId,getPlanId,commit,ensurePlan=async()=>true,requestCloseDetails=async()=>true,confirmDiscard=warning=>confirmDialog(warning),renderOverview=()=>{},onRender=()=>{},document=root.ownerDocument,window=document.defaultView,storage}={}){
@@ -107,7 +107,7 @@ export function mountTaskListWorkspace({root,overview,scrollElement=root.closest
             const title=row.querySelector('.task-text'),date=row.querySelector('.task-date-input'),check=row.querySelector('[type="checkbox"]');
             if(active!==title)title.value=task.title;title.style.textDecoration=task.completed?'line-through':'none';
             if(active!==date)date.value=task.date||'';check.checked=task.completed===true;check.setAttribute('aria-label',copy('complete')+' '+task.title);
-            const time=row.querySelector('.task-scheduled-time');time.hidden=!task.startTime;time.textContent=(task.startTime||'')+(task.endTime?' - '+task.endTime:'');
+            const time=row.querySelector('.task-scheduled-time');time.hidden=!task.startTime;time.textContent=(task.startTime||'')+(task.endTime?' – '+task.endTime:'');
             const progress=Array.isArray(task.checklist)?task.checklist:[],count=row.querySelector('.task-checklist-count');count.hidden=!progress.length;count.textContent=(task.recurrence?.enabled?0:progress.filter(item=>item.completed).length)+'/'+progress.length;
         }
         for(const row of rows.values())row.remove();

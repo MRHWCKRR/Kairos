@@ -3,6 +3,15 @@ import assert from 'node:assert/strict';
 import {parseHTML} from 'linkedom';
 import {applyTaskListCommand,resolveTaskDetail} from '../task-list-model.js';
 
+test('Rename opening focuses title without changing normal detail opening',async()=>{
+ const f=await fixture();let focused=null;f.window.HTMLElement.prototype.focus=function(){focused=this};await f.open();focused=null;
+ await f.pane.open({taskId:'t'},f.document.getElementById('opener'),{focusField:'title'});assert.equal(focused?.name,'title');assert.equal(f.calls.length,0);
+});
+test('account change during dirty-detail confirmation cannot open a same-ID task in the new account',async()=>{
+ const f=await fixture();await f.open();f.input('title','Unsaved');const opening=f.pane.open({taskId:'t'},f.document.getElementById('opener'));
+ f.setOwner('two');f.document.querySelector('[data-draft-choice="discard"]').click();assert.equal(await opening,false);assert.equal(f.root.querySelector('.task-detail-pane'),null);
+});
+
 async function fixture({storage=new Map()}={}){
   const {mountTaskDetailPane}=await import('../task-detail-pane.js');
   const {document,window}=parseHTML('<html><body><section id="tasks-page"><button id="opener">Details</button></section></body></html>');

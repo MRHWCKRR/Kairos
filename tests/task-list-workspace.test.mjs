@@ -4,6 +4,11 @@ import {parseHTML} from 'linkedom';
 import {applyTaskListCommand} from '../task-list-model.js';
 import {plannerFixture} from './helpers/planner-fixture.mjs';
 const tick=()=>new Promise(resolve=>setTimeout(resolve,0));
+
+test('shared Tasks row keeps direct completion and editing with only grip and menu secondary controls',async()=>{
+ const {renderTaskListRow}=await import('../task-list-workspace.js');const {document}=parseHTML('<html><body><ul>'+renderTaskListRow({id:'a',title:'<img src=x>'},'s')+'</ul></body></html>');
+ assert.ok(document.querySelector('[data-task-action="drag"]'));assert.ok(document.querySelector('[data-task-list-complete]'));assert.ok(document.querySelector('.task-text'));assert.ok(document.querySelector('.task-date-input'));const button=document.querySelector('[data-task-menu="a"]');assert.ok(button);assert.match(button.getAttribute('aria-label'),/<img src=x>/);assert.equal(button.getAttribute('aria-haspopup'),'menu');assert.equal(document.querySelector('img'),null);assert.equal(document.querySelectorAll('[data-task-action]').length,1);assert.equal(document.querySelector('[data-task-detail],[data-task-list-archive]'),null);
+});
 async function fixture({persist,storage=new Map(),rebuildOverview=false}={}){
   const module=await import('../task-list-workspace.js').catch(()=>({}));assert.equal(typeof module.mountTaskListWorkspace,'function','focused workspace must be implemented');
   const {document,window}=parseHTML('<html><body><main class="main-content"><section id="tasks-page" class="active"><div id="overview"><div class="board-section-block" data-board-id="b" data-section-id="s"><div class="section-title-row"></div><ul class="task-list"></ul><button class="add-task-btn" data-board-id="b" data-section-id="s">Add</button></div></div></section><input id="chat"></main></body></html>');

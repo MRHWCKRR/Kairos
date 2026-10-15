@@ -20,6 +20,15 @@ async function fixture(empty=false){
 const command={type:'edit_task',target:{taskId:'t'},changes:{notes:'New'}};
 const expected={boardId:'b',sectionId:'s',fields:{notes:'Old'}};
 const identity=()=>({ownerId:'one',planId:'plan',operationId:'detail-host',createdAt:Date.now()});
+test('Details rejects a same-account planner switch during lazy preparation',async()=>{
+ const f=await fixture();vm.runInContext("pageLoader.prepare=async()=>{currentPlanDocId='replacement'}",f.context);
+ assert.equal(await f.context.openTaskDetailsFromList('t',null),false);
+});
+
+test('Schedule navigation cannot select an old task after the account changes during navigation',async()=>{
+ const f=await fixture();let selected=0;f.context.window={__kairosScheduleWorkspace:{selectItem:()=>selected++}};
+ vm.runInContext("pageRouter.navigate=async()=>{auth.currentUser={uid:'other'}}",f.context);await f.context.openTaskDetailsInSchedule({taskId:'t'});assert.equal(selected,0);
+});
 test('host refresh keeps remote unrelated fields and retries after an uncertain response',async()=>{
   const f=await fixture();await f.execute({type:'set_task_reminder',args:{taskId:'t',minutesBefore:15}});
   const get=f.context.getDoc;let fail=true;f.context.getDoc=async ref=>{if(fail){fail=false;throw new Error('Response lost')}return get(ref)};

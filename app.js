@@ -2,7 +2,7 @@ import { showNotice, confirmDialog, promptDialog } from './ui-dialogs.js?v=1';
 import { aiFetch, aiErrorMessage } from './ai-client.js';
 import { requestBilling } from './billing-client.js';
 import { mountPlanUsage } from './plan-usage.js?v=3';
-import { createPageLoader } from './page-loader.js?v=21';
+import { createPageLoader } from './page-loader.js?v=22';
 import { mountPageRouter } from './page-router.js?v=2';
 import { createPageRenderCache } from './page-render-cache.js?v=1';
 import './boards-recurrence.js?v=10';
@@ -473,6 +473,7 @@ function bootApp() {
     },{once:true});
 
     onAuthStateChanged(auth, async (user) => {
+        taskMenus?.sync();
         taskInteractions?.sync();
         taskWorkspace?.sync();
         planUsage.reset();
@@ -548,7 +549,7 @@ function bootApp() {
 
     let aiPageAutoCollapsed = false;
     let sidebarManuallyToggledOnAI = false;
-    let taskDetails=null,taskWorkspace=null,taskInteractions=null;
+    let taskDetails=null,taskWorkspace=null,taskInteractions=null,taskMenus=null;
     async function commitTaskDetails(command,expected,identity){
         const user=auth.currentUser;
         if(!user||identity.ownerId!==user.uid||identity.planId!==currentPlanDocId)throw new Error('The signed-in account or planner changed.');
@@ -569,9 +570,13 @@ function bootApp() {
         return work;
     }
     async function openTaskDetailsInSchedule(target){
+        const actor=auth.currentUser?.uid,actorPlan=currentPlanDocId;if(!actor)return false;
+        if(!await (taskDetails?.requestClose?.()??true)||auth.currentUser?.uid!==actor||currentPlanDocId!==actorPlan)return false;
         await pageRouter.navigate('schedule-page');
+        if(auth.currentUser?.uid!==actor||currentPlanDocId!==actorPlan)return false;
         if(target.occurrenceDate)window.__kairosScheduleWorkspace?.selectOccurrence?.({seriesId:target.taskId,occurrenceId:target.taskId+'::'+target.occurrenceDate,occurrenceDate:target.occurrenceDate});
         else window.__kairosScheduleWorkspace?.selectItem?.('task',target.taskId);
+        return true;
     }
     function recordTaskListCompletion(command,result){
         if(command.type!=='complete_task'||command.value!==true||!result.task?.completed||achievementsData.countedTaskIds.includes(result.task.id))return;
@@ -584,20 +589,29 @@ function bootApp() {
         taskWorkspace=module.mountTaskListWorkspace({root:document.getElementById('tasks-page'),overview:document.getElementById('tasks-manager-container'),
             getState:()=>taskInteractions?.getDisplayState()||({boards:boardsData}),getOwnerId:()=>auth.currentUser?.uid||null,getPlanId:()=>currentPlanDocId,commit:commitTaskDetails,
             ensurePlan:async()=>{const owner=auth.currentUser?.uid;if(!owner)return false;if(!currentPlanDocId&&!await updatePlanInFirestore())return false;return auth.currentUser?.uid===owner},
-            requestCloseDetails:()=>taskDetails?.requestClose()??true,renderOverview:renderBoardsGrid,onRender:()=>taskInteractions?.decorate()});
+            requestCloseDetails:()=>taskDetails?.requestClose()??true,renderOverview:renderBoardsGrid,onRender:()=>{taskInteractions?.decorate();taskMenus?.sync()}});
         renderBoardsGrid();
     },setupTaskInteractions:module=>{
         taskInteractions=module.mountTaskListInteractions({root:document.getElementById('tasks-page'),getState:()=>({boards:boardsData}),getOwnerId:()=>auth.currentUser?.uid||null,getPlanId:()=>currentPlanDocId,
             getViewKey:()=>taskWorkspace?.getViewKey(),commit:commitTaskDetails,refresh:renderBoardsGrid,onConfirmed:recordTaskListCompletion,requestCloseDetails:()=>taskDetails?.requestClose()??true,
             ensurePlan:async()=>{const owner=auth.currentUser?.uid,expectedPlan=currentPlanDocId||'plan-'+owner;if(!owner)return false;if(!currentPlanDocId&&!await updatePlanInFirestore())return false;return auth.currentUser?.uid===owner&&currentPlanDocId===expectedPlan?expectedPlan:false}});
+    },setupTaskMenus:({actions,menu})=>{
+        const root=document.getElementById('tasks-page'),getIdentity=()=>({ownerId:auth.currentUser?.uid||null,planId:currentPlanDocId});
+        const registry=actions.createTaskActions({resolveTarget:target=>resolveTaskDetail({boards:boardsData},target),getIdentity,
+            getInteractionState:target=>taskInteractions.getActionState(target),runTaskAction:(id,target,source)=>taskInteractions.runTaskAction(id,target,source),
+            openDetails:(target,source)=>openTaskDetailsFromList(target.taskId,source),openSchedule:openTaskDetailsInSchedule,
+            copyText:text=>navigator.clipboard?.writeText?navigator.clipboard.writeText(text):Promise.reject(Error('Clipboard unavailable')),
+            reportError:text=>taskInteractions.reportError(text),translate:tr});
+        taskMenus=menu.mountTaskActionMenu({root,actions:registry,getIdentity,getViewKey:()=>taskWorkspace?.getViewKey(),label:tr('task_menu_heading'),
+            resolveRow:element=>{const row=element?.closest?.('[data-detail-row]');return row&&root.contains(row)?{taskId:row.dataset.detailRow,row}:null},onError:text=>taskInteractions.reportError(text)});
     }});
     window.__kairosPreparePage = pageLoader.prepare;
     async function openTaskDetailsFromList(taskId,source){
-        const owner=auth.currentUser?.uid;if(!owner)return false;
+        const owner=auth.currentUser?.uid,plan=currentPlanDocId;if(!owner)return false;
         await pageLoader.prepare('tasks-page');
-        if(auth.currentUser?.uid!==owner)return false;
+        if(auth.currentUser?.uid!==owner||currentPlanDocId!==plan)return false;
         if(!currentPlanDocId&&!await updatePlanInFirestore())return false;
-        if(auth.currentUser?.uid!==owner)return false;
+        if(auth.currentUser?.uid!==owner||(plan&&currentPlanDocId!==plan))return false;
         return taskDetails?.open({taskId},source);
     }
     document.getElementById('tasks-page')?.addEventListener('click',async event=>{
@@ -610,6 +624,7 @@ function bootApp() {
         event.preventDefault();void openTaskDetailsFromList(row.dataset.detailRow,row);
     });
     const pageRouter = mountPageRouter({preparePage:pageLoader.prepare,onNavigate:targetName=>{
+            taskMenus?.close();
             pageRenders.activate(targetName);
             if (targetName === 'plans-page') location.replace('plans.html');
             if (targetName === 'statistics-page' && statisticsRenderedDate !== toDateKey(new Date())) renderStatisticsPage();
@@ -674,6 +689,7 @@ function bootApp() {
     }
 
     function renderApp() {
+        taskMenus?.sync();
         taskInteractions?.sync();
         taskWorkspace?.sync();
         taskDetails?.sync();
@@ -3841,4 +3857,3 @@ function bootApp() {
     document.addEventListener("visibilitychange", () => { if (!document.hidden) checkPlanReminders(); });
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bootApp,{once:true});else bootApp();
-

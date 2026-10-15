@@ -3,6 +3,11 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { createPageLoader } from '../page-loader.js';
 
+test('shared task menus mount once after interactions and never load Schedule',async()=>{
+ const imports=[],mounts=[];const loader=createPageLoader({taskDetailsEnabled:true,setupTaskDetails:()=>mounts.push('details'),setupTaskWorkspace:()=>mounts.push('sections'),setupTaskInteractions:()=>mounts.push('interactions'),setupTaskMenus:modules=>{assert.ok(modules.actions);assert.ok(modules.menu);mounts.push('menu')},loadStyle:async()=>{},importModule:async url=>{imports.push(url);return {}}});
+ await Promise.all([loader.prepare('tasks-page'),loader.prepare('tasks-page')]);await loader.prepare('tasks-page');assert.deepEqual(mounts,['details','sections','interactions','menu']);assert.equal(imports.filter(url=>url.includes('task-action-menu.js')).length,1);assert.equal(imports.some(url=>url.includes('schedule-workspace')),false);
+});
+
 test('page assets load once across hover, navigation and repeated visits', async () => {
   const imports=[], styles=[];
   const loader=createPageLoader({importModule:async url=>imports.push(url),loadStyle:async url=>styles.push(url),scheduleEnabled:true});
