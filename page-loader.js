@@ -25,7 +25,7 @@ export function createPageLoader({importModule=url=>import(url),loadStyle=loadPa
         await setupTaskDetails(await importModule('./task-detail-pane.js?v=4'));
         if(setupTaskWorkspace)await setupTaskWorkspace(await importModule('./task-list-workspace.js?v=7'));
         if(setupTaskInteractions)await setupTaskInteractions(await importModule('./task-list-interactions.js?v=7'));
-        if(setupTaskSelection)await setupTaskSelection(await importModule('./task-selection.js?v=3'));
+        if(setupTaskSelection)await setupTaskSelection(await importModule('./task-selection.js?v=4'));
         if(setupTaskMenus){const [actions,menu]=await Promise.all([importModule('./task-actions.js?v=4'),importModule('./task-action-menu.js?v=5')]);await setupTaskMenus({actions,menu})}
       }
       if(page==='ai-page') {
