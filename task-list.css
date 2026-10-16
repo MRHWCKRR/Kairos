@@ -122,3 +122,16 @@ body.mode-light .task-detail-pane{color-scheme:light}
 .task-menu-heading{padding:8px 10px;font-size:.8rem;color:var(--text-muted);border-bottom:1px solid var(--border-subtle)}
 .task-group-dragging{opacity:.65;outline:1px solid var(--accent-glow);outline-offset:-1px}.task-group-drag-count{position:fixed;z-index:10020;pointer-events:none;padding:8px 12px;border:1px solid var(--accent-glow);border-radius:6px;background:var(--bg-card);color:var(--text-primary);font-size:.8rem;box-shadow:0 4px 16px rgba(0,0,0,.18)}
 .task-field-dialog input{box-sizing:border-box;width:100%;padding:10px;border:1px solid var(--border-subtle);border-radius:5px;background:var(--bg-main);color:var(--text-primary);font:inherit}.task-field-dialog h3{margin:0 0 16px;font-size:1rem}.task-field-dialog [role="status"]{font-size:.8rem;line-height:1.5}.task-field-dialog :focus-visible{outline:2px solid var(--accent-glow);outline-offset:2px}.task-field-dialog :disabled{opacity:.6}
+
+/* Use the same capture form inside a board without opening a separate view. */
+#tasks-page .task-quick-inline{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:10px;align-items:end;margin:12px 0 0;padding:16px 0 0}
+#tasks-page .task-quick-inline label{grid-column:1 / -1;min-width:0;color:var(--text-primary);font-size:.8rem}
+#tasks-page .task-quick-inline input{width:100%;min-height:42px;box-sizing:border-box;font:inherit;border-radius:7px}
+#tasks-page .task-quick-add button{font:inherit;min-height:38px;border:1px solid var(--border-subtle);border-radius:7px;background:var(--bg-main);color:var(--text-primary);cursor:pointer;padding:8px 12px}
+#tasks-page .task-quick-add [data-quick-save]{background:var(--accent-glow);border-color:var(--accent-glow);color:#fff}
+#tasks-page .task-quick-inline [data-quick-save]{grid-column:2}
+#tasks-page .task-quick-inline [data-quick-cancel],#tasks-page .task-quick-inline [data-quick-discard]{grid-column:3}
+#tasks-page .task-quick-add .task-quick-hint{flex-basis:100%;grid-column:1 / -1;margin:0;color:var(--text-muted);font-size:.75rem}
+#tasks-page .task-quick-inline [role="status"]{grid-column:1 / -1;overflow-wrap:anywhere}
+#tasks-page .task-quick-add :focus-visible{outline:2px solid var(--accent-glow);outline-offset:3px}
+#tasks-page .task-quick-add [hidden]{display:none!important}

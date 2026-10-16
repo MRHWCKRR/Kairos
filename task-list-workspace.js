@@ -8,7 +8,7 @@ const orderIcon=action=>'<svg aria-hidden="true" viewBox="0 0 24 24"><path d="'+
 // Reconcile the overview within one account/planner. Retain DOM identity so a
 // confirmed save does not restart every board animation or replace live inputs.
 function reconcileOverview(parent,next,active){
-    const owned=node=>node.nodeType===1&&node.matches('[data-open-section],[data-section-collapse]');
+    const owned=node=>node.nodeType===1&&node.matches('[data-open-section],[data-section-collapse],.task-quick-add');
     const key=node=>node.nodeType===1?(node.dataset.detailRow?'task:'+node.dataset.detailRow:node.classList.contains('board-section-block')?'section:'+node.dataset.sectionId:node.classList.contains('board-card')?'board:'+node.dataset.boardId:null):null;
     const old=[...parent.childNodes].filter(node=>!owned(node)),keyed=new Map(old.map(node=>[key(node),node]).filter(([id])=>id)),used=new Set();
     let cursor=parent.firstChild;
@@ -57,8 +57,10 @@ export function mountTaskListWorkspace({root,overview,scrollElement=root.closest
     const copy=key=>t('task_list_'+key,document.documentElement.lang||'en');
     try{storage??=window.sessionStorage}catch{}
     const surface=document.createElement('section');surface.dataset.focusedSection='';surface.className='task-section-focus';surface.hidden=true;overview.before(surface);
-    surface.innerHTML=`<header class="task-section-heading"><button type="button" data-section-back>${esc(copy('back'))}</button><p data-section-breadcrumb></p><h2 data-section-heading tabindex="-1"></h2><div><span data-section-count></span><button type="button" data-show-completed aria-pressed="true">${esc(copy('show_completed'))}</button></div></header><p data-section-state role="status"></p><ul class="task-list" data-section-tasks></ul><form class="task-quick-add"><label>${esc(copy('quick_add'))}<input type="text" data-quick-title maxlength="180" autocomplete="off" placeholder="${esc(copy('quick_hint'))}"></label><button type="submit" data-quick-save>${esc(copy('add'))}</button><button type="button" data-quick-discard hidden>${esc(copy('discard'))}</button><p data-quick-status role="status" aria-live="polite"></p></form>`;
+    surface.innerHTML=`<header class="task-section-heading"><button type="button" data-section-back>${esc(copy('back'))}</button><p data-section-breadcrumb></p><h2 data-section-heading tabindex="-1"></h2><div><span data-section-count></span><button type="button" data-show-completed aria-pressed="true">${esc(copy('show_completed'))}</button></div></header><p data-section-state role="status"></p><ul class="task-list" data-section-tasks></ul><form class="task-quick-add"><label>${esc(copy('quick_add'))}<input type="text" data-quick-title maxlength="180" autocomplete="off" placeholder="${esc(copy('quick_hint'))}"></label><button type="submit" data-quick-save>${esc(copy('add'))}</button><button type="button" data-quick-discard hidden>${esc(copy('discard'))}</button><button type="button" data-quick-cancel>${esc(copy('cancel'))}</button><p class="task-quick-hint">${esc(copy('capture_hint'))}</p><p data-quick-status role="status" aria-live="polite"></p></form>`;
     const find=selector=>surface.querySelector(selector),input=find('[data-quick-title]'),list=find('[data-section-tasks]'),form=find('form');
+    const quick=selector=>form.querySelector(selector);
+    let inline=false;
     let owner,plan,current=null,entries=new Map(),preferences={},scrollBack=0,opener=null,returnTarget=null,generation=0,navigation=0,disposed=false,overviewOwner=null,overviewPlan=null;
     const pendingKey=()=> 'kairos-task-quick-pending:'+owner+':'+plan;
     const preferenceKey=()=> 'kairos-task-list-view:'+owner+':'+plan;
@@ -71,6 +73,7 @@ export function mountTaskListWorkspace({root,overview,scrollElement=root.closest
     }
     function sync(){
         if(owner===getOwnerId()&&plan===getPlanId())return false;
+        if(inline){surface.appendChild(form);inline=false;form.classList.remove('task-quick-inline')}
         generation++;navigation++;owner=getOwnerId();plan=getPlanId();current=null;entries=new Map();const savedView=readStorage(preferenceKey());preferences=savedView&&typeof savedView==='object'&&!Array.isArray(savedView)?savedView:{};
         const savedPending=readStorage(pendingKey());
         if(owner&&plan)for(const pair of Array.isArray(savedPending)?savedPending:[]){
@@ -89,6 +92,10 @@ export function mountTaskListWorkspace({root,overview,scrollElement=root.closest
     }
     function render(){
         if(disposed)return;sync();if(!current)return;
+        if(inline){
+            if(mountInline()){renderComposer();onRender();return}
+            inline=false;form.classList.remove('task-quick-inline');surface.appendChild(form);
+        }
         surface.hidden=false;overview.hidden=true;
         surface.dataset.boardId=current.boardId;surface.dataset.sectionId=current.sectionId;
         const found=locate(current),entry=entryFor(current),pref=preference(current),tasks=found.message?[]:(found.section.tasks||[]).filter(task=>!task.archived);
@@ -112,11 +119,28 @@ export function mountTaskListWorkspace({root,overview,scrollElement=root.closest
         }
         for(const row of rows.values())row.remove();
         if(active&&list.contains(active)&&document.activeElement!==active){active.focus?.({preventScroll:true});if(selection?.every(Number.isInteger))active.setSelectionRange?.(...selection)}
-        if(input.value!==entry.draft)input.value=entry.draft;
-        input.disabled=!!found.message||entry.busy||!!entry.pending;find('[data-quick-save]').disabled=(!!found.message&&!entry.pending)||entry.busy;
-        find('[data-quick-save]').textContent=copy(entry.busy?'saving':entry.pending?'retry':'add');find('[data-quick-status]').textContent=entry.message;
-        find('[data-quick-discard]').hidden=!entry.pending;find('[data-quick-discard]').disabled=entry.busy;
+        renderComposer(found,entry);
         onRender();
+    }
+    function renderComposer(found=locate(current),entry=entryFor(current)){
+        if(input.value!==entry.draft)input.value=entry.draft;
+        input.disabled=!!found.message||entry.busy||!!entry.pending;quick('[data-quick-save]').disabled=(!!found.message&&!entry.pending)||entry.busy;
+        quick('[data-quick-save]').textContent=copy(entry.busy?'saving':entry.pending?'retry':'add');quick('[data-quick-status]').textContent=entry.message;
+        quick('[data-quick-discard]').hidden=!entry.pending;quick('[data-quick-discard]').disabled=entry.busy;
+        quick('[data-quick-cancel]').disabled=entry.busy||!!entry.pending;quick('[data-quick-cancel]').hidden=!!entry.pending;
+        form.setAttribute('aria-busy',String(entry.busy));
+    }
+    function inlineBlock(){return [...overview.querySelectorAll('.board-section-block')].find(block=>block.dataset.boardId===current?.boardId&&block.dataset.sectionId===current?.sectionId)}
+    function mountInline(){
+        const block=inlineBlock();if(!block)return false;
+        const add=block.querySelector('.add-task-btn');if(form.parentElement!==block)block.insertBefore(form,add||null);
+        form.classList.add('task-quick-inline');if(add)add.hidden=true;return true;
+    }
+    function closeCapture(){
+        if(!current)return;const entry=entryFor(current);if(entry.busy||entry.pending)return;
+        entry.draft='';entry.message='';input.value='';
+        if(!inline){render();return}
+        const add=inlineBlock()?.querySelector('.add-task-btn');surface.appendChild(form);form.classList.remove('task-quick-inline');inline=false;current=null;decorateOverview();add?.focus?.({preventScroll:true});
     }
     function decorateOverview(){
         sync();for(const block of overview.querySelectorAll('.board-section-block')){
@@ -128,17 +152,22 @@ export function mountTaskListWorkspace({root,overview,scrollElement=root.closest
             const open=header.querySelector('[data-open-section]');if(!open.querySelector('svg'))open.innerHTML=esc(copy('open'))+'<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M5 12h14m-6-6 6 6-6 6"/></svg>';
             for(const el of block.querySelectorAll('.task-list,.add-task-btn'))el.hidden=pref.collapsed;
         }
+        if(inline&&current){if(!mountInline()){render();return}renderComposer()}
         onRender();
     }
-    async function openSection(target,source=null){
+    async function openSection(target,source=null,capture=false){
         sync();if(!getOwnerId())return false;const ticket=++navigation,actor=owner,actorPlan=plan;
         if(!await requestCloseDetails()||ticket!==navigation||actor!==getOwnerId()||actorPlan!==getPlanId())return false;
         if(!await ensurePlan()||ticket!==navigation||actor!==getOwnerId()||(actorPlan!==null&&actorPlan!==getPlanId()))return false;
-        sync();if(!current){scrollBack=scrollElement.scrollTop;opener=source;returnTarget={...target,add:source?.matches('.add-task-btn')===true}}
-        current={...target};render();scrollElement.scrollTop=0;find('[data-section-heading]').focus?.({preventScroll:true});return true;
+        sync();if(!current||inline){scrollBack=scrollElement.scrollTop;opener=source;returnTarget={...target,add:source?.matches('.add-task-btn')===true}}
+        if(inline&&!capture){surface.appendChild(form);form.classList.remove('task-quick-inline')}
+        current={...target};inline=capture;
+        if(capture){preference(target).collapsed=false;rememberView();surface.hidden=true;overview.hidden=false;decorateOverview();render();input.focus?.({preventScroll:true});return true}
+        render();scrollElement.scrollTop=0;find('[data-section-heading]').focus?.({preventScroll:true});return true;
     }
     async function back(){
         sync();const ticket=++navigation,actor=owner,actorPlan=plan;if(!await requestCloseDetails()||ticket!==navigation||actor!==getOwnerId()||actorPlan!==getPlanId())return false;
+        if(inline){surface.appendChild(form);form.classList.remove('task-quick-inline');inline=false}
         current=null;surface.hidden=true;overview.hidden=false;renderOverview();decorateOverview();scrollElement.scrollTop=scrollBack;
         const block=[...overview.querySelectorAll('.board-section-block')].find(el=>el.dataset.boardId===returnTarget?.boardId&&el.dataset.sectionId===returnTarget?.sectionId),returnControl=block?.querySelector(returnTarget?.add?'.add-task-btn':'[data-open-section]');
         if(opener?.isConnected)opener.focus?.({preventScroll:true});else (returnControl&&!returnControl.hidden?returnControl:block?.querySelector('[data-open-section]')||overview.querySelector('[data-open-section]'))?.focus?.({preventScroll:true});return true;
@@ -166,24 +195,25 @@ export function mountTaskListWorkspace({root,overview,scrollElement=root.closest
             if(!disposed&&ticket===generation&&getOwnerId()===pending.identity.ownerId&&getPlanId()===pending.identity.planId){entry.message=copy('uncertain')+' '+error.message;remember()}
             return false;
         }finally{
-            entry.busy=false;if(!disposed&&ticket===generation){render();if(current&&sectionKey(current)===sectionKey(target)&&!entry.pending&&root.classList.contains('active'))input.focus?.()}
+            entry.busy=false;if(!disposed&&ticket===generation){render();if(current&&sectionKey(current)===sectionKey(target)&&!entry.pending&&root.classList.contains('active')&&(!document.activeElement||document.activeElement===document.body||document.activeElement===input||form.contains(document.activeElement)))input.focus?.({preventScroll:true})}
         }
     }
     const onInput=event=>{if(event.target===input&&current&&!input.disabled)entryFor(current).draft=input.value};
     const onSubmit=event=>{event.preventDefault();void submit()};
     const onKey=event=>{
-        if(event.target!==input)return;
+        if(event.target!==input||event.isComposing||event.keyCode===229)return;
         if(event.key==='Enter'){event.preventDefault();event.stopPropagation();void submit()}
-        if(event.key==='Escape'){event.preventDefault();event.stopPropagation();const entry=entryFor(current);if(!entry.pending&&!entry.busy){entry.draft='';input.value='';entry.message='';render()}}
+        if(event.key==='Escape'){event.preventDefault();event.stopPropagation();closeCapture()}
     };
     const onClick=event=>{
         const button=event.target.closest('button'),block=event.target.closest('.board-section-block');
+        if(button?.matches('[data-quick-cancel]')){closeCapture();return}
         if(button?.matches('[data-quick-discard]')){void discard();return}
         if(button?.matches('[data-section-back]')){void back();return}
         if(button?.matches('[data-show-completed]')&&current){preference(current).showCompleted=!preference(current).showCompleted;rememberView();render();return}
-        if(block&&button?.matches('[data-section-collapse]')){const target={boardId:block.dataset.boardId,sectionId:block.dataset.sectionId};preference(target).collapsed=!preference(target).collapsed;rememberView();decorateOverview();return}
-        if(button?.matches('[data-open-section],.add-task-btn')&&block){void openSection({boardId:block.dataset.boardId,sectionId:block.dataset.sectionId},button).then(opened=>{if(opened&&button.matches('.add-task-btn'))input.focus?.()});return}
+        if(block&&button?.matches('[data-section-collapse]')){if(inline&&current&&block.dataset.boardId===current.boardId&&block.dataset.sectionId===current.sectionId){surface.appendChild(form);form.classList.remove('task-quick-inline');inline=false;current=null}const target={boardId:block.dataset.boardId,sectionId:block.dataset.sectionId};preference(target).collapsed=!preference(target).collapsed;rememberView();decorateOverview();return}
+        if(button?.matches('[data-open-section],.add-task-btn')&&block){void openSection({boardId:block.dataset.boardId,sectionId:block.dataset.sectionId},button,button.matches('.add-task-btn'));return}
     };
     root.addEventListener('click',onClick);root.addEventListener('keydown',onKey);root.addEventListener('input',onInput);form.addEventListener('submit',onSubmit);sync();
-    return {openSection,back,submit,discard,render,sync,decorateOverview,replaceOverview,async addTask(target,source){if(!await openSection(target,source))return false;input.focus?.();return true},async collapseSection(target){if(locate(target).message)return false;if(current&&sectionKey(current)===sectionKey(target)&&!await back())return false;preference(target).collapsed=true;rememberView();decorateOverview();return true},rowHTML:(task,sectionId)=>renderTaskListRow(task,sectionId,copy),isFocused:()=>!!current,getViewKey:()=>current?sectionKey(current):'overview',dispose(){disposed=true;generation++;navigation++;root.removeEventListener('click',onClick);root.removeEventListener('keydown',onKey);root.removeEventListener('input',onInput);form.removeEventListener('submit',onSubmit);surface.remove();overview.hidden=false}};
+    return {openSection,back,submit,discard,render,sync,decorateOverview,replaceOverview,async addTask(target,source){return openSection(target,source,true)},async collapseSection(target){if(locate(target).message)return false;if(current&&sectionKey(current)===sectionKey(target)&&!await back())return false;preference(target).collapsed=true;rememberView();decorateOverview();return true},rowHTML:(task,sectionId)=>renderTaskListRow(task,sectionId,copy),isFocused:()=>!!current&&!inline,getViewKey:()=>current&&!inline?sectionKey(current):'overview',dispose(){disposed=true;generation++;navigation++;root.removeEventListener('click',onClick);root.removeEventListener('keydown',onKey);root.removeEventListener('input',onInput);form.removeEventListener('submit',onSubmit);form.remove();surface.remove();overview.hidden=false}};
 }
