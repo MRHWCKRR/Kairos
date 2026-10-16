@@ -2,7 +2,7 @@ import {stableStringify} from './plan-merge.js';
 import {taskDetailValues,TASK_DETAIL_FIELDS,applyTaskListCommand} from './task-list-model.js';
 import {recurrenceFieldsMarkup,bindRecurrenceFields,readRecurrenceFields} from './schedule-recurrence-ui.js';
 import {t} from './i18n.js';
-import {mountTaskChecklistEditor} from './task-checklist-editor.js?v=2';
+import {mountTaskChecklistEditor} from './task-checklist-editor.js?v=3';
 
 const esc=value=>String(value??'').replace(/[&<>'"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[ch]));
 export function mountTaskDetailPane({root,resolveTarget,commit,getOwnerId,getPlanId=()=>null,onClose=()=>{},openSchedule,document=globalThis.document,window=globalThis.window}){
@@ -32,13 +32,15 @@ export function mountTaskDetailPane({root,resolveTarget,commit,getOwnerId,getPla
     const activePage=()=>!root.classList.contains('page-view')||root.classList.contains('active');
     function captureUi(){
         const active=document.activeElement;
-        return {checklist:checklistEditor?.captureFocus(),name:panel?.contains(active)?active.name:null,control:active?.matches?.('[type="submit"]')?'save':active?.matches?.('[data-maximise]')?'maximise':null,start:active?.selectionStart,end:active?.selectionEnd,scroll:panel?.scrollTop||0,dialogScroll:dialog?.scrollTop||0};
+        return {group:active?.localName==='summary'?active.closest('[data-detail-group]')?.dataset.detailGroup:null,checklist:checklistEditor?.captureFocus(),checklistView:checklistEditor?.captureView(),groups:[...form.querySelectorAll('[data-detail-group]')].filter(el=>el.open).map(el=>el.dataset.detailGroup),name:panel?.contains(active)?active.name:null,control:active?.matches?.('[type="submit"]')?'save':active?.matches?.('[data-maximise]')?'maximise':null,start:active?.selectionStart,end:active?.selectionEnd,scroll:panel?.scrollTop||0,dialogScroll:dialog?.scrollTop||0};
     }
     function restoreUi(view,focus=true){
         if(!view||!activePage())return;
+        checklistEditor?.restoreView(view.checklistView);
+        if(Array.isArray(view.groups))for(const group of form.querySelectorAll('[data-detail-group]'))group.open=view.groups.includes(group.dataset.detailGroup);
         if(focus){
             if(view.checklist)checklistEditor?.restoreFocus(view.checklist);
-            else {const el=view.name?field(view.name):view.control==='save'?form?.querySelector('[type="submit"]'):view.control==='maximise'?panel?.querySelector('[data-maximise]'):null;el?.focus?.({preventScroll:true});if(typeof view.start==='number')try{el?.setSelectionRange?.(view.start,view.end)}catch{}}
+            else {const el=view.group?[...form.querySelectorAll('[data-detail-group]')].find(el=>el.dataset.detailGroup===view.group)?.querySelector('summary'):view.name?field(view.name):view.control==='save'?form?.querySelector('[type="submit"]'):view.control==='maximise'?panel?.querySelector('[data-maximise]'):null;el?.focus?.({preventScroll:true});if(typeof view.start==='number')try{el?.setSelectionRange?.(view.start,view.end)}catch{}}
         }
         if(panel)panel.scrollTop=view.scroll;if(dialog)dialog.scrollTop=view.dialogScroll;
     }
@@ -47,6 +49,13 @@ export function mountTaskDetailPane({root,resolveTarget,commit,getOwnerId,getPla
         checklistEditor?.setDisabled(busy||!!pending);
         panel?.querySelectorAll('[data-series-scope],[data-open-occurrence]').forEach(el=>el.disabled=busy||!!pending);
         if(form){const save=form.querySelector('[type="submit"]');save.disabled=busy;save.textContent=copy(pending?'retry':'save')}
+    }
+    function updatePropertySummaries(){
+        const set=(name,value)=>{const el=form.querySelector('[data-detail-summary="'+name+'"]');if(el)el.textContent=value};
+        set('reminder',field('reminderMinutes').value?field('reminderMinutes').value+' '+copy('minutes_before'):copy('none'));
+        set('repeat',form.querySelector('[data-recurrence-summary]')?.textContent||copy('none'));
+        const preference=field('schedulingPreference').value,color=field('color').value;
+        set('planning',[preference?copy(preference):null,field('scheduleLocked').checked?copy('lock'):null,color?copy('color')+' '+color:null].filter(Boolean).join(' · ')||copy('none'));
     }
     function close(){
         revision++;checklistEditor?.dispose();checklistEditor=null;pendingFocus=null;pointerFocus=null;
@@ -102,31 +111,40 @@ export function mountTaskDetailPane({root,resolveTarget,commit,getOwnerId,getPla
         panel=document.createElement('aside');panel.className='task-detail-pane';panel.dataset.taskDetailPane='';panel.setAttribute('aria-labelledby','task-detail-heading');
         const input=(name,label,type='text',attrs='')=>`<label>${esc(label)}<input name="${name}" type="${type}" ${attrs} value="${esc(values[name])}"></label>`;
         const select=(name,label,options)=>`<label>${esc(label)}<select name="${name}">${options.map(([value,text])=>`<option value="${value}" ${String(values[name]??'')===value?'selected':''}>${esc(text)}</option>`).join('')}</select></label>`;
-        const reminder=values.reminderMinutes;
         panel.innerHTML=`<header class="task-detail-header"><h2 id="task-detail-heading">${esc(copy('heading'))}</h2><div><button type="button" data-maximise>${esc(copy('expand'))}</button><button type="button" data-close aria-label="${esc(copy('close'))}">×</button></div></header>
-          <p class="task-detail-location">${esc(found.board.title)} / ${esc(found.section.title)}</p>
-          ${values.recurrence?.enabled?`<div class="task-checklist-scope"><p>${esc(target.occurrenceDate?copy('occurrence')+' '+target.occurrenceDate:copy('template'))}</p><button type="button" data-series-scope>${esc(copy('template'))}</button><label>${esc(copy('occurrence_date'))}<input type="date" data-checklist-occurrence value="${esc(target.occurrenceDate||values.recurrence.startDate||values.date)}"></label><button type="button" data-open-occurrence>${esc(copy('open_occurrence'))}</button></div>`:''}
           <form class="task-detail-form" novalidate>
-          <fieldset class="task-detail-metadata" ${target.occurrenceDate?'disabled':''}>
+          <fieldset class="task-detail-title task-detail-metadata" ${target.occurrenceDate?'disabled':''}>
           ${input('title',copy('title'),'text','maxlength="180" required')}
+          </fieldset>
+          <div class="task-detail-context"><p class="task-detail-location">${esc(found.board.title)} / ${esc(found.section.title)}</p>
+          ${values.recurrence?.enabled?`<div class="task-checklist-scope"><p>${esc(target.occurrenceDate?copy('occurrence')+' '+target.occurrenceDate:copy('template'))}</p><button type="button" data-series-scope>${esc(copy('template'))}</button><label>${esc(copy('occurrence_date'))}<input type="date" data-checklist-occurrence value="${esc(target.occurrenceDate||values.recurrence.startDate||values.date)}"></label><button type="button" data-open-occurrence>${esc(copy('open_occurrence'))}</button></div>`:''}</div>
+          <div class="task-detail-layout"><div class="task-detail-work">
+          <fieldset class="task-detail-notes task-detail-metadata" ${target.occurrenceDate?'disabled':''}>
           <label>${esc(copy('notes'))}<textarea name="notes" rows="5" maxlength="3000">${esc(values.notes)}</textarea></label>
-          <div class="task-detail-grid">${input('date',copy('date'),'date')}${input('startTime',copy('start'),'time','step="60"')}${input('durationMinutes',copy('duration'),'number','min="1" max="1439" step="1" required')}${input('dueDate',copy('deadline'),'date')}</div>
-          <div class="task-detail-grid">${select('priority',copy('priority'),[['',copy('none')],['low',copy('low')],['medium',copy('medium')],['high',copy('high')]])}${input('reminderMinutes',copy('reminder'),'number','min="1" max="10080" step="1"')}</div>
-          <p class="task-detail-hint">${esc(copy('reminder_hint'))}</p>
-          ${values.recurrence?.enabled?'<p class="task-detail-series">'+esc(copy('series'))+'</p>':''}
-          ${recurrenceFieldsMarkup(recurrenceTask,{fallbackDate:found.task.date||null})}
-          <details><summary>${esc(copy('more'))}</summary><div class="task-detail-grid">${select('schedulingPreference',copy('preference'),[['',copy('none')],['morning',copy('morning')],['afternoon',copy('afternoon')],['evening',copy('evening')]])}${input('color',copy('color'),'text','maxlength="7" placeholder="#a855f7"')}</div>
-          <label class="task-detail-check"><input name="scheduleLocked" type="checkbox" ${values.scheduleLocked?'checked':''}>${esc(copy('lock'))}</label></details></fieldset>
+          </fieldset>
           <section class="task-checklist" aria-label="${esc(copy('checklist'))}"></section>
-          <p role="status" aria-live="polite">${esc(copy('saved'))}</p>
+          </div><fieldset class="task-detail-properties task-detail-metadata" ${target.occurrenceDate?'disabled':''}>
+          <legend>${esc(copy('properties'))}</legend>
+          <div class="task-detail-grid">${input('date',copy('date'),'date')}${input('startTime',copy('start'),'time','step="60"')}${input('durationMinutes',copy('duration'),'number','min="1" max="1439" step="1" required')}${input('dueDate',copy('deadline'),'date')}</div>
+          ${select('priority',copy('priority'),[['',copy('none')],['low',copy('low')],['medium',copy('medium')],['high',copy('high')]])}
+          <details data-detail-group="reminder"><summary>${esc(copy('reminders'))}<span data-detail-summary="reminder"></span></summary>
+          ${input('reminderMinutes',copy('reminder'),'number','min="1" max="10080" step="1"')}<p class="task-detail-hint">${esc(copy('reminder_hint'))}</p></details>
+          <details data-detail-group="repeat"><summary>${esc(copy('repeat_settings'))}<span data-detail-summary="repeat"></span></summary>
+          ${values.recurrence?.enabled?'<p class="task-detail-series">'+esc(copy('series'))+'</p>':''}
+          ${recurrenceFieldsMarkup(recurrenceTask,{fallbackDate:found.task.date||null})}</details>
+          <details data-detail-group="planning"><summary>${esc(copy('planning_settings'))}<span data-detail-summary="planning"></span></summary><div class="task-detail-grid">${select('schedulingPreference',copy('preference'),[['',copy('none')],['morning',copy('morning')],['afternoon',copy('afternoon')],['evening',copy('evening')]])}${input('color',copy('color'),'text','maxlength="7" placeholder="#a855f7"')}</div>
+          <label class="task-detail-check"><input name="scheduleLocked" type="checkbox" ${values.scheduleLocked?'checked':''}>${esc(copy('lock'))}</label></details></fieldset></div>
+          <footer class="task-detail-footer"><p role="status" aria-live="polite">${esc(copy('saved'))}</p>
           <div class="task-detail-actions"><button type="submit" class="task-detail-primary">${esc(copy('save'))}</button><button type="button" data-close>${esc(copy('close'))}</button>${openSchedule?'<button type="button" data-schedule>'+esc(copy('schedule'))+'</button>':''}</div>
-          </form>`;
+          </footer></form>`;
         root.appendChild(panel);root.classList.add('has-task-details');form=panel.querySelector('form');
         bindRecurrenceFields(form,{fallbackDate:found.task.date||values.recurrence?.startDate||null});
         checklistEditor=mountTaskChecklistEditor({root:panel.querySelector('.task-checklist'),isActive:()=>activePage()&&owner===getOwnerId()&&planId===getPlanId(),items:pending?.command?.changes?.checklist||values.checklist||[],canToggle:!!target.occurrenceDate||!values.recurrence?.enabled,hint:copy(values.recurrence?.enabled&&!target.occurrenceDate?'template_hint':target.occurrenceDate?'occurrence_hint':'checklist_hint'),copy,onStatus:status,onChange:()=>status(copy('unsaved')),document,window});
         displayBaseline=read();
         if(pending){for(const [name,value] of Object.entries(pending.command.changes)){const el=field(name);if(el){if(el.type==='checkbox')el.checked=value===true;else el.value=value??''}}status(copy('uncertain'),true)}
-        form.addEventListener('input',()=>{if(!busy&&!pending)status(copy('unsaved'))});form.addEventListener('change',()=>{if(!busy&&!pending)status(copy('unsaved'))});
+        updatePropertySummaries();
+        const formChanged=event=>{if(event.target.closest('.task-checklist-scope'))return;updatePropertySummaries();if(!busy&&!pending)status(copy('unsaved'))};
+        form.addEventListener('input',formChanged);form.addEventListener('change',formChanged);
         panel.querySelector('[data-series-scope]')?.addEventListener('click',()=>void open({taskId:target.taskId},opener));
         panel.querySelector('[data-open-occurrence]')?.addEventListener('click',()=>{const date=panel.querySelector('[data-checklist-occurrence]').value;if(date)void open({taskId:target.taskId,occurrenceDate:date},opener)});
         form.addEventListener('submit',event=>{event.preventDefault();void save()});
@@ -141,7 +159,7 @@ export function mountTaskDetailPane({root,resolveTarget,commit,getOwnerId,getPla
             else if(event.key==='Enter'&&(event.ctrlKey||event.metaKey)){event.preventDefault();event.stopPropagation();void save()}
             else if(dialog)trap(event,panel);
         });
-        updateControls();if(focus)field('title').focus?.();
+        updateControls();if(focus){if(target.occurrenceDate)checklistEditor.restoreFocus({stepId:checklistEditor.read()[0]?.id,control:'title'});else field('title').focus?.();}
     }
     async function open(selected,source=document.activeElement){
         const actor=getOwnerId(),actorPlan=getPlanId();if(!actor)return false;
@@ -169,7 +187,7 @@ export function mountTaskDetailPane({root,resolveTarget,commit,getOwnerId,getPla
             const result=await commit(pending.command,pending.expected,pending.identity);
             if(ticket!==revision)return false;
             if(owner!==getOwnerId()||planId!==getPlanId()){forget();close();return false}
-            const fresh=resolveTarget(target),expanded=dialog,restore=pendingFocus||view,canFocus=activePage()&&(document.activeElement===document.body||panel.contains(document.activeElement));
+            const currentView=captureUi(),fresh=resolveTarget(target),expanded=dialog,restore={...(currentView.group?currentView:pendingFocus||view),groups:currentView.groups,checklistView:currentView.checklistView,scroll:currentView.scroll,dialogScroll:currentView.dialogScroll},canFocus=activePage()&&(document.activeElement===document.body||panel.contains(document.activeElement));
             baseline=taskDetailValues(fresh.task,target);forget();pending=null;pendingFocus=null;busy=false;checklistEditor?.dispose();panel.remove();render(fresh,{focus:false});
             if(expanded){expanded.appendChild(panel);panel.querySelector('[data-maximise]').textContent=copy('shrink')}
             restoreUi(restore,canFocus);status(copy('saved'));return !!result;

@@ -3,7 +3,7 @@ export function mountChecklistReorder({root,list,getItems,onReorder,isEnabled=()
   let drag=null,frame=null,disposed=false;
   const order=()=>JSON.stringify(getItems().map(item=>item.id));
   const active=()=>!disposed&&isEnabled()&&root.isConnected&&!root.closest('[hidden],[inert]')&&document.visibilityState!=='hidden'&&(!root.closest('.page-view')||root.closest('.page-view').classList.contains('active'));
-  const valid=()=>drag&&active()&&drag.row.isConnected&&list.contains(drag.row)&&drag.order===order();
+  const valid=()=>drag&&active()&&drag.row.isConnected&&!drag.row.closest('[hidden],[inert]')&&list.contains(drag.row)&&drag.order===order();
   function clearMarkers(){for(const row of list.querySelectorAll('.checklist-drop-before,.checklist-drop-after'))row.classList.remove('checklist-drop-before','checklist-drop-after')}
   function cancel(){
     const saved=drag;drag=null;if(frame!==null)cancelFrame(frame);frame=null;clearMarkers();saved?.row.classList.remove('checklist-dragging');saved?.preview?.remove();
@@ -26,7 +26,7 @@ export function mountChecklistReorder({root,list,getItems,onReorder,isEnabled=()
   function down(event){
     if(event.defaultPrevented||event.button!==0||event.isPrimary===false||!active())return;
     const grip=event.target.closest?.('[data-step-grip]'),row=grip?.closest('[data-step-row]');
-    if(!grip||grip.disabled||!row||!list.contains(row))return;
+    if(!grip||grip.disabled||!row||row.closest('[hidden],[inert]')||!list.contains(row))return;
     cancel();event.preventDefault();event.stopPropagation();grip.focus?.({preventScroll:true});
     drag={row,id:row.dataset.stepRow,order:order(),pointerId:event.pointerId,startX:event.clientX,startY:event.clientY,x:event.clientX,y:event.clientY,active:false,drop:null,preview:null};
     try{root.setPointerCapture?.(event.pointerId)}catch{}

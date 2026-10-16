@@ -37,3 +37,6 @@ test('cancellation lifecycle cannot leave a pending drag or callback',async()=>{
 test('expanded drag preview stays in the dialog and auto-scroll recalculates destination',async()=>{
  const f=await fixture({dialog:true});f.pane.getBoundingClientRect=()=>({top:50,bottom:200,left:0,right:300,height:150,width:300});f.down();f.move('b',{clientY:190});assert.ok(f.document.querySelector('dialog [data-checklist-drag-preview]'));f.setHit(f.row('c'));f.frame();assert.equal(f.pane.scrollTop,12);assert.equal(f.row('c').classList.contains('checklist-drop-after'),true);assert.equal(f.calls.length,0);f.up();assert.equal(f.calls[0].anchorId,'c');f.controller.dispose();
 });
+test('hidden row cannot become the drag source or insertion anchor',async()=>{
+ const f=await fixture();f.row('a').hidden=true;f.down();f.move();assert.ok(!f.document.querySelector('[data-checklist-drag-preview]'));f.row('a').hidden=false;f.down();f.row('c').hidden=true;f.move();f.up();assert.equal(f.calls.length,0);f.controller.dispose();
+});
