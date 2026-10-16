@@ -65,3 +65,21 @@ export function dueTaskReminders(boards, now=Date.now(), timeZone='UTC') {
 export function reminderDeliveryStatus(settings={}, permission='unsupported') {
     return { enabled:settings.enabled!==false, browserEnabled:settings.browserPush===true, permission };
 }
+
+export function dueBedtimeReminders(events,now=Date.now(),timeZone='UTC') {
+    let today;
+    try{const parts=localParts(now,timeZone);today=parts.year+'-'+parts.month+'-'+parts.day}catch{return []}
+    const due=[];
+    // Include tomorrow: a bedtime shortly after midnight has a reminder today.
+    for(const date of [today,shiftDate(today,1)]){
+        const day=new Date(date+'T12:00:00Z').getUTCDay();
+        for(const event of events||[]){
+            if(!event?.id||event.archived||event.category!=='sleep'||event.day!==day)continue;
+            const startsAt=zonedTaskStart(date,event.start,timeZone);
+            if(startsAt===null)continue;
+            const dueAt=startsAt-15*60000,id='bedtime-reminder:'+event.id+':'+startsAt+':15';
+            if(dueAt<=now&&now<startsAt&&!due.some(item=>item.id===id))due.push({id,eventId:event.id,title:String(event.title||'Sleep'),date,startTime:event.start,minutesBefore:15,dueAt,startsAt});
+        }
+    }
+    return due;
+}
