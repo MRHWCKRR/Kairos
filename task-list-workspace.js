@@ -53,14 +53,14 @@ export function renderTaskListRow(task,sectionId,copy=key=>t('task_list_'+key)){
       <button type="button" class="task-menu-button" data-task-menu="${id}" aria-haspopup="menu" aria-expanded="false" aria-label="${esc((t('task_menu_heading')==='task_menu_heading'?'Task actions':t('task_menu_heading'))+': '+task.title)}" title="${esc(t('task_menu_heading')==='task_menu_heading'?'Task actions':t('task_menu_heading'))}"><svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></button></li>`;
 }
 
-export function mountTaskListWorkspace({root,overview,scrollElement=root.closest('.main-content')||root,getState,getOwnerId,getPlanId,commit,ensurePlan=async()=>true,requestCloseDetails=async()=>true,confirmDiscard=warning=>confirmDialog(warning),renderOverview=()=>{},onRender=()=>{},document=root.ownerDocument,window=document.defaultView,storage}={}){
+export function mountTaskListWorkspace({root,overview,scrollElement=root.closest('.main-content')||root,getState,getOwnerId,getPlanId,commit,isMutationBlocked=()=>false,ensurePlan=async()=>true,requestCloseDetails=async()=>true,confirmDiscard=warning=>confirmDialog(warning),renderOverview=()=>{},onRender=()=>{},document=root.ownerDocument,window=document.defaultView,storage}={}){
     const copy=key=>t('task_list_'+key,document.documentElement.lang||'en');
     try{storage??=window.sessionStorage}catch{}
     const surface=document.createElement('section');surface.dataset.focusedSection='';surface.className='task-section-focus';surface.hidden=true;overview.before(surface);
     surface.innerHTML=`<header class="task-section-heading"><button type="button" data-section-back>${esc(copy('back'))}</button><p data-section-breadcrumb></p><h2 data-section-heading tabindex="-1"></h2><div><span data-section-count></span><button type="button" data-show-completed aria-pressed="true">${esc(copy('show_completed'))}</button></div></header><p data-section-state role="status"></p><ul class="task-list" data-section-tasks></ul><form class="task-quick-add"><label>${esc(copy('quick_add'))}<input type="text" data-quick-title maxlength="180" autocomplete="off" placeholder="${esc(copy('quick_hint'))}"></label><button type="submit" data-quick-save>${esc(copy('add'))}</button><button type="button" data-quick-discard hidden>${esc(copy('discard'))}</button><button type="button" data-quick-cancel>${esc(copy('cancel'))}</button><p class="task-quick-hint">${esc(copy('capture_hint'))}</p><p data-quick-status role="status" aria-live="polite"></p></form>`;
     const find=selector=>surface.querySelector(selector),input=find('[data-quick-title]'),list=find('[data-section-tasks]'),form=find('form');
     const quick=selector=>form.querySelector(selector);
-    let inline=false;
+    let inline=false,relocatedInline=false;
     let owner,plan,current=null,entries=new Map(),preferences={},scrollBack=0,opener=null,returnTarget=null,generation=0,navigation=0,disposed=false,overviewOwner=null,overviewPlan=null;
     const pendingKey=()=> 'kairos-task-quick-pending:'+owner+':'+plan;
     const preferenceKey=()=> 'kairos-task-list-view:'+owner+':'+plan;
@@ -94,7 +94,7 @@ export function mountTaskListWorkspace({root,overview,scrollElement=root.closest
         if(disposed)return;sync();if(!current)return;
         if(inline){
             if(mountInline()){renderComposer();onRender();return}
-            inline=false;form.classList.remove('task-quick-inline');surface.appendChild(form);
+            relocatedInline=true;inline=false;form.classList.remove('task-quick-inline');surface.appendChild(form);
         }
         surface.hidden=false;overview.hidden=true;
         surface.dataset.boardId=current.boardId;surface.dataset.sectionId=current.sectionId;
@@ -124,7 +124,7 @@ export function mountTaskListWorkspace({root,overview,scrollElement=root.closest
     }
     function renderComposer(found=locate(current),entry=entryFor(current)){
         if(input.value!==entry.draft)input.value=entry.draft;
-        input.disabled=!!found.message||entry.busy||!!entry.pending;quick('[data-quick-save]').disabled=(!!found.message&&!entry.pending)||entry.busy;
+        input.disabled=!!found.message||entry.busy||!!entry.pending;quick('[data-quick-save]').disabled=(!!found.message&&!entry.pending)||entry.busy||(!entry.pending&&isMutationBlocked());
         quick('[data-quick-save]').textContent=copy(entry.busy?'saving':entry.pending?'retry':'add');quick('[data-quick-status]').textContent=entry.message;
         quick('[data-quick-discard]').hidden=!entry.pending;quick('[data-quick-discard]').disabled=entry.busy;
         quick('[data-quick-cancel]').disabled=entry.busy||!!entry.pending;quick('[data-quick-cancel]').hidden=!!entry.pending;
@@ -161,7 +161,7 @@ export function mountTaskListWorkspace({root,overview,scrollElement=root.closest
         if(!await ensurePlan()||ticket!==navigation||actor!==getOwnerId()||(actorPlan!==null&&actorPlan!==getPlanId()))return false;
         sync();if(!current||inline){scrollBack=scrollElement.scrollTop;opener=source;returnTarget={...target,add:source?.matches('.add-task-btn')===true}}
         if(inline&&!capture){surface.appendChild(form);form.classList.remove('task-quick-inline')}
-        current={...target};inline=capture;
+        current={...target};inline=capture;relocatedInline=false;
         if(capture){preference(target).collapsed=false;rememberView();surface.hidden=true;overview.hidden=false;decorateOverview();render();input.focus?.({preventScroll:true});
             const box=form.getBoundingClientRect?.()||input.getBoundingClientRect?.(),bounds=scrollElement.getBoundingClientRect?.(),top=Math.max(0,bounds?.top||0),bottom=Math.min(window.innerHeight??Infinity,bounds?.bottom??Infinity);
             if(box&&(box.top<top||box.bottom>bottom))(form.scrollIntoView?form:input).scrollIntoView?.({block:'nearest',behavior:'instant'});
@@ -183,6 +183,7 @@ export function mountTaskListWorkspace({root,overview,scrollElement=root.closest
     async function submit(){
         sync();if(!current||!owner||!plan)return false;const target={...current},entry=entryFor(target);if(entry.busy)return false;
         if(!entry.pending){
+            if(isMutationBlocked()){entry.message='Wait for the current save or resolve Retry/Discard.';render();return false}
             const title=entry.draft.trim();if(!title)return false;
             const uuid=()=>window.crypto?.randomUUID?.()||globalThis.crypto.randomUUID();
             const command={type:'create_task',target,task:{id:'task-'+uuid(),title}},expected={...target};
@@ -218,5 +219,14 @@ export function mountTaskListWorkspace({root,overview,scrollElement=root.closest
         if(button?.matches('[data-open-section],.add-task-btn')&&block){void openSection({boardId:block.dataset.boardId,sectionId:block.dataset.sectionId},button,button.matches('.add-task-btn'));return}
     };
     root.addEventListener('click',onClick);root.addEventListener('keydown',onKey);root.addEventListener('input',onInput);form.addEventListener('submit',onSubmit);sync();
-    return {openSection,back,submit,discard,render,sync,decorateOverview,replaceOverview,async addTask(target,source){return openSection(target,source,true)},async collapseSection(target){if(locate(target).message)return false;if(current&&sectionKey(current)===sectionKey(target)&&!await back())return false;preference(target).collapsed=true;rememberView();decorateOverview();return true},rowHTML:(task,sectionId)=>renderTaskListRow(task,sectionId,copy),isFocused:()=>!!current&&!inline,getViewKey:()=>current&&!inline?sectionKey(current):'overview',dispose(){disposed=true;generation++;navigation++;root.removeEventListener('click',onClick);root.removeEventListener('keydown',onKey);root.removeEventListener('input',onInput);form.removeEventListener('submit',onSubmit);form.remove();surface.remove();overview.hidden=false}};
+    function sectionMoved(command){
+        sync();const value=command.type==='undo_task_list'?command.inverse?.command:command;if(value?.type!=='move_section')return;
+        const from=value.target,to={boardId:value.destination.boardId,sectionId:from.sectionId},oldKey=sectionKey(from),newKey=sectionKey(to);
+        if(preferences[oldKey]){preferences[newKey]=preferences[oldKey];delete preferences[oldKey];rememberView()}
+        if(entries.has(oldKey)){entries.set(newKey,entries.get(oldKey));entries.delete(oldKey)}
+        if(current&&sectionKey(current)===oldKey){current={...to};if(relocatedInline){inline=true;relocatedInline=false;surface.hidden=true;overview.hidden=false}}
+        if(returnTarget&&sectionKey(returnTarget)===oldKey)returnTarget={...returnTarget,...to};
+        render();
+    }
+    return {sectionMoved,hasPendingCapture:()=>[...entries.values()].some(entry=>entry.busy||entry.pending),openSection,back,submit,discard,render,sync,decorateOverview,replaceOverview,async addTask(target,source){return openSection(target,source,true)},async collapseSection(target){if(locate(target).message)return false;if(current&&sectionKey(current)===sectionKey(target)&&!await back())return false;preference(target).collapsed=true;rememberView();decorateOverview();return true},rowHTML:(task,sectionId)=>renderTaskListRow(task,sectionId,copy),isFocused:()=>!!current&&!inline,getViewKey:()=>current&&!inline?sectionKey(current):'overview',dispose(){disposed=true;generation++;navigation++;root.removeEventListener('click',onClick);root.removeEventListener('keydown',onKey);root.removeEventListener('input',onInput);form.removeEventListener('submit',onSubmit);form.remove();surface.remove();overview.hidden=false}};
 }

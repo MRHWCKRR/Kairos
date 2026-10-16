@@ -6,6 +6,13 @@ import {stableStringify} from '../plan-merge.js';
 const data=()=>({userID:'one',boards:[{id:'b',sections:[{id:'s',tasks:[{id:'t',title:'Science',notes:'Old'}]}]}]});
 const command={type:'edit_task',target:{taskId:'t'},changes:{notes:'New'}};
 const expected={boardId:'b',sectionId:'s',fields:{notes:'Old'}};
+
+test('a section move lost response replays one compact durable receipt',async()=>{
+ const input=data();input.boards.push({id:'other',sections:[]});const f=await plannerFixture(input,{failAfterCommit:true});f.context.applyTaskListCommand=applyTaskListCommand;
+ const command={type:'move_section',target:{boardId:'b',sectionId:'s'},destination:{boardId:'other',index:0}},expected={sourceOrder:['s'],destinationOrder:[]},createdAt=Date.now();
+ await assert.rejects(f.context.persistTaskListCommand('plan','one',command,expected,'section-op',createdAt),/response lost/);
+ await f.context.persistTaskListCommand('plan','one',command,expected,'section-op',createdAt);assert.equal(f.writes.length,1);assert.equal(f.data().boards[1].sections[0].tasks[0].notes,'Old');assert.ok(JSON.stringify(f.data().aiActionReceipts[0]).length<500);
+});
 const batchData=()=>({userID:'one',boards:[{id:'b',sections:[{id:'s',tasks:[{id:'a',title:'A',notes:'X'.repeat(3000)},{id:'c',title:'C'}]}]}]});
 test('a lost batch response and transaction callback replay return one compact receipt',async()=>{
  for(const options of [{failAfterCommit:true},{retryTransaction:true}]){
