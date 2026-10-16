@@ -48,6 +48,8 @@ export function isRTL(lang) {
 export const TRANSLATIONS = {
     en: {
         task_detail_step_entry_hint:'Enter adds a step. Paste multiple lines to add several. Save applies your changes.',
+        task_detail_step_drag:'Drag to reorder step (Alt+Up/Down)',
+        task_detail_step_moved:'Step moved to position',
         task_section_heading:'Section actions',task_section_add:'Add task',task_section_select:'Select tasks in section',task_section_collapse:'Collapse section',task_section_saving:'Wait for the current save or resolve Retry/Discard.',task_tool_apply:'Apply',task_tool_cancel:'Cancel',task_tool_none:'None',task_tool_low:'Low',task_tool_medium:'Medium',task_tool_high:'High',task_tool_true:'Locked',task_tool_false:'Unlocked',task_tool_mixed:'Mixed values. Applying replaces this field for every selected task.',
         task_tool_duplicate:'Duplicate',task_tool_date:'Scheduled date',task_tool_dueDate:'Deadline',task_tool_priority:'Priority',task_tool_durationMinutes:'Duration (minutes)',task_tool_reminderMinutes:'Reminder (minutes before)',task_tool_scheduleLocked:'AI lock',task_tool_recurring:'Use Details or Schedule for recurring series.',
         task_order_batch_move_wait:'This Move is awaiting confirmation. Use Retry or Discard before editing these tasks.',

@@ -98,7 +98,8 @@
     "task-list-workspace.js",
     "task-list-interactions.js",
     "task-actions.js",
-    "task-action-menu.js"
+    "task-action-menu.js",
+    "task-checklist-reorder.js"
   ],
   "directories": [
     "images",

@@ -2,7 +2,7 @@ import {stableStringify} from './plan-merge.js';
 import {taskDetailValues,TASK_DETAIL_FIELDS,applyTaskListCommand} from './task-list-model.js';
 import {recurrenceFieldsMarkup,bindRecurrenceFields,readRecurrenceFields} from './schedule-recurrence-ui.js';
 import {t} from './i18n.js';
-import {mountTaskChecklistEditor} from './task-checklist-editor.js?v=1';
+import {mountTaskChecklistEditor} from './task-checklist-editor.js?v=2';
 
 const esc=value=>String(value??'').replace(/[&<>'"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[ch]));
 export function mountTaskDetailPane({root,resolveTarget,commit,getOwnerId,getPlanId=()=>null,onClose=()=>{},openSchedule,document=globalThis.document,window=globalThis.window}){
@@ -175,6 +175,6 @@ export function mountTaskDetailPane({root,resolveTarget,commit,getOwnerId,getPla
             restoreUi(restore,canFocus);status(copy('saved'));return !!result;
         }catch(error){if(ticket!==revision)return false;busy=false;updateControls();status(copy('failed')+' '+error.message,true);return false}
     }
-    function sync(){if(panel&&(owner!==getOwnerId()||planId!==getPlanId())){forget();close()}}
+    function sync(){if(!activePage())checklistEditor?.cancelReorder();if(panel&&(owner!==getOwnerId()||planId!==getPlanId())){forget();close()}}
     return {open,save,requestClose,maximise,sync,dispose:close};
 }
