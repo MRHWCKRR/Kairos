@@ -56,7 +56,7 @@ function scheduleTaskState(task) {
     if (!task) return null;
     const state = { date: task.date || null, startTime: task.startTime || null, endTime: task.endTime || null };
     if (task.recurrence?.enabled) {
-        state.recurrence = Object.fromEntries(['enabled','mode','frequency','interval','weekdays','startDate','endType','endDate','count','monthlyMode','weekday','position'].filter(key => task.recurrence[key] !== undefined).map(key => [key, Array.isArray(task.recurrence[key]) ? [...task.recurrence[key]] : task.recurrence[key]]));
+        state.recurrence = Object.fromEntries(['enabled','mode','frequency','interval','weekdays','startDate','endType','endDate','count','monthlyMode','monthDay','weekdayPosition','weekday','month'].filter(key => task.recurrence[key] !== undefined).map(key => [key, Array.isArray(task.recurrence[key]) ? [...task.recurrence[key]] : task.recurrence[key]]));
     }
     return state;
 }

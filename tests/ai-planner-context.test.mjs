@@ -171,3 +171,18 @@ test('checklist-only edits never appear as schedule moves',async()=>{
   context.invalidateKairosContext({ownerId:'one',planId:'plan-1',before,after:plan});
   assert.doesNotMatch(await context.getKairosContext(),/Recent confirmed schedule changes/);
 });
+
+test('monthly and yearly date-rule edits remain visible in confirmed history',async()=>{
+  for (const [field,oldValue,newValue] of [['monthDay',15,20],['weekdayPosition','first','last'],['month',3,9]]) {
+    const {context,plan}=await fixture();
+    const task=plan.boards[0].sections[0].tasks[0];
+    task.recurrence={enabled:true,frequency:field==='month'?'yearly':'monthly',[field]:oldValue};
+    const before=structuredClone(plan);task.recurrence[field]=newValue;
+    context.invalidateKairosContext({ownerId:'one',planId:'plan-1',before,after:plan});
+    const prompt=await context.getKairosContext();
+    assert.match(prompt,/Recent confirmed schedule changes/,field);
+    const history=prompt.slice(prompt.indexOf('Recent confirmed schedule changes'));
+    assert.ok(history.includes(JSON.stringify(field)+':'+JSON.stringify(oldValue)),field+' before');
+    assert.ok(history.includes(JSON.stringify(field)+':'+JSON.stringify(newValue)),field+' after');
+  }
+});
