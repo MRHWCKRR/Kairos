@@ -114,3 +114,66 @@ test('moving an active row during refresh preserves its draft when DOM movement 
   const insert=list.insertBefore.bind(list);list.insertBefore=(row,before)=>{const movingActive=row.contains(active),out=insert(row,before);if(movingActive)active=f.document.body;return out};
   f.data().boards[0].sections[0].tasks.reverse();f.data().boards[0].sections[0].tasks[0].title='Remote';f.workspace.render();assert.equal(title.value,'Typing');assert.ok(active===title);assert.equal(title.selectionStart,2);assert.equal(title.selectionEnd,4);
 });
+
+test('Add task opens capture inside the board without leaving the overview',async()=>{
+  const f=await fixture({rebuildOverview:true});f.workspace.decorateOverview();f.scroll.scrollTop=180;
+  const button=f.overview.querySelector('.add-task-btn');button.click();await tick();
+  assert.equal(f.overview.hidden,false);assert.equal(f.workspace.isFocused(),false);assert.equal(f.workspace.getViewKey(),'overview');
+  const input=f.root.querySelector('[data-quick-title]');assert.equal(input.closest('.board-section-block').dataset.sectionId,'s');assert.equal(f.focused(),input);assert.equal(f.scroll.scrollTop,180);
+  f.type('First');assert.equal(await f.workspace.submit(),true);f.type('Second');assert.equal(await f.workspace.submit(),true);
+  assert.deepEqual(f.data().boards[0].sections[0].tasks.slice(-2).map(task=>task.title),['First','Second']);assert.equal(input.value,'');
+  f.type('Cancel this');const escape=new f.window.Event('keydown',{bubbles:true,cancelable:true});escape.key='Escape';input.dispatchEvent(escape);
+  assert.equal(f.overview.querySelector('.task-quick-add'),null);assert.equal(f.focused(),button);assert.equal(f.calls.length,2);
+});
+
+test('inline capture survives an overview refresh and keeps its draft and caret',async()=>{
+  const f=await fixture({rebuildOverview:true});const html=f.overview.innerHTML;f.workspace.replaceOverview(html);f.workspace.decorateOverview();
+  f.overview.querySelector('.add-task-btn').click();await tick();const input=f.type('Keep typing');input.selectionStart=3;input.selectionEnd=6;
+  Object.defineProperty(f.document,'activeElement',{configurable:true,value:input});
+  f.workspace.replaceOverview(html);f.workspace.decorateOverview();
+  assert.ok(f.overview.querySelector('[data-quick-title]')===input,'input remains inside the board');assert.equal(input.value,'Keep typing');assert.equal(input.selectionStart,3);assert.equal(input.selectionEnd,6);
+});
+
+test('IME Enter never submits a quick capture task',async()=>{
+  const f=await fixture();await f.workspace.openSection({boardId:'b',sectionId:'s'});const input=f.type('Composing');
+  const event=new f.window.Event('keydown',{bubbles:true,cancelable:true});event.key='Enter';event.isComposing=true;input.dispatchEvent(event);await tick();
+  assert.equal(f.calls.length,0);assert.equal(event.defaultPrevented,false);
+});
+
+test('a slow inline save never steals focus from another control',async()=>{
+  const f=await fixture();await f.workspace.addTask({boardId:'b',sectionId:'s'},f.overview.querySelector('.add-task-btn'));const input=f.type('Read');
+  let active=input,focusCount=0,release;Object.defineProperty(f.document,'activeElement',{configurable:true,get:()=>active});input.focus=()=>{active=input;focusCount++};
+  f.block(new Promise(resolve=>release=resolve));const saving=f.workspace.submit();await tick();active=f.document.getElementById('chat');release();await saving;
+  assert.ok(active===f.document.getElementById('chat'),'newer focus remains on chat');assert.equal(focusCount,0);
+});
+
+test('inline capture retains separate drafts when switching sections and closing a section',async()=>{
+  const f=await fixture({rebuildOverview:true});await f.workspace.addTask({boardId:'b',sectionId:'s'});f.type('First draft');
+  await f.workspace.addTask({boardId:'b',sectionId:'s2'});f.type('Second draft');await f.workspace.addTask({boardId:'b',sectionId:'s'});
+  assert.equal(f.root.querySelector('[data-quick-title]').value,'First draft');
+  await f.workspace.collapseSection({boardId:'b',sectionId:'s'});assert.equal(f.overview.querySelector('.task-quick-add'),null);
+  await f.workspace.addTask({boardId:'b',sectionId:'s'});assert.equal(f.root.querySelector('[data-quick-title]').value,'First draft');
+});
+
+test('inline uncertain save retries the original creation once',async()=>{
+  const base={userID:'one',boards:[{id:'b',title:'Study',sections:[{id:'s',title:'Work',tasks:[]}]}]};
+  const store=await plannerFixture(base,{failAfterCommit:true});store.context.applyTaskListCommand=applyTaskListCommand;
+  const persist=async(c,e,id)=>store.context.persistTaskListCommand('plan','one',c,e,id.operationId,id.createdAt);persist.data=store.data;
+  const f=await fixture({persist});await f.workspace.addTask({boardId:'b',sectionId:'s'});const input=f.type('Read');
+  assert.equal(await f.workspace.submit(),false);assert.equal(input.disabled,true);assert.equal(f.root.querySelector('[data-quick-cancel]').hidden,true);
+  assert.equal(f.root.querySelector('[data-quick-discard]').hidden,false);assert.equal(f.root.querySelector('form').getAttribute('aria-busy'),'false');
+  assert.equal(await f.workspace.submit(),true);assert.deepEqual(f.calls[0].identity,f.calls[1].identity);assert.equal(store.writes.length,1);assert.equal(store.data().boards[0].sections[0].tasks.length,1);assert.equal(input.disabled,false);
+});
+
+test('a deleted inline section falls back to an explicit recovery view',async()=>{
+  const f=await fixture();await f.workspace.addTask({boardId:'b',sectionId:'s'});f.type('Draft');f.data().boards[0].sections.splice(0,1);
+  f.workspace.replaceOverview('');f.workspace.decorateOverview();
+  assert.equal(f.workspace.isFocused(),true);assert.match(f.root.querySelector('[data-section-state]').textContent,/available/i);assert.equal(f.root.querySelector('[data-quick-title]').disabled,true);
+});
+
+test('opening capture reveals an offscreen input without scrolling a visible one',async()=>{
+  const f=await fixture(),input=f.root.querySelector('[data-quick-title]');let top=900,calls=0;
+  f.window.innerHeight=768;f.scroll.getBoundingClientRect=()=>({top:0,bottom:768});input.getBoundingClientRect=()=>({top,bottom:top+44});f.root.querySelector('form').getBoundingClientRect=()=>({top,bottom:top+160});input.scrollIntoView=options=>{assert.equal(options.block,'nearest');calls++};
+  await f.workspace.addTask({boardId:'b',sectionId:'s'});assert.equal(calls,1);top=200;
+  await f.workspace.addTask({boardId:'b',sectionId:'s'});assert.equal(calls,1);
+});
