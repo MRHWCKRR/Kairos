@@ -10,6 +10,15 @@ let suppressClickUntil=0;
 
 const bridge=()=>window.__kairosScheduleBridge;
 const workspace=()=>window.__kairosScheduleWorkspace;
+const pointerScope=()=>({ownerId:bridge()?.getOwnerId?.()??null,planId:bridge()?.getPlanId?.()??null});
+function currentGesture(value=interaction){
+  if(!value?.scope)return false;
+  const now=pointerScope();if(value.scope.ownerId!==now.ownerId||value.scope.planId!==now.planId||!document.getElementById('schedule-page')?.classList.contains('active')||!value.originElement?.isConnected)return false;
+  const task=value.isOccurrence?findOccurrence(value.seriesId,value.occurrenceDate)?.occurrence.task:findTask(value.taskId)?.task;return !!task&&JSON.stringify(snapshot(task))===JSON.stringify(value.original);
+}
+function canBegin(){return document.getElementById('schedule-page')?.classList.contains('active')&&(!bridge()?.getOwnerId||!!bridge().getOwnerId())}
+function releaseCapture(value){try{value?.originElement?.releasePointerCapture?.(value.pointerId)}catch{}}
+
 
 function allTasks(){
   const out=[];
@@ -79,28 +88,29 @@ function gridAtPoint(x,y){
   return {dateKey:column.dataset.date,minutes:snapMinutes(((y-rect.top)/rect.height)*DAY_MINUTES,SNAP_MINUTES),grid,rect};
 }
 function begin(mode,taskId,event,element){
-  if(event.button!==0)return;const found=findTask(taskId);if(!found)return;if(mode==='resize'&&!found.task.startTime)return;
+  if(event.button!==0||!canBegin())return;cancel();const found=findTask(taskId);if(!found)return;if(mode==='resize'&&!found.task.startTime)return;
   event.preventDefault();event.stopPropagation();element.setPointerCapture?.(event.pointerId);
-  interaction={mode,taskId:String(taskId),pointerId:event.pointerId,startX:event.clientX,startY:event.clientY,original:snapshot(found.task),preview:null,overBacklog:false,originElement:element,ghost:makeGhost(found.task,mode),previewElement:null,moved:false,isOccurrence:false};
+  interaction={scope:pointerScope(),gridTop:element.closest('.ks-day-grid')?.getBoundingClientRect().top,mode,taskId:String(taskId),pointerId:event.pointerId,startX:event.clientX,startY:event.clientY,original:snapshot(found.task),preview:null,overBacklog:false,originElement:element,ghost:makeGhost(found.task,mode),previewElement:null,moved:false,isOccurrence:false};
   element.classList.add(mode==='resize'?'is-resizing':'is-dragging');moveGhost(event.clientX,event.clientY);
 }
 function beginOccurrence(mode,event,element){
-  if(event.button!==0)return;
+  if(event.button!==0||!canBegin())return;cancel();
   const seriesId=element.dataset.seriesId,occurrenceDate=element.dataset.occurrenceDate,found=findOccurrence(seriesId,occurrenceDate);if(!found)return;
   const task=found.occurrence.task;if(mode==='resize'&&!found.occurrence.startTime)return;
   event.preventDefault();event.stopPropagation();element.setPointerCapture?.(event.pointerId);
-  interaction={mode,pointerId:event.pointerId,startX:event.clientX,startY:event.clientY,preview:null,overBacklog:false,originElement:element,ghost:makeGhost(task,mode),previewElement:null,moved:false,isOccurrence:true,seriesId,occurrenceId:element.dataset.occurrenceId,occurrenceDate,effectiveTask:task,durationMinutes:found.occurrence.durationMinutes};
+  interaction={scope:pointerScope(),original:snapshot(task),gridTop:element.closest('.ks-day-grid')?.getBoundingClientRect().top,mode,pointerId:event.pointerId,startX:event.clientX,startY:event.clientY,preview:null,overBacklog:false,originElement:element,ghost:makeGhost(task,mode),previewElement:null,moved:false,isOccurrence:true,seriesId,occurrenceId:element.dataset.occurrenceId,occurrenceDate,effectiveTask:task,durationMinutes:found.occurrence.durationMinutes};
   element.classList.add(mode==='resize'?'is-resizing':'is-dragging');moveGhost(event.clientX,event.clientY);
 }
 function onMove(event){
-  if(!interaction||event.pointerId!==interaction.pointerId)return;moveGhost(event.clientX,event.clientY);
-  if(Math.hypot(event.clientX-interaction.startX,event.clientY-interaction.startY)>4)interaction.moved=true;
+  if(!interaction||event.pointerId!==interaction.pointerId)return;if(!currentGesture()){cancel();return}moveGhost(event.clientX,event.clientY);
+  if(interaction.mode!=='resize'&&Math.hypot(event.clientX-interaction.startX,event.clientY-interaction.startY)>4)interaction.moved=true;
   const task=interaction.isOccurrence?interaction.effectiveTask:findTask(interaction.taskId)?.task;if(!task)return;
   if(interaction.mode==='resize'){
     const grid=interaction.originElement.closest('.ks-day-grid'),rect=grid?.getBoundingClientRect(),start=parseTime(task.startTime);
     if(rect?.height&&start!==null){
+      const delta=event.clientY-interaction.startY+(interaction.gridTop??rect.top)-rect.top;if(Math.abs(delta)>4)interaction.moved=true;
       const original=interaction.original||task,originalEnd=parseTime(original.startTime)+taskDurationMinutes(original);
-      const rawEnd=Math.max(Math.ceil((start+1)/RESIZE_SNAP_MINUTES)*RESIZE_SNAP_MINUTES,snapMinutes(originalEnd+((event.clientY-interaction.startY)/rect.height)*DAY_MINUTES,RESIZE_SNAP_MINUTES)),resized=applyResize(task,rawEnd,RESIZE_SNAP_MINUTES),parsed=parseTime(resized.endTime),end=parsed===0&&start>0?1440:parsed;
+      const rawEnd=Math.max(Math.ceil((start+1)/RESIZE_SNAP_MINUTES)*RESIZE_SNAP_MINUTES,snapMinutes(originalEnd+(delta/rect.height)*DAY_MINUTES,RESIZE_SNAP_MINUTES)),resized=applyResize(task,rawEnd,RESIZE_SNAP_MINUTES),parsed=parseTime(resized.endTime),end=parsed===0&&start>0?1440:parsed;
       if(end!==null){interaction.preview={endMin:end};placePreview(grid,task,start,end);interaction.ghost.querySelector('span').textContent=`${end-start} min · End ${formatClock(end>=1440?0:end)}`}
     }
     return;
@@ -114,12 +124,13 @@ function onMove(event){
 }
 async function finish(event,cancel=false){
   if(!interaction||event.pointerId!==interaction.pointerId)return;
-  const current=interaction;interaction=null;current.originElement?.classList.remove('is-dragging','is-resizing');current.ghost?.remove();removePreview(current);
+  if(!cancel&&currentGesture())onMove(event);else if(!currentGesture())cancel=true;
+  const current=interaction;interaction=null;releaseCapture(current);current.originElement?.classList.remove('is-dragging','is-resizing');current.ghost?.remove();removePreview(current);
   if(cancel||!current.moved)return;suppressClickUntil=Date.now()+300;
   if(current.isOccurrence){
     const task=current.effectiveTask;
     if(current.mode==='resize'&&current.preview){
-      const next=applyResize(task,current.preview.endMin,RESIZE_SNAP_MINUTES);await persistOccurrenceMutation(current.seriesId,current.occurrenceDate,{startTime:next.startTime,endTime:next.endTime,durationMinutes:taskDurationMinutes(next)});return;
+      const next=applyResize(task,current.preview.endMin,RESIZE_SNAP_MINUTES);if(next.endTime===task.endTime)return;await persistOccurrenceMutation(current.seriesId,current.occurrenceDate,{startTime:next.startTime,endTime:next.endTime,durationMinutes:taskDurationMinutes({...task,...next})});return;
     }
     if(current.mode==='move'&&current.overBacklog){await persistOccurrenceMutation(current.seriesId,current.occurrenceDate,{date:current.occurrenceDate,startTime:null,endTime:null,durationMinutes:current.durationMinutes});return}
     if(!current.preview)return;
@@ -127,14 +138,15 @@ async function finish(event,cancel=false){
     await persistOccurrenceMutation(current.seriesId,current.occurrenceDate,{date:next.date,startTime:next.startTime,endTime:next.endTime,durationMinutes:current.durationMinutes});return;
   }
   const found=findTask(current.taskId);if(!found)return;const task=found.task;
-  if(current.mode==='resize'){if(current.preview)await persistMutation(task,current.original,applyResize(task,current.preview.endMin,RESIZE_SNAP_MINUTES));return}
+  if(current.mode==='resize'){if(current.preview){const next=applyResize(task,current.preview.endMin,RESIZE_SNAP_MINUTES);if(next.endTime!==task.endTime)await persistMutation(task,current.original,next)}return}
   if(current.mode==='move'&&current.overBacklog){const next={...task};preserveScheduledDuration(next);clearScheduledFields(next);await persistMutation(task,current.original,next);return}
   if(!current.preview)return;
   const base=current.mode==='backlog'?{...task,startTime:null,endTime:null}:task;await persistMutation(task,current.original,applyScheduledMove(base,current.preview.dateKey,current.preview.startMin,SNAP_MINUTES));
 }
-function cancel(){if(!interaction)return;interaction.originElement?.classList.remove('is-dragging','is-resizing');interaction.ghost?.remove();removePreview(interaction);interaction=null}
+function cancel(){if(!interaction)return;const current=interaction;interaction=null;current.originElement?.classList.remove('is-dragging','is-resizing');current.ghost?.remove();removePreview(current);releaseCapture(current)}
 
 function decorate(){
+  if(interaction&&!currentGesture())cancel();
   document.querySelectorAll('.ks-task-block[data-task-id]').forEach(el=>{
     if(!el.querySelector('[data-resize-handle]')){const h=document.createElement('span');h.className='ks-resize-handle';h.dataset.resizeHandle='';h.title='Drag to change duration';h.setAttribute('aria-hidden','true');el.appendChild(h)}
     if(el.dataset.pointerBound)return;el.dataset.pointerBound='1';el.addEventListener('pointerdown',event=>begin(event.target.closest('[data-resize-handle]')?'resize':'move',el.dataset.taskId,event,el));
@@ -149,8 +161,10 @@ function decorate(){
 
 function boot(){
   if(window.__kairosScheduleInteractionsBooted||!bridge())return;window.__kairosScheduleInteractionsBooted=true;decorate();
-  const root=document.getElementById('schedule-page');if(root)new MutationObserver(decorate).observe(root,{subtree:true,childList:true});
+  const root=document.getElementById('schedule-page');if(root)new MutationObserver(records=>{if(records.some(record=>record.target===root&&record.attributeName==='class'&&(record.oldValue||'').split(/\s+/).includes('active')!==root.classList.contains('active')))cancel();decorate()}).observe(root,{subtree:true,childList:true,attributes:true,attributeFilter:['class'],attributeOldValue:true});
   document.addEventListener('pointermove',onMove);document.addEventListener('pointerup',event=>void finish(event,false));document.addEventListener('pointercancel',event=>void finish(event,true));
+  document.addEventListener('lostpointercapture',event=>{if(interaction?.pointerId===event.pointerId)cancel()});
+  window.addEventListener('blur',cancel);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')cancel()});document.addEventListener('contextmenu',cancel,true);
   document.addEventListener('click',event=>{if(Date.now()<suppressClickUntil&&event.target.closest?.('.ks-task-block,.ks-backlog-row')){event.preventDefault();event.stopImmediatePropagation()}},true);
   document.addEventListener('keydown',event=>{if(event.key==='Escape'&&interaction){event.preventDefault();cancel()}});
 }

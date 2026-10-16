@@ -24,7 +24,7 @@ export function createPageLoader({importModule=url=>import(url),loadStyle=loadPa
         await Promise.all([loadStyle('task-list.css?v=18'),loadStyle('schedule-inspector.css?v=10')]);
         await setupTaskDetails(await importModule('./task-detail-pane.js?v=7'));
         if(setupTaskWorkspace)await setupTaskWorkspace(await importModule('./task-list-workspace.js?v=10'));
-        if(setupTaskInteractions)await setupTaskInteractions(await importModule('./task-list-interactions.js?v=8'));
+        if(setupTaskInteractions)await setupTaskInteractions(await importModule('./task-list-interactions.js?v=9'));
         if(setupTaskSelection)await setupTaskSelection(await importModule('./task-selection.js?v=4'));
         if(setupTaskMenus){const [actions,menu]=await Promise.all([importModule('./task-actions.js?v=5'),importModule('./task-action-menu.js?v=6')]);await setupTaskMenus({actions,menu})}
         if(setupTaskShortcuts)await setupTaskShortcuts(await importModule('./task-keyboard-shortcuts.js?v=1'));
@@ -46,7 +46,7 @@ export function createPageLoader({importModule=url=>import(url),loadStyle=loadPa
         await importModule('./schedule-workspace.js?v=11');
         // These modules inspect the workspace during boot. Preserve that order
         // even when network responses arrive out of order.
-        for(const name of scheduleModules)await importModule('./'+name+(name==='schedule-interactions.js'?'?v=12':name==='schedule-responsive.js'||name==='schedule-ai.js'||name==='schedule-inspector.js'?'?v=11':'?v=10'));
+        for(const name of scheduleModules)await importModule('./'+name+(name==='schedule-interactions.js'?'?v=13':name==='schedule-responsive.js'||name==='schedule-ai.js'||name==='schedule-inspector.js'?'?v=11':'?v=10'));
       }
     })();
     loaded.set(page,task);

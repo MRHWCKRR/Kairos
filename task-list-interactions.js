@@ -20,14 +20,15 @@ export function mountTaskListInteractions({root,getState,getOwnerId,getPlanId,co
     const message=document.createElement('span');message.setAttribute('role','status');bar.appendChild(message);
     const button=(attribute,label)=>{const el=document.createElement('button');el.type='button';el.setAttribute(attribute,'');el.textContent=copy(label);el.hidden=true;bar.appendChild(el);return el};
     const undoButton=button('data-task-undo','undo'),retryButton=button('data-task-retry','retry'),discardButton=button('data-task-discard','discard');root.appendChild(bar);
-    let owner,plan,generation=0,busy=false,pending=null,preview=null,undoState=null,timer=null,drag=null,frame=null,moveDialog=null,moveDialogView=null,fieldDialog=null,fieldDialogView=null,disposed=false;
+    let owner,plan,generation=0,busy=false,pending=null,preview=null,undoState=null,timer=null,drag=null,frame=null,moveDialog=null,moveDialogView=null,fieldDialog=null,fieldDialogView=null,disposed=false,suppressPointer=null;
     const sections=mountSectionOrganisation({root,getState,getIdentity:()=>({ownerId:getOwnerId(),planId:getPlanId()}),getViewKey,blocked:()=>busy||!!pending||sectionBlocked(),execute,reportError:text=>{message.textContent=text;decorate()},scrollElement,document,window,requestFrame,cancelFrame});
     const storageKey=()=> 'kairos-task-order-pending:'+owner+':'+plan;
     function remember(){try{if(pending)storage?.setItem(storageKey(),JSON.stringify(pending));else storage?.removeItem(storageKey())}catch{}}
     function clearUndo(){if(timer!==null)clearTimer(timer);timer=null;undoState=null;undoButton.hidden=true;if(message.textContent===copy('saved_undo'))message.textContent=copy('saved')}
     function cancelDrag(){
+        const saved=drag;drag=null;if(saved?.active)suppressPointer=saved.pointerId;
         if(frame!==null)cancelFrame(frame);frame=null;
-        if(drag){try{root.releasePointerCapture?.(drag.pointerId)}catch{}drag.row?.classList.remove('task-dragging');drag.badge?.remove()}
+        if(saved){try{root.releasePointerCapture?.(saved.pointerId)}catch{}saved.row?.classList.remove('task-dragging');saved.badge?.remove()}
         for(const row of root.querySelectorAll('.task-group-dragging'))row.classList.remove('task-group-dragging');
         for(const el of root.querySelectorAll('.task-drop-before,.task-drop-after,.task-drop-empty'))el.classList.remove('task-drop-before','task-drop-after','task-drop-empty');drag=null;
     }
@@ -228,7 +229,7 @@ export function mountTaskListInteractions({root,getState,getOwnerId,getPlanId,co
     };
     const onDown=event=>{
         const grip=event.target.closest?.('[data-task-action="drag"]');if(!grip||grip.disabled||event.button!==0||busy||pending||isSorted())return;
-        sync();cancelDrag();grip.focus?.({preventScroll:true});const row=grip.closest('[data-detail-row]');try{const source=sourceFor(row),orders=new Map((getState().boards||[]).flatMap(board=>(board.sections||[]).map(section=>[key({boardId:board.id,sectionId:section.id}),ids(section)])));
+        sync();cancelDrag();suppressPointer=null;grip.focus?.({preventScroll:true});const row=grip.closest('[data-detail-row]');try{const source=sourceFor(row),orders=new Map((getState().boards||[]).flatMap(board=>(board.sections||[]).map(section=>[key({boardId:board.id,sectionId:section.id}),ids(section)])));
             const selected=getSelectedTaskIds(),group=selected.includes(source.task.id)&&selected.length>1;
             if(group&&(selected.length>50||new Set(selected).size!==selected.length))throw Error(copy('batch_limit'));
             const groupIds=group?[...root.querySelectorAll('[data-detail-row]')].filter(row=>!row.closest('[hidden]')&&selected.includes(row.dataset.detailRow)).map(row=>row.dataset.detailRow):null;
@@ -260,7 +261,14 @@ export function mountTaskListInteractions({root,getState,getOwnerId,getPlanId,co
         if(!saved.active||!saved.drop||saved.owner!==getOwnerId()||saved.plan!==getPlanId()||saved.view!==getViewKey()||!root.classList.contains('active')||isSorted())return;
         try{const action=saved.groupIds?buildTaskBatch(saved.state,'move',saved.groupIds,{...saved.drop.destination.target,...(saved.drop.anchorId?{anchorTaskId:saved.drop.anchorId,after:saved.drop.after}:{})}):orderedAction(saved.source,saved.drop.destination,saved.drop.anchorId,saved.drop.after,saved.orders);if(action)void execute(action.command,action.expected)}catch(error){message.textContent=error.message;decorate()}
     };
-    const onCancel=()=>cancelDrag();
+    const onCancel=event=>{if(event?.pointerId===undefined||event.pointerId===drag?.pointerId)cancelDrag()};
+    const onVisibility=()=>{if(document.visibilityState==='hidden')cancelDrag()};
+    window.addEventListener('blur',onCancel);document.addEventListener('visibilitychange',onVisibility);root.addEventListener('lostpointercapture',onCancel);
+    // A pointer-captured drag can emit a click on the workspace on release.
+    // Consume only that gesture's click; a new press always restores normal clicks.
+    const nextPress=()=>{suppressPointer=null};
+    const dragClick=event=>{if(suppressPointer!==null&&event.pointerId===suppressPointer&&event.detail>0){suppressPointer=null;event.preventDefault();event.stopImmediatePropagation()}};
+    document.addEventListener('pointerdown',nextPress,true);document.addEventListener('click',dragClick,true);
     root.addEventListener('click',onClick);root.addEventListener('change',onChange);root.addEventListener('keydown',onKey);root.addEventListener('pointerdown',onDown);root.addEventListener('pointermove',onMove);root.addEventListener('pointerup',onUp);root.addEventListener('pointercancel',onCancel);sync();decorate();
-    return {runSectionAction:sections.run,getSectionState:sections.state,getDisplayState,getActionState,runTaskAction,runTaskBatch,runTaskTool,execute,retry:reconcile,undo,discard,sync,decorate,cancelDrag,isDragging:()=>!!drag||sections.isDragging(),reportError(text){message.textContent=text;decorate()},dispose(){sections.dispose();disposed=true;preview=null;generation++;cancelDrag();clearUndo();moveDialog?.remove();fieldDialog?.dispose();bar.remove();for(const [type,handler] of [['click',onClick],['change',onChange],['keydown',onKey],['pointerdown',onDown],['pointermove',onMove],['pointerup',onUp],['pointercancel',onCancel]])root.removeEventListener(type,handler)}};
+    return {runSectionAction:sections.run,getSectionState:sections.state,getDisplayState,getActionState,runTaskAction,runTaskBatch,runTaskTool,execute,retry:reconcile,undo,discard,sync,decorate,cancelDrag,isDragging:()=>!!drag||sections.isDragging(),reportError(text){message.textContent=text;decorate()},dispose(){document.removeEventListener('pointerdown',nextPress,true);document.removeEventListener('click',dragClick,true);window.removeEventListener('blur',onCancel);document.removeEventListener('visibilitychange',onVisibility);root.removeEventListener('lostpointercapture',onCancel);sections.dispose();disposed=true;preview=null;generation++;cancelDrag();clearUndo();moveDialog?.remove();fieldDialog?.dispose();bar.remove();for(const [type,handler] of [['click',onClick],['change',onChange],['keydown',onKey],['pointerdown',onDown],['pointermove',onMove],['pointerup',onUp],['pointercancel',onCancel]])root.removeEventListener(type,handler)}};
 }
