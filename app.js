@@ -2,7 +2,7 @@ import { showNotice, confirmDialog, promptDialog } from './ui-dialogs.js?v=1';
 import { aiFetch, aiErrorMessage } from './ai-client.js';
 import { requestBilling } from './billing-client.js';
 import { mountPlanUsage } from './plan-usage.js?v=3';
-import { createPageLoader } from './page-loader.js?v=34';
+import { createPageLoader } from './page-loader.js?v=35';
 import { mountPageRouter } from './page-router.js?v=2';
 import { createPageRenderCache } from './page-render-cache.js?v=1';
 import './boards-recurrence.js?v=10';
@@ -473,7 +473,7 @@ function bootApp() {
     },{once:true});
 
     onAuthStateChanged(auth, async (user) => {
-        taskMenus?.sync();
+        taskMenus?.sync();taskShortcuts?.sync();
         taskInteractions?.sync();
         taskWorkspace?.sync();
         taskSelection?.sync();
@@ -550,7 +550,7 @@ function bootApp() {
 
     let aiPageAutoCollapsed = false;
     let sidebarManuallyToggledOnAI = false;
-    let taskDetails=null,taskWorkspace=null,taskInteractions=null,taskMenus=null,taskSelection=null;
+    let taskDetails=null,taskWorkspace=null,taskInteractions=null,taskMenus=null,taskSelection=null,taskShortcuts=null;
     async function commitTaskDetails(command,expected,identity){
         const user=auth.currentUser;
         if(!user||identity.ownerId!==user.uid||identity.planId!==currentPlanDocId)throw new Error('The signed-in account or planner changed.');
@@ -593,7 +593,7 @@ function bootApp() {
         taskWorkspace=module.mountTaskListWorkspace({root:document.getElementById('tasks-page'),overview:document.getElementById('tasks-manager-container'),
             getState:()=>taskInteractions?.getDisplayState()||({boards:boardsData}),getOwnerId:()=>auth.currentUser?.uid||null,getPlanId:()=>currentPlanDocId,commit:commitTaskDetails,
             ensurePlan:async()=>{const owner=auth.currentUser?.uid;if(!owner)return false;if(!currentPlanDocId&&!await updatePlanInFirestore())return false;return auth.currentUser?.uid===owner},
-            isMutationBlocked:()=>{const state=taskInteractions?.getActionState({taskId:''});return !!(state?.busy||state?.pending)},requestCloseDetails:()=>taskDetails?.requestClose()??true,renderOverview:renderBoardsGrid,onRender:()=>{taskInteractions?.decorate();taskSelection?.sync();taskMenus?.sync()}});
+            isMutationBlocked:()=>{const state=taskInteractions?.getActionState({taskId:''});return !!(state?.busy||state?.pending)},requestCloseDetails:()=>taskDetails?.requestClose()??true,renderOverview:renderBoardsGrid,onRender:()=>{taskInteractions?.decorate();taskSelection?.sync();taskMenus?.sync();taskShortcuts?.sync()}});
         renderBoardsGrid();
     },setupTaskInteractions:module=>{
         taskInteractions=module.mountTaskListInteractions({root:document.getElementById('tasks-page'),getState:()=>({boards:boardsData}),getOwnerId:()=>auth.currentUser?.uid||null,getPlanId:()=>currentPlanDocId,
@@ -616,6 +616,11 @@ function bootApp() {
             getContext:(found,options)=>taskSelection.contextFor(found.taskId,options),getLabel:context=>tr(context.taskIds.length===1?'task_selection_menu_one':'task_selection_menu').replace('{n}',context.taskIds.length),
             resolveRow:element=>{const row=element?.closest?.('[data-detail-row]');return row&&root.contains(row)?{taskId:row.dataset.detailRow,row}:null},onError:text=>taskInteractions.reportError(text)});
         taskSelection.setActions(registry,taskMenus.open);
+    },setupTaskShortcuts:module=>{
+        taskShortcuts=module.mountTaskKeyboardShortcuts({root:document.getElementById('tasks-page'),workspace:taskWorkspace,
+            getIdentity:()=>({ownerId:auth.currentUser?.uid||null,planId:currentPlanDocId}),getViewKey:()=>taskWorkspace.getViewKey(),
+            isBusy:()=>{const state=taskInteractions.getActionState({taskId:''});return !!(state.busy||state.pending)},
+            isBlocked:()=>taskMenus?.isOpen()||taskInteractions?.isDragging()});
     }});
     window.__kairosPreparePage = pageLoader.prepare;
     async function openTaskDetailsFromList(taskId,source){
@@ -703,7 +708,7 @@ function bootApp() {
     }
 
     function renderApp() {
-        taskMenus?.sync();
+        taskMenus?.sync();taskShortcuts?.sync();
         taskInteractions?.sync();
         taskWorkspace?.sync();
         taskSelection?.sync();

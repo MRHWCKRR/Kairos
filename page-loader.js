@@ -15,18 +15,19 @@ export function loadPageStyle(href, document=globalThis.document) {
   });
 }
 
-export function createPageLoader({importModule=url=>import(url),loadStyle=loadPageStyle,scheduleEnabled=false,taskDetailsEnabled=false,setupTaskDetails=()=>{},setupTaskWorkspace=null,setupTaskInteractions=null,setupTaskSelection=null,setupTaskMenus=null,warn=console.warn,waitForChat=()=>globalThis.window?.__kairosAiWorkspaceReady}={}) {
+export function createPageLoader({importModule=url=>import(url),loadStyle=loadPageStyle,scheduleEnabled=false,taskDetailsEnabled=false,setupTaskDetails=()=>{},setupTaskWorkspace=null,setupTaskInteractions=null,setupTaskSelection=null,setupTaskMenus=null,setupTaskShortcuts=null,warn=console.warn,waitForChat=()=>globalThis.window?.__kairosAiWorkspaceReady}={}) {
   const loaded=new Map();
   function prepare(page) {
     if(loaded.has(page))return loaded.get(page);
     const task=(async()=>{
       if(page==='tasks-page'&&taskDetailsEnabled){
-        await Promise.all([loadStyle('task-list.css?v=17'),loadStyle('schedule-inspector.css?v=10')]);
+        await Promise.all([loadStyle('task-list.css?v=18'),loadStyle('schedule-inspector.css?v=10')]);
         await setupTaskDetails(await importModule('./task-detail-pane.js?v=7'));
-        if(setupTaskWorkspace)await setupTaskWorkspace(await importModule('./task-list-workspace.js?v=9'));
+        if(setupTaskWorkspace)await setupTaskWorkspace(await importModule('./task-list-workspace.js?v=10'));
         if(setupTaskInteractions)await setupTaskInteractions(await importModule('./task-list-interactions.js?v=8'));
         if(setupTaskSelection)await setupTaskSelection(await importModule('./task-selection.js?v=4'));
         if(setupTaskMenus){const [actions,menu]=await Promise.all([importModule('./task-actions.js?v=5'),importModule('./task-action-menu.js?v=6')]);await setupTaskMenus({actions,menu})}
+        if(setupTaskShortcuts)await setupTaskShortcuts(await importModule('./task-keyboard-shortcuts.js?v=1'));
       }
       if(page==='ai-page') {
         await loadStyle('ai-workspace.css?v=2');

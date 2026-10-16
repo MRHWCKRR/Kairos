@@ -155,10 +155,10 @@ export function mountTaskListWorkspace({root,overview,scrollElement=root.closest
         if(inline&&current){if(!mountInline()){render();return}renderComposer()}
         onRender();
     }
-    async function openSection(target,source=null,capture=false){
+    async function openSection(target,source=null,capture=false,isCurrent=()=>true){
         sync();if(!getOwnerId())return false;const ticket=++navigation,actor=owner,actorPlan=plan;
-        if(!await requestCloseDetails()||ticket!==navigation||actor!==getOwnerId()||actorPlan!==getPlanId())return false;
-        if(!await ensurePlan()||ticket!==navigation||actor!==getOwnerId()||(actorPlan!==null&&actorPlan!==getPlanId()))return false;
+        if(!await requestCloseDetails()||ticket!==navigation||actor!==getOwnerId()||actorPlan!==getPlanId()||!isCurrent())return false;
+        if(!await ensurePlan()||ticket!==navigation||actor!==getOwnerId()||(actorPlan!==null&&actorPlan!==getPlanId())||!isCurrent())return false;
         sync();if(!current||inline){scrollBack=scrollElement.scrollTop;opener=source;returnTarget={...target,add:source?.matches('.add-task-btn')===true}}
         if(inline&&!capture){surface.appendChild(form);form.classList.remove('task-quick-inline')}
         current={...target};inline=capture;relocatedInline=false;
@@ -228,5 +228,5 @@ export function mountTaskListWorkspace({root,overview,scrollElement=root.closest
         if(returnTarget&&sectionKey(returnTarget)===oldKey)returnTarget={...returnTarget,...to};
         render();
     }
-    return {sectionMoved,hasPendingCapture:()=>[...entries.values()].some(entry=>entry.busy||entry.pending),openSection,back,submit,discard,render,sync,decorateOverview,replaceOverview,async addTask(target,source){return openSection(target,source,true)},async collapseSection(target){if(locate(target).message)return false;if(current&&sectionKey(current)===sectionKey(target)&&!await back())return false;preference(target).collapsed=true;rememberView();decorateOverview();return true},rowHTML:(task,sectionId)=>renderTaskListRow(task,sectionId,copy),isFocused:()=>!!current&&!inline,getViewKey:()=>current&&!inline?sectionKey(current):'overview',dispose(){disposed=true;generation++;navigation++;root.removeEventListener('click',onClick);root.removeEventListener('keydown',onKey);root.removeEventListener('input',onInput);form.removeEventListener('submit',onSubmit);form.remove();surface.remove();overview.hidden=false}};
+    return {getCurrentSection(){sync();return current?{...current}:null},cancelCapture(){sync();if(!current)return false;const entry=entryFor(current);if(entry.busy||entry.pending)return false;closeCapture();return true},sectionMoved,hasPendingCapture:()=>[...entries.values()].some(entry=>entry.busy||entry.pending),openSection,back,submit,discard,render,sync,decorateOverview,replaceOverview,async addTask(target,source,{isCurrent=()=>true}={}){return openSection(target,source,true,isCurrent)},async collapseSection(target){if(locate(target).message)return false;if(current&&sectionKey(current)===sectionKey(target)&&!await back())return false;preference(target).collapsed=true;rememberView();decorateOverview();return true},rowHTML:(task,sectionId)=>renderTaskListRow(task,sectionId,copy),isFocused:()=>!!current&&!inline,getViewKey:()=>current&&!inline?sectionKey(current):'overview',dispose(){disposed=true;generation++;navigation++;root.removeEventListener('click',onClick);root.removeEventListener('keydown',onKey);root.removeEventListener('input',onInput);form.removeEventListener('submit',onSubmit);form.remove();surface.remove();overview.hidden=false}};
 }

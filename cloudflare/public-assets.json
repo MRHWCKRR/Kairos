@@ -5,6 +5,7 @@
     "task-section-actions.js",
     "task-section-model.js",
     "task-section-organisation.js",
+    "task-keyboard-shortcuts.js",
     "task-tools-dialog.js",
     "task-tools-model.js",
     "task-selection.js",
