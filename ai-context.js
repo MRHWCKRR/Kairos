@@ -1,10 +1,11 @@
 import { auth, db } from './firebase.js';
 import { collection, doc, getDoc, getDocs, query, where } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-const PLAN_CACHE_MS = 15000;
+const PROFILE_CACHE_MS = 15000;
 let cached = null;
 let cachedAt = 0;
 let cachedUid = null;
+let cacheRevision = 0;
 
 const clean = (value, max = 240) => String(value ?? '')
     .replace(/\s+/g, ' ')
@@ -81,22 +82,11 @@ function refreshCachedProfile(data, user) {
     return data;
 }
 
-async function loadContextData(user) {
+async function loadProfileData(user) {
     const now = Date.now();
-    if (cached && cachedUid === user.uid && now - cachedAt < PLAN_CACHE_MS) return refreshCachedProfile(cached, user);
-
-    const [userSnap, plansSnap] = await Promise.all([
-        getDoc(doc(db, 'users', user.uid)),
-        getDocs(query(collection(db, 'study_plans'), where('userID', '==', user.uid)))
-    ]);
-
-    let latestPlan = null;
-    for (const snap of plansSnap.docs) {
-        const data = snap.data() || {};
-        const seconds = Number(data.createdAt?.seconds || 0);
-        if (!latestPlan || seconds > latestPlan.createdSeconds) latestPlan = { ...data, createdSeconds: seconds };
-    }
-
+    if (cached && cachedUid === user.uid && now - cachedAt < PROFILE_CACHE_MS) return refreshCachedProfile(cached, user);
+    const revision = cacheRevision;
+    const userSnap = await getDoc(doc(db, 'users', user.uid));
     const userData = userSnap.exists() ? (userSnap.data() || {}) : {};
     const cloudSettings = userData.settings || {};
     let cachedSettings = {};
@@ -122,6 +112,35 @@ async function loadContextData(user) {
         ...(cloudSettings.accessibility || {})
     };
     const timeZone = clean(profile.timezone, 80) || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+
+    const result = {
+        timeZone,
+        notifications: { enabled: cloudSettings.notifications?.enabled !== false, browserEnabled: cloudSettings.notifications?.browserPush === true },
+        language: clean(accessibility.language, 20) || 'en',
+        displayName: clean(profile.displayName, 80) || clean(user.displayName, 80),
+        birthday: clean(profile.birthday, 20)
+    };
+    if (revision === cacheRevision && auth.currentUser?.uid === user.uid) {
+        cached = result;
+        cachedAt = now;
+        cachedUid = user.uid;
+    }
+    return refreshCachedProfile(result, user);
+}
+
+async function loadContextData(user) {
+    // Planner state can change in another workspace or tab. Read it for every
+    // request; only profile settings use the short cache.
+    const [profile, plansSnap] = await Promise.all([
+        loadProfileData(user),
+        getDocs(query(collection(db, 'study_plans'), where('userID', '==', user.uid)))
+    ]);
+    let latestPlan = null;
+    for (const snap of plansSnap.docs) {
+        const data = snap.data() || {};
+        const seconds = Number(data.createdAt?.seconds || 0);
+        if (!latestPlan || seconds > latestPlan.createdSeconds) latestPlan = { ...data, createdSeconds: seconds };
+    }
 
     const boards = normaliseBoards(latestPlan);
     const tasks = [];
@@ -169,15 +188,8 @@ async function loadContextData(user) {
         }))
         : [];
 
-    const birthday = clean(profile.birthday, 20);
     const result = {
-        timeZone,
-        notifications: { enabled: cloudSettings.notifications?.enabled !== false, browserEnabled: cloudSettings.notifications?.browserPush === true },
-        language: clean(accessibility.language, 20) || 'en',
-        displayName: clean(profile.displayName, 80) || clean(user.displayName, 80),
-        birthday,
-        age: calculateAge(birthday, now, timeZone),
-        now,
+        ...profile,
         tasks: tasks.slice(0, 120),
         tasksOmitted: Math.max(0, tasks.length - 120),
         scheduleEvents,
@@ -192,10 +204,7 @@ async function loadContextData(user) {
         }))
     };
 
-    cached = result;
-    cachedAt = now;
-    cachedUid = user.uid;
-    return refreshCachedProfile(result, user);
+    return result;
 }
 
 export async function getKairosContext() {
@@ -204,6 +213,7 @@ export async function getKairosContext() {
 
     try {
         const data = await loadContextData(user);
+        if (auth.currentUser?.uid !== user.uid) return '';
         const nowDate = new Date();
         const dateParts = Object.fromEntries(new Intl.DateTimeFormat('en-CA', {
             timeZone: data.timeZone, year: 'numeric', month: '2-digit', day: '2-digit'
@@ -216,7 +226,9 @@ export async function getKairosContext() {
             'User timezone: ' + data.timeZone,
             'Kairos language setting: ' + data.language,
             'Notification settings: '+JSON.stringify(data.notifications)+'. Browser permission is separate; saving a reminder does not grant it.',
-            'Current profile values override any older or conflicting profile values in conversation history, summaries, or memory.'
+            'Current profile values override any older or conflicting profile values in conversation history, summaries, or memory.',
+            'Current planner values override any older or conflicting task times, dates, completion states, or commitments in conversation history, summaries, or memory.',
+            'This is a current planner snapshot, not a change history. Use the times below even if an earlier assistant reply says the schedule is unchanged. Only describe a change when earlier values are available to compare. Otherwise report the current times and say you cannot verify what changed; never claim to have checked an audit log or records of modifications.'
         ];
 
         if (data.displayName) {
@@ -260,11 +272,12 @@ export async function getKairosContext() {
         return lines.join('\n');
     } catch (error) {
         console.warn('Kairos AI context unavailable:', error);
-        return '';
+        return 'Current planner data is unavailable. Do not use older schedule values from chat history or memory as the current schedule. Explain that the current schedule could not be loaded; do not claim it is unchanged or that you checked its records.';
     }
 }
 
 export function invalidateKairosContext() {
+    cacheRevision++;
     cached = null;
     cachedAt = 0;
     cachedUid = null;

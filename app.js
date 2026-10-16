@@ -2,7 +2,7 @@ import { showNotice, confirmDialog, promptDialog } from './ui-dialogs.js?v=1';
 import { aiFetch, aiErrorMessage } from './ai-client.js';
 import { requestBilling } from './billing-client.js';
 import { mountPlanUsage } from './plan-usage.js?v=3';
-import { createPageLoader } from './page-loader.js?v=30';
+import { createPageLoader } from './page-loader.js?v=31';
 import { mountPageRouter } from './page-router.js?v=2';
 import { createPageRenderCache } from './page-render-cache.js?v=1';
 import './boards-recurrence.js?v=10';
@@ -25,7 +25,7 @@ import {
     query, where, orderBy, limit, getDocs, updateDoc, deleteDoc
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { LANGUAGES, applyTranslations, getLocale, getLanguageName, t, ACHIEVEMENT_I18N } from './i18n.js';
-import { invalidateKairosContext } from './ai-context.js';
+import { invalidateKairosContext } from './ai-context.js?v=2';
 import { dueTaskReminders, reminderDeliveryStatus } from './task-reminders.js';
 import { deliverTaskReminder, saveNotificationEdits, escapeNotificationText } from './reminder-notifications.js';
 import { savePlannerEdits, persistTaskListCommand } from './plan-store.js';

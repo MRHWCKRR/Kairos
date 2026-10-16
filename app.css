@@ -1540,10 +1540,18 @@ body.cursor-spaceship, body.cursor-spaceship * { cursor: url('cursors/spaceship.
     display: flex;
     flex-direction: column;
     min-width: 0;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior-y: contain;
     background: color-mix(in srgb, var(--bg-card) 92%, var(--bg-main));
     border-right: 1px solid var(--border-subtle);
     transform: translateX(0);
     transition: width 0.28s cubic-bezier(.22,1,.36,1), flex-basis 0.28s cubic-bezier(.22,1,.36,1), transform 0.28s cubic-bezier(.22,1,.36,1), opacity 0.2s ease;
+}
+
+.ai-chat-sidebar > * {
+    flex-shrink: 0;
 }
 
 .ai-chat-sidebar-header {

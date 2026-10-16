@@ -90,3 +90,58 @@ test('archived board and section IDs are available for precise restoration in a 
   assert.equal(archived.sections[0].id,'archive-s');
   assert.equal(archived.sections[0].archived,true);
 });
+
+
+test('every chat request sees a schedule moved outside this chat within the cache lifetime',async()=>{
+  const {context,plan}=await fixture();
+  context.document={readyState:'loading',documentElement:{lang:'en'},addEventListener(){}};
+  context.aiConversationMessages=x=>x;
+  const source=await readFile(new URL('../ai-workspace.js',import.meta.url),'utf8');
+  vm.runInContext(source.replace(/^import[^\n]*\n/gm,''),context);
+  const chat={id:'chat-one',summary:'Revision starts at 13:00',messages:[{role:'assistant',content:'Your schedule has not changed.'}]};
+  assert.match((await context.apiMessages(chat))[0].content,/"startTime":"13:00"/);
+  Object.assign(plan.boards[0].sections[0].tasks[0],{startTime:'16:00',endTime:'18:00'});
+  plan.scheduleEvents[0].start='09:00';
+  const messages=await context.apiMessages(chat);
+  assert.match(messages[0].content,/"startTime":"16:00"/);
+  assert.match(messages[0].content,/"endTime":"18:00"/);
+  assert.match(messages[0].content,/"start":"09:00"/);
+  assert.match(messages[0].content,/Current planner values override.*conversation history/s);
+  assert.match(messages[0].content,/not a change history/);
+  assert.equal(chat.summary,'Revision starts at 13:00');
+});
+
+test('a pre-save context read cannot repopulate a stale planner cache after invalidation',async()=>{
+  const {context,plan}=await fixture();
+  let release;
+  const stale=structuredClone(plan);
+  context.getDocs=()=>new Promise(resolve=>{release=()=>resolve({docs:[{data:()=>stale}]})});
+  const pending=context.getKairosContext();
+  Object.assign(plan.boards[0].sections[0].tasks[0],{startTime:'17:00',endTime:'19:00'});
+  context.invalidateKairosContext();
+  release();await pending;
+  context.getDocs=async()=>({docs:[{data:()=>structuredClone(plan)}]});
+  assert.match(await context.getKairosContext(),/"startTime":"17:00"/);
+});
+
+test('a failed fresh planner read never falls back to the previous schedule',async()=>{
+  const {context}=await fixture();
+  assert.match(await context.getKairosContext(),/"startTime":"13:00"/);
+  const warnings=[];context.console={warn:(...args)=>warnings.push(args)};
+  context.getDocs=async()=>{throw new Error('Planner unavailable')};
+  const prompt=await context.getKairosContext();
+  assert.match(prompt,/Current planner data is unavailable/);
+  assert.match(prompt,/Do not use older schedule values/);
+  assert.doesNotMatch(prompt,/13:00/);
+  assert.equal(warnings.length,1);
+});
+
+test('an account switch during a planner read discards the previous account snapshot',async()=>{
+  const {context,plan}=await fixture();
+  let release;
+  context.getDocs=()=>new Promise(resolve=>{release=()=>resolve({docs:[{data:()=>structuredClone(plan)}]})});
+  const pending=context.getKairosContext();
+  context.auth.currentUser={uid:'two'};
+  release();
+  assert.equal(await pending,'');
+});
