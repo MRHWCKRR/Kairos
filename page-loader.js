@@ -43,10 +43,10 @@ export function createPageLoader({importModule=url=>import(url),loadStyle=loadPa
       }
       if(page==='schedule-page'&&scheduleEnabled) {
         await Promise.all(scheduleStyles.map(name=>loadStyle(name+(name==='schedule-day-change.css'?'?v=1':name==='schedule-interactions.css'?'?v=11':'?v=10'))));
-        await importModule('./schedule-workspace.js?v=11');
+        await importModule('./schedule-workspace.js?v=12');
         // These modules inspect the workspace during boot. Preserve that order
         // even when network responses arrive out of order.
-        for(const name of scheduleModules)await importModule('./'+name+(name==='schedule-interactions.js'?'?v=13':name==='schedule-responsive.js'||name==='schedule-ai.js'||name==='schedule-inspector.js'?'?v=11':'?v=10'));
+        for(const name of scheduleModules)await importModule('./'+name+(name==='schedule-interactions.js'?'?v=14':name==='schedule-ai.js'||name==='schedule-inspector.js'?'?v=12':'?v=11'));
       }
     })();
     loaded.set(page,task);

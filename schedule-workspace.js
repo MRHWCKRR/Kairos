@@ -22,6 +22,7 @@ export function initScheduleWorkspace(options){
   let clockTimer=null;
   let dirty=true;
   let renderedDate=null;
+  let inspectorSession=null,selectionRevision=0;
 
   const locale=()=>options.getLocale?.()||document.documentElement.lang||'en';
   const hour12=()=>options.getTimeFormat?.()!=='24';
@@ -164,6 +165,7 @@ export function initScheduleWorkspace(options){
   function updateNowLine(){const now=new Date(),key=toDateKey(now),top=(now.getHours()*60+now.getMinutes())/60*HOUR_HEIGHT;calendar.querySelectorAll('[data-now-date]').forEach(line=>{const active=line.dataset.nowDate===key;line.hidden=!active;if(active){line.style.top=`${top}px`;line.firstElementChild.textContent=formatClock(now.getHours()*60+now.getMinutes())}})}
 
   function renderInspector(){
+    if(inspectorSession?.preserve(state.selected))return;
     const {type,id}=state.selected;shell.classList.toggle('inspector-open',!!type);if(!type){inspector.hidden=true;inspector.innerHTML='';return}inspector.hidden=false;
     if(type==='occurrence'){
       inspector.innerHTML=`<div class="ks-inspector-head"><span>Recurring task</span><button type="button" data-close aria-label="Close inspector">×</button></div><div class="ks-inspector-body"><p>Loading occurrence…</p></div>`;
@@ -176,13 +178,20 @@ export function initScheduleWorkspace(options){
     inspector.querySelector('[data-close]')?.addEventListener('click',clearSelection);
   }
 
-  function selectItem(type,id){ state.selected={type,id}; state.inspectorOpen=true; renderBacklog(); renderCalendar(); renderInspector(); }
+  function changeSelection(next){
+    const apply=()=>{state.selected=next;state.inspectorOpen=!!next.type;renderBacklog();renderCalendar();renderInspector();return true};
+    const ticket=++selectionRevision;
+    if(!inspectorSession)return apply();
+    if(state.selected.type===next.type&&String(state.selected.id)===String(next.id))return true;
+    return inspectorSession.requestLeave().then(allowed=>allowed&&ticket===selectionRevision?apply():false);
+  }
+  function selectItem(type,id){return changeSelection({type,id})}
   function selectOccurrence(data){
     const occurrenceId=data.occurrenceId||data.id,seriesId=data.seriesId,occurrenceDate=data.occurrenceDate;
     const found=recurringOccurrences().find(item=>item.occurrenceId===occurrenceId);
-    state.selected={type:'occurrence',id:occurrenceId,seriesId,occurrenceId,occurrenceDate,isOverdue:!!found?.isOverdue};state.inspectorOpen=true;renderBacklog();renderCalendar();renderInspector();
+    return changeSelection({type:'occurrence',id:occurrenceId,seriesId,occurrenceId,occurrenceDate,isOverdue:!!found?.isOverdue});
   }
-  function clearSelection(){ state.selected={type:null,id:null};state.inspectorOpen=false;renderBacklog();renderCalendar();renderInspector(); }
+  function clearSelection(){return changeSelection({type:null,id:null})}
   function focusDateTime(dateKey,timeValue){
     const parts=String(dateKey||'').split('-').map(Number);if(parts.length!==3||parts.some(x=>!Number.isFinite(x)))return;const target=new Date(parts[0],parts[1]-1,parts[2],12);if(target.getFullYear()!==parts[0]||target.getMonth()!==parts[1]-1||target.getDate()!==parts[2])return;state.anchor=state.view==='three-day'?addDays(target,-1):target;const minutes=typeof timeValue==='number'?timeValue:parseTime(timeValue),targetMinutes=minutes===null?8*60:Math.max(0,Math.min(1439,minutes));render();requestAnimationFrame(()=>{const scroller=calendar.querySelector('.ks-timeline-scroll'),column=calendar.querySelector(`.ks-day-column[data-date="${CSS.escape(String(dateKey))}"]`);if(!scroller||!column)return;const top=Math.max(0,targetMinutes/60*HOUR_HEIGHT-scroller.clientHeight*.35),left=Math.max(0,64+column.offsetLeft+column.offsetWidth/2-scroller.clientWidth/2),reduced=window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;state.scrollTop=top;scroller.scrollTo({top,left,behavior:reduced?'auto':'smooth'})});
   }
@@ -193,9 +202,9 @@ export function initScheduleWorkspace(options){
   function destroy(){ if(clockTimer) clearInterval(clockTimer); }
 
   document.addEventListener('click',event=>{if(state.filterOpen&&!event.target.closest?.('.ks-filter-wrap')){state.filterOpen=false;renderToolbar()}},true);
-  document.addEventListener('keydown',e=>{if(e.key!=='Escape'||!root.classList.contains('active'))return;if(state.filterOpen){state.filterOpen=false;renderToolbar();return}clearSelection()});
+  document.addEventListener('keydown',e=>{if(e.defaultPrevented||e.isComposing||e.key!=='Escape'||!root.classList.contains('active')||document.querySelector('dialog[open]'))return;if(state.filterOpen){state.filterOpen=false;renderToolbar();return}void clearSelection()});
   clockTimer=setInterval(()=>{if(root.classList.contains('active'))activate();},60000);render();
-  return {render,activate,invalidate,destroy,state,selectItem,selectOccurrence,clearSelection,focusDateTime};
+  return {render,activate,invalidate,destroy,state,selectItem,selectOccurrence,clearSelection,focusDateTime,setInspectorSession(session){inspectorSession=session},get inspectorSession(){return inspectorSession}};
 }
 
 function boot(){

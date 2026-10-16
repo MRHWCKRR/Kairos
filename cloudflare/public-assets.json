@@ -1,5 +1,6 @@
 {
   "files": [
+    "schedule-inspector-session.js",
     "task-checklist-editor.js",
     "ui-context-menu.js",
     "task-section-actions.js",

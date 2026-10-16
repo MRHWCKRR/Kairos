@@ -24,7 +24,9 @@ function closeCreator(){
   shell?.classList.remove('inspector-open');
 }
 
-function openCreator(){
+async function openCreator(){
+  const actor=[bridge()?.getOwnerId?.(),bridge()?.getPlanId?.()];
+  if(!await (workspace()?.inspectorSession?.requestLeave()??true)||JSON.stringify(actor)!==JSON.stringify([bridge()?.getOwnerId?.(),bridge()?.getPlanId?.()]))return;
   const inspector=document.getElementById('schedule-inspector'),shell=document.querySelector('.schedule-workspace-shell');if(!inspector)return;
   const boards=activeBoards(),firstBoard=boards[0]||null,firstSection=activeSections(firstBoard)[0]||null;
   if(workspace()?.state)workspace().state.selected={type:null,id:null};
