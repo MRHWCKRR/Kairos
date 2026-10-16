@@ -1,0 +1,40 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import vm from 'node:vm';
+import {readFile} from 'node:fs/promises';
+
+async function fixture(){
+ const app=await readFile(new URL('../app.js',import.meta.url),'utf8'),source=app.slice(app.indexOf('    async function checkTaskReminders()'),app.indexOf('    window.__kairosTaskReminders ='));
+ const calls=[],shown=[],waiting=[];
+ const delivery=async(planId,uid,candidate)=>{calls.push({planId,uid,id:candidate.id});return new Promise((resolve,reject)=>waiting.push({resolve,reject}))};
+ const context=vm.createContext({auth:{currentUser:{uid:'one'}},currentPlanDocId:'first',boardsData:[],scheduleData:[],userSettings:{profile:{timezone:'Australia/Brisbane'},notifications:{enabled:true,bedtimeReminders:true}},taskReminderChecking:false,taskReminderQueued:false,Date,Intl,console:{warn(){}},dueTaskReminders:()=>[{id:'t'},{id:'u'}],dueBedtimeReminders:()=>[{id:'sleep'}],deliverTaskReminder:(...args)=>delivery(...args),deliverBedtimeReminder:(...args)=>delivery(...args),showBrowserNotification:(title,message)=>shown.push({title,message})});
+ vm.runInContext(source,context);return {context,calls,shown,waiting};
+}
+const tick=()=>new Promise(resolve=>setTimeout(resolve,0));
+
+test('a late delivery cannot notify or continue scanning the previous planner',async()=>{
+ const f=await fixture(),checking=f.context.checkTaskReminders();await tick();f.context.currentPlanDocId='second';f.waiting[0].resolve({delivered:true,title:'Old planner'});await tick();assert.equal(f.shown.length,0);assert.equal(f.calls.length,1);await checking;
+});
+
+test('checks requested during a pending delivery are coalesced and run for the current planner',async()=>{
+ const f=await fixture(),checking=f.context.checkTaskReminders();await tick();f.context.currentPlanDocId='second';await f.context.checkTaskReminders();f.waiting[0].resolve({delivered:false});await tick();assert.equal(f.calls[1]?.planId,'second');await checking;
+ // Stop the queued scan without leaving pending work behind.
+ f.context.auth.currentUser=null;f.waiting[1].resolve({delivered:false});await tick();
+});
+
+test('the reminder runner includes bedtime checks and respects the bedtime setting',async()=>{
+ for(const enabled of [true,false]){const f=await fixture();f.context.userSettings.notifications.bedtimeReminders=enabled;const checking=f.context.checkTaskReminders();await tick();f.waiting[0].resolve({delivered:false});await tick();f.waiting[1].resolve({delivered:false});await tick();assert.equal(f.calls.length,enabled?3:2);if(enabled){assert.equal(f.calls[2].id,'sleep');f.waiting[2].resolve({delivered:false})}await checking;}
+});
+
+test('saving a plan checks reminders immediately after persistence, with no check on failure',async()=>{
+ const app=await readFile(new URL('../app.js',import.meta.url),'utf8'),source=app.slice(app.indexOf('    async function updatePlanInFirestore()'),app.indexOf('    async function loadLatestPlanFromFirestore('));
+ for(const fail of [false,true]){
+  let resolveSave,rejectSave,checks=0;const stored=new Promise((resolve,reject)=>{resolveSave=resolve;rejectSave=reject});
+  const context=vm.createContext({auth:{currentUser:{uid:'one'}},currentPlanDocId:'plan',planEditRevision:0,planSaveQueue:Promise.resolve(),planSnapshot:{},boardsData:[],dayInsights:{},scheduleData:[],planState:value=>value,savePlannerEdits:()=>stored,mergePlanEdits:(_base,_local,saved)=>saved,invalidateKairosContext(){},renderApp(){},showNotice(){},console:{error(){}},window:{__kairosTaskReminders:{check:()=>{checks++}}}});
+  vm.runInContext(source,context);const saving=context.updatePlanInFirestore();await tick();assert.equal(checks,0);if(fail)rejectSave(Error('Offline'));else resolveSave({boards:[],dayInsights:{},scheduleEvents:[]});await saving;assert.equal(checks,fail?0:1);
+ }
+});
+
+test('disabling bedtime reminders during delivery suppresses its late browser popup',async()=>{
+ const f=await fixture();f.context.dueTaskReminders=()=>[];const checking=f.context.checkTaskReminders();await tick();assert.equal(f.calls[0].id,'sleep');f.context.userSettings.notifications.bedtimeReminders=false;f.waiting[0].resolve({delivered:true,title:'Bedtime coming up'});await checking;assert.equal(f.shown.length,0);
+});

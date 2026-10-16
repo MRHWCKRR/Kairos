@@ -26,8 +26,8 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { LANGUAGES, applyTranslations, getLocale, getLanguageName, t, ACHIEVEMENT_I18N } from './i18n.js';
 import { invalidateKairosContext } from './ai-context.js?v=3';
-import { dueTaskReminders, reminderDeliveryStatus } from './task-reminders.js';
-import { deliverTaskReminder, saveNotificationEdits, escapeNotificationText } from './reminder-notifications.js';
+import { dueTaskReminders, dueBedtimeReminders, reminderDeliveryStatus } from './task-reminders.js?v=2';
+import { deliverTaskReminder, deliverBedtimeReminder, saveNotificationEdits, escapeNotificationText } from './reminder-notifications.js?v=2';
 import { savePlannerEdits, persistTaskListCommand } from './plan-store.js';
 import { resolveTaskDetail, taskListSection } from './task-list-model.js';
 import { mergePlanEdits, planState } from './plan-merge.js';
@@ -380,7 +380,7 @@ function bootApp() {
 
     // --- Notifications state ---
     let notificationsData = [];
-    let notificationsSnapshot = [], notificationsOwner = null, taskReminderChecking = false;
+    let notificationsSnapshot = [], notificationsOwner = null, taskReminderChecking = false, taskReminderQueued = false;
     let unsubscribeNotifications = null;
 
     let pendingInitialLoads = 0;
@@ -398,7 +398,6 @@ function bootApp() {
     // --- Schedule state ---
     let scheduleData = [];
     let editingScheduleEventId = null;
-    const BEDTIME_REMINDER_LEAD_MINUTES = 15;
 
     // --- Achievements / Focus Timer / Statistics state ---
     let achievementsData = defaultAchievementsData();
@@ -566,7 +565,7 @@ function bootApp() {
             const rebased=mergePlanEdits(before,live,saved);
             boardsData=rebased.boards;dayInsights=rebased.dayInsights;scheduleData=rebased.scheduleEvents;
             invalidateKairosContext({ownerId:user.uid,planId:identity.planId,before:planSnapshot,after:saved});planSnapshot=saved;
-            renderApp();return result;
+            renderApp();void window.__kairosTaskReminders?.check();return result;
         });
         planSaveQueue=work;
         return work;
@@ -1273,6 +1272,7 @@ function bootApp() {
             currentPlanDocId = planId;
             window.__kairosScheduleWorkspace?.invalidate();
             if (remoteChanges) renderApp();
+            void window.__kairosTaskReminders?.check();
             return true;
         });
         planSaveQueue = work;
@@ -2556,7 +2556,7 @@ function bootApp() {
             if (auth.currentUser) localStorage.setItem('kairos_settings_cache_uid', auth.currentUser.uid);
             applyAllSettings();
             const settingsSaved = await saveUserSettingsToFirestore();
-            if (settingsSaved) invalidateKairosContext();
+            if (settingsSaved) { invalidateKairosContext(); void window.__kairosTaskReminders?.check(); }
 
             const user = auth.currentUser;
             if (user) renderUserProfileMenu(user);
@@ -3395,17 +3395,29 @@ function bootApp() {
 
     async function checkTaskReminders() {
         const user = auth.currentUser, planId = currentPlanDocId;
-        if (!user || !planId || !userSettings.notifications.enabled || taskReminderChecking) return;
+        if (!user || !planId || !userSettings.notifications.enabled) return;
+        if (taskReminderChecking) { taskReminderQueued = true; return; }
         taskReminderChecking = true;
+        const current = () => auth.currentUser?.uid === user.uid && currentPlanDocId === planId && userSettings.notifications.enabled;
         const zone = userSettings.profile.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
         try {
-            for (const reminder of dueTaskReminders(boardsData, Date.now(), zone)) {
-                if (auth.currentUser?.uid !== user.uid) break;
-                const result = await deliverTaskReminder(planId, user.uid, reminder, { timeZone: zone });
-                if (result.delivered && auth.currentUser?.uid === user.uid) showBrowserNotification(result.title, result.message);
+            const now = Date.now();
+            const candidates = dueTaskReminders(boardsData, now, zone).map(candidate => ({candidate, deliver:deliverTaskReminder}));
+            if (userSettings.notifications.bedtimeReminders !== false) candidates.push(...dueBedtimeReminders(scheduleData, now, zone).map(candidate => ({candidate, deliver:deliverBedtimeReminder})));
+            for (const {candidate,deliver} of candidates) {
+                if (!current()) break;
+                const enabled = () => deliver !== deliverBedtimeReminder || userSettings.notifications.bedtimeReminders !== false;
+                if (!enabled()) continue;
+                try {
+                    const result = await deliver(planId, user.uid, candidate, {timeZone:zone});
+                    if (result.delivered && current() && enabled()) showBrowserNotification(result.title, result.message);
+                } catch (error) { console.warn('Reminder delivery will retry:', error); }
             }
-        } catch (error) { console.warn('Task reminder delivery will retry:', error); }
-        finally { taskReminderChecking = false; }
+        } catch (error) { console.warn('Reminder check will retry:', error); }
+        finally {
+            taskReminderChecking = false;
+            if (taskReminderQueued) { taskReminderQueued = false; void checkTaskReminders(); }
+        }
     }
 
     window.__kairosTaskReminders = {
@@ -3413,54 +3425,7 @@ function bootApp() {
         status: () => reminderDeliveryStatus(userSettings.notifications, typeof Notification === 'undefined' ? 'unsupported' : Notification.permission)
     };
 
-    function checkPlanReminders() { checkBedtimeReminders(); void checkTaskReminders(); }
-
-    function getBedtimeReminderStorageKey() {
-        return 'kairos_bedtime_fired';
-    }
-
-    function hasFiredBedtimeReminderToday(eventId) {
-        try {
-            const fired = JSON.parse(localStorage.getItem(getBedtimeReminderStorageKey()) || '{}');
-            return fired[eventId] === toDateKey(new Date());
-        } catch (e) {
-            return false;
-        }
-    }
-
-    function markBedtimeReminderFired(eventId) {
-        try {
-            const fired = JSON.parse(localStorage.getItem(getBedtimeReminderStorageKey()) || '{}');
-            fired[eventId] = toDateKey(new Date());
-            localStorage.setItem(getBedtimeReminderStorageKey(), JSON.stringify(fired));
-        } catch (e) { /* non-critical, skip silently */ }
-    }
-
-    function checkBedtimeReminders() {
-        if (!userSettings.notifications.enabled || !userSettings.notifications.bedtimeReminders) return;
-        if (!scheduleData.length) return;
-
-        const now = new Date();
-        const currentDay = now.getDay();
-        const currentMinutes = now.getHours() * 60 + now.getMinutes();
-
-        scheduleData
-            .filter(ev => ev.category === 'sleep')
-            .forEach(ev => {
-                if (ev.day !== currentDay) return;
-
-                const startMin = scheduleTimeToMinutes(ev.start);
-                const reminderMin = startMin - BEDTIME_REMINDER_LEAD_MINUTES;
-                if (reminderMin < 0) return;
-
-                if (currentMinutes === reminderMin && !hasFiredBedtimeReminderToday(ev.id)) {
-                    const title = '🛌 Bedtime coming up';
-                    const message = `"${ev.title}" starts at ${scheduleMinutesToLabel(startMin)} — start winding down.`;
-                    pushNotification(title, message);
-                    markBedtimeReminderFired(ev.id);
-                }
-            });
-    }
+    function checkPlanReminders() { void checkTaskReminders(); }
 
     // --- 15 Achievements Engine ---
 
