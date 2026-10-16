@@ -170,3 +170,10 @@ test('a deleted inline section falls back to an explicit recovery view',async()=
   f.workspace.replaceOverview('');f.workspace.decorateOverview();
   assert.equal(f.workspace.isFocused(),true);assert.match(f.root.querySelector('[data-section-state]').textContent,/available/i);assert.equal(f.root.querySelector('[data-quick-title]').disabled,true);
 });
+
+test('opening capture reveals an offscreen input without scrolling a visible one',async()=>{
+  const f=await fixture(),input=f.root.querySelector('[data-quick-title]');let top=900,calls=0;
+  f.window.innerHeight=768;f.scroll.getBoundingClientRect=()=>({top:0,bottom:768});input.getBoundingClientRect=()=>({top,bottom:top+44});f.root.querySelector('form').getBoundingClientRect=()=>({top,bottom:top+160});input.scrollIntoView=options=>{assert.equal(options.block,'nearest');calls++};
+  await f.workspace.addTask({boardId:'b',sectionId:'s'});assert.equal(calls,1);top=200;
+  await f.workspace.addTask({boardId:'b',sectionId:'s'});assert.equal(calls,1);
+});

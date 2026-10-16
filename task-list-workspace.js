@@ -162,7 +162,10 @@ export function mountTaskListWorkspace({root,overview,scrollElement=root.closest
         sync();if(!current||inline){scrollBack=scrollElement.scrollTop;opener=source;returnTarget={...target,add:source?.matches('.add-task-btn')===true}}
         if(inline&&!capture){surface.appendChild(form);form.classList.remove('task-quick-inline')}
         current={...target};inline=capture;
-        if(capture){preference(target).collapsed=false;rememberView();surface.hidden=true;overview.hidden=false;decorateOverview();render();input.focus?.({preventScroll:true});return true}
+        if(capture){preference(target).collapsed=false;rememberView();surface.hidden=true;overview.hidden=false;decorateOverview();render();input.focus?.({preventScroll:true});
+            const box=form.getBoundingClientRect?.()||input.getBoundingClientRect?.(),bounds=scrollElement.getBoundingClientRect?.(),top=Math.max(0,bounds?.top||0),bottom=Math.min(window.innerHeight??Infinity,bounds?.bottom??Infinity);
+            if(box&&(box.top<top||box.bottom>bottom))(form.scrollIntoView?form:input).scrollIntoView?.({block:'nearest',behavior:'instant'});
+            return true}
         render();scrollElement.scrollTop=0;find('[data-section-heading]').focus?.({preventScroll:true});return true;
     }
     async function back(){
