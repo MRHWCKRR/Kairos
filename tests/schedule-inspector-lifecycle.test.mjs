@@ -9,7 +9,7 @@ import * as recurrenceUi from '../schedule-recurrence-ui.js';
 
 const tick=()=>new Promise(resolve=>setTimeout(resolve,0));
 let cleanup=()=>{};
-async function fixture({recurring=false}={}){
+async function fixture({recurring=false,storage=new Map()}={}){
  cleanup();const observers=[];
  const {document,window}=parseHTML('<html><body><section id="schedule-page" class="active"><div id="schedule-toolbar"></div><div class="schedule-workspace-shell"><aside id="schedule-backlog"></aside><div id="schedule-calendar"></div><aside id="schedule-inspector" hidden></aside></div><div id="schedule-ai-review"></div></section></body></html>');
  Object.defineProperty(document,'readyState',{value:'loading'});
@@ -20,9 +20,11 @@ async function fixture({recurring=false}={}){
  const date=utils.toDateKey(new Date()),task={id:'t',title:'Revision',date,startTime:'10:00',endTime:'11:00'},other={id:'u',title:'Other',date,startTime:'12:00',endTime:'13:00'},boards=[{id:'b',title:'Study',sections:[{id:'s',title:'Tasks',tasks:[task,other]}]}];
  if(recurring)task.recurrence=recurrence.normalizeRecurrence({enabled:true,frequency:'daily',interval:1,startDate:date,mode:'fixed'});
  boards[0].sections.push({id:'dest',title:'Destination',tasks:[]});
+ boards.push({id:'other-board',title:'Other board',sections:[{id:'other-section',title:'Other section',tasks:[]}]});
  let owner='one',plan='plan',saves=[];
  const bridge={getBoards:()=>boards,getOwnerId:()=>owner,getPlanId:()=>plan,getTimeFormat:()=> '24',getScheduleEvents:()=>[],persistPlan:()=>new Promise((resolve,reject)=>saves.push({resolve,reject})),refreshAppViews(){}};
  window.__kairosScheduleBridge=bridge;window.__kairosScheduleInspectorBooted=false;window.__kairosScheduleWorkspace=null;
+ window.sessionStorage={getItem:key=>storage.get(key)||null,setItem:(key,value)=>storage.set(key,value),removeItem:key=>storage.delete(key)};
  let sessionModule={};try{sessionModule=await import('../schedule-inspector-session.js')}catch(error){if(error.code!=='ERR_MODULE_NOT_FOUND')throw error}
  // linkedom reports class mutations despite attributeFilter. Flush enhancement
  // explicitly below; actual MutationObserver timing is covered in Chrome QA.
@@ -40,7 +42,7 @@ async function fixture({recurring=false}={}){
  const field=name=>document.querySelector('#schedule-inspector [name="'+name+'"]');
  const type=(name,value)=>{const el=field(name);el.value=value;el.dispatchEvent(new window.Event('input',{bubbles:true}))};
  const submit=()=>document.querySelector('#schedule-inspector form').dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true}));
- return {document,window,ws,task,other,boards,saves,field,type,submit,selectTask,setOwner:v=>owner=v,setPlan:v=>plan=v};
+ return {document,window,ws,task,other,boards,saves,field,type,submit,selectTask,storage,setOwner:v=>owner=v,setPlan:v=>plan=v};
 }
 
 test('Schedule permits only one inspector save while persistence is pending',async()=>{
@@ -129,4 +131,9 @@ test('ordinary save recovery preserves newer unrelated changes on the same task'
 
 test('blank title keeps the task title while other edits save normally',async()=>{
  const f=await fixture();f.type('title','   ');f.type('notes','Keep these notes');f.submit();await tick();assert.equal(f.saves.length,1);f.saves[0].resolve();await tick();assert.equal(f.task.title,'Revision');assert.equal(f.task.notes,'Keep these notes');
+});
+
+test('recovered move fields rebuild sections for the restored destination board',async()=>{
+ const first=await fixture();first.type('title','Recover draft');first.field('board').value='other-board';first.field('board').dispatchEvent(new first.window.Event('change',{bubbles:true}));first.field('section').value='other-section';first.field('section').dispatchEvent(new first.window.Event('change',{bubbles:true}));
+ const next=await fixture({storage:first.storage});assert.equal(next.field('board').value,'other-board');assert.equal(next.field('section').value,'other-section');
 });

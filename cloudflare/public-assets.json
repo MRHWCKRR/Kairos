@@ -1,5 +1,6 @@
 {
   "files": [
+    "settings-recovery.js",
     "schedule-inspector-session.js",
     "task-checklist-editor.js",
     "ui-context-menu.js",

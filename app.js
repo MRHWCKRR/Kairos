@@ -2,7 +2,7 @@ import { showNotice, confirmDialog, promptDialog } from './ui-dialogs.js?v=1';
 import { aiFetch, aiErrorMessage } from './ai-client.js';
 import { requestBilling } from './billing-client.js';
 import { mountPlanUsage } from './plan-usage.js?v=3';
-import { createPageLoader } from './page-loader.js?v=37';
+import { createPageLoader } from './page-loader.js?v=38';
 import { mountPageRouter } from './page-router.js?v=2';
 import { createPageRenderCache } from './page-render-cache.js?v=1';
 import './boards-recurrence.js?v=10';
@@ -22,7 +22,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import {
     doc, setDoc, getDoc, onSnapshot, collection, addDoc, serverTimestamp,
-    query, where, orderBy, limit, getDocs, updateDoc, deleteDoc
+    query, where, orderBy, limit, getDocs, updateDoc, deleteDoc, runTransaction
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { LANGUAGES, applyTranslations, getLocale, getLanguageName, t, ACHIEVEMENT_I18N } from './i18n.js';
 import { invalidateKairosContext } from './ai-context.js?v=3';
@@ -31,6 +31,7 @@ import { deliverTaskReminder, deliverBedtimeReminder, saveNotificationEdits, esc
 import { savePlannerEdits, persistTaskListCommand } from './plan-store.js';
 import { resolveTaskDetail, taskListSection } from './task-list-model.js';
 import { mergePlanEdits, planState } from './plan-merge.js';
+import {createSettingsRecovery,overlaySettingsEdits} from './settings-recovery.js?v=1';
 console.log("APP.js is loaded and running");
 
 // ===========================================================
@@ -376,6 +377,8 @@ function bootApp() {
         if (cached && auth.currentUser?.uid === localStorage.getItem('kairos_settings_cache_uid')) userSettings = deepMerge(defaultSettings(), cached);
     } catch (e) { /* ignore malformed cache */ }
     let pendingSettings = cloneDeep(userSettings);
+    const settingsRecovery=createSettingsRecovery();
+    let settingsCloudSnapshot=cloneDeep(userSettings),settingsPendingRecord=null,settingsSaveTicket=null,settingsLoadRevision=0;
     let confettiEnabled = userSettings.appearance.confetti;
 
     // --- Notifications state ---
@@ -2002,52 +2005,37 @@ function bootApp() {
         });
     }
 
-    async function loadUserSettingsFromFirestore(user) {
-        userSettings = defaultSettings();
-        try {
-            if (localStorage.getItem('kairos_settings_cache_uid') === user.uid) {
-                userSettings = deepMerge(defaultSettings(), JSON.parse(localStorage.getItem('kairos_settings_cache') || '{}'));
-            }
-        } catch { /* Ignore malformed local settings. */ }
-        try {
-            const ref = doc(db, 'users', user.uid);
-            const snap = await getDoc(ref);
-            if (snap.exists() && snap.data().settings) {
-                userSettings = deepMerge(defaultSettings(), snap.data().settings);
-            }
-        } catch (error) {
-            console.error('Error loading user settings:', error);
-        }
-        pendingSettings = cloneDeep(userSettings);
-        localStorage.setItem('kairos_settings_cache', JSON.stringify(userSettings));
-        localStorage.setItem('kairos_settings_cache_uid', user.uid);
-        invalidateKairosContext();
-        applyAllSettings();
-        populateSettingsForm();
-        document.dispatchEvent(new Event('kairos-controls-refresh'));
-        renderUserProfileMenu(user);        setupNotificationBell();
-        markInitialLoadComplete();
+    function cacheAppliedSettings(owner,settings) {
+        try { localStorage.setItem('kairos_settings_cache',JSON.stringify(settings));localStorage.setItem('kairos_settings_cache_uid',owner); } catch { /* Recovery status reports storage failures separately. */ }
     }
 
-    async function saveUserSettingsToFirestore() {
-        const user = auth.currentUser;
-        if (!user) return true;
-        try {
-            const ref = doc(db, 'users', user.uid);
-            await setDoc(ref, { settings: userSettings }, { merge: true });
-            return true;
-        } catch (error) {
-            console.error('Error saving user settings:', error);
+    async function loadUserSettingsFromFirestore(user) {
+        const revision=++settingsLoadRevision;
+        let loaded=defaultSettings(),cloudConfirmed=false;
+        try { if(localStorage.getItem('kairos_settings_cache_uid')===user.uid)loaded=deepMerge(defaultSettings(),JSON.parse(localStorage.getItem('kairos_settings_cache')||'{}')); } catch {}
+        try { const snap=await getDoc(doc(db,'users',user.uid));loaded=deepMerge(defaultSettings(),snap.exists()?snap.data().settings||{}:{});cloudConfirmed=!snap.metadata?.fromCache&&!snap.metadata?.hasPendingWrites; }
+        catch(error){console.error('Error loading user settings:',error);}
+        if(auth.currentUser?.uid!==user.uid||revision!==settingsLoadRevision){markInitialLoadComplete();return;}
+        if(!cloudConfirmed){const staged=settingsRecovery.read(user.uid);if(staged)loaded=deepMerge(defaultSettings(),staged.base);}
+        settingsCloudSnapshot=cloneDeep(loaded);
+        const recovered=settingsRecovery.restore(user.uid,loaded,{confirmed:cloudConfirmed});settingsPendingRecord=recovered.pending;
+        userSettings=cloneDeep(recovered.settings);pendingSettings=cloneDeep(userSettings);cacheAppliedSettings(user.uid,userSettings);
+        invalidateKairosContext();applyAllSettings();populateSettingsForm();updateSaveBarVisibility();
+        document.dispatchEvent(new Event('kairos-controls-refresh'));renderUserProfileMenu(user);setupNotificationBell();markInitialLoadComplete();
+    }
 
-            const code = error?.code || '';
-            let hint = 'Could not sync your settings to the cloud, but they are saved locally on this device.';
-            if (code.includes('permission-denied')) {
-                hint = 'Could not sync to the cloud: permission denied. Your Firestore security rules likely don\'t allow writes to the "users" collection yet. Your settings are saved locally on this device for now.';
-            } else if (code.includes('invalid-argument') || code.includes('resource-exhausted') || /longer than/i.test(error?.message || '')) {
-                hint = 'Could not sync to the cloud: your profile picture or background image is too large for cloud storage. Try removing/re-uploading a smaller image. Your settings are saved locally on this device for now.';
-            }
-            showNotice(hint);
-            return false;
+    async function saveUserSettingsToFirestore(settings,base,record) {
+        const owner=record.ownerId;if(auth.currentUser?.uid!==owner)return false;
+        try {
+            const defaults=defaultSettings(),ref=doc(db,'users',owner);
+            const saved=await runTransaction(db,async transaction=>{
+                const snapshot=await transaction.get(ref),remote=deepMerge(defaults,snapshot.exists()?snapshot.data().settings||{}:{});
+                const next=overlaySettingsEdits(base,settings,remote);transaction.set(ref,{settings:next},{merge:true});return next;
+            });
+            return auth.currentUser?.uid===owner?saved:false;
+        } catch(error) {
+            if(auth.currentUser?.uid===owner)showNotice(record.persisted?'Could not sync your settings. Your changes are saved on this device; use Retry save when you are ready.':'Could not sync or store these settings locally. Keep this tab open and retry saving.');
+            console.error('Error saving user settings:',error);return false;
         }
     }
 
@@ -2115,7 +2103,7 @@ function bootApp() {
     }
 
     function enterSettingsPage() {
-        pendingSettings = cloneDeep(userSettings);
+        pendingSettings = cloneDeep(settingsPendingRecord?.ownerId===auth.currentUser?.uid?settingsPendingRecord.settings:userSettings);
         populateSettingsForm();
         document.dispatchEvent(new Event('kairos-controls-refresh'));
         updateSaveBarVisibility(false);
@@ -2244,14 +2232,20 @@ function bootApp() {
     }
 
     function checkDirty() {
+        const owner=auth.currentUser?.uid;
+        if(owner&&settingsPendingRecord?.ownerId===owner)settingsPendingRecord=settingsRecovery.stage(owner,settingsCloudSnapshot,pendingSettings);
         updateSaveBarVisibility();
     }
 
     function updateSaveBarVisibility(forceState) {
-        const bar = document.getElementById('settings-save-bar');
-        if (!bar) return;
-        const dirty = forceState !== undefined ? forceState : (JSON.stringify(pendingSettings) !== JSON.stringify(userSettings));
-        bar.classList.toggle('active', dirty);
+        const bar=document.getElementById('settings-save-bar');if(!bar)return;
+        const owner=auth.currentUser?.uid,pending=settingsPendingRecord?.ownerId===owner?settingsPendingRecord:null,saving=settingsSaveTicket?.ownerId===owner;
+        const dirty=!!pending||(forceState!==undefined?forceState:JSON.stringify(pendingSettings)!==JSON.stringify(userSettings));
+        bar.classList.toggle('active',dirty||saving);
+        const status=bar.querySelector('span');if(status){status.setAttribute('role','status');status.setAttribute('aria-live','polite');status.textContent=saving?'Saving changes…':pending?(pending.persisted?'Saved on this device. Cloud sync pending.':'Not synced or stored locally. Keep this tab open and retry.'):tr('unsaved_changes');if(pending||saving)status.removeAttribute('data-i18n');else status.dataset.i18n='unsaved_changes';}
+        const save=document.getElementById('settings-save-btn'),cancel=document.getElementById('settings-cancel-btn');
+        if(save){save.disabled=!!saving;save.textContent=saving?tr('saving_ellipsis'):pending?'Retry save':tr('save_changes');if(pending||saving)save.removeAttribute('data-i18n');else save.dataset.i18n='save_changes';}
+        if(cancel){cancel.disabled=!!saving;cancel.textContent=pending?'Discard local changes':tr('cancel');if(pending)cancel.removeAttribute('data-i18n');else cancel.dataset.i18n='cancel';}
     }
 
     function renderConfigOptions() {
@@ -2545,38 +2539,38 @@ function bootApp() {
 
     // Save / Cancel bar
     const settingsSaveBtn = document.getElementById('settings-save-btn');
-    if (settingsSaveBtn) {
-        settingsSaveBtn.addEventListener('click', async () => {
-            settingsSaveBtn.textContent = tr('saving_ellipsis');
-            settingsSaveBtn.disabled = true;
-
-            userSettings = cloneDeep(pendingSettings);
-            if (userSettings.appearance.mode === 'light') triggerMiscAchievement('light_mode');
-            localStorage.setItem('kairos_settings_cache', JSON.stringify(userSettings));
-            if (auth.currentUser) localStorage.setItem('kairos_settings_cache_uid', auth.currentUser.uid);
-            applyAllSettings();
-            const settingsSaved = await saveUserSettingsToFirestore();
-            if (settingsSaved) { invalidateKairosContext(); void window.__kairosTaskReminders?.check(); }
-
-            const user = auth.currentUser;
-            if (user) renderUserProfileMenu(user);
-
-            updateSaveBarVisibility(false);
-            settingsSaveBtn.textContent = tr('save_changes');
-            settingsSaveBtn.disabled = false;
-        });
-    }
+    if(settingsSaveBtn)settingsSaveBtn.addEventListener('click',async()=>{
+        const owner=auth.currentUser?.uid;if(!owner||settingsSaveTicket?.ownerId===owner)return;
+        const submitted=cloneDeep(pendingSettings),base=cloneDeep(settingsCloudSnapshot),ticket={ownerId:owner};
+        settingsSaveTicket=ticket;settingsLoadRevision++;
+        const record=settingsRecovery.stage(owner,base,submitted);settingsPendingRecord=record;
+        userSettings=cloneDeep(submitted);cacheAppliedSettings(owner,userSettings);applyAllSettings();updateSaveBarVisibility();
+        try{
+            const saved=await saveUserSettingsToFirestore(submitted,base,record);
+            if(auth.currentUser?.uid!==owner||settingsSaveTicket!==ticket)return;
+            if(saved){
+                settingsRecovery.clear(owner,record);settingsCloudSnapshot=cloneDeep(saved);
+                pendingSettings=overlaySettingsEdits(submitted,pendingSettings,saved);userSettings=cloneDeep(saved);settingsPendingRecord=null;
+                if(JSON.stringify(pendingSettings)!==JSON.stringify(saved))settingsPendingRecord=settingsRecovery.stage(owner,saved,pendingSettings);
+                cacheAppliedSettings(owner,settingsPendingRecord?pendingSettings:userSettings);applyAllSettings();populateSettingsForm();
+                if(JSON.stringify(pendingSettings)!==JSON.stringify(userSettings))previewLive();
+                if(userSettings.appearance.mode==='light')triggerMiscAchievement('light_mode');
+                invalidateKairosContext();void window.__kairosTaskReminders?.check();
+            }else{
+                settingsPendingRecord=settingsRecovery.stage(owner,settingsCloudSnapshot,pendingSettings);cacheAppliedSettings(owner,pendingSettings);
+            }
+            renderUserProfileMenu(auth.currentUser);
+        }finally{
+            if(settingsSaveTicket===ticket){settingsSaveTicket=null;if(auth.currentUser?.uid===owner)updateSaveBarVisibility();}
+        }
+    });
 
     const settingsCancelBtn = document.getElementById('settings-cancel-btn');
-    if (settingsCancelBtn) {
-        settingsCancelBtn.addEventListener('click', () => {
-            pendingSettings = cloneDeep(userSettings);
-            applyAllSettings();
-            populateSettingsForm();
-        document.dispatchEvent(new Event('kairos-controls-refresh'));
-            updateSaveBarVisibility(false);
-        });
-    }
+    if(settingsCancelBtn)settingsCancelBtn.addEventListener('click',()=>{
+        const owner=auth.currentUser?.uid;if(settingsSaveTicket?.ownerId===owner)return;
+        if(settingsPendingRecord?.ownerId===owner){settingsRecovery.clear(owner,settingsPendingRecord);settingsPendingRecord=null;userSettings=cloneDeep(settingsCloudSnapshot);cacheAppliedSettings(owner,userSettings);}
+        pendingSettings=cloneDeep(userSettings);applyAllSettings();populateSettingsForm();document.dispatchEvent(new Event('kairos-controls-refresh'));updateSaveBarVisibility(false);
+    });
 
     // Settings tab switching
     const settingsTabs = document.querySelectorAll('.settings-tab');
@@ -2775,6 +2769,7 @@ function bootApp() {
                 try { sessionStorage.setItem(accountDeletionPendingKey, '1'); } catch (e) {}
                 await deleteUser(user);
 
+                settingsRecovery.clear(user.uid);
                 localStorage.removeItem('kairos_settings_cache');
                 localStorage.removeItem('kairos_settings_cache_uid');
                 localStorage.removeItem('kairos_bedtime_fired');
