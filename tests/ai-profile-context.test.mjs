@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import vm from 'node:vm';
 import {ACTION_INSTRUCTIONS} from '../ai-action-schema.js';
+import {createSettingsRecovery} from '../settings-recovery.js';
 
 const source = await readFile(new URL('../ai-context.js', import.meta.url), 'utf8');
 
@@ -75,19 +76,20 @@ test('chat requests retain old memory but supply the new authoritative profile',
 test('settings loading binds its cache to the account and invalidates AI context', async () => {
   const app = await readFile(new URL('../app.js', import.meta.url), 'utf8');
   const helpers = app.slice(app.indexOf('function cloneDeep('), app.indexOf('function defaultAchievementsData('));
-  const loader = app.slice(app.indexOf('    async function loadUserSettingsFromFirestore('), app.indexOf('    async function saveUserSettingsToFirestore('));
-  for (const owner of ['one', 'other']) {
+  const loader = app.slice(app.indexOf('    function cacheAppliedSettings('), app.indexOf('    async function saveUserSettingsToFirestore('));
+  for (const owner of ['one', 'other']) for(const offline of [false,true]) {
     const storage = new Map([['kairos_settings_cache_uid', owner], ['kairos_settings_cache', JSON.stringify({ profile: { displayName: 'Saved name' } })]]);
     let invalidated = 0;
-    const context = vm.createContext({ db: {}, console, document: { dispatchEvent() {} }, Event,
+    const context = vm.createContext({ db: {}, console: {error(){}}, document: { dispatchEvent() {} }, Event, structuredClone,createSettingsRecovery,
+      auth:{currentUser:{uid:'one'}},updateSaveBarVisibility(){},
       localStorage: { getItem: key => storage.get(key), setItem: (key, value) => storage.set(key, value) },
-      doc: (...args) => args, getDoc: async () => ({ exists: () => false }),
+      doc: (...args) => args, getDoc: async () => {if(offline)throw Error('Offline');return { exists: () => false };},
       invalidateKairosContext: () => invalidated++, applyAllSettings() {}, populateSettingsForm() {},
       renderUserProfileMenu() {}, setupNotificationBell() {}, markInitialLoadComplete() {}
     });
-    vm.runInContext(helpers + 'let userSettings=defaultSettings(),pendingSettings;\n' + loader, context);
+    vm.runInContext(helpers + 'let userSettings=defaultSettings(),pendingSettings,settingsCloudSnapshot,settingsPendingRecord,settingsLoadRevision=0;const settingsRecovery=createSettingsRecovery(localStorage);\n' + loader, context);
     await context.loadUserSettingsFromFirestore({ uid: 'one' });
-    assert.equal(JSON.parse(storage.get('kairos_settings_cache')).profile.displayName, owner === 'one' ? 'Saved name' : '');
+    assert.equal(JSON.parse(storage.get('kairos_settings_cache')).profile.displayName, offline&&owner === 'one' ? 'Saved name' : '');
     assert.equal(storage.get('kairos_settings_cache_uid'), 'one');
     assert.equal(invalidated, 1);
   }
