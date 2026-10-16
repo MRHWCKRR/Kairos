@@ -1541,9 +1541,7 @@ body.cursor-spaceship, body.cursor-spaceship * { cursor: url('cursors/spaceship.
     flex-direction: column;
     min-width: 0;
     min-height: 0;
-    overflow-y: auto;
-    overflow-x: hidden;
-    overscroll-behavior-y: contain;
+    overflow: hidden;
     background: color-mix(in srgb, var(--bg-card) 92%, var(--bg-main));
     border-right: 1px solid var(--border-subtle);
     transform: translateX(0);
@@ -1552,6 +1550,14 @@ body.cursor-spaceship, body.cursor-spaceship * { cursor: url('cursors/spaceship.
 
 .ai-chat-sidebar > * {
     flex-shrink: 0;
+}
+
+.ai-chat-sidebar-scroll {
+    flex: 1 1 0;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior-y: contain;
 }
 
 .ai-chat-sidebar-header {

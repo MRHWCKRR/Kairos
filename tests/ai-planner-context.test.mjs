@@ -13,7 +13,7 @@ async function fixture() {
   const context=vm.createContext({ACTION_INSTRUCTIONS,console,auth:{currentUser:{uid:'one'}},db:{},
     localStorage:{getItem:()=>null},doc:()=>({}),collection:()=>({}),query:x=>x,where:()=>({}),
     getDoc:async()=>({exists:()=>true,data:()=>({settings:{profile:{timezone:'Australia/Brisbane'}}})}),
-    getDocs:async()=>({docs:[{data:()=>structuredClone(plan)}]}),
+    getDocs:async()=>({docs:[{id:'plan-1',data:()=>structuredClone(plan)}]}),
     window:{addEventListener:(name,fn)=>events[name]=fn}});
   const source=await readFile(new URL('../ai-context.js',import.meta.url),'utf8');
   vm.runInContext(source.replace(/^import[^\n]*\n/gm,'').replace(/^export /gm,''),context);
@@ -144,4 +144,30 @@ test('an account switch during a planner read discards the previous account snap
   context.auth.currentUser={uid:'two'};
   release();
   assert.equal(await pending,'');
+});
+
+
+test('recurring occurrence and weekly event moves include confirmed before/after values',async()=>{
+  const {context,plan}=await fixture();
+  const before=structuredClone(plan);
+  plan.boards[0].sections[0].tasks[0].recurrence.exceptions={'2026-10-16':{override:{startTime:'16:00',endTime:'18:00',checklist:[{id:'private',title:'Private step',completed:true}]}}};
+  plan.scheduleEvents[0].start='09:00';
+  context.invalidateKairosContext({ownerId:'one',planId:'plan-1',before,after:plan});
+  const prompt=await context.getKairosContext();
+  const history=prompt.slice(prompt.indexOf('Recent confirmed schedule changes'));
+  assert.match(history,/"kind":"occurrence".*"occurrenceDate":"2026-10-16".*"before":\{"date":"2026-10-16","startTime":"13:00".*"after":\{"date":"2026-10-16","startTime":"16:00"/);
+  assert.match(history,/"kind":"event".*"before":\{"day":3,"start":"08:00".*"after":\{"day":3,"start":"09:00"/);
+  assert.doesNotMatch(prompt,/Private step/);
+  context.invalidateKairosContext();
+  assert.match(await context.getKairosContext(),/Recent confirmed schedule changes/);
+  plan.planId='another-plan';
+  context.getDocs=async()=>({docs:[{id:'another-plan',data:()=>structuredClone(plan)}]});
+  assert.doesNotMatch(await context.getKairosContext(),/Recent confirmed schedule changes/);
+});
+
+test('checklist-only edits never appear as schedule moves',async()=>{
+  const {context,plan}=await fixture();const before=structuredClone(plan);
+  plan.boards[0].sections[0].tasks[0].recurrence.exceptions={'2026-10-16':{override:{checklist:[{id:'one',title:'Private step',completed:true}]}}};
+  context.invalidateKairosContext({ownerId:'one',planId:'plan-1',before,after:plan});
+  assert.doesNotMatch(await context.getKairosContext(),/Recent confirmed schedule changes/);
 });

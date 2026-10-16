@@ -29,3 +29,31 @@ test('schedule bridge routes saves through the same safe planner save',()=>{
   assert.match(persist,/await updatePlanInFirestore/);
   assert.doesNotMatch(persist,/await updateDoc/);
 });
+
+test('a confirmed schedule save supplies its before/after times to the AI helper',async()=>{
+  const base={userID:'one',boards:[{id:'b',title:'Study',sections:[{id:'s',title:'General',tasks:[{id:'one',title:'Essay',date:'2026-10-16',startTime:'13:00',endTime:'14:00'}]}]}],scheduleEvents:[]};
+  const f=await plannerFixture(base);
+  Object.assign(f.context,{seed:structuredClone(base),localStorage:{getItem:()=>null},renderApp(){},showNotice(){}});
+  f.context.window.addEventListener=()=>{};
+  const contextSource=await readFile(new URL('../ai-context.js',import.meta.url),'utf8');
+  vm.runInContext('(function(){'+contextSource.replace(/^import[^\n]*\n/gm,'').replace(/^export /gm,'')+';Object.assign(globalThis,{getKairosContext,invalidateKairosContext});})()',f.context);
+  const app=await readFile(new URL('../app.js',import.meta.url),'utf8');
+  const functions=app.slice(app.indexOf('    // --- 6 Cloud Sync Data Actions ---'),app.indexOf('    // --- 7 AI Plan Generator ---'));
+  vm.runInContext('let currentPlanDocId="plan",boardsData=seed.boards,dayInsights={},scheduleData=[];\n'+functions,f.context);
+  vm.runInContext('planSnapshot=planState(seed);boardsData[0].sections[0].tasks[0].startTime="15:00";boardsData[0].sections[0].tasks[0].endTime="16:00";',f.context);
+  assert.equal(await f.context.updatePlanInFirestore(),true);
+  const prompt=await f.context.getKairosContext();
+  assert.match(prompt,/Recent confirmed schedule changes/);
+  assert.match(prompt,/"before":\{"date":"2026-10-16","startTime":"13:00","endTime":"14:00"/);
+  assert.match(prompt,/"after":\{"date":"2026-10-16","startTime":"15:00","endTime":"16:00"/);
+  const count=(prompt.match(/"changedAt"/g)||[]).length;
+  await f.context.updatePlanInFirestore();
+  assert.equal(((await f.context.getKairosContext()).match(/"changedAt"/g)||[]).length,count,'unchanged saves add no history');
+  f.context.savePlannerEdits=async()=>{throw new Error('Save failed')};
+  f.context.console={error(){},warn(){}};
+  vm.runInContext('boardsData[0].sections[0].tasks[0].startTime="17:00";',f.context);
+  assert.equal(await f.context.updatePlanInFirestore(),false);
+  assert.doesNotMatch(await f.context.getKairosContext(),/17:00/,'failed saves are not confirmed changes');
+  f.context.auth.currentUser={uid:'two'};
+  assert.doesNotMatch(await f.context.getKairosContext(),/Recent confirmed schedule changes/);
+});
