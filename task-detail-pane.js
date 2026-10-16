@@ -35,10 +35,10 @@ export function mountTaskDetailPane({root,resolveTarget,commit,getOwnerId,getPla
         return {group:active?.localName==='summary'?active.closest('[data-detail-group]')?.dataset.detailGroup:null,checklist:checklistEditor?.captureFocus(),checklistView:checklistEditor?.captureView(),groups:[...form.querySelectorAll('[data-detail-group]')].filter(el=>el.open).map(el=>el.dataset.detailGroup),name:panel?.contains(active)?active.name:null,control:active?.matches?.('[type="submit"]')?'save':active?.matches?.('[data-maximise]')?'maximise':null,start:active?.selectionStart,end:active?.selectionEnd,scroll:panel?.scrollTop||0,dialogScroll:dialog?.scrollTop||0};
     }
     function restoreUi(view,focus=true){
-        if(!view||!activePage())return;
+        if(!view)return;
         checklistEditor?.restoreView(view.checklistView);
         if(Array.isArray(view.groups))for(const group of form.querySelectorAll('[data-detail-group]'))group.open=view.groups.includes(group.dataset.detailGroup);
-        if(focus){
+        if(focus&&activePage()){
             if(view.checklist)checklistEditor?.restoreFocus(view.checklist);
             else {const el=view.group?[...form.querySelectorAll('[data-detail-group]')].find(el=>el.dataset.detailGroup===view.group)?.querySelector('summary'):view.name?field(view.name):view.control==='save'?form?.querySelector('[type="submit"]'):view.control==='maximise'?panel?.querySelector('[data-maximise]'):null;el?.focus?.({preventScroll:true});if(typeof view.start==='number')try{el?.setSelectionRange?.(view.start,view.end)}catch{}}
         }
@@ -187,7 +187,7 @@ export function mountTaskDetailPane({root,resolveTarget,commit,getOwnerId,getPla
             const result=await commit(pending.command,pending.expected,pending.identity);
             if(ticket!==revision)return false;
             if(owner!==getOwnerId()||planId!==getPlanId()){forget();close();return false}
-            const currentView=captureUi(),fresh=resolveTarget(target),expanded=dialog,restore={...(currentView.group?currentView:pendingFocus||view),groups:currentView.groups,checklistView:currentView.checklistView,scroll:currentView.scroll,dialogScroll:currentView.dialogScroll},canFocus=activePage()&&(document.activeElement===document.body||panel.contains(document.activeElement));
+            const currentView=captureUi(),fresh=resolveTarget(target),expanded=dialog,restore={...(currentView.group?currentView:view.group?view:pendingFocus||view),groups:currentView.groups,checklistView:currentView.checklistView,scroll:currentView.scroll,dialogScroll:currentView.dialogScroll},canFocus=activePage()&&(document.activeElement===document.body||panel.contains(document.activeElement));
             baseline=taskDetailValues(fresh.task,target);forget();pending=null;pendingFocus=null;busy=false;checklistEditor?.dispose();panel.remove();render(fresh,{focus:false});
             if(expanded){expanded.appendChild(panel);panel.querySelector('[data-maximise]').textContent=copy('shrink')}
             restoreUi(restore,canFocus);status(copy('saved'));return !!result;
