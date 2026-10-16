@@ -15,3 +15,13 @@ Task 2: complete in Windows - pointer and pane cancellation RED then GREEN; reor
 Recovery: restored tests first from the conversation; observed RED against published Stage 1, then restored implementation and observed 48/48 GREEN. Recovered manifest/cache, labels, workflow and docs. Full verification and fresh review are being rerun on this Linux workspace.
 
 Ruling: recover the inaccessible Windows-only work from the recorded patches onto published Stage 1, then rerun verification and independent review - avoids losing authorized work or pretending an unavailable commit was recovered - cost if wrong: patch reconstruction differences may require correction during verification/review.
+
+Recovered verification: 48/48 focused tests passed. Full local run: 630 tests, 628 pass, one existing skip, one real Workers startup failure (`uv_interface_addresses returned Unknown system error 1`). Both builds and preview dry-run passed; syntax/diff checks passed. Linux browser installation returned a truncated download, so the earlier Windows browser pass was not repeated. PR61 is stacked on PR60. Initial hosted run 38836516626 passed full regression, runtime, both builds and bundle checks without weakening tests.
+
+Final review: fresh independent reviewer reviewed 91ca3f0..69416d0 and independently passed all 48 focused tests. One Important finding: expanded drag outlives page navigation because ancestry loses the owning page and actual navigation does not invoke pane sync. No other Critical/Important/Minor findings. Grade Important accepted; no deferred minors.
+
+Final: fixed expanded-navigation drag lifecycle - regression `expanded navigation cancels drag without relying on host sync` observed RED (preview survived) then GREEN. Pane now passes owning-page/account/planner activity to the editor/controller. Focused editor/detail/model/recurrence/host/selection/menu suite 110/110 after the fix. Full hosted regression/runtime/build checks on the final fix remain the readiness gate; outcomes are recorded on PR61.
+
+Final: Ruling: retain live authenticated persistence and physical IME/clipboard permissions as disclosed smoke-check limits; keep Stage 3 layout outside this Stage 2 change - changed reorder contracts are covered by deterministic tests and the prior browser pass, with hosted runtime/build verification required - cost if wrong: an unexercised native integration may need a follow-up fix; layout remains a separate implementation stage.
+
+Handoff: keep the worktree for PR iteration; mark ready only after final-head hosted CI passes. No merge/deployment in this task.

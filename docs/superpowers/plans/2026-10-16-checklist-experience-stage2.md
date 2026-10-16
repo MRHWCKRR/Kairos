@@ -36,6 +36,8 @@ Files: new `task-checklist-reorder.js` and `tests/task-checklist-reorder.test.mj
 
 `mountChecklistReorder({root,list,getItems,onReorder,isEnabled,document,window,requestFrame,cancelFrame})` returns `{cancel,dispose}`. `onReorder({stepId,anchorId,after})` runs once on a valid changed drop. The controller holds source/pointer IDs, original order and coordinates, never a competing draft. Editor exposes `cancelReorder()` for pane navigation; disabling and disposal cancel automatically.
 
+The pane supplies the editor's `isActive()` callback from the owning page plus current account/planner identity. The editor includes that callback in the controller's `isEnabled()` predicate. This remains authoritative when the expanded pane moves into a document-level dialog; cancellation must not depend solely on DOM ancestry or a host sync call.
+
 - [x] RED pointer tests: primary grip only; below 4px idle/exactly 4px starts; safe preview and before/after markers; no draft callback during movement; valid drop once; no-op/source/outside/wrong pointer ignored. Escape precedes pane close; capture/cancel/blur/disable/page/order/dispose cleanup cancels frames. Expanded preview stays in the dialog and scrolling recalculates the destination.
 - [x] RED detail integration: identity/page cancellation and Escape, explicit Save only, exact failed-save Retry order/IDs and dated-occurrence scope.
 - [x] Implement threshold/feedback/hit-testing/capture. Auto-scroll the closest pane/dialog near 40px edges by 12px/frame. Recalculate at release; cancel on every exit, hidden/inactive page and changed order/source. Keep title/checkbox gestures native.

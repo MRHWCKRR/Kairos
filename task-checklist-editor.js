@@ -3,7 +3,7 @@ import {mountChecklistReorder} from './task-checklist-reorder.js?v=1';
 
 const labels={step_drag:'Drag to reorder step (Alt+Up/Down)',step_moved:'Step moved to position',checklist:'Checklist',steps:'steps completed',step_title:'Step title',step_complete:'Complete step',step_add:'Add step',step_up:'Move step up',step_down:'Move step down',step_remove:'Remove step',step_required:'Enter a step title up to 180 characters.',step_limit:'A checklist supports up to 100 steps.',step_entry_hint:'Enter adds a step. Paste multiple lines to add several. Save applies your changes.',unsaved:'Unsaved changes'};
 
-export function mountTaskChecklistEditor({root,items=[],canToggle=true,disabled=false,hint='',onChange=()=>{},onStatus=()=>{},copy,uuid,document=root.ownerDocument,window=document.defaultView}) {
+export function mountTaskChecklistEditor({root,items=[],canToggle=true,disabled=false,isActive=()=>true,hint='',onChange=()=>{},onStatus=()=>{},copy,uuid,document=root.ownerDocument,window=document.defaultView}) {
   let draft=structuredClone(items),disposed=false;
   const rows=new Map(),text=key=>{const value=copy?.(key);return value&&value!==key&&value!=='task_detail_'+key?value:labels[key]||key};
   uuid??=()=>window.crypto?.randomUUID?.()||Date.now().toString(36)+'-'+Math.random().toString(36).slice(2);
@@ -15,7 +15,7 @@ export function mountTaskChecklistEditor({root,items=[],canToggle=true,disabled=
   const add=element('button','data-checklist-add');add.type='button';add.textContent=text('step_add');entry.append(composer,add);
   const entryHint=element('p');entryHint.className='task-detail-hint';entryHint.textContent=text('step_entry_hint');root.replaceChildren(heading,description,list,entry,entryHint);
   const read=()=>structuredClone(draft);
-  const reorder=mountChecklistReorder({root,list,getItems:()=>draft,isEnabled:()=>!disposed&&!disabled,onReorder:({stepId,anchorId,after})=>{const rest=draft.filter(item=>item.id!==stepId),index=rest.findIndex(item=>item.id===anchorId);if(index>=0)moveStep(stepId,index+(after?1:0),{stepId,control:'grip'})},document,window});
+  const reorder=mountChecklistReorder({root,list,getItems:()=>draft,isEnabled:()=>!disposed&&!disabled&&isActive(),onReorder:({stepId,anchorId,after})=>{const rest=draft.filter(item=>item.id!==stepId),index=rest.findIndex(item=>item.id===anchorId);if(index>=0)moveStep(stepId,index+(after?1:0),{stepId,control:'grip'})},document,window});
   function rowFor(id) {return rows.get(id)}
   function captureFocus() {
     const active=document.activeElement;if(!root.contains(active))return null;
