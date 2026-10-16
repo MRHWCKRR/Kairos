@@ -12,7 +12,7 @@ test('resizing from anywhere inside the grip follows pointer distance without ju
     const context=vm.createContext({...utils,task,label,grid,isOccurrence,
       document:{readyState:'loading',addEventListener(){}},window:{addEventListener(){},__kairosScheduleBridge:{getBoards:()=>[{sections:[{tasks:[task]}]}],getTimeFormat:()=> '24'}}});
     vm.runInContext(source,context);
-    vm.runInContext(`placePreview=()=>{};interaction={mode:'resize',pointerId:1,startX:0,startY:650,isOccurrence,taskId:'t',effectiveTask:task,original:{...task},originElement:{closest:()=>grid},ghost:{style:{},querySelector:()=>label}}`,context);
+    vm.runInContext(`placePreview=()=>{};currentGesture=()=>true;interaction={mode:'resize',pointerId:1,startX:0,startY:650,isOccurrence,taskId:'t',effectiveTask:task,original:{...task},originElement:{closest:()=>grid},ghost:{style:{},querySelector:()=>label}}`,context);
     context.onMove({pointerId:1,clientX:0,clientY:650});
     assert.equal(vm.runInContext('interaction.preview.endMin',context),660);
     context.onMove({pointerId:1,clientX:0,clientY:665});

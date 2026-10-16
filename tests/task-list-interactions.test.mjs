@@ -7,6 +7,18 @@ const {renderTaskListRow}=workspaceModule;
 import {plannerFixture} from './helpers/planner-fixture.mjs';
 const tick=()=>new Promise(resolve=>setTimeout(resolve,0));
 
+test('task dragging cancels on lost pointer capture and window focus loss without saving',async()=>{
+ for(const signal of ['blur','lostpointercapture']){const f=await fixture();try{f.pointer('pointerdown',f.control('a','drag'));f.pointer('pointermove',f.root,{clientY:80});assert.equal(f.interactions.isDragging(),true);if(signal==='blur')f.window.dispatchEvent(new f.window.Event('blur'));else f.pointer(signal,f.root);assert.equal(f.interactions.isDragging(),false);assert.equal(f.root.querySelectorAll('.task-dragging,.task-drop-before,.task-drop-after').length,0);assert.equal(f.calls.length,0)}finally{f.interactions.dispose()}}
+});
+test('an invalid drag release keeps the selected group and the next genuine outside click still clears it',async()=>{
+ let selection;const f=await fixture({getSelectedTaskIds:()=>selection?.ids()||[]}),{mountTaskSelection}=await import('../task-selection.js'),{taskListLocation}=await import('../task-list-model.js');
+ selection=mountTaskSelection({root:f.root,document:f.document,window:f.window,getIdentity:()=>({ownerId:'one',planId:'plan'}),getViewKey:()=> 'overview',resolveTarget:t=>taskListLocation(f.data(),t.taskId)});
+ try{selection.toggle('a');selection.toggle('c');f.document.elementFromPoint=()=>null;f.pointer('pointerdown',f.control('a','drag'));f.pointer('pointermove',f.root,{clientY:80});f.pointer('pointerup',f.root,{clientY:80});
+  const click=new f.window.Event('click',{bubbles:true,cancelable:true});Object.assign(click,{button:0,pointerId:1,detail:1});f.root.dispatchEvent(click);assert.deepEqual(selection.ids(),['a','c']);assert.equal(f.calls.length,0);
+  f.pointer('pointerdown',f.document.body);const outside=new f.window.Event('click',{bubbles:true,cancelable:true});Object.assign(outside,{button:0,pointerId:1,detail:1});f.document.body.dispatchEvent(outside);assert.deepEqual(selection.ids(),[]);
+ }finally{selection.dispose();f.interactions.dispose()}
+});
+
 test('menu adapter reuses existing completion, movement, archive and retry paths',async()=>{
  const f=await fixture();assert.equal(typeof f.interactions.runTaskAction,'function');assert.equal(typeof f.interactions.getActionState,'function');
  assert.equal(f.interactions.getActionState({taskId:'a'}).canMoveUp,false);assert.equal(f.interactions.getActionState({taskId:'c'}).canMoveUp,true);
