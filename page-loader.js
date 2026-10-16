@@ -21,12 +21,12 @@ export function createPageLoader({importModule=url=>import(url),loadStyle=loadPa
     if(loaded.has(page))return loaded.get(page);
     const task=(async()=>{
       if(page==='tasks-page'&&taskDetailsEnabled){
-        await Promise.all([loadStyle('task-list.css?v=16'),loadStyle('schedule-inspector.css?v=10')]);
+        await Promise.all([loadStyle('task-list.css?v=17'),loadStyle('schedule-inspector.css?v=10')]);
         await setupTaskDetails(await importModule('./task-detail-pane.js?v=7'));
-        if(setupTaskWorkspace)await setupTaskWorkspace(await importModule('./task-list-workspace.js?v=8'));
-        if(setupTaskInteractions)await setupTaskInteractions(await importModule('./task-list-interactions.js?v=7'));
+        if(setupTaskWorkspace)await setupTaskWorkspace(await importModule('./task-list-workspace.js?v=9'));
+        if(setupTaskInteractions)await setupTaskInteractions(await importModule('./task-list-interactions.js?v=8'));
         if(setupTaskSelection)await setupTaskSelection(await importModule('./task-selection.js?v=4'));
-        if(setupTaskMenus){const [actions,menu]=await Promise.all([importModule('./task-actions.js?v=4'),importModule('./task-action-menu.js?v=5')]);await setupTaskMenus({actions,menu})}
+        if(setupTaskMenus){const [actions,menu]=await Promise.all([importModule('./task-actions.js?v=5'),importModule('./task-action-menu.js?v=6')]);await setupTaskMenus({actions,menu})}
       }
       if(page==='ai-page') {
         await loadStyle('ai-workspace.css?v=2');

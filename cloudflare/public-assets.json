@@ -3,6 +3,8 @@
     "task-checklist-editor.js",
     "ui-context-menu.js",
     "task-section-actions.js",
+    "task-section-model.js",
+    "task-section-organisation.js",
     "task-tools-dialog.js",
     "task-tools-model.js",
     "task-selection.js",

@@ -135,3 +135,12 @@ body.mode-light .task-detail-pane{color-scheme:light}
 #tasks-page .task-quick-inline [role="status"]{grid-column:1 / -1;overflow-wrap:anywhere}
 #tasks-page .task-quick-add :focus-visible{outline:2px solid var(--accent-glow);outline-offset:3px}
 #tasks-page .task-quick-add [hidden]{display:none!important}
+
+/* Section organisation shares the board header and existing recovery bar. */
+.task-section-grip{flex:0 0 28px;width:28px;height:32px;display:inline-flex;align-items:center;justify-content:center;padding:4px;border:0;background:transparent;color:var(--text-muted);cursor:grab;touch-action:none}
+.task-section-grip svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:3;stroke-linecap:round}
+.task-section-grip:focus-visible{outline:2px solid var(--accent-glow);outline-offset:2px}.task-section-grip:disabled{opacity:.4;cursor:default}
+.section-dragging{opacity:.55}.section-drop-before{box-shadow:0 -3px 0 var(--accent-glow)}.section-drop-after{box-shadow:0 3px 0 var(--accent-glow)}.section-drop-empty{outline:2px solid var(--accent-glow);outline-offset:-2px}
+[data-section-move-dialog]{max-height:75vh;overflow:auto}[data-section-move-dialog] button{display:block;width:100%;text-align:left;margin-top:8px;overflow-wrap:anywhere}[data-section-move-dialog] h3{font-size:1rem;overflow-wrap:anywhere}[data-section-move-dialog] p{font-size:.8rem;color:var(--text-muted)}
+
+.board-section-block .task-list[hidden],.board-section-block .add-task-btn[hidden]{display:none!important}

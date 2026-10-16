@@ -1,4 +1,5 @@
 import {applyTaskListCommand,buildTaskBatch,buildTaskTool,taskDetailValues,taskListLocation,taskListSection} from './task-list-model.js';
+import {mountSectionOrganisation} from './task-section-organisation.js';
 import {openTaskFieldDialog} from './task-tools-dialog.js';
 import {t} from './i18n.js';
 import {confirmDialog} from './ui-dialogs.js?v=1';
@@ -6,19 +7,21 @@ import {confirmDialog} from './ui-dialogs.js?v=1';
 const ids=section=>(section.tasks||[]).map(task=>task.id);
 const location=found=>({boardId:found.board.id,sectionId:found.section.id});
 const key=target=>JSON.stringify([target.boardId,target.sectionId]);
-const actionTypes=['reorder_tasks','move_task','complete_task','archive_task','task_batch','task_tool','undo_task_list'];
-const closesDetails=command=>{const value=command.type==='undo_task_list'?command.inverse?.command:command;return ['task_tool','restore_task_fields','archive_task','move_task'].includes(value?.type)||(['task_batch','restore_task_batch'].includes(value?.type)&&['archive','archived','move'].includes(value.action))};
+const actionTypes=['move_section','reorder_sections','reorder_tasks','move_task','complete_task','archive_task','task_batch','task_tool','undo_task_list'];
+const closesDetails=command=>{const value=command.type==='undo_task_list'?command.inverse?.command:command;return ['task_tool','restore_task_fields','archive_task','move_task','move_section','reorder_sections'].includes(value?.type)||(['task_batch','restore_task_batch'].includes(value?.type)&&['archive','archived','move'].includes(value.action))};
+const sectionMutation=command=>['move_section','reorder_sections'].includes((command.type==='undo_task_list'?command.inverse?.command:command)?.type);
 const previews=command=>['complete_task','reorder_tasks'].includes(command.type)||(command.type==='task_batch'&&['complete','incomplete','move'].includes(command.action));
 
-export function mountTaskListInteractions({root,getState,getOwnerId,getPlanId,commit,refresh=()=>{},ensurePlan=async()=>true,requestCloseDetails=async()=>true,onConfirmed=()=>{},getViewKey=()=>'',getSelectedTaskIds=()=>[],isSorted=()=>false,scrollElement=root.closest('.main-content')||root,document=root.ownerDocument,window=document.defaultView,clock=()=>Date.now(),storage,setTimer=(fn,ms)=>window.setTimeout(fn,ms),clearTimer=id=>window.clearTimeout(id),requestFrame=fn=>window.requestAnimationFrame(fn),cancelFrame=id=>window.cancelAnimationFrame(id),confirmArchive=message=>confirmDialog(message),confirmDiscard=message=>confirmDialog(message)}={}){
+export function mountTaskListInteractions({root,getState,getOwnerId,getPlanId,commit,refresh=()=>{},ensurePlan=async()=>true,requestCloseDetails=async()=>true,onConfirmed=()=>{},getViewKey=()=>'',getSelectedTaskIds=()=>[],isSorted=()=>false,scrollElement=root.closest('.main-content')||root,document=root.ownerDocument,window=document.defaultView,clock=()=>Date.now(),storage,sectionBlocked=()=>false,setTimer=(fn,ms)=>window.setTimeout(fn,ms),clearTimer=id=>window.clearTimeout(id),requestFrame=fn=>window.requestAnimationFrame(fn),cancelFrame=id=>window.cancelAnimationFrame(id),confirmArchive=message=>confirmDialog(message),confirmDiscard=message=>confirmDialog(message)}={}){
     const copy=name=>t('task_order_'+name,document.documentElement.lang||'en');
-    const sameBatchView=(command,view)=>!(['task_batch','task_tool'].includes(command.type)||['restore_task_batch','restore_task_fields'].includes(command.inverse?.command?.type))||(root.classList.contains('active')&&getViewKey()===view);
+    const sameBatchView=(command,view)=>!(['task_batch','task_tool','move_section','reorder_sections'].includes(command.type)||['restore_task_batch','restore_task_fields','move_section','reorder_sections'].includes(command.inverse?.command?.type))||(root.classList.contains('active')&&getViewKey()===view);
     try{storage??=window.sessionStorage}catch{}
     const bar=document.createElement('div');bar.className='task-order-status';bar.dataset.taskOrderStatus='';bar.setAttribute('aria-live','polite');
     const message=document.createElement('span');message.setAttribute('role','status');bar.appendChild(message);
     const button=(attribute,label)=>{const el=document.createElement('button');el.type='button';el.setAttribute(attribute,'');el.textContent=copy(label);el.hidden=true;bar.appendChild(el);return el};
     const undoButton=button('data-task-undo','undo'),retryButton=button('data-task-retry','retry'),discardButton=button('data-task-discard','discard');root.appendChild(bar);
     let owner,plan,generation=0,busy=false,pending=null,preview=null,undoState=null,timer=null,drag=null,frame=null,moveDialog=null,moveDialogView=null,fieldDialog=null,fieldDialogView=null,disposed=false;
+    const sections=mountSectionOrganisation({root,getState,getIdentity:()=>({ownerId:getOwnerId(),planId:getPlanId()}),getViewKey,blocked:()=>busy||!!pending||sectionBlocked(),execute,reportError:text=>{message.textContent=text;decorate()},scrollElement,document,window,requestFrame,cancelFrame});
     const storageKey=()=> 'kairos-task-order-pending:'+owner+':'+plan;
     function remember(){try{if(pending)storage?.setItem(storageKey(),JSON.stringify(pending));else storage?.removeItem(storageKey())}catch{}}
     function clearUndo(){if(timer!==null)clearTimer(timer);timer=null;undoState=null;undoButton.hidden=true;if(message.textContent===copy('saved_undo'))message.textContent=copy('saved')}
@@ -29,7 +32,7 @@ export function mountTaskListInteractions({root,getState,getOwnerId,getPlanId,co
         for(const el of root.querySelectorAll('.task-drop-before,.task-drop-after,.task-drop-empty'))el.classList.remove('task-drop-before','task-drop-after','task-drop-empty');drag=null;
     }
     function sync(){
-        if(!root.classList.contains('active'))cancelDrag();
+        if(!root.classList.contains('active')){cancelDrag();sections.cancel()}
         if(moveDialog&&(!root.classList.contains('active')||moveDialogView!==getViewKey())){moveDialog.remove();moveDialog=null}
         if(fieldDialog&&(!root.classList.contains('active')||fieldDialogView!==getViewKey()))fieldDialog.dispose();
         if(owner===getOwnerId()&&plan===getPlanId())return false;
@@ -46,7 +49,7 @@ export function mountTaskListInteractions({root,getState,getOwnerId,getPlanId,co
         catch{return state} // The saved result or a conflicting update is already visible.
     }
     function decorate(){
-        if(disposed)return;sync();
+        if(disposed)return;sync();sections.decorate();
         if(drag&&(!drag.row.isConnected||drag.view!==getViewKey()||isSorted()))cancelDrag();
         const operation=pending?.command?.type==='undo_task_list'?pending.command.inverse?.command:pending?.command;
         // Inline saves still address canonical sections; a location preview must
@@ -63,12 +66,13 @@ export function mountTaskListInteractions({root,getState,getOwnerId,getPlanId,co
             for(const field of [title,date].filter(Boolean)){if(locked){field.title=copy('batch_move_wait');field.dataset.taskMovePending=''}else if(field.hasAttribute('data-task-move-pending')){field.removeAttribute('title');delete field.dataset.taskMovePending}}
             const archive=row.querySelector('[data-task-list-archive]');if(archive)archive.disabled=busy||!!pending||!found;
         }
-        retryButton.hidden=!pending;retryButton.disabled=busy;discardButton.hidden=!pending;discardButton.disabled=busy;undoButton.disabled=busy||!!pending;
+        retryButton.hidden=!pending;retryButton.disabled=busy||!!(pending&&sectionMutation(pending.command)&&sectionBlocked());discardButton.hidden=!pending;discardButton.disabled=busy;undoButton.disabled=busy||!!pending||!!(undoState&&sectionMutation(undoState.inverse.command)&&sectionBlocked());
         if(undoState&&clock()>=undoState.expiresAt)clearUndo();bar.hidden=!message.textContent&&!pending&&!undoState;
     }
     function focusSnapshot(command){
         const active=document.activeElement,row=active?.closest?.('[data-detail-row]'),source=[...root.querySelectorAll('[data-detail-row]')].find(el=>el.dataset.detailRow===(command.target?.taskId||command.taskIds?.[0])&&!el.closest('[hidden]')),chosen=row||source;
-        return {element:active,view:getViewKey(),scroll:scrollElement.scrollTop,id:chosen?.dataset.detailRow,action:active?.dataset?.taskAction,index:chosen?[...chosen.parentElement.children].filter(el=>el.matches('[data-detail-row]')&&!el.hidden).indexOf(chosen):-1};
+        const section=active?.closest?.('.board-section-block,[data-focused-section]'),sectionControl=active?.closest?.('[data-section-drag],[data-section-menu]');
+        return {section:sectionControl&&section?{boardId:section.dataset.boardId,sectionId:section.dataset.sectionId,menu:sectionControl.hasAttribute('data-section-menu')}:null,element:active,view:getViewKey(),scroll:scrollElement.scrollTop,id:chosen?.dataset.detailRow,action:active?.dataset?.taskAction,index:chosen?[...chosen.parentElement.children].filter(el=>el.matches('[data-detail-row]')&&!el.hidden).indexOf(chosen):-1};
     }
     function restoreFocus(snapshot){
         if(!root.classList.contains('active')||getViewKey()!==snapshot.view)return;
@@ -76,15 +80,16 @@ export function mountTaskListInteractions({root,getState,getOwnerId,getPlanId,co
         // A user may continue typing, focusing another control or scrolling while
         // a save is in flight. Preserve that newer activity instead of restoring it.
         if(scrollElement.scrollTop!==snapshot.scroll||(meaningful&&active!==snapshot.element))return;
+        if(snapshot.section){const block=[...root.querySelectorAll('.board-section-block,[data-focused-section]')].find(el=>el.dataset.sectionId===snapshot.section.sectionId&&!el.closest('[hidden]'));block?.querySelector(snapshot.section.menu?'[data-section-menu]':'[data-section-drag]')?.focus?.({preventScroll:true});return}
         const rows=[...root.querySelectorAll('[data-detail-row]')].filter(row=>!row.closest('[hidden]')),row=rows.find(row=>row.dataset.detailRow===snapshot.id)||rows[Math.max(0,Math.min(snapshot.index,rows.length-1))];
         const control=row?.querySelector(snapshot.action?'[data-task-action="'+snapshot.action+'"]':'[data-task-action="drag"]');
         (control&&!control.disabled?control:row||root.querySelector('[data-quick-title],[data-open-section]'))?.focus?.({preventScroll:true});
     }
     async function reconcile(){
-        sync();if(!pending||busy)return false;const original=pending,ticket=generation,snapshot=focusSnapshot(original.command);busy=true;message.textContent=copy('saving');clearUndo();decorate();
+        sync();if(!pending||busy||(sectionMutation(pending.command)&&sectionBlocked()))return false;const original=pending,ticket=generation,snapshot=focusSnapshot(original.command);busy=true;message.textContent=copy('saving');clearUndo();decorate();
         try{
             if(closesDetails(original.command)&&!await requestCloseDetails()){message.textContent=copy('uncertain');return false}
-            if(disposed||ticket!==generation||pending!==original||getOwnerId()!==original.identity.ownerId||getPlanId()!==original.identity.planId||!sameBatchView(original.command,snapshot.view))return false;
+            if(disposed||ticket!==generation||pending!==original||getOwnerId()!==original.identity.ownerId||getPlanId()!==original.identity.planId||(!sameBatchView(original.command,snapshot.view)||(sectionMutation(original.command)&&sectionBlocked())))return false;
             if(previews(original.command)){
                 preview=original;refresh();decorate();
             }
@@ -98,10 +103,10 @@ export function mountTaskListInteractions({root,getState,getOwnerId,getPlanId,co
         finally{if(preview===original)preview=null;if(!disposed&&ticket===generation&&getOwnerId()===original.identity.ownerId&&getPlanId()===original.identity.planId){busy=false;refresh();decorate();restoreFocus(snapshot)}else if(!disposed){sync();decorate()}}
     }
     async function execute(command,expected){
-        sync();if(busy||pending||!owner)return false;busy=true;const actor=owner,originalPlan=plan,originalGeneration=generation,originalView=getViewKey();let operationGeneration=generation;
+        sync();if(busy||pending||!owner||(sectionMutation(command)&&sectionBlocked()))return false;busy=true;const actor=owner,originalPlan=plan,originalGeneration=generation,originalView=getViewKey();let operationGeneration=generation;
         try{
             if(closesDetails(command)&&!await requestCloseDetails())return false;
-            if(disposed||getOwnerId()!==actor||getPlanId()!==originalPlan||generation!==originalGeneration||!sameBatchView(command,originalView))return false;
+            if(disposed||getOwnerId()!==actor||getPlanId()!==originalPlan||generation!==originalGeneration||(!sameBatchView(command,originalView)||(sectionMutation(command)&&sectionBlocked())))return false;
             const ready=await ensurePlan();
             if(!ready||disposed||getOwnerId()!==actor||(originalPlan!==null&&(getPlanId()!==originalPlan||generation!==originalGeneration))||(originalPlan===null&&ready!==getPlanId())||!sameBatchView(command,originalView))return false;
             sync();operationGeneration=generation;busy=true;if(!plan)return false;
@@ -257,5 +262,5 @@ export function mountTaskListInteractions({root,getState,getOwnerId,getPlanId,co
     };
     const onCancel=()=>cancelDrag();
     root.addEventListener('click',onClick);root.addEventListener('change',onChange);root.addEventListener('keydown',onKey);root.addEventListener('pointerdown',onDown);root.addEventListener('pointermove',onMove);root.addEventListener('pointerup',onUp);root.addEventListener('pointercancel',onCancel);sync();decorate();
-    return {getDisplayState,getActionState,runTaskAction,runTaskBatch,runTaskTool,execute,retry:reconcile,undo,discard,sync,decorate,cancelDrag,isDragging:()=>!!drag,reportError(text){message.textContent=text;decorate()},dispose(){disposed=true;preview=null;generation++;cancelDrag();clearUndo();moveDialog?.remove();fieldDialog?.dispose();bar.remove();for(const [type,handler] of [['click',onClick],['change',onChange],['keydown',onKey],['pointerdown',onDown],['pointermove',onMove],['pointerup',onUp],['pointercancel',onCancel]])root.removeEventListener(type,handler)}};
+    return {runSectionAction:sections.run,getSectionState:sections.state,getDisplayState,getActionState,runTaskAction,runTaskBatch,runTaskTool,execute,retry:reconcile,undo,discard,sync,decorate,cancelDrag,isDragging:()=>!!drag||sections.isDragging(),reportError(text){message.textContent=text;decorate()},dispose(){sections.dispose();disposed=true;preview=null;generation++;cancelDrag();clearUndo();moveDialog?.remove();fieldDialog?.dispose();bar.remove();for(const [type,handler] of [['click',onClick],['change',onChange],['keydown',onKey],['pointerdown',onDown],['pointermove',onMove],['pointerup',onUp],['pointercancel',onCancel]])root.removeEventListener(type,handler)}};
 }

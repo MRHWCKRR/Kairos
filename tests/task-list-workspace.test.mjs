@@ -5,11 +5,39 @@ import {applyTaskListCommand} from '../task-list-model.js';
 import {plannerFixture} from './helpers/planner-fixture.mjs';
 const tick=()=>new Promise(resolve=>setTimeout(resolve,0));
 
+test('confirmed section move carries collapsed view and quick capture draft to destination and back',async()=>{
+ const storage=new Map(),f=await fixture({storage});assert.equal(typeof f.workspace.sectionMoved,'function');
+ f.data().boards.push({id:'other',title:'Other',sections:[]});
+ await f.workspace.collapseSection({boardId:'b',sectionId:'s'});
+ const command={type:'move_section',target:{boardId:'b',sectionId:'s'},destination:{boardId:'other',index:0}};
+ f.data().boards[1].sections.push(f.data().boards[0].sections.shift());f.workspace.sectionMoved(command);
+ const preferences=JSON.parse(storage.get('kairos-task-list-view:one:plan'));assert.equal(preferences[JSON.stringify(['other','s'])].collapsed,true);
+ await f.workspace.addTask({boardId:'other',sectionId:'s'});f.type('Keep my draft');
+ f.data().boards[0].sections.unshift(f.data().boards[1].sections.pop());
+ f.workspace.sectionMoved({type:'undo_task_list',inverse:{command:{type:'move_section',target:{boardId:'other',sectionId:'s'},destination:{boardId:'b',index:0}}}});
+ assert.equal(f.root.querySelector('[data-quick-title]').value,'Keep my draft');
+ assert.equal(f.root.querySelector('[data-quick-title]').disabled,false);f.workspace.dispose();
+});
+
+test('host reconciliation keeps inline capture in overview when its section moves boards',async()=>{
+ const f=await fixture();f.data().boards.push({id:'other',title:'Other',sections:[]});
+ await f.workspace.addTask({boardId:'b',sectionId:'s'});f.type('Still typing');
+ f.data().boards[1].sections.push(f.data().boards[0].sections.shift());
+ f.workspace.replaceOverview('<div class="board-section-block" data-board-id="other" data-section-id="s"><div class="section-title-row"></div><ul class="task-list"></ul><button class="add-task-btn">Add</button></div>');
+ f.workspace.decorateOverview();f.workspace.sectionMoved({type:'move_section',target:{boardId:'b',sectionId:'s'},destination:{boardId:'other',index:0}});
+ assert.equal(f.overview.hidden,false);assert.equal(f.workspace.isFocused(),false);assert.equal(f.overview.querySelector('[data-quick-title]').value,'Still typing');f.workspace.dispose();
+});
+
+test('quick capture waits while a section mutation is pending',async()=>{
+ const f=await fixture({blocked:()=>true});await f.workspace.addTask({boardId:'b',sectionId:'s'});f.type('Wait');
+ assert.equal(await f.workspace.submit(),false);assert.equal(f.calls.length,0);f.workspace.dispose();
+});
+
 test('shared Tasks row keeps direct completion and editing with only grip and menu secondary controls',async()=>{
  const {renderTaskListRow}=await import('../task-list-workspace.js');const {document}=parseHTML('<html><body><ul>'+renderTaskListRow({id:'a',title:'<img src=x>'},'s')+'</ul></body></html>');
  assert.ok(document.querySelector('[data-task-action="drag"]'));assert.ok(document.querySelector('[data-task-list-complete]'));assert.ok(document.querySelector('.task-text'));assert.ok(document.querySelector('.task-date-input'));const button=document.querySelector('[data-task-menu="a"]');assert.ok(button);assert.match(button.getAttribute('aria-label'),/<img src=x>/);assert.equal(button.getAttribute('aria-haspopup'),'menu');assert.equal(document.querySelector('img'),null);assert.equal(document.querySelectorAll('[data-task-action]').length,1);assert.equal(document.querySelector('[data-task-detail],[data-task-list-archive]'),null);
 });
-async function fixture({persist,storage=new Map(),rebuildOverview=false}={}){
+async function fixture({persist,storage=new Map(),rebuildOverview=false,blocked=()=>false}={}){
   const module=await import('../task-list-workspace.js').catch(()=>({}));assert.equal(typeof module.mountTaskListWorkspace,'function','focused workspace must be implemented');
   const {document,window}=parseHTML('<html><body><main class="main-content"><section id="tasks-page" class="active"><div id="overview"><div class="board-section-block" data-board-id="b" data-section-id="s"><div class="section-title-row"></div><ul class="task-list"></ul><button class="add-task-btn" data-board-id="b" data-section-id="s">Add</button></div></div></section><input id="chat"></main></body></html>');
   let data={userID:'one',boards:[{id:'b',title:'<img src=x>',sections:[{id:'s',title:'" Work <script>x</script>',tasks:[{id:'t',title:'<img src=x onerror=x>',completed:false},{id:'done',title:'Done',completed:true}]},{id:'s2',title:'Other',tasks:[]}]}]},owner='one',plan='plan',wait=null,allow=true,calls=[],discard=true,confirmations=[],focused=null;
@@ -17,7 +45,7 @@ async function fixture({persist,storage=new Map(),rebuildOverview=false}={}){
   const store={getItem:key=>storage.get(key)||null,setItem:(key,val)=>storage.set(key,val),removeItem:key=>storage.delete(key)};
   window.HTMLElement.prototype.focus=function(){focused=this};
   const overviewHTML=overview.innerHTML+overview.innerHTML.replaceAll('data-section-id="s"','data-section-id="s2"');if(rebuildOverview)overview.innerHTML=overviewHTML;
-  const workspace=module.mountTaskListWorkspace({root,overview,scrollElement:scroll,document,window,storage:store,getState:()=>data,getOwnerId:()=>owner,getPlanId:()=>plan,ensurePlan:async()=>true,requestCloseDetails:async()=>allow,confirmDiscard:async warning=>{confirmations.push(warning);return discard},renderOverview:()=>{if(rebuildOverview)overview.innerHTML=overviewHTML},commit:async(command,expected,identity)=>{
+  const workspace=module.mountTaskListWorkspace({root,overview,scrollElement:scroll,document,window,storage:store,isMutationBlocked:blocked,getState:()=>data,getOwnerId:()=>owner,getPlanId:()=>plan,ensurePlan:async()=>true,requestCloseDetails:async()=>allow,confirmDiscard:async warning=>{confirmations.push(warning);return discard},renderOverview:()=>{if(rebuildOverview)overview.innerHTML=overviewHTML},commit:async(command,expected,identity)=>{
     calls.push(structuredClone({command,expected,identity}));if(wait)await wait;
     if(persist){await persist(command,expected,identity);data=persist.data()}
     else data=applyTaskListCommand(data,command,expected).next;

@@ -1,4 +1,5 @@
 import {stableStringify,mergePlanEdits} from './plan-merge.js';
+import {applySectionCommand} from './task-section-model.js';
 import {buildTaskToolCommand,applyTaskToolCommand} from './task-tools-model.js';
 import {parseTime,formatTime,taskDurationMinutes} from './schedule-utils.js';
 import {normalizeRecurrence,validateRecurrence,generateTaskOccurrences,applyOccurrenceOverride} from './recurrence-utils.js';
@@ -148,12 +149,13 @@ function applyTaskBatch(state,command,expected,restore=false){
 }
 export function buildTaskTool(state,action,ids,options={}){batchIds(ids);return buildTaskToolCommand(state,action,ids,options,{resolve:taskListLocation,values:taskDetailValues})}
 export function applyTaskListCommand(state,command,expected,{now=Date.now()}={}){
+    if(['move_section','reorder_sections'].includes(command?.type))return applySectionCommand(state,command,expected);
     if(command?.type==='task_tool'){batchIds(command.taskIds);return applyTaskToolCommand(state,command,expected,{resolve:taskListLocation,values:taskDetailValues,apply:applyTaskListCommand})}
     if(command?.type==='undo_task_list'){
         if(!Number.isFinite(command.expiresAt)||command.expiresAt<=now||command.expiresAt>now+10000)throw new Error('Undo expired.');
         if(command.inverse?.command?.type==='restore_task_fields'){batchIds(command.inverse.command.taskIds);const out=applyTaskToolCommand(state,command.inverse.command,command.inverse.expected,{resolve:taskListLocation,values:taskDetailValues,apply:applyTaskListCommand},true);out.result.type='undo_task_list';return out}
         if(command.inverse?.command?.type==='restore_task_batch'){const out=applyTaskBatch(state,command.inverse.command,command.inverse.expected,true);out.result.type='undo_task_list';return out}
-        if(!['reorder_tasks','move_task','complete_task','archive_task'].includes(command.inverse?.command?.type))throw new Error('Unsupported Undo action.');
+        if(!['reorder_tasks','move_task','complete_task','archive_task','move_section','reorder_sections'].includes(command.inverse?.command?.type))throw new Error('Unsupported Undo action.');
         const out=applyTaskListCommand(state,command.inverse.command,command.inverse.expected,{now});out.result.type='undo_task_list';return out;
     }
     if(command?.type==='task_batch')return applyTaskBatch(state,command,expected);

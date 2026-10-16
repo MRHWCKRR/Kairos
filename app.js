@@ -2,7 +2,7 @@ import { showNotice, confirmDialog, promptDialog } from './ui-dialogs.js?v=1';
 import { aiFetch, aiErrorMessage } from './ai-client.js';
 import { requestBilling } from './billing-client.js';
 import { mountPlanUsage } from './plan-usage.js?v=3';
-import { createPageLoader } from './page-loader.js?v=33';
+import { createPageLoader } from './page-loader.js?v=34';
 import { mountPageRouter } from './page-router.js?v=2';
 import { createPageRenderCache } from './page-render-cache.js?v=1';
 import './boards-recurrence.js?v=10';
@@ -593,11 +593,11 @@ function bootApp() {
         taskWorkspace=module.mountTaskListWorkspace({root:document.getElementById('tasks-page'),overview:document.getElementById('tasks-manager-container'),
             getState:()=>taskInteractions?.getDisplayState()||({boards:boardsData}),getOwnerId:()=>auth.currentUser?.uid||null,getPlanId:()=>currentPlanDocId,commit:commitTaskDetails,
             ensurePlan:async()=>{const owner=auth.currentUser?.uid;if(!owner)return false;if(!currentPlanDocId&&!await updatePlanInFirestore())return false;return auth.currentUser?.uid===owner},
-            requestCloseDetails:()=>taskDetails?.requestClose()??true,renderOverview:renderBoardsGrid,onRender:()=>{taskInteractions?.decorate();taskSelection?.sync();taskMenus?.sync()}});
+            isMutationBlocked:()=>{const state=taskInteractions?.getActionState({taskId:''});return !!(state?.busy||state?.pending)},requestCloseDetails:()=>taskDetails?.requestClose()??true,renderOverview:renderBoardsGrid,onRender:()=>{taskInteractions?.decorate();taskSelection?.sync();taskMenus?.sync()}});
         renderBoardsGrid();
     },setupTaskInteractions:module=>{
         taskInteractions=module.mountTaskListInteractions({root:document.getElementById('tasks-page'),getState:()=>({boards:boardsData}),getOwnerId:()=>auth.currentUser?.uid||null,getPlanId:()=>currentPlanDocId,
-            getViewKey:()=>taskWorkspace?.getViewKey(),getSelectedTaskIds:()=>taskSelection?.ids()||[],commit:commitTaskDetails,refresh:renderBoardsGrid,onConfirmed:recordTaskListCompletion,requestCloseDetails:()=>taskDetails?.requestClose()??true,
+            getViewKey:()=>taskWorkspace?.getViewKey(),getSelectedTaskIds:()=>taskSelection?.ids()||[],commit:commitTaskDetails,refresh:renderBoardsGrid,onConfirmed:(command,result)=>{taskWorkspace?.sectionMoved(command);recordTaskListCompletion(command,result)},sectionBlocked:()=>taskWorkspace?.hasPendingCapture()||false,requestCloseDetails:()=>taskDetails?.requestClose()??true,
             ensurePlan:async()=>{const owner=auth.currentUser?.uid,expectedPlan=currentPlanDocId||'plan-'+owner;if(!owner)return false;if(!currentPlanDocId&&!await updatePlanInFirestore())return false;return auth.currentUser?.uid===owner&&currentPlanDocId===expectedPlan?expectedPlan:false}});
     },setupTaskSelection:module=>{
         taskSelection=module.mountTaskSelection({root:document.getElementById('tasks-page'),getIdentity:()=>({ownerId:auth.currentUser?.uid||null,planId:currentPlanDocId}),getViewKey:()=>taskWorkspace?.getViewKey(),
@@ -610,7 +610,7 @@ function bootApp() {
             openDetails:(target,source)=>openTaskDetailsFromList(target.taskId,source),openSchedule:openTaskDetailsInSchedule,
             copyText:text=>navigator.clipboard?.writeText?navigator.clipboard.writeText(text):Promise.reject(Error('Clipboard unavailable')),
             reportError:text=>taskInteractions.reportError(text),translate:tr});
-        const sectionActions=actions.createTaskSectionActions({getIdentity,resolveSection:target=>taskListSection({boards:boardsData},target),getInteractionState:()=>taskInteractions.getActionState({taskId:''}),addTask:(target,source)=>taskWorkspace.addTask(target,source),selectSection:target=>taskSelection.selectSection(target),collapseSection:target=>taskWorkspace.collapseSection(target),translate:tr});
+        const sectionActions=actions.createTaskSectionActions({getIdentity,resolveSection:target=>taskListSection({boards:boardsData},target),getInteractionState:()=>taskInteractions.getActionState({taskId:''}),addTask:(target,source)=>taskWorkspace.addTask(target,source),selectSection:target=>taskSelection.selectSection(target),collapseSection:target=>taskWorkspace.collapseSection(target),getSectionState:target=>taskInteractions.getSectionState(target),runSectionAction:(id,target,source)=>taskInteractions.runSectionAction(id,target,source),translate:tr});
         taskMenus=menu.mountTaskActionMenu({root,actions:registry,getIdentity,getViewKey:()=>taskWorkspace?.getViewKey(),label:tr('task_menu_heading'),sectionActions,sectionLabel:tr('task_section_heading'),
             resolveSection:element=>{const block=element?.closest?.('.board-section-block,[data-focused-section]');if(!block||!root.contains(block)||block.closest('[hidden]'))return null;const section={boardId:block.dataset.boardId,sectionId:block.dataset.sectionId};try{taskListSection({boards:boardsData},section);return {element:block,section}}catch{return null}},
             getContext:(found,options)=>taskSelection.contextFor(found.taskId,options),getLabel:context=>tr(context.taskIds.length===1?'task_selection_menu_one':'task_selection_menu').replace('{n}',context.taskIds.length),
