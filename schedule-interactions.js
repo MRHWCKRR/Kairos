@@ -16,7 +16,11 @@ function currentGesture(value=interaction){
   const now=pointerScope();if(value.scope.ownerId!==now.ownerId||value.scope.planId!==now.planId||!document.getElementById('schedule-page')?.classList.contains('active')||!value.originElement?.isConnected)return false;
   const task=value.isOccurrence?findOccurrence(value.seriesId,value.occurrenceDate)?.occurrence.task:findTask(value.taskId)?.task;return !!task&&JSON.stringify(snapshot(task))===JSON.stringify(value.original);
 }
-function canBegin(){return document.getElementById('schedule-page')?.classList.contains('active')&&(!bridge()?.getOwnerId||!!bridge().getOwnerId())}
+function canBegin(){
+  const editor=workspace()?.inspectorSession;
+  if(editor?.isBusy()||editor?.hasDraft()){showToast(editor.isBusy()?'Wait for the current save.':'Save or discard your edits before dragging tasks.');return false}
+  return document.getElementById('schedule-page')?.classList.contains('active')&&(!bridge()?.getOwnerId||!!bridge().getOwnerId());
+}
 function releaseCapture(value){try{value?.originElement?.releasePointerCapture?.(value.pointerId)}catch{}}
 
 
