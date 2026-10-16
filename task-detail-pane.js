@@ -2,10 +2,12 @@ import {stableStringify} from './plan-merge.js';
 import {taskDetailValues,TASK_DETAIL_FIELDS,applyTaskListCommand} from './task-list-model.js';
 import {recurrenceFieldsMarkup,bindRecurrenceFields,readRecurrenceFields} from './schedule-recurrence-ui.js';
 import {t} from './i18n.js';
+import {mountTaskChecklistEditor} from './task-checklist-editor.js?v=1';
 
 const esc=value=>String(value??'').replace(/[&<>'"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[ch]));
 export function mountTaskDetailPane({root,resolveTarget,commit,getOwnerId,getPlanId=()=>null,onClose=()=>{},openSchedule,document=globalThis.document,window=globalThis.window}){
-    let panel=null,form=null,target=null,baseline=null,displayBaseline=null,location=null,owner=null,planId=null,opener=null,pending=null,busy=false,dialog=null,choiceDialog=null,choiceFinish=null,revision=0,checklistDraft=[];
+    let panel=null,form=null,target=null,baseline=null,displayBaseline=null,location=null,owner=null,planId=null,opener=null,pending=null,busy=false,dialog=null,choiceDialog=null,choiceFinish=null,revision=0,checklistEditor=null;
+    let pendingFocus=null,pointerFocus=null;
     const copy=key=>t('task_detail_'+key,document.documentElement.lang||'en');
     const field=name=>form?.querySelector('[name="'+name+'"]');
     const key=()=> 'kairos-task-detail-pending:'+owner+':'+planId;
@@ -13,7 +15,7 @@ export function mountTaskDetailPane({root,resolveTarget,commit,getOwnerId,getPla
     function remember(){try{window.sessionStorage?.setItem(key(),JSON.stringify(pending))}catch{}}
     function forget(){try{window.sessionStorage?.removeItem(key())}catch{}}
     function read(){
-        const result={...baseline,checklist:structuredClone(checklistDraft)};
+        const result={...baseline,checklist:checklistEditor?.read()||[]};
         if(target?.occurrenceDate)return result;
         for(const name of ['title','notes'])result[name]=field(name).value;
         for(const name of ['date','startTime','dueDate','priority','schedulingPreference','color'])result[name]=field(name).value||null;
@@ -26,31 +28,28 @@ export function mountTaskDetailPane({root,resolveTarget,commit,getOwnerId,getPla
         return result;
     }
     function edits(){const values=read();return Object.fromEntries(TASK_DETAIL_FIELDS.filter(name=>stableStringify(values[name])!==stableStringify(displayBaseline[name])).map(name=>[name,values[name]]))}
-    function dirty(){try{return !!pending||Object.keys(edits()).length>0}catch{return true}}
+    function dirty(){try{return !!pending||checklistEditor?.hasPendingEntry()||Object.keys(edits()).length>0}catch{return true}}
+    const activePage=()=>!root.classList.contains('page-view')||root.classList.contains('active');
+    function captureUi(){
+        const active=document.activeElement;
+        return {checklist:checklistEditor?.captureFocus(),name:panel?.contains(active)?active.name:null,control:active?.matches?.('[type="submit"]')?'save':active?.matches?.('[data-maximise]')?'maximise':null,start:active?.selectionStart,end:active?.selectionEnd,scroll:panel?.scrollTop||0,dialogScroll:dialog?.scrollTop||0};
+    }
+    function restoreUi(view,focus=true){
+        if(!view||!activePage())return;
+        if(focus){
+            if(view.checklist)checklistEditor?.restoreFocus(view.checklist);
+            else {const el=view.name?field(view.name):view.control==='save'?form?.querySelector('[type="submit"]'):view.control==='maximise'?panel?.querySelector('[data-maximise]'):null;el?.focus?.({preventScroll:true});if(typeof view.start==='number')try{el?.setSelectionRange?.(view.start,view.end)}catch{}}
+        }
+        if(panel)panel.scrollTop=view.scroll;if(dialog)dialog.scrollTop=view.dialogScroll;
+    }
     function updateControls(){
         panel?.querySelectorAll('input,select,textarea').forEach(el=>el.disabled=busy||!!pending);
-        panel?.querySelectorAll('[data-step-check]').forEach(el=>el.disabled=busy||!!pending||(!target?.occurrenceDate&&baseline.recurrence?.enabled));
-        panel?.querySelectorAll('[data-step-action],[data-checklist-add],[data-series-scope],[data-open-occurrence]').forEach(el=>{
-            const row=el.closest('[data-step-row]'),index=checklistDraft.findIndex(item=>item.id===row?.dataset.stepRow),action=el.dataset.stepAction;
-            el.disabled=busy||!!pending||(action==='up'&&index===0)||(action==='down'&&index===checklistDraft.length-1);
-        });
+        checklistEditor?.setDisabled(busy||!!pending);
+        panel?.querySelectorAll('[data-series-scope],[data-open-occurrence]').forEach(el=>el.disabled=busy||!!pending);
         if(form){const save=form.querySelector('[type="submit"]');save.disabled=busy;save.textContent=copy(pending?'retry':'save')}
     }
-    function checklistProgress(){const el=panel?.querySelector('[data-checklist-progress]');if(el)el.textContent=checklistDraft.filter(item=>item.completed).length+' / '+checklistDraft.length+' '+copy('steps')}
-    function renderChecklist(){
-        const list=panel.querySelector('[data-checklist-list]');
-        list.innerHTML=checklistDraft.map(item=>`<li data-step-row="${esc(item.id)}"><input type="checkbox" data-step-check aria-label="${esc(copy('step_complete')+' '+item.title)}" ${item.completed?'checked':''}><input type="text" data-step-title value="${esc(item.title)}" maxlength="180" aria-label="${esc(copy('step_title'))}"><button type="button" data-step-action="up" aria-label="${esc(copy('step_up'))}">↑</button><button type="button" data-step-action="down" aria-label="${esc(copy('step_down'))}">↓</button><button type="button" data-step-action="remove" aria-label="${esc(copy('step_remove'))}">×</button></li>`).join('');
-        checklistProgress();updateControls();
-    }
-    function addStep(){
-        if(busy||pending)return;const input=panel.querySelector('[data-checklist-new]'),title=input.value.trim();
-        if(!title||title.length>180){status(copy('step_required'),true);input.focus?.();return}
-        if(checklistDraft.length>=100){status(copy('step_limit'),true);return}
-        checklistDraft.push({id:'step-'+(window.crypto?.randomUUID?.()||Date.now().toString(36)+'-'+Math.random().toString(36).slice(2)),title,completed:false});
-        input.value='';renderChecklist();status(copy('unsaved'));input.focus?.();
-    }
     function close(){
-        revision++;
+        revision++;checklistEditor?.dispose();checklistEditor=null;pendingFocus=null;pointerFocus=null;
         const returnFocus=opener?.isConnected?opener:[...root.querySelectorAll('[data-task-detail]')].find(el=>el.dataset.taskDetail===target?.taskId);
         choiceFinish?.('stay');choiceDialog?.remove();choiceDialog=null;
         dialog?.close?.();dialog?.remove();dialog=null;panel?.remove();panel=null;form=null;target=null;pending=null;busy=false;
@@ -90,16 +89,16 @@ export function mountTaskDetailPane({root,resolveTarget,commit,getOwnerId,getPla
     }
     function maximise(){
         if(!panel||busy)return;
-        if(dialog){dialog.close?.();root.appendChild(panel);dialog.remove();dialog=null;panel.querySelector('[data-maximise]').textContent=copy('expand');return;}
+        const view=document.activeElement?.matches?.('[data-maximise]')&&pointerFocus?pointerFocus:captureUi();pointerFocus=null;
+        if(dialog){dialog.close?.();root.appendChild(panel);dialog.remove();dialog=null;panel.querySelector('[data-maximise]').textContent=copy('expand');restoreUi(view);return;}
         dialog=document.createElement('dialog');dialog.className='task-detail-expanded';dialog.setAttribute('aria-labelledby','task-detail-heading');document.body.appendChild(dialog);dialog.appendChild(panel);
         panel.querySelector('[data-maximise]').textContent=copy('shrink');
         dialog.addEventListener('cancel',event=>{event.preventDefault();void requestClose()});
-        if(dialog.showModal)dialog.showModal();else dialog.setAttribute('open','');field('title').focus?.();
+        if(dialog.showModal)dialog.showModal();else dialog.setAttribute('open','');restoreUi(view);
     }
-    function render(found){
+    function render(found,{focus=true}={}){
         const values=baseline;
         const recurrenceTask=pending&&Object.hasOwn(pending.command.changes,'recurrence')?{...found.task,recurrence:pending.command.changes.recurrence}:found.task;
-        checklistDraft=structuredClone(pending?.command?.changes?.checklist||values.checklist||[]);
         panel=document.createElement('aside');panel.className='task-detail-pane';panel.dataset.taskDetailPane='';panel.setAttribute('aria-labelledby','task-detail-heading');
         const input=(name,label,type='text',attrs='')=>`<label>${esc(label)}<input name="${name}" type="${type}" ${attrs} value="${esc(values[name])}"></label>`;
         const select=(name,label,options)=>`<label>${esc(label)}<select name="${name}">${options.map(([value,text])=>`<option value="${value}" ${String(values[name]??'')===value?'selected':''}>${esc(text)}</option>`).join('')}</select></label>`;
@@ -118,45 +117,31 @@ export function mountTaskDetailPane({root,resolveTarget,commit,getOwnerId,getPla
           ${recurrenceFieldsMarkup(recurrenceTask,{fallbackDate:found.task.date||null})}
           <details><summary>${esc(copy('more'))}</summary><div class="task-detail-grid">${select('schedulingPreference',copy('preference'),[['',copy('none')],['morning',copy('morning')],['afternoon',copy('afternoon')],['evening',copy('evening')]])}${input('color',copy('color'),'text','maxlength="7" placeholder="#a855f7"')}</div>
           <label class="task-detail-check"><input name="scheduleLocked" type="checkbox" ${values.scheduleLocked?'checked':''}>${esc(copy('lock'))}</label></details></fieldset>
-          <section class="task-checklist" aria-label="${esc(copy('checklist'))}"><header><h3>${esc(copy('checklist'))}</h3><span data-checklist-progress></span></header><p class="task-detail-hint">${esc(values.recurrence?.enabled&&!target.occurrenceDate?copy('template_hint'):target.occurrenceDate?copy('occurrence_hint'):copy('checklist_hint'))}</p><ul data-checklist-list></ul><div class="task-checklist-add"><input type="text" data-checklist-new maxlength="180" placeholder="${esc(copy('step_add'))}" aria-label="${esc(copy('step_add'))}"><button type="button" data-checklist-add>${esc(copy('step_add'))}</button></div></section>
+          <section class="task-checklist" aria-label="${esc(copy('checklist'))}"></section>
           <p role="status" aria-live="polite">${esc(copy('saved'))}</p>
           <div class="task-detail-actions"><button type="submit" class="task-detail-primary">${esc(copy('save'))}</button><button type="button" data-close>${esc(copy('close'))}</button>${openSchedule?'<button type="button" data-schedule>'+esc(copy('schedule'))+'</button>':''}</div>
           </form>`;
         root.appendChild(panel);root.classList.add('has-task-details');form=panel.querySelector('form');
         bindRecurrenceFields(form,{fallbackDate:found.task.date||values.recurrence?.startDate||null});
-        renderChecklist();
+        checklistEditor=mountTaskChecklistEditor({root:panel.querySelector('.task-checklist'),items:pending?.command?.changes?.checklist||values.checklist||[],canToggle:!!target.occurrenceDate||!values.recurrence?.enabled,hint:copy(values.recurrence?.enabled&&!target.occurrenceDate?'template_hint':target.occurrenceDate?'occurrence_hint':'checklist_hint'),copy,onStatus:status,onChange:()=>status(copy('unsaved')),document,window});
         displayBaseline=read();
         if(pending){for(const [name,value] of Object.entries(pending.command.changes)){const el=field(name);if(el){if(el.type==='checkbox')el.checked=value===true;else el.value=value??''}}status(copy('uncertain'),true)}
         form.addEventListener('input',()=>{if(!busy&&!pending)status(copy('unsaved'))});form.addEventListener('change',()=>{if(!busy&&!pending)status(copy('unsaved'))});
-        form.addEventListener('input',event=>{
-            const row=event.target.closest('[data-step-row]'),item=checklistDraft.find(item=>item.id===row?.dataset.stepRow);
-            if(item&&event.target.matches('[data-step-title]')&&!busy&&!pending)item.title=event.target.value;
-        });
-        form.addEventListener('change',event=>{
-            const row=event.target.closest('[data-step-row]'),item=checklistDraft.find(item=>item.id===row?.dataset.stepRow);
-            if(item&&event.target.matches('[data-step-check]')&&!event.target.disabled){item.completed=event.target.checked===true;checklistProgress()}
-        });
-        panel.querySelector('[data-checklist-add]').addEventListener('click',addStep);
-        panel.querySelector('[data-checklist-new]').addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();event.stopPropagation();addStep()}});
-        panel.querySelector('[data-checklist-list]').addEventListener('click',event=>{
-            const button=event.target.closest('[data-step-action]');if(!button||button.disabled||busy||pending)return;
-            const row=button.closest('[data-step-row]'),index=checklistDraft.findIndex(item=>item.id===row.dataset.stepRow),action=button.dataset.stepAction;
-            if(action==='remove')checklistDraft.splice(index,1);
-            else {const other=index+(action==='up'?-1:1);[checklistDraft[index],checklistDraft[other]]=[checklistDraft[other],checklistDraft[index]]}
-            renderChecklist();status(copy('unsaved'));
-        });
         panel.querySelector('[data-series-scope]')?.addEventListener('click',()=>void open({taskId:target.taskId},opener));
         panel.querySelector('[data-open-occurrence]')?.addEventListener('click',()=>{const date=panel.querySelector('[data-checklist-occurrence]').value;if(date)void open({taskId:target.taskId,occurrenceDate:date},opener)});
         form.addEventListener('submit',event=>{event.preventDefault();void save()});
         panel.querySelectorAll('[data-close]').forEach(el=>el.addEventListener('click',()=>void requestClose()));
         panel.querySelector('[data-maximise]').addEventListener('click',maximise);
+        panel.addEventListener('pointerdown',event=>{pointerFocus=event.target.closest?.('[data-maximise],[type="submit"]')?captureUi():null});
+        panel.addEventListener('pointercancel',()=>pointerFocus=null);
         panel.querySelector('[data-schedule]')?.addEventListener('click',async()=>{const selected={...target};if(await requestClose())openSchedule(selected)});
         panel.addEventListener('keydown',event=>{
+            pointerFocus=null;if(event.isComposing||event.keyCode===229)return;
             if(event.key==='Escape'){event.preventDefault();event.stopPropagation();void requestClose()}
-            else if(event.key==='Enter'&&(event.ctrlKey||event.metaKey)){event.preventDefault();void save()}
+            else if(event.key==='Enter'&&(event.ctrlKey||event.metaKey)){event.preventDefault();event.stopPropagation();void save()}
             else if(dialog)trap(event,panel);
         });
-        updateControls();field('title').focus?.();
+        updateControls();if(focus)field('title').focus?.();
     }
     async function open(selected,source=document.activeElement){
         const actor=getOwnerId(),actorPlan=getPlanId();if(!actor)return false;
@@ -166,7 +151,7 @@ export function mountTaskDetailPane({root,resolveTarget,commit,getOwnerId,getPla
         let found;try{found=resolveTarget(selected)}catch{return false}
         owner=getOwnerId();if(!owner)return false;planId=getPlanId();target={...selected};opener=source;baseline=taskDetailValues(found.task,target);location={boardId:found.board.id,sectionId:found.section.id};pending=null;
         try{const stored=JSON.parse(window.sessionStorage?.getItem(key())||'null');if(stored?.command?.target?.taskId===target.taskId&&(stored.command.target.occurrenceDate||null)===(target.occurrenceDate||null)&&stored.identity?.ownerId===owner&&stored.identity?.planId===planId&&stored.baseline){pending=stored;baseline=stored.baseline;location={boardId:stored.expected.boardId,sectionId:stored.expected.sectionId}}}catch{}
-        render(found);if(window.innerWidth<1100)maximise();return true;
+        pendingFocus=null;pointerFocus=null;render(found);if(window.innerWidth<1100)maximise();return true;
     }
     async function save(){
         if(!panel||busy)return false;
@@ -174,19 +159,20 @@ export function mountTaskDetailPane({root,resolveTarget,commit,getOwnerId,getPla
         if(owner!==getOwnerId()||planId!==getPlanId()){forget();close();return false}
         try{
             const found=resolveTarget(target);
-            if(!pending){const changes=edits();if(!Object.keys(changes).length){status(copy('saved'));return true}
+            const view=document.activeElement?.matches?.('[type="submit"]')&&pointerFocus?pointerFocus:captureUi();pointerFocus=null;
+            if(!pending){if(!checklistEditor?.flushEntry())return false;const changes=edits();if(!Object.keys(changes).length){status(copy('saved'));return true}
                 const command={type:'edit_task',target:{...target},changes},expected={...location,fields:structuredClone(baseline)};
                 applyTaskListCommand({boards:[{...found.board,sections:[{...found.section,tasks:[found.seriesTask||found.task]}]}]},command,expected);
-                pending={command,expected,baseline:structuredClone(baseline),identity:{ownerId:owner,planId,operationId:'task-detail-'+(window.crypto?.randomUUID?.()||Date.now().toString(36)+'-'+Math.random().toString(36).slice(2)),createdAt:Date.now()}};remember();
+                pendingFocus=view;pending={command,expected,baseline:structuredClone(baseline),identity:{ownerId:owner,planId,operationId:'task-detail-'+(window.crypto?.randomUUID?.()||Date.now().toString(36)+'-'+Math.random().toString(36).slice(2)),createdAt:Date.now()}};remember();
             }
             busy=true;updateControls();status(copy('saving'));
             const result=await commit(pending.command,pending.expected,pending.identity);
             if(ticket!==revision)return false;
             if(owner!==getOwnerId()||planId!==getPlanId()){forget();close();return false}
-            const fresh=resolveTarget(target),expanded=dialog,focused=document.activeElement?.name;
-            baseline=taskDetailValues(fresh.task,target);forget();pending=null;busy=false;panel.remove();render(fresh);
+            const fresh=resolveTarget(target),expanded=dialog,restore=pendingFocus||view,canFocus=activePage()&&(document.activeElement===document.body||panel.contains(document.activeElement));
+            baseline=taskDetailValues(fresh.task,target);forget();pending=null;pendingFocus=null;busy=false;checklistEditor?.dispose();panel.remove();render(fresh,{focus:false});
             if(expanded){expanded.appendChild(panel);panel.querySelector('[data-maximise]').textContent=copy('shrink')}
-            if(focused)field(focused)?.focus?.();status(copy('saved'));return !!result;
+            restoreUi(restore,canFocus);status(copy('saved'));return !!result;
         }catch(error){if(ticket!==revision)return false;busy=false;updateControls();status(copy('failed')+' '+error.message,true);return false}
     }
     function sync(){if(panel&&(owner!==getOwnerId()||planId!==getPlanId())){forget();close()}}

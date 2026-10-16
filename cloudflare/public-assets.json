@@ -1,5 +1,6 @@
 {
   "files": [
+    "task-checklist-editor.js",
     "ui-context-menu.js",
     "task-section-actions.js",
     "task-tools-dialog.js",
