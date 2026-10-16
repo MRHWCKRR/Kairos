@@ -3,6 +3,16 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { createPageLoader } from '../page-loader.js';
 
+test('Task keyboard shortcuts mount once after the shared menus',async()=>{
+ const order=[],imports=[];const loader=createPageLoader({taskDetailsEnabled:true,setupTaskMenus:()=>order.push('menus'),setupTaskShortcuts:()=>order.push('shortcuts'),loadStyle:async()=>{},importModule:async url=>{imports.push(url);return {}}});
+ await Promise.all([loader.prepare('tasks-page'),loader.prepare('tasks-page')]);await loader.prepare('tasks-page');assert.deepEqual(order,['menus','shortcuts']);assert.equal(imports.filter(url=>url.includes('task-keyboard-shortcuts')).length,1);
+});
+
+test('settings remove the obsolete AI Engine tab and panel while keeping the AI workspace',async()=>{
+ const {parseHTML}=await import('linkedom');const {document}=parseHTML(await readFile(new URL('../app.html',import.meta.url),'utf8'));
+ assert.equal(document.querySelector('[data-settings-tab="ai"]'),null);assert.equal(document.querySelector('#settings-ai'),null);assert.ok(document.querySelector('#ai-page'));assert.ok(document.querySelector('#settings-privacy'));assert.ok(document.querySelector('[data-view-plans]'));
+});
+
 test('shared task menus mount once after interactions and never load Schedule',async()=>{
  const imports=[],mounts=[];const loader=createPageLoader({taskDetailsEnabled:true,setupTaskDetails:()=>mounts.push('details'),setupTaskWorkspace:()=>mounts.push('sections'),setupTaskInteractions:()=>mounts.push('interactions'),setupTaskMenus:modules=>{assert.ok(modules.actions);assert.ok(modules.menu);mounts.push('menu')},loadStyle:async()=>{},importModule:async url=>{imports.push(url);return {}}});
  await Promise.all([loader.prepare('tasks-page'),loader.prepare('tasks-page')]);await loader.prepare('tasks-page');assert.deepEqual(mounts,['details','sections','interactions','menu']);assert.equal(imports.filter(url=>url.includes('task-action-menu.js')).length,1);assert.equal(imports.some(url=>url.includes('schedule-workspace')),false);
