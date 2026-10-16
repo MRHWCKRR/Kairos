@@ -2,7 +2,7 @@ import { showNotice, confirmDialog, promptDialog } from './ui-dialogs.js?v=1';
 import { aiFetch, aiErrorMessage } from './ai-client.js';
 import { requestBilling } from './billing-client.js';
 import { mountPlanUsage } from './plan-usage.js?v=3';
-import { createPageLoader } from './page-loader.js?v=31';
+import { createPageLoader } from './page-loader.js?v=32';
 import { mountPageRouter } from './page-router.js?v=2';
 import { createPageRenderCache } from './page-render-cache.js?v=1';
 import './boards-recurrence.js?v=10';
@@ -25,7 +25,7 @@ import {
     query, where, orderBy, limit, getDocs, updateDoc, deleteDoc
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { LANGUAGES, applyTranslations, getLocale, getLanguageName, t, ACHIEVEMENT_I18N } from './i18n.js';
-import { invalidateKairosContext } from './ai-context.js?v=2';
+import { invalidateKairosContext } from './ai-context.js?v=3';
 import { dueTaskReminders, reminderDeliveryStatus } from './task-reminders.js';
 import { deliverTaskReminder, saveNotificationEdits, escapeNotificationText } from './reminder-notifications.js';
 import { savePlannerEdits, persistTaskListCommand } from './plan-store.js';
@@ -564,8 +564,9 @@ function bootApp() {
             if(!snapshot.exists()||snapshot.data().userID!==user.uid)throw new Error('The planner is no longer available.');
             const saved=planState(snapshot.data()),live=planState({boards:boardsData,dayInsights,scheduleEvents:scheduleData});
             const rebased=mergePlanEdits(before,live,saved);
-            boardsData=rebased.boards;dayInsights=rebased.dayInsights;scheduleData=rebased.scheduleEvents;planSnapshot=saved;
-            invalidateKairosContext();renderApp();return result;
+            boardsData=rebased.boards;dayInsights=rebased.dayInsights;scheduleData=rebased.scheduleEvents;
+            invalidateKairosContext({ownerId:user.uid,planId:identity.planId,before:planSnapshot,after:saved});planSnapshot=saved;
+            renderApp();return result;
         });
         planSaveQueue=work;
         return work;
@@ -1262,9 +1263,9 @@ function bootApp() {
             boardsData = rebased.boards;
             dayInsights = rebased.dayInsights;
             scheduleData = rebased.scheduleEvents;
+            invalidateKairosContext({ownerId:user.uid,planId,before:planSnapshot,after:saved});
             planSnapshot = saved;
             currentPlanDocId = planId;
-            invalidateKairosContext();
             window.__kairosScheduleWorkspace?.invalidate();
             if (remoteChanges) renderApp();
             return true;
@@ -1301,13 +1302,14 @@ function bootApp() {
                 });
                 
                 const latestPlan = plans[0];
+                const previousSnapshot = currentPlanDocId === latestPlan.docId ? planSnapshot : null;
                 currentPlanDocId = latestPlan.docId;
                 const migrated = migrateToBoards(latestPlan);
                 boardsData = normalizeArchiveFields(migrated || boardsData);
                 dayInsights = latestPlan.dayInsights || {};
                 scheduleData = Array.isArray(latestPlan.scheduleEvents) ? latestPlan.scheduleEvents : [];
                 planSnapshot = planState({ boards: boardsData, dayInsights, scheduleEvents: scheduleData });
-                invalidateKairosContext();
+                invalidateKairosContext({ownerId:user.uid,planId:currentPlanDocId,before:previousSnapshot,after:planSnapshot});
                 void window.__kairosTaskReminders?.check();
 
                 console.log("Successfully loaded latest study plan from Firestore!");

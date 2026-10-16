@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kairos | Opportune Routine Planner</title>
-    <link rel="stylesheet" href="app.css?v=12">
+    <link rel="stylesheet" href="app.css?v=13">
     <link rel="stylesheet" href="app-pages.css?v=1">
     <link rel="stylesheet" href="boards-recurrence.css?v=10">
     <link rel="stylesheet" href="plan-usage.css?v=5">
@@ -203,24 +203,27 @@
                             <span>New chat</span>
                         </button>
 
-                        <div class="ai-chat-sidebar-section">
-                            <div class="ai-chat-section-label">Chats</div>
-                            <div id="ai-chat-list" class="ai-chat-list">
-                                <button class="ai-chat-list-item active" type="button" data-chat-id="current">
-                                    <span class="ai-chat-list-title">New chat</span>
-                                    <span class="ai-chat-list-menu" aria-hidden="true">⋯</span>
-                                </button>
+                        <div class="ai-chat-sidebar-scroll" role="region" aria-label="Chats and projects" tabindex="0">
+                            <div class="ai-chat-sidebar-section">
+                                <div class="ai-chat-section-label">Chats</div>
+                                <div id="ai-chat-list" class="ai-chat-list">
+                                    <button class="ai-chat-list-item active" type="button" data-chat-id="current">
+                                        <span class="ai-chat-list-title">New chat</span>
+                                        <span class="ai-chat-list-menu" aria-hidden="true">⋯</span>
+                                    </button>
+                                </div>
                             </div>
-                        </div>
 
-                        <div class="ai-chat-sidebar-section ai-projects-section">
-                            <div class="ai-chat-section-heading">
-                                <span class="ai-chat-section-label">Projects</span>
-                                <button id="ai-project-add-btn" class="ai-project-add-btn" type="button" aria-label="Create project">＋</button>
+                            <div class="ai-chat-sidebar-section ai-projects-section">
+                                <div class="ai-chat-section-heading">
+                                    <span class="ai-chat-section-label">Projects</span>
+                                    <button id="ai-project-add-btn" class="ai-project-add-btn" type="button" aria-label="Create project">＋</button>
+                                </div>
+                                <div id="ai-project-list" class="ai-project-list">
+                                    <div class="ai-project-empty">Projects will live here.</div>
+                                </div>
                             </div>
-                            <div id="ai-project-list" class="ai-project-list">
-                                <div class="ai-project-empty">Projects will live here.</div>
-                            </div>
+
                         </div>
 
                         <div class="ai-chat-sidebar-footer">
@@ -832,7 +835,7 @@
 
     <div id="achievement-toast-container" class="achievement-toast-container"></div>
     
-    <script type="module" src="app-bootstrap.js?v=8"></script>
+    <script type="module" src="app-bootstrap.js?v=9"></script>
 <script type="module" src="ui-bootstrap.js?v=2"></script>
 </body>
 </html>
