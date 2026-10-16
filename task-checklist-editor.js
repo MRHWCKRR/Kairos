@@ -1,8 +1,9 @@
 import {validateChecklist} from './task-list-model.js';
+import {mountChecklistReorder} from './task-checklist-reorder.js?v=1';
 
-const labels={checklist:'Checklist',steps:'steps completed',step_title:'Step title',step_complete:'Complete step',step_add:'Add step',step_up:'Move step up',step_down:'Move step down',step_remove:'Remove step',step_required:'Enter a step title up to 180 characters.',step_limit:'A checklist supports up to 100 steps.',step_entry_hint:'Enter adds a step. Paste multiple lines to add several. Save applies your changes.',unsaved:'Unsaved changes'};
+const labels={step_drag:'Drag to reorder step (Alt+Up/Down)',step_moved:'Step moved to position',checklist:'Checklist',steps:'steps completed',step_title:'Step title',step_complete:'Complete step',step_add:'Add step',step_up:'Move step up',step_down:'Move step down',step_remove:'Remove step',step_required:'Enter a step title up to 180 characters.',step_limit:'A checklist supports up to 100 steps.',step_entry_hint:'Enter adds a step. Paste multiple lines to add several. Save applies your changes.',unsaved:'Unsaved changes'};
 
-export function mountTaskChecklistEditor({root,items=[],canToggle=true,disabled=false,hint='',onChange=()=>{},onStatus=()=>{},copy,uuid,document=root.ownerDocument,window=document.defaultView}) {
+export function mountTaskChecklistEditor({root,items=[],canToggle=true,disabled=false,isActive=()=>true,hint='',onChange=()=>{},onStatus=()=>{},copy,uuid,document=root.ownerDocument,window=document.defaultView}) {
   let draft=structuredClone(items),disposed=false;
   const rows=new Map(),text=key=>{const value=copy?.(key);return value&&value!==key&&value!=='task_detail_'+key?value:labels[key]||key};
   uuid??=()=>window.crypto?.randomUUID?.()||Date.now().toString(36)+'-'+Math.random().toString(36).slice(2);
@@ -14,18 +15,19 @@ export function mountTaskChecklistEditor({root,items=[],canToggle=true,disabled=
   const add=element('button','data-checklist-add');add.type='button';add.textContent=text('step_add');entry.append(composer,add);
   const entryHint=element('p');entryHint.className='task-detail-hint';entryHint.textContent=text('step_entry_hint');root.replaceChildren(heading,description,list,entry,entryHint);
   const read=()=>structuredClone(draft);
+  const reorder=mountChecklistReorder({root,list,getItems:()=>draft,isEnabled:()=>!disposed&&!disabled&&isActive(),onReorder:({stepId,anchorId,after})=>{const rest=draft.filter(item=>item.id!==stepId),index=rest.findIndex(item=>item.id===anchorId);if(index>=0)moveStep(stepId,index+(after?1:0),{stepId,control:'grip'})},document,window});
   function rowFor(id) {return rows.get(id)}
   function captureFocus() {
     const active=document.activeElement;if(!root.contains(active))return null;
     const row=active.closest('[data-step-row]');let control;
-    if(active===composer)control='new';else if(active===add)control='add';
+    if(active===composer)control='new';else if(active===add)control='add';else if(active.matches('[data-step-grip]'))control='grip';
     else if(active.matches('[data-step-title]'))control='title';else if(active.matches('[data-step-check]'))control='check';else control=active.dataset.stepAction;
     if(!control)return null;
     return {...(row?{stepId:row.dataset.stepRow}:{}),control,...(['title','new'].includes(control)?{start:active.selectionStart??0,end:active.selectionEnd??0}:{})};
   }
   function restoreFocus(snapshot) {
     if(disposed||!snapshot)return false;const row=rowFor(snapshot.stepId);
-    let target=snapshot.control==='new'?composer:snapshot.control==='add'?add:row?.querySelector(snapshot.control==='title'?'[data-step-title]':snapshot.control==='check'?'[data-step-check]':'[data-step-action="'+snapshot.control+'"]');
+    let target=snapshot.control==='new'?composer:snapshot.control==='add'?add:row?.querySelector(snapshot.control==='title'?'[data-step-title]':snapshot.control==='check'?'[data-step-check]':snapshot.control==='grip'?'[data-step-grip]':'[data-step-action="'+snapshot.control+'"]');
     if(!target||target.disabled)target=row?.querySelector('[data-step-title]')||composer;
     if(target.disabled)return false;target.focus?.({preventScroll:true});
     if(Number.isInteger(snapshot.start)&&Number.isInteger(snapshot.end))try{target.setSelectionRange?.(snapshot.start,snapshot.end)}catch{}
@@ -33,6 +35,8 @@ export function mountTaskChecklistEditor({root,items=[],canToggle=true,disabled=
   }
   function createRow(item) {
     const row=element('li');row.dataset.stepRow=item.id;
+    const grip=element('button','data-step-grip');grip.type='button';grip.setAttribute('aria-label',text('step_drag'));grip.title=text('step_drag');grip.setAttribute('aria-keyshortcuts','Alt+ArrowUp Alt+ArrowDown');
+    const dots=document.createElementNS('http://www.w3.org/2000/svg','svg');dots.setAttribute('viewBox','0 0 24 24');dots.setAttribute('aria-hidden','true');for(const x of [9,15])for(const y of [6,12,18]){const dot=document.createElementNS('http://www.w3.org/2000/svg','circle');dot.setAttribute('cx',x);dot.setAttribute('cy',y);dot.setAttribute('r','1');dots.appendChild(dot)}grip.appendChild(dots);row.appendChild(grip);
     const label=element('label');label.className='task-checklist-check';const check=element('input','data-step-check');check.type='checkbox';label.appendChild(check);
     const title=element('input','data-step-title');title.type='text';title.maxLength=180;title.setAttribute('aria-label',text('step_title'));row.append(label,title);
     for(const action of ['up','down','remove']){
@@ -48,11 +52,16 @@ export function mountTaskChecklistEditor({root,items=[],canToggle=true,disabled=
       if(list.children[index]!==row)list.insertBefore(row,list.children[index]||null);
       const input=row.querySelector('[data-step-title]'),check=row.querySelector('[data-step-check]');if(input.value!==item.title)input.value=item.title;input.disabled=disabled;
       check.checked=item.completed;check.disabled=disabled||!canToggle;check.setAttribute('aria-label',text('step_complete')+' '+item.title);
+      row.querySelector('[data-step-grip]').disabled=disabled;
       for(const button of row.querySelectorAll('[data-step-action]'))button.disabled=disabled||(button.dataset.stepAction==='up'&&index===0)||(button.dataset.stepAction==='down'&&index===draft.length-1);
     });
     composer.disabled=disabled;add.disabled=disabled;progress.textContent=draft.filter(item=>item.completed).length+' / '+draft.length+' '+text('steps');
   }
   function changed() {render();onChange(read());onStatus(text('unsaved'))}
+  function moveStep(id,index,focus=captureFocus()) {
+    if(disposed||disabled)return false;const from=draft.findIndex(item=>item.id===id);if(from<0||index<0||index>=draft.length||from===index)return false;
+    const [item]=draft.splice(from,1);draft.splice(index,0,item);changed();restoreFocus(focus);onStatus(text('unsaved')+' · '+text('step_moved')+' '+(index+1)+' / '+draft.length);return true;
+  }
   function append(titles) {
     if(disposed||disabled)return false;
     if(draft.length+titles.length>100){onStatus(text('step_limit'),true);composer.focus?.({preventScroll:true});return false}
@@ -79,9 +88,12 @@ export function mountTaskChecklistEditor({root,items=[],canToggle=true,disabled=
     const row=button.closest('[data-step-row]'),index=draft.findIndex(item=>item.id===row?.dataset.stepRow),action=button.dataset.stepAction;if(index<0||!['up','down','remove'].includes(action))return;
     const focus=captureFocus(),ownsFocus=row.contains(document.activeElement);
     if(action==='remove'){draft.splice(index,1);changed();if(ownsFocus)restoreFocus(draft.length?{stepId:draft[Math.min(index,draft.length-1)].id,control:'title'}:{control:'new'})}
-    else {const other=index+(action==='up'?-1:1);if(other<0||other>=draft.length)return;[draft[index],draft[other]]=[draft[other],draft[index]];changed();restoreFocus(focus)}
+    else moveStep(draft[index].id,index+(action==='up'?-1:1),focus);
   };
   const onKey=event=>{
+    if(!disposed&&!event.defaultPrevented&&!event.isComposing&&event.keyCode!==229&&event.altKey&&!event.ctrlKey&&!event.metaKey&&!event.shiftKey&&['ArrowUp','ArrowDown'].includes(event.key)&&event.target.matches('[data-step-title],[data-step-grip]')){
+      event.preventDefault();event.stopPropagation();const id=event.target.closest('[data-step-row]')?.dataset.stepRow,index=draft.findIndex(item=>item.id===id);moveStep(id,index+(event.key==='ArrowUp'?-1:1));return;
+    }
     if(disposed||disabled||event.defaultPrevented||event.key!=='Enter'||event.isComposing||event.keyCode===229||event.ctrlKey||event.metaKey||event.altKey)return;
     if(event.target===composer){event.preventDefault();event.stopPropagation();if(!event.shiftKey&&composer.value.trim())addStep();return}
     if(event.target.matches('[data-step-title]')){
@@ -100,5 +112,5 @@ export function mountTaskChecklistEditor({root,items=[],canToggle=true,disabled=
   };
   // The site menu sends beforeinput; native clipboard paste sends paste.
   root.addEventListener('beforeinput',onPaste);root.addEventListener('input',onInput);root.addEventListener('change',onChangeInput);root.addEventListener('click',onClick);root.addEventListener('keydown',onKey);root.addEventListener('paste',onPaste);render();
-  return {read,setDisabled(value){disabled=!!value;render()},hasPendingEntry:()=>!!composer.value.trim(),flushEntry:()=>!composer.value.trim()||addStep(),captureFocus,restoreFocus,dispose(){disposed=true;for(const [name,handler] of [['beforeinput',onPaste],['input',onInput],['change',onChangeInput],['click',onClick],['keydown',onKey],['paste',onPaste]])root.removeEventListener(name,handler)}};
+  return {read,setDisabled(value){disabled=!!value;if(disabled)reorder.cancel();render()},cancelReorder:reorder.cancel,hasPendingEntry:()=>!!composer.value.trim(),flushEntry:()=>!composer.value.trim()||addStep(),captureFocus,restoreFocus,dispose(){disposed=true;reorder.dispose();for(const [name,handler] of [['beforeinput',onPaste],['input',onInput],['change',onChangeInput],['click',onClick],['keydown',onKey],['paste',onPaste]])root.removeEventListener(name,handler)}};
 }
