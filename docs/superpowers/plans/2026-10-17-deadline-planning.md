@@ -58,7 +58,7 @@
 
 ### Task 4: Whole-feature verification and review
 
-- [ ] Run `npm test`, `npm run build:cloudflare`, and the legacy build in a disposable copy; check syntax and `git diff --check`.
-- [ ] Exercise all four paths in Chrome with failure/delay/retry and normal navigation, confirming no new page errors and no unintended writes.
-- [ ] Request independent whole-branch review, fix concrete findings with regression tests, and repeat affected validation.
-- [ ] Record evidence and limitations in documentation. Push a reviewable PR; merge/deploy only when requested.
+- [x] Run `npm test`, `npm run build:cloudflare`, and the legacy build in a disposable copy; check syntax and `git diff --check`.
+- [x] Exercise all four paths in Chrome with failure/delay/retry and normal navigation, confirming no new page errors and no unintended writes.
+- [x] Request independent whole-branch review, fix concrete findings with regression tests, and repeat affected validation.
+- [x] Record evidence and limitations in documentation. Push a reviewable PR; merge/deploy only when requested.
