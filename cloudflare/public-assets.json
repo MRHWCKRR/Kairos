@@ -1,5 +1,10 @@
 {
   "files": [
+    "planning-model.js",
+    "planning-slots.js",
+    "planning-commands.js",
+    "planning-hub.js",
+    "planning-hub.css",
     "getting-started.js",
     "getting-started.css",
     "settings-recovery.js",
