@@ -1,5 +1,7 @@
 {
   "files": [
+    "getting-started.js",
+    "getting-started.css",
     "settings-recovery.js",
     "schedule-inspector-session.js",
     "task-checklist-editor.js",

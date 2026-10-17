@@ -32,6 +32,7 @@ import { savePlannerEdits, persistTaskListCommand } from './plan-store.js';
 import { resolveTaskDetail, taskListSection } from './task-list-model.js';
 import { mergePlanEdits, planState } from './plan-merge.js';
 import {createSettingsRecovery,overlaySettingsEdits} from './settings-recovery.js?v=1';
+import {mountGettingStarted,openGettingStartedDestination} from './getting-started.js?v=1';
 console.log("APP.js is loaded and running");
 
 // ===========================================================
@@ -379,6 +380,7 @@ function bootApp() {
     let pendingSettings = cloneDeep(userSettings);
     const settingsRecovery=createSettingsRecovery();
     let settingsCloudSnapshot=cloneDeep(userSettings),settingsPendingRecord=null,settingsSaveTicket=null,settingsLoadRevision=0;
+    let gettingStarted=null;
     let confettiEnabled = userSettings.appearance.confetti;
 
     // --- Notifications state ---
@@ -475,6 +477,7 @@ function bootApp() {
     },{once:true});
 
     onAuthStateChanged(auth, async (user) => {
+        gettingStarted?.sync();
         taskMenus?.sync();taskShortcuts?.sync();
         taskInteractions?.sync();
         taskWorkspace?.sync();
@@ -686,6 +689,12 @@ function bootApp() {
     }
     updateClock();
     setInterval(updateClock, 60000);
+
+    const guideOwner=()=>auth.currentUser?.emailVerified?auth.currentUser.uid:null;
+    gettingStarted=mountGettingStarted({getOwner:guideOwner,navigate:(request,owner)=>openGettingStartedDestination({request,owner,getOwner:guideOwner,navigate:page=>pageRouter.navigate(page)})});
+    window.addEventListener('kairos:onboarding-complete',event=>{
+        if(event.detail?.ownerId===guideOwner())void loadUserSettingsFromFirestore(auth.currentUser);
+    });
 
     // --- 2 Rendering Engine ---
     const focusContainer = document.getElementById("dashboard-focus-container");
