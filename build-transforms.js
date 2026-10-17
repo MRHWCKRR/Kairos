@@ -17,6 +17,17 @@ const BRIDGE=`
         getBoards: () => boardsData,
         getOwnerId: () => auth.currentUser?.uid || null,
         getPlanId: () => currentPlanDocId || null,
+        getTimezone: () => userSettings.profile.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+        commitTaskCommand: (command, expected, identity) => {
+            const zone = userSettings.profile.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+            if (command.options?.timezone !== zone) throw new Error('Your planning timezone changed. Refresh the preview.');
+            return commitTaskDetails(command, expected, identity);
+        },
+        openTaskEditor: async (target) => {
+            const opened = await window.__kairosScheduleWorkspace?.selectItem?.('task', target.taskId);
+            if (opened) document.querySelector('#schedule-inspector [name="dueDate"]')?.focus();
+            return opened;
+        },
         getScheduleEvents: () => scheduleData,
         getScheduleCategories: () => SCHEDULE_CATEGORIES,
         getLocale: () => getLocale(userSettings.accessibility.language || 'en'),
