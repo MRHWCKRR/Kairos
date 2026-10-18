@@ -13,8 +13,22 @@ async function fixture({store=new Map(),fail=false,gate=null,title='Essay',weekl
  return {document,window,hub,bridge,store,calls,opened,data:()=>data,click,tab,text:()=>document.body.textContent,setOffline:value=>offline=value,setOwner:value=>{owner=value;window.dispatchEvent(new window.Event('kairos-data-changed'))},setPlan:value=>{plan=value;window.dispatchEvent(new window.Event('kairos-data-changed'))},field:(name,value)=>{const el=document.querySelector('[name="'+name+'"]');if(el.tagName==='SELECT')el.querySelectorAll('option').forEach(option=>option.selected=option.value===value);else el.value=value},dispose:()=>hub.dispose()};
 }
 
-test('Planning exposes five real views and opens existing task editing without writing',async t=>{
- const f=await fixture();t.after(f.dispose);f.hub.open();assert.equal(f.document.querySelectorAll('[data-planning-tab]').length,5);assert.match(f.text(),/Due 2026-10-19/);f.document.querySelector('[data-planning-task="a"]').click();assert.equal(f.opened[0].taskId,'a');assert.equal(f.calls.length,0);
+test('Planning exposes six real views and opens existing task editing without writing',async t=>{
+ const f=await fixture();t.after(f.dispose);f.hub.open();assert.equal(f.document.querySelectorAll('[data-planning-tab]').length,6);assert.match(f.text(),/Due 2026-10-19/);f.document.querySelector('[data-planning-task="a"]').click();assert.equal(f.opened[0].taskId,'a');assert.equal(f.calls.length,0);
+});
+
+function addCombined(f){f.data().boards[0].sections[0].tasks.push({id:'a1',title:'Research',assignmentId:'a',estimatedMinutes:60},{id:'q',title:'<img src=x onerror=alert(1)>',dueDate:'2026-10-19'},{id:'q1',title:'Research',assignmentId:'q',estimatedMinutes:60});f.hub.open();f.tab('combined');for(const box of f.document.querySelectorAll('[name="combinedAssignment"]')){box.checked=true;box.dispatchEvent(new f.window.Event('change',{bubbles:true}))}f.field('to','2026-10-17');f.field('dayStart','07:00');f.field('dayEnd','08:00')}
+test('combined selection checks shared capacity, previews explicit partial work, and applies only listed rows',async t=>{
+ const f=await fixture();t.after(f.dispose);addCombined(f);f.click('check-combined');assert.match(f.text(),/60 minutes short/);assert.match(f.text(),/Not placed/);assert.equal(f.calls.length,0);assert.equal(f.document.querySelector('dialog img'),null);f.click('preview-combined');assert.match(f.text(),/Partial plan/);assert.match(f.text(),/stays unchanged/);assert.equal(f.document.querySelectorAll('[data-planning-preview-row]').length,1);f.click('apply');await tick();assert.equal(f.calls.length,1);assert.equal(f.data().boards[0].sections[0].tasks.find(x=>x.id==='q1').date,undefined);
+});
+test('combined inputs and planner edits invalidate results without replacing focused controls',async t=>{
+ const f=await fixture();t.after(f.dispose);addCombined(f);f.click('check-combined');const input=f.document.querySelector('[name="dayEnd"]');input.value='09:00';input.dispatchEvent(new f.window.Event('input',{bubbles:true}));assert.equal(f.document.querySelector('[name="dayEnd"]'),input);assert.equal(f.document.querySelector('[data-planning-action="preview-combined"]'),null);assert.match(f.text(),/Check shared plan again/);f.click('check-combined');assert.equal([...f.document.querySelectorAll('[name="combinedAssignment"]')].filter(el=>el.checked).length,2);f.window.dispatchEvent(new f.window.Event('kairos-data-changed'));assert.equal(f.document.querySelector('[data-planning-action="preview-combined"]'),null);assert.equal(f.calls.length,0);
+});
+test('combined preview rechecks live state and exact retries preserve a partial-plan notice',async t=>{
+ const f=await fixture({fail:true});t.after(f.dispose);addCombined(f);f.click('check-combined');f.data().boards[0].sections[0].tasks.find(x=>x.id==='q1').estimatedMinutes=90;f.click('preview-combined');assert.match(f.text(),/90 minutes/);f.click('apply');await tick();const first=f.calls[0];f.click('close');f.hub.open();assert.match(f.text(),/Partial plan/);f.setOffline(false);f.click('apply');await tick();assert.equal(f.calls[1].identity.operationId,first.identity.operationId);assert.deepEqual(f.calls[1].command,first.command);
+});
+test('toolbar reconciliation preserves a checked shared plan until actual planner data changes',async t=>{
+ const f=await fixture();t.after(f.dispose);addCombined(f);f.click('check-combined');f.document.querySelector('#schedule-toolbar').appendChild(f.document.createElement('span'));await tick();assert.ok(f.document.querySelector('[data-planning-action="preview-combined"]'));f.window.dispatchEvent(new f.window.Event('kairos-data-changed'));assert.equal(f.document.querySelector('[data-planning-action="preview-combined"]'),null);
 });
 
 test('Planning starts with saved weekly hours, discloses them, and allows an explicit daily override',async t=>{

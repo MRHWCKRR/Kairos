@@ -1,5 +1,6 @@
 {
   "files": [
+    "combined-planning.js",
     "assignment-order.js",
     "deadline-feasibility.js",
     "weekly-availability.js",
