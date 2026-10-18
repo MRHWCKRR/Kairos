@@ -5,7 +5,7 @@ import { generateTaskOccurrences, formatRecurrenceSummary, setOccurrenceStatus, 
 
 import {createScheduleInspectorSession} from './schedule-inspector-session.js?v=2';
 
-import {assignmentProgressIndex,assignmentProgressMarkup,refreshAssignmentProgress} from './assignment-progress.js';
+import {assignmentProgressIndex,assignmentProgressMarkup,refreshAssignmentProgress} from './assignment-progress.js?v=2';
 import {planningClock} from './planning-model.js';
 let session;
 const bridge=()=>window.__kairosScheduleBridge;

@@ -3,13 +3,14 @@ import {planningOccupancy,findPlanningSlot,planningAvailability,planningBlockVal
 import {parseTime,taskDurationMinutes} from './schedule-utils.js';
 import {zonedTaskStart} from './task-reminders.js';
 import {stableStringify} from './plan-merge.js';
+import {orderedSessionGroup,orderedPlacementClock,clockAfterSession,expandOrderedTaskIds,assertAssignmentOrder,validateAssignmentOrderChanges} from './assignment-order.js';
 
 const allTasks=state=>(state.boards||[]).flatMap(board=>(board.sections||[]).flatMap(section=>section.tasks||[]));
 function locate(state,id){const entries=planningTasks(state).filter(entry=>entry.task.id===id);if(entries.length!==1||allTasks(state).filter(task=>task.id===id).length!==1)throw Error('A task is missing, archived, or has duplicate IDs.');return entries[0]}
 function eligible(state,id){const entry=locate(state,id),task=entry.task;if(task.completed||task.recurrence?.enabled||task.scheduleLocked)throw Error('Completed, recurring, or locked tasks cannot be moved by this planner.');return entry}
 const idValid=id=>typeof id==='string'&&id.length>0&&id.length<=160;
 function recurrenceSnapshot(rule){if(!rule?.enabled)return null;return {...rule,exceptions:Object.fromEntries(Object.entries(rule.exceptions||{}).map(([date,value])=>[date,{status:value.status||'pending',override:Object.fromEntries(['date','startTime','endTime','durationMinutes'].filter(key=>value.override?.[key]!==undefined).map(key=>[key,value.override[key]]))}]))}}
-export function planningSignature(state){return stableStringify({tasks:planningTasks(state).map(({board,section,task})=>({board:board.id,section:section.id,...Object.fromEntries(['id','date','startTime','endTime','dueDate','estimatedMinutes','lastScheduledMinutes','completed','scheduleLocked','schedulingPreference','assignmentId'].map(key=>[key,task[key]??null])),recurrence:recurrenceSnapshot(task.recurrence)})),events:(state.scheduleEvents||[]).map(event=>Object.fromEntries(['id','day','start','end','archived'].map(key=>[key,event[key]??null])))})}
+export function planningSignature(state){return stableStringify({tasks:planningTasks(state).map(({board,section,task})=>({board:board.id,section:section.id,...Object.fromEntries(['id','date','startTime','endTime','dueDate','estimatedMinutes','lastScheduledMinutes','completed','scheduleLocked','schedulingPreference','assignmentId','sessionIndex','sessionOrder'].map(key=>[key,task[key]??null])),recurrence:recurrenceSnapshot(task.recurrence)})),events:(state.scheduleEvents||[]).map(event=>Object.fromEntries(['id','day','start','end','archived'].map(key=>[key,event[key]??null])))})}
 const options=input=>({from:input.from,to:input.to,dayStart:input.dayStart,dayEnd:input.dayEnd,timezone:input.timezone||'UTC'});
 const interval=row=>({date:row.date,startMin:parseTime(row.startTime),endMin:parseTime(row.startTime)+row.minutes});
 function effectiveDeadline(state,task){
@@ -20,6 +21,8 @@ function effectiveDeadline(state,task){
 function ensureSessionSource(state,parentId){const entry=eligible(state,parentId);if(entry.task.startTime)throw Error('This assignment is already scheduled. Unscheduled assignments can be split into work sessions.');if(allTasks(state).some(task=>task.assignmentId===parentId))throw Error('This assignment already has work sessions. Manage those tasks instead.');return entry}
 
 export function previewSessions(state,input,clock){
+ if(input.ordered!==undefined&&typeof input.ordered!=='boolean')throw Error('Choose a valid session ordering setting.');
+ let placementClock=clock;
  const parent=ensureSessionSource(state,input.taskId).task,total=Number(input.totalMinutes),size=Number(input.sessionMinutes),opts=options(input);planningAvailability(opts);
  if(!Number.isInteger(total)||total<15||total>2400||!Number.isInteger(size)||size<15||size>120)throw Error('Choose 15–2400 total minutes and 15–120 minutes per session.');
  const count=Math.ceil(total/size);if(count>40)throw Error('Use at most 40 work sessions in one assignment plan.');
@@ -28,24 +31,30 @@ export function previewSessions(state,input,clock){
  for(let index=0;index<count;index++){
   const minutes=Math.min(size,total-index*size),taskId=input.idFactory?.()||'session-'+globalThis.crypto.randomUUID();
   if(!idValid(taskId)||used.has(taskId))throw Error('Work session IDs must be unique.');used.add(taskId);
-  const placement=findPlanningSlot(minutes,{...opts,dueDate:parent.dueDate||null,preference:parent.schedulingPreference},busy,clock);
+  const placement=findPlanningSlot(minutes,{...opts,dueDate:parent.dueDate||null,preference:parent.schedulingPreference},busy,placementClock);
   if(!placement)throw Error('Not enough room to fit every session before the deadline. Extend availability or reduce the effort; no sessions were created.');
   const row={taskId,title:labels[index]?.trim()||String(parent.title||'Assignment').slice(0,160)+` · ${index+1}/${count}`,minutes,...placement};rows.push(row);busy.push(interval(row));
+  if(input.ordered)placementClock=clockAfterSession(row,clock);
  }
- return {command:{type:'planning_batch',version:1,mode:'sessions',parentId:parent.id,totalMinutes:total,sessionMinutes:size,options:opts,rows},expected:{signature:planningSignature(state)},rows};
+ return {command:{type:'planning_batch',version:1,mode:'sessions',parentId:parent.id,totalMinutes:total,sessionMinutes:size,ordered:input.ordered===true,options:opts,rows},expected:{signature:planningSignature(state)},rows};
 }
 
 export function previewCarryover(state,input,clock){
- const ids=input.taskIds,opts=options(input);planningAvailability(opts);
- if(!Array.isArray(ids)||!ids.length||ids.length>40||new Set(ids).size!==ids.length)throw Error('Choose between 1 and 40 distinct tasks.');
- const sources=ids.map(id=>eligible(state,id)).sort((a,b)=>String(effectiveDeadline(state,a.task)||'9999').localeCompare(String(effectiveDeadline(state,b.task)||'9999'))),selected=new Set(ids);
+ const requested=input.taskIds,opts=options(input);planningAvailability(opts);
+ if(!Array.isArray(requested)||!requested.length||requested.length>40||new Set(requested).size!==requested.length)throw Error('Choose between 1 and 40 distinct tasks.');
+ requested.forEach(id=>eligible(state,id));const ids=expandOrderedTaskIds(state,requested);if(ids.length>40)throw Error('This order requires more than 40 tasks. Review the assignment in a smaller plan.');
+ const sources=ids.map(id=>eligible(state,id)).sort((a,b)=>String(effectiveDeadline(state,a.task)||'9999').localeCompare(String(effectiveDeadline(state,b.task)||'9999'))),selected=new Set(ids),working=structuredClone(state);
  const busy=planningOccupancy(state,opts.from,opts.to).filter(item=>item.kind!=='task'||!selected.has(item.taskId)),rows=[];
- for(const {task} of sources){
-  const minutes=taskDurationMinutes(task),placement=findPlanningSlot(minutes,{...opts,dueDate:effectiveDeadline(state,task),preference:task.schedulingPreference},busy,clock);
+ while(sources.length){
+  const ready=sources.findIndex(({task})=>{const group=task.assignmentId?orderedSessionGroup(working,task.assignmentId):null;return !group||!group.sessions.some(prior=>!prior.completed&&prior.sessionIndex<task.sessionIndex&&sources.some(entry=>entry.task.id===prior.id))});
+  if(ready<0)throw Error('Review the prerequisite session order.');const {task}=sources.splice(ready,1)[0];
+  const minutes=taskDurationMinutes(task),placement=findPlanningSlot(minutes,{...opts,dueDate:effectiveDeadline(state,task),preference:task.schedulingPreference},busy,orderedPlacementClock(working,task,clock));
   if(!placement)throw Error(`No safe time fits before the deadline for “${String(task.title||'Task')}”. Adjust the range or availability.`);
   const row={taskId:task.id,title:String(task.title||'Task'),minutes,...placement};rows.push(row);busy.push(interval(row));
+  Object.assign(locate(working,task.id).task,placement);
  }
- return {command:{type:'planning_batch',version:1,mode:'move',options:opts,rows},expected:{signature:planningSignature(state)},rows};
+ assertAssignmentOrder(working,new Set(rows.map(row=>locate(working,row.taskId).task.assignmentId).filter(Boolean)));
+ return {command:{type:'planning_batch',version:1,mode:'move',options:opts,rows},expected:{signature:planningSignature(state)},rows,notice:ids.length>requested.length?'Includes '+(ids.length-requested.length)+' later sessions to preserve assignment order.':''};
 }
 
 function revisionSources(state,parentId){
@@ -59,6 +68,8 @@ function revisionSources(state,parentId){
 export function previewSessionRevision(state,input,clock){
  if(!['number','string'].includes(typeof input.remainingMinutes)||typeof input.remainingMinutes==='string'&&!input.remainingMinutes.trim())throw Error('Enter remaining effort, including 0 only when you intend to archive unfinished sessions.');
  const {parent,pending,completed}=revisionSources(state,input.taskId),total=Number(input.remainingMinutes),size=Number(input.sessionMinutes),opts=options(input);planningAvailability(opts);
+ if(input.ordered!==undefined&&typeof input.ordered!=='boolean')throw Error('Choose a valid session ordering setting.');
+ const ordered=input.ordered??(parent.sessionOrder==='sequential');let placementClock=clock;
  if(!Number.isInteger(total)||total<0||total>2400||!Number.isInteger(size)||size<15||size>120)throw Error('Choose 0-2400 remaining minutes and 15-120 minutes per session.');
  const count=Math.ceil(total/size);if(count+completed.length>40)throw Error('Keep at most 40 active sessions in one assignment plan.');
  if(!count&&!pending.length)throw Error('There are no unfinished sessions to change.');
@@ -67,14 +78,16 @@ export function previewSessionRevision(state,input,clock){
   const existing=pending[index],minutes=Math.min(size,total-index*size),taskId=existing?.id||input.idFactory?.()||'session-'+globalThis.crypto.randomUUID();
   if(!idValid(taskId)||!existing&&used.has(taskId))throw Error('Work session IDs must be unique.');used.add(taskId);
   const dueDate=[parent.dueDate,existing?.dueDate].filter(Boolean).sort()[0]||null;
-  const placement=findPlanningSlot(minutes,{...opts,dueDate,preference:existing?.schedulingPreference||parent.schedulingPreference},busy,clock);
+  const placement=findPlanningSlot(minutes,{...opts,dueDate,preference:existing?.schedulingPreference||parent.schedulingPreference},busy,placementClock);
   if(!placement)throw Error('Not enough room to fit the remaining effort before its deadlines. No sessions were changed.');
   const row={taskId,title:existing?.title||String(parent.title||'Assignment').slice(0,160)+' · New session '+(index+1),minutes,...placement};rows.push(row);busy.push(interval(row));
+  if(ordered)placementClock=clockAfterSession(row,clock);
  }
- return {command:{type:'planning_batch',version:1,mode:'revise-sessions',parentId:parent.id,totalMinutes:total,sessionMinutes:size,options:opts,rows,archiveIds:pending.slice(count).map(task=>task.id)},expected:{signature:planningSignature(state)},rows};
+ return {command:{type:'planning_batch',version:1,mode:'revise-sessions',parentId:parent.id,totalMinutes:total,sessionMinutes:size,ordered,options:opts,rows,archiveIds:pending.slice(count).map(task=>task.id)},expected:{signature:planningSignature(state)},rows};
 }
 
 export function applyPlanningCommand(state,command,expected,{now=Date.now()}={}){
+ if(command?.ordered!==undefined&&typeof command.ordered!=='boolean')throw Error('Invalid session ordering setting.');
  const revising=command?.mode==='revise-sessions';
  if(command?.type!=='planning_batch'||command.version!==1||!['sessions','move','revise-sessions'].includes(command.mode)||!Array.isArray(command.rows)||!command.rows.length&&!(revising&&command.archiveIds?.length)||command.rows.length>40)throw Error('Invalid planning command.');
  if(typeof expected?.signature!=='string'||expected.signature!==planningSignature(state))throw Error('The schedule, deadline, or task status changed. Refresh this preview before applying it.');
@@ -109,6 +122,7 @@ export function applyPlanningCommand(state,command,expected,{now=Date.now()}={})
  const next=structuredClone(state);
  if(parent){
   const destination=locate(next,parent.id).section;
+  if(command.ordered!==undefined&&(command.ordered||parent.sessionOrder!==undefined))locate(next,parent.id).task.sessionOrder=command.ordered?'sequential':'independent';
   let sequence=Math.max(0,...allTasks(state).filter(task=>task.assignmentId===parent.id).map(task=>Number(task.sessionIndex)||0));
   for(const row of rows){
    if(revising&&existingIds.has(row.taskId)){Object.assign(locate(next,row.taskId).task,{date:row.date,startTime:row.startTime,endTime:row.endTime,estimatedMinutes:row.minutes,lastScheduledMinutes:row.minutes});continue}
@@ -116,5 +130,6 @@ export function applyPlanningCommand(state,command,expected,{now=Date.now()}={})
   }
   for(const id of archiveIds)locate(next,id).task.archived=true;
  }else for(const row of rows){const task=locate(next,row.taskId).task;Object.assign(task,{date:row.date,startTime:row.startTime,endTime:row.endTime,lastScheduledMinutes:row.minutes})}
+ validateAssignmentOrderChanges(state,next);
  return {next,result:{type:'planning_batch',action:command.mode,taskIds:[...ids,...archiveIds],completedTaskIds:[],affectedCount:rows.length+archiveIds.length}};
 }

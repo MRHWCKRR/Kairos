@@ -1,5 +1,5 @@
 import { auth, db } from './firebase.js';
-import {aiPlanningSummary,resolveAiPlanningTimezone} from './ai-planning.js?v=2';
+import {aiPlanningSummary,resolveAiPlanningTimezone} from './ai-planning.js?v=3';
 import { collection, doc, getDoc, getDocs, query, where } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
 const PROFILE_CACHE_MS = 15000;
@@ -204,6 +204,7 @@ async function loadContextData(user) {
                     dueDate: task.dueDate || '',
                     assignmentId: task.assignmentId || null,
                     sessionIndex: task.sessionIndex || null,
+                    sessionOrder: task.sessionOrder || null,
                     estimatedMinutes: task.estimatedMinutes || null,
                     schedulingPreference: task.schedulingPreference || null,
                     boardArchived: board.archived === true,

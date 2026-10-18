@@ -1,11 +1,11 @@
 import { auth, db } from './firebase.js';
-import { persistAiPlanAction, getConfirmedAiAction } from './plan-store.js?v=4';
-import { validateActionShape } from './ai-action-schema.js?v=2';
+import { persistAiPlanAction, getConfirmedAiAction } from './plan-store.js?v=5';
+import { validateActionShape } from './ai-action-schema.js?v=3';
 import { stableStringify, planState } from './plan-merge.js';
 import { taskDurationMinutes } from './schedule-utils.js';
-import {previewAiPlanning,resolveAiPlanningTimezone} from './ai-planning.js?v=2';
+import {previewAiPlanning,resolveAiPlanningTimezone} from './ai-planning.js?v=3';
 import {planningConflicts} from './planning-slots.js';
-import {applyPlanningCommand} from './planning-commands.js?v=2';
+import {applyPlanningCommand} from './planning-commands.js?v=3';
 import {
     collection, getDocs, query, where, doc, getDoc
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
@@ -150,7 +150,7 @@ export async function previewKairosAction(action, options = {}) {
     if(action.type.startsWith('plan_')) {
         const timezone=await planningTimezone(user);
         const proposal=previewAiPlanning(planState(data),action,{timezone});
-        return {action,approval:{request:stableStringify(action),command:proposal.command,expected:proposal.expected},summary:{kind:'planning',title:action.type==='plan_sessions'?'New work sessions':'Schedule changes',rows:proposal.rows,timezone,options:proposal.command.options,remainingConflicts:proposal.remainingConflicts||0}};
+        return {action,approval:{request:stableStringify(action),command:proposal.command,expected:proposal.expected},summary:{kind:'planning',title:action.type==='plan_sessions'?'New work sessions':'Schedule changes',rows:proposal.rows,timezone,options:proposal.command.options,remainingConflicts:proposal.remainingConflicts||0,notice:[proposal.notice,proposal.command.ordered!==undefined?'Session order: '+(proposal.command.ordered?'numbered sequence (earlier work first).':'independent placement.'):''].filter(Boolean).join(' ')}};
     }
     return actionPreview(planState(data), action);
 }

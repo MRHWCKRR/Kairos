@@ -1,5 +1,5 @@
 export const ACTION_FIELDS = {
-    plan_sessions: ['taskId', 'title', 'totalMinutes', 'sessionMinutes', 'from', 'to', 'dayStart', 'dayEnd'],
+    plan_sessions: ['taskId', 'title', 'totalMinutes', 'sessionMinutes', 'from', 'to', 'dayStart', 'dayEnd', 'ordered'],
     plan_carryover: ['taskIds', 'week', 'from', 'to', 'dayStart', 'dayEnd'],
     plan_conflicts: ['from', 'to', 'dayStart', 'dayEnd'],
     create_board: ['title', 'moveTaskId', 'moveTaskTitle'],
@@ -42,7 +42,7 @@ export function validateActionShape(action) {
             if (!Array.isArray(value) || !value.length || value.length > 40 || new Set(value).size !== value.length || value.some(id => typeof id !== 'string' || !id.trim() || id.length > 120)) throw new Error('Invalid task IDs.');
         } else if (['totalMinutes', 'sessionMinutes'].includes(key)) {
             if (!Number.isInteger(value) || value < 15 || value > (key === 'totalMinutes' ? 2400 : 120)) throw new Error('Invalid session effort.');
-        } else if (['completed', 'archived'].includes(key)) {
+        } else if (['completed', 'archived', 'ordered'].includes(key)) {
             if (typeof value !== 'boolean') throw new Error('Invalid task status.');
         } else if (key === 'minutesBefore') {
             if (!Number.isInteger(value) || value < 1 || value > 10080) throw new Error('Invalid reminder lead time.');
@@ -74,7 +74,7 @@ export function validateActionShape(action) {
 
 export const ACTION_INSTRUCTIONS = 'Supported actions and allowed args: ' +
     Object.entries(ACTION_FIELDS).map(([type, fields]) => type + ' {' + fields.join(',') + '}').join('; ') +
-    '. For splitting an existing assignment use plan_sessions, never multiple create_task actions. Supply taskId or exact title, totalMinutes and sessionMinutes. Ask for missing effort/session length; do not invent them. For unfinished work carry-over use plan_carryover with explicit taskIds or week (a date in the source week). For fixing clashes use plan_conflicts. These three planning actions ALWAYS require a reviewed preview before Apply, and never mean work is already saved. Use from/to dates (inclusive, at most 31 days) in the profile timezone. Omitted dayStart/dayEnd use 07:00/22:00; state these defaults if relevant. Locks, recurring commitments, preferences and deadlines remain in force. If a deadline is already overdue, explain that the user must review it before a future placement can be made. Questions about deadlines or weekly progress use the current planning summary with actions: []; distinguish dated-work status from historical completion dates. Do not mark a parent assignment complete when its sessions finish. ' +
+    '. For splitting an existing assignment use plan_sessions, never multiple create_task actions. Set ordered:true only when the user asks for a numbered sequence or prerequisites; otherwise leave sessions independent. Ordered sessions follow sessionIndex, and readiness depends on earlier active sessions being complete. For moving an ordered session use plan_carryover so affected later sessions are reviewed together; do not issue separate update_task actions to bypass the preview. Locked later sessions remain fixed; if order cannot be preserved, ask the user to review the lock or range. Supply taskId or exact title, totalMinutes and sessionMinutes. Ask for missing effort/session length; do not invent them. For unfinished work carry-over use plan_carryover with explicit taskIds or week (a date in the source week). For fixing clashes use plan_conflicts. These three planning actions ALWAYS require a reviewed preview before Apply, and never mean work is already saved. Use from/to dates (inclusive, at most 31 days) in the profile timezone. Omitted dayStart/dayEnd use 07:00/22:00; state these defaults if relevant. Locks, recurring commitments, preferences and deadlines remain in force. If a deadline is already overdue, explain that the user must review it before a future placement can be made. Questions about deadlines or weekly progress use the current planning summary with actions: []; distinguish dated-work status from historical completion dates. Do not mark a parent assignment complete when its sessions finish. ' +
     'IDs identify exact supplied entities. Omit unknown IDs rather than guessing. Board/section names must match unambiguously. ' +
     'For update_board or delete_board, title selects the existing board; newTitle renames it. For update_section or delete_section, title selects the section, optionally within boardId/board; newTitle renames it. ' +
     'For create_section, title is the new section name and boardId/board is required. Archive/restore a board or section through its update action with archived true/false. Permanent deletions use delete actions and require a preview and confirmation. ' +

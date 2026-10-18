@@ -2,9 +2,9 @@ import { aiFetch, aiErrorMessage, aiConversationMessages } from './ai-client.js'
 import { auth, db } from './firebase.js';
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { getKairosContext } from './ai-context.js?v=5';
-import { actionNeedsConfirmation, executeKairosAction, getAiPlanId, previewKairosAction, confirmedKairosAction } from './ai-actions.js?v=3';
-import { ACTION_TYPES, ACTION_INSTRUCTIONS, explicitDurationIntent, validateActionShape } from './ai-action-schema.js?v=2';
+import { getKairosContext } from './ai-context.js?v=6';
+import { actionNeedsConfirmation, executeKairosAction, getAiPlanId, previewKairosAction, confirmedKairosAction } from './ai-actions.js?v=4';
+import { ACTION_TYPES, ACTION_INSTRUCTIONS, explicitDurationIntent, validateActionShape } from './ai-action-schema.js?v=3';
 import { appendPlanLimitActions } from './plan-usage.js';
 import {savedMessageCount} from './ai-usage.js?v=1';
 import {recordSentMessage,initializeMessageUsage} from './ai-usage-store.js?v=1';
@@ -181,7 +181,7 @@ function entityUpdateReply(kind,entity,result){
   return [rename,status].filter(Boolean).join(' ')||'Updated the '+kind+' "'+entity.title+'".';
 }
 function actionPreviewMarkup(summary){
-  if(summary.kind==='planning')return (summary.remainingConflicts?'<p role="note">'+esc(summary.remainingConflicts)+' fixed, locked or recurring overlaps will remain. Review these commitments in Schedule.</p>':'')+'<p>Times use '+esc(summary.timezone)+'. Daily availability: '+esc(summary.options.dayStart)+'-'+esc(summary.options.dayEnd)+'.</p><p>Review every row. '+(summary.title==='New work sessions'?'Your assignment and checklist stay intact.':'Only the listed tasks move; durations and deadlines stay intact.')+'</p><div class="ai-planning-preview" tabindex="0" role="region" aria-label="Proposed planning changes"><table><caption>'+esc(summary.title)+'</caption><thead><tr><th>Task</th><th>Date</th><th>Time</th><th>Minutes</th></tr></thead><tbody>'+summary.rows.map(row=>'<tr><th scope="row">'+esc(row.title)+'</th><td>'+esc(row.date)+'</td><td>'+esc(row.startTime)+'-'+esc(row.endTime)+'</td><td>'+esc(row.minutes)+'</td></tr>').join('')+'</tbody></table></div>';
+  if(summary.kind==='planning')return (summary.notice?'<p>'+esc(summary.notice)+'</p>':'')+(summary.remainingConflicts?'<p role="note">'+esc(summary.remainingConflicts)+' fixed, locked or recurring overlaps will remain. Review these commitments in Schedule.</p>':'')+'<p>Times use '+esc(summary.timezone)+'. Daily availability: '+esc(summary.options.dayStart)+'-'+esc(summary.options.dayEnd)+'.</p><p>Review every row. '+(summary.title==='New work sessions'?'Your assignment and checklist stay intact.':'Only the listed tasks move; durations and deadlines stay intact.')+'</p><div class="ai-planning-preview" tabindex="0" role="region" aria-label="Proposed planning changes"><table><caption>'+esc(summary.title)+'</caption><thead><tr><th>Task</th><th>Date</th><th>Time</th><th>Minutes</th></tr></thead><tbody>'+summary.rows.map(row=>'<tr><th scope="row">'+esc(row.title)+'</th><td>'+esc(row.date)+'</td><td>'+esc(row.startTime)+'-'+esc(row.endTime)+'</td><td>'+esc(row.minutes)+'</td></tr>').join('')+'</tbody></table></div>';
   const parts=['<p>'+esc(summary.title)+' contains '+summary.sectionCount+' section'+(summary.sectionCount===1?'':'s')+' and '+summary.taskCount+' task'+(summary.taskCount===1?'':'s')+'.</p>'];
   let remaining=20;
   const sections=summary.sections.slice(0,12);

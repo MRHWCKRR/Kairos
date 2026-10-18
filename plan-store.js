@@ -1,7 +1,8 @@
 import { db } from './firebase.js';
 import { doc, getDoc, runTransaction, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { mergePlanEdits, planState, stableStringify } from './plan-merge.js';
-import { applyTaskListCommand, taskListFingerprint } from './task-list-model.js?v=3';
+import {validateAssignmentOrderChanges} from './assignment-order.js';
+import { applyTaskListCommand, taskListFingerprint } from './task-list-model.js?v=4';
 
 export async function persistTaskListCommand(planId, uid, command, expected, operationId, createdAt) {
     if(typeof operationId!=='string'||!operationId||operationId.length>160||!Number.isFinite(createdAt)||createdAt<=0)throw new Error('Invalid operation identity.');
@@ -26,6 +27,7 @@ export async function savePlannerEdits(planId, uid, base, local) {
         const snapshot = await transaction.get(ref);
         const data = ownedPlan(snapshot, uid);
         const merged = mergePlanEdits(planState(base), planState(local), planState(data));
+        validateAssignmentOrderChanges(planState(data),merged);
         transaction.set(ref, { ...(!snapshot.exists() ? data : {}), ...merged }, { merge: true });
         return merged;
     });
@@ -75,6 +77,7 @@ export async function persistAiPlanAction(planId, uid, action, operationId, crea
         if (createdAt <= (data.aiActionReceiptFloor || 0)) throw new Error('This retry is too old to reconcile safely. Check the planner before requesting a new change.');
         const next = planState(data);
         const result = receiptResult(apply({ data: next }));
+        validateAssignmentOrderChanges(planState(data),next);
         const updated = [...receipts, { id: operationId, createdAt, fingerprint, result }];
         const removed = updated.slice(0, Math.max(0, updated.length - 100));
         const retained=updated.slice(-100);
