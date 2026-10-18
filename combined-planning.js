@@ -1,7 +1,7 @@
 import {planningTasks,validPlanningDate} from './planning-model.js';
-import {planningAvailability,planningOccupancy,planningBlockValid,intervalsOverlap} from './planning-slots.js?v=1';
-import {previewCarryover} from './planning-commands.js?v=4';
-import {freeMinutes} from './deadline-feasibility.js?v=2';
+import {planningAvailability,planningOccupancy,planningBlockValid,intervalsOverlap} from './planning-slots.js?v=2';
+import {previewCarryover} from './planning-commands.js?v=5';
+import {freeMinutes} from './deadline-feasibility.js?v=3';
 import {orderedSessionGroup,assertAssignmentOrder} from './assignment-order.js';
 import {parseTime,taskDurationMinutes} from './schedule-utils.js';
 
@@ -36,8 +36,8 @@ export function combinedPlanning(state,input,clock){
  }
  const candidates=groups.filter(g=>g.status==='pending'),movableIds=new Set(candidates.flatMap(g=>g.movable.map(task=>task.id))),busy=planningOccupancy(state,input.from,input.to).filter(item=>item.kind!=='task'||!movableIds.has(item.taskId));
  const movableMinutes=candidates.reduce((n,g)=>n+g.movable.reduce((m,t)=>m+taskDurationMinutes(t),0),0),availableMinutes=freeMinutes(busy,input,clock);
- let proposal=null;
- const attempt=selected=>previewCarryover(state,{...input,taskIds:selected.flatMap(g=>g.movable.map(task=>task.id))},clock);
+ let proposal=null;const spacingCache=new Map();
+ const attempt=selected=>previewCarryover(state,{...input,taskIds:selected.flatMap(g=>g.movable.map(task=>task.id))},clock,spacingCache);
  if(candidates.length){
   try{proposal=attempt(candidates);for(const g of candidates){g.status='fits';g.reason='All movable sessions are included in the shared plan.'}}
   catch{

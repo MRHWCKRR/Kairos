@@ -10,6 +10,9 @@ const state=()=>({userID:'one',boards:[{id:'b',sections:[{id:'s',tasks:[{id:'a',
 const action=()=>({type:'plan_sessions',args:{taskId:'a',totalMinutes:120,sessionMinutes:30,...range}});
 const combinedState=()=>{const s=state();s.scheduleEvents=[];s.boards[0].sections[0].tasks.push({id:'a1',title:'Research',assignmentId:'a',estimatedMinutes:60},{id:'q',title:'Science',dueDate:'2026-10-19'},{id:'q1',title:'Research',assignmentId:'q',estimatedMinutes:60});return s};
 const combinedAction=(extra={})=>({type:'plan_assignments',args:{assignmentIds:['a','q'],...range,to:range.from,dayEnd:'09:00',...extra}});
+test('AI carries explicit spacing into previews and explains it in read-only reports',()=>{
+ const s=combinedState(),a=combinedAction({gapMinutes:15}),p=preview(s,a);assert.equal(p.rows.length,1);assert.equal(p.command.options.gapMinutes,15);assert.match(p.capacity.assignments.find(g=>g.status==='not-placed').reason,/15-minute gaps/);const report=preview(s,{...a,args:{...a.args,checkOnly:true}});assert.equal(report.command,null);assert.match(report.notice,/Spacing: 15 minutes/);assert.match(report.notice,/upper bound before.*spacing/);
+});
 test('combined AI schema accepts explicit bounded assignments and check-only intent',()=>{
  assert.doesNotThrow(()=>validateActionShape(combinedAction()));assert.doesNotThrow(()=>validateActionShape(combinedAction({checkOnly:true})));
  for(const extra of [{assignmentIds:[]},{assignmentIds:['a','a']},{assignmentIds:['a',4]},{assignmentIds:Array.from({length:11},(_,i)=>'p'+i)},{checkOnly:'yes'},{rows:[]},{assignmentIds:undefined}])assert.throws(()=>validateActionShape(combinedAction(extra)));

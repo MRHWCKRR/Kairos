@@ -1,6 +1,6 @@
 import {normaliseWeeklyAvailability} from './weekly-availability.js';
 import {planningTasks,planningClock,validPlanningDate} from './planning-model.js';
-import {planningOccupancy,findPlanningSlot,planningAvailability,planningWindows,planningBlockValid,intervalsOverlap} from './planning-slots.js?v=1';
+import {findPlanningSlot,planningAvailability,planningWindows,planningBlockValid,planningPlacementOccupancy,planningIntervalsConflict} from './planning-slots.js?v=2';
 import {parseTime,taskDurationMinutes} from './schedule-utils.js';
 import {zonedTaskStart} from './task-reminders.js';
 import {stableStringify} from './plan-merge.js';
@@ -12,7 +12,7 @@ function eligible(state,id){const entry=locate(state,id),task=entry.task;if(task
 const idValid=id=>typeof id==='string'&&id.length>0&&id.length<=160;
 function recurrenceSnapshot(rule){if(!rule?.enabled)return null;return {...rule,exceptions:Object.fromEntries(Object.entries(rule.exceptions||{}).map(([date,value])=>[date,{status:value.status||'pending',override:Object.fromEntries(['date','startTime','endTime','durationMinutes'].filter(key=>value.override?.[key]!==undefined).map(key=>[key,value.override[key]]))}]))}}
 export function planningSignature(state){return stableStringify({tasks:planningTasks(state).map(({board,section,task})=>({board:board.id,section:section.id,...Object.fromEntries(['id','date','startTime','endTime','dueDate','estimatedMinutes','lastScheduledMinutes','completed','scheduleLocked','schedulingPreference','assignmentId','sessionIndex','sessionOrder'].map(key=>[key,task[key]??null])),recurrence:recurrenceSnapshot(task.recurrence)})),events:(state.scheduleEvents||[]).map(event=>Object.fromEntries(['id','day','start','end','archived'].map(key=>[key,event[key]??null])))})}
-const options=input=>({from:input.from,to:input.to,...(input.dayStart!==undefined?{dayStart:input.dayStart}:{}),...(input.dayEnd!==undefined?{dayEnd:input.dayEnd}:{}),timezone:input.timezone||'UTC',...(input.weeklyAvailability!=null?{weeklyAvailability:normaliseWeeklyAvailability(input.weeklyAvailability)}:{}),...(input.availabilitySource?{availabilitySource:input.availabilitySource}:{})});
+const options=input=>({from:input.from,to:input.to,...(input.dayStart!==undefined?{dayStart:input.dayStart}:{}),...(input.dayEnd!==undefined?{dayEnd:input.dayEnd}:{}),timezone:input.timezone||'UTC',...(input.gapMinutes!==undefined?{gapMinutes:input.gapMinutes}:{}),...(input.weeklyAvailability!=null?{weeklyAvailability:normaliseWeeklyAvailability(input.weeklyAvailability)}:{}),...(input.availabilitySource?{availabilitySource:input.availabilitySource}:{})});
 const interval=row=>({date:row.date,startMin:parseTime(row.startTime),endMin:parseTime(row.startTime)+row.minutes});
 function effectiveDeadline(state,task){
  const parent=task.assignmentId?planningTasks(state).find(entry=>entry.task.id===task.assignmentId)?.task:null;
@@ -21,36 +21,36 @@ function effectiveDeadline(state,task){
 }
 function ensureSessionSource(state,parentId){const entry=eligible(state,parentId);if(entry.task.startTime)throw Error('This assignment is already scheduled. Unscheduled assignments can be split into work sessions.');if(allTasks(state).some(task=>task.assignmentId===parentId))throw Error('This assignment already has work sessions. Manage those tasks instead.');return entry}
 
-export function previewSessions(state,input,clock){
+export function previewSessions(state,input,clock,spacingCache=new Map()){
  if(input.ordered!==undefined&&typeof input.ordered!=='boolean')throw Error('Choose a valid session ordering setting.');
  let placementClock=clock;
  const parent=ensureSessionSource(state,input.taskId).task,total=Number(input.totalMinutes),size=Number(input.sessionMinutes),opts=options(input);planningAvailability(opts);
  if(!Number.isInteger(total)||total<15||total>2400||!Number.isInteger(size)||size<15||size>120)throw Error('Choose 15–2400 total minutes and 15–120 minutes per session.');
  const count=Math.ceil(total/size);if(count>40)throw Error('Use at most 40 work sessions in one assignment plan.');
  const labels=input.labels||[];if(!Array.isArray(labels)||labels.length&&labels.length!==count||labels.some(title=>typeof title!=='string'||!title.trim()||title.trim().length>180))throw Error(`Enter exactly ${count} session titles, or leave titles blank.`);
- const used=new Set(allTasks(state).map(task=>task.id)),busy=planningOccupancy(state,opts.from,opts.to),rows=[];
+ const used=new Set(allTasks(state).map(task=>task.id)),busy=planningPlacementOccupancy(state,opts),rows=[];
  for(let index=0;index<count;index++){
   const minutes=Math.min(size,total-index*size),taskId=input.idFactory?.()||'session-'+globalThis.crypto.randomUUID();
   if(!idValid(taskId)||used.has(taskId))throw Error('Work session IDs must be unique.');used.add(taskId);
-  const placement=findPlanningSlot(minutes,{...opts,dueDate:parent.dueDate||null,preference:parent.schedulingPreference},busy,placementClock);
-  if(!placement)throw Error('Not enough room to fit every session before the deadline. Extend availability or reduce the effort; no sessions were created.');
+  const placement=findPlanningSlot(minutes,{...opts,dueDate:parent.dueDate||null,preference:parent.schedulingPreference},busy,placementClock,spacingCache);
+  if(!placement)throw Error('Not enough room to fit every session before the deadline'+(opts.gapMinutes?' with '+opts.gapMinutes+'-minute gaps':'')+'. Extend availability or reduce the effort; no sessions were created.');
   const row={taskId,title:labels[index]?.trim()||String(parent.title||'Assignment').slice(0,160)+` · ${index+1}/${count}`,minutes,...placement};rows.push(row);busy.push(interval(row));
   if(input.ordered)placementClock=clockAfterSession(row,clock);
  }
  return {command:{type:'planning_batch',version:1,mode:'sessions',parentId:parent.id,totalMinutes:total,sessionMinutes:size,ordered:input.ordered===true,options:opts,rows},expected:{signature:planningSignature(state)},rows};
 }
 
-export function previewCarryover(state,input,clock){
+export function previewCarryover(state,input,clock,spacingCache=new Map()){
  const requested=input.taskIds,opts=options(input);planningAvailability(opts);
  if(!Array.isArray(requested)||!requested.length||requested.length>40||new Set(requested).size!==requested.length)throw Error('Choose between 1 and 40 distinct tasks.');
  requested.forEach(id=>eligible(state,id));const ids=expandOrderedTaskIds(state,requested);if(ids.length>40)throw Error('This order requires more than 40 tasks. Review the assignment in a smaller plan.');
  const sources=ids.map(id=>eligible(state,id)).sort((a,b)=>String(effectiveDeadline(state,a.task)||'9999').localeCompare(String(effectiveDeadline(state,b.task)||'9999'))),selected=new Set(ids),working=structuredClone(state);
- const busy=planningOccupancy(state,opts.from,opts.to).filter(item=>item.kind!=='task'||!selected.has(item.taskId)),rows=[];
+ const busy=planningPlacementOccupancy(state,opts).filter(item=>item.kind!=='task'||!selected.has(item.taskId)),rows=[];
  while(sources.length){
   const ready=sources.findIndex(({task})=>{const group=task.assignmentId?orderedSessionGroup(working,task.assignmentId):null;return !group||!group.sessions.some(prior=>!prior.completed&&prior.sessionIndex<task.sessionIndex&&sources.some(entry=>entry.task.id===prior.id))});
   if(ready<0)throw Error('Review the prerequisite session order.');const {task}=sources.splice(ready,1)[0];
-  const minutes=taskDurationMinutes(task),placement=findPlanningSlot(minutes,{...opts,dueDate:effectiveDeadline(state,task),preference:task.schedulingPreference},busy,orderedPlacementClock(working,task,clock));
-  if(!placement)throw Error(`No safe time fits before the deadline for “${String(task.title||'Task')}”. Adjust the range or availability.`);
+  const minutes=taskDurationMinutes(task),placement=findPlanningSlot(minutes,{...opts,dueDate:effectiveDeadline(state,task),preference:task.schedulingPreference},busy,orderedPlacementClock(working,task,clock),spacingCache);
+  if(!placement)throw Error(`No safe time fits before the deadline for “${String(task.title||'Task')}”. Adjust the range or availability.${opts.gapMinutes?' This check includes '+opts.gapMinutes+'-minute gaps.':''}`);
   const row={taskId:task.id,title:String(task.title||'Task'),minutes,...placement};rows.push(row);busy.push(interval(row));
   Object.assign(locate(working,task.id).task,placement);
  }
@@ -66,7 +66,7 @@ function revisionSources(state,parentId){
  for(const task of pending)eligible(state,task.id);
  return {parent,pending,completed:sessions.filter(task=>task.completed)};
 }
-export function previewSessionRevision(state,input,clock){
+export function previewSessionRevision(state,input,clock,spacingCache=new Map()){
  if(!['number','string'].includes(typeof input.remainingMinutes)||typeof input.remainingMinutes==='string'&&!input.remainingMinutes.trim())throw Error('Enter remaining effort, including 0 only when you intend to archive unfinished sessions.');
  const {parent,pending,completed}=revisionSources(state,input.taskId),total=Number(input.remainingMinutes),size=Number(input.sessionMinutes),opts=options(input);planningAvailability(opts);
  if(input.ordered!==undefined&&typeof input.ordered!=='boolean')throw Error('Choose a valid session ordering setting.');
@@ -74,12 +74,12 @@ export function previewSessionRevision(state,input,clock){
  if(!Number.isInteger(total)||total<0||total>2400||!Number.isInteger(size)||size<15||size>120)throw Error('Choose 0-2400 remaining minutes and 15-120 minutes per session.');
  const count=Math.ceil(total/size);if(count+completed.length>40)throw Error('Keep at most 40 active sessions in one assignment plan.');
  if(!count&&!pending.length)throw Error('There are no unfinished sessions to change.');
- const selected=new Set(pending.map(task=>task.id)),busy=planningOccupancy(state,opts.from,opts.to).filter(item=>item.kind!=='task'||!selected.has(item.taskId)),used=new Set(allTasks(state).map(task=>task.id)),rows=[];
+ const selected=new Set(pending.map(task=>task.id)),busy=planningPlacementOccupancy(state,opts).filter(item=>item.kind!=='task'||!selected.has(item.taskId)),used=new Set(allTasks(state).map(task=>task.id)),rows=[];
  for(let index=0;index<count;index++){
   const existing=pending[index],minutes=Math.min(size,total-index*size),taskId=existing?.id||input.idFactory?.()||'session-'+globalThis.crypto.randomUUID();
   if(!idValid(taskId)||!existing&&used.has(taskId))throw Error('Work session IDs must be unique.');used.add(taskId);
   const dueDate=[parent.dueDate,existing?.dueDate].filter(Boolean).sort()[0]||null;
-  const placement=findPlanningSlot(minutes,{...opts,dueDate,preference:existing?.schedulingPreference||parent.schedulingPreference},busy,placementClock);
+  const placement=findPlanningSlot(minutes,{...opts,dueDate,preference:existing?.schedulingPreference||parent.schedulingPreference},busy,placementClock,spacingCache);
   if(!placement)throw Error('Not enough room to fit the remaining effort before its deadlines. No sessions were changed.');
   const row={taskId,title:existing?.title||String(parent.title||'Assignment').slice(0,160)+' · New session '+(index+1),minutes,...placement};rows.push(row);busy.push(interval(row));
   if(ordered)placementClock=clockAfterSession(row,clock);
@@ -92,7 +92,7 @@ export function applyPlanningCommand(state,command,expected,{now=Date.now()}={})
  const revising=command?.mode==='revise-sessions';
  if(command?.type!=='planning_batch'||command.version!==1||!['sessions','move','revise-sessions'].includes(command.mode)||!Array.isArray(command.rows)||!command.rows.length&&!(revising&&command.archiveIds?.length)||command.rows.length>40)throw Error('Invalid planning command.');
  if(typeof expected?.signature!=='string'||expected.signature!==planningSignature(state))throw Error('The schedule, deadline, or task status changed. Refresh this preview before applying it.');
- const opts=command.options||{};planningAvailability(opts);const clock=planningClock(now,opts.timezone||'UTC'),rows=command.rows,ids=rows.map(row=>row.taskId);
+ const opts=command.options||{};planningAvailability(opts);const clock=planningClock(now,opts.timezone||'UTC'),rows=command.rows,ids=rows.map(row=>row.taskId),spacingCache=new Map();
  if(ids.some(id=>!idValid(id))||new Set(ids).size!==ids.length)throw Error('Invalid or duplicate work session IDs.');
  let parent=null;
  let archiveIds=[],existingIds=new Set();
@@ -108,7 +108,7 @@ export function applyPlanningCommand(state,command,expected,{now=Date.now()}={})
   if(!Number.isInteger(total)||total<15||total>2400||!Number.isInteger(size)||size<15||size>120||rows.length!==Math.ceil(total/size)||rows.some((row,index)=>row.minutes!==Math.min(size,total-index*size)))throw Error('Invalid session effort or duration.');
   if(allTasks(state).some(task=>ids.includes(task.id)))throw Error('A session ID already exists. Retry the original operation to reconcile its save.');
  }
- const selected=new Set(revising?[...existingIds]:command.mode==='move'?ids:[]),busy=planningOccupancy(state,opts.from,opts.to).filter(item=>item.kind!=='task'||!selected.has(item.taskId));
+ const selected=new Set(revising?[...existingIds]:command.mode==='move'?ids:[]),busy=planningPlacementOccupancy(state,opts).filter(item=>item.kind!=='task'||!selected.has(item.taskId));
  for(const row of rows){
   const task=revising&&existingIds.has(row.taskId)?eligible(state,row.taskId).task:parent||eligible(state,row.taskId).task,start=parseTime(row.startTime),end=parseTime(row.endTime),windows=planningWindows({...opts,preference:task.schedulingPreference||parent?.schedulingPreference},row.date);
   if(!Number.isInteger(row.minutes)||row.minutes<1||row.minutes>=1440||start===null||end===null||(end-start+1440)%1440!==row.minutes||start%5!==0||!windows.some(window=>start>=window.start&&start+row.minutes<=window.end)||!validPlanningDate(row.date)||row.date<opts.from||row.date>opts.to)throw Error('Invalid session schedule, time, or duration.');
@@ -117,7 +117,7 @@ export function applyPlanningCommand(state,command,expected,{now=Date.now()}={})
   const deadline=effectiveDeadline(state,task);if(deadline&&row.date>deadline)throw Error('This placement would miss the task or assignment deadline.');
   if(parent?.dueDate&&(!validPlanningDate(parent.dueDate)||row.date>parent.dueDate))throw Error('This placement would miss the assignment deadline.');
   if(row.date<clock.date||zonedTaskStart(row.date,row.startTime,opts.timezone||'UTC')<now||!planningBlockValid(row.date,start,row.minutes,opts.timezone||'UTC'))throw Error('This preview time is in the past or crosses a timezone transition. Refresh it.');
-  const nextInterval=interval(row);if(busy.some(item=>intervalsOverlap(item,nextInterval)))throw Error('This proposed time conflicts with another commitment. Refresh the preview.');busy.push(nextInterval);
+  const nextInterval=interval(row);if(busy.some(item=>planningIntervalsConflict(item,nextInterval,opts,spacingCache)))throw Error('This proposed time conflicts with another commitment. Refresh the preview.');busy.push(nextInterval);
   if(parent&&(typeof row.title!=='string'||!row.title.trim()||row.title.trim().length>180))throw Error('Use a session title up to 180 characters.');
  }
  const next=structuredClone(state);
