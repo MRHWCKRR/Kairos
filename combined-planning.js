@@ -1,7 +1,7 @@
 import {planningTasks,validPlanningDate} from './planning-model.js';
-import {planningAvailability,planningOccupancy,planningBlockValid,intervalsOverlap} from './planning-slots.js?v=2';
-import {previewCarryover} from './planning-commands.js?v=5';
-import {freeMinutes} from './deadline-feasibility.js?v=3';
+import {planningAvailability,planningOccupancy,planningBlockValid,intervalsOverlap,planningDailyWork,planningDailyLimit,addPlanningDailyWork} from './planning-slots.js?v=3';
+import {previewCarryover} from './planning-commands.js?v=6';
+import {freeMinutes} from './deadline-feasibility.js?v=4';
 import {orderedSessionGroup,assertAssignmentOrder} from './assignment-order.js';
 import {parseTime,taskDurationMinutes} from './schedule-utils.js';
 
@@ -35,9 +35,22 @@ export function combinedPlanning(state,input,clock){
   }catch(error){g.status='needs-review';g.reason=String(error.message||'Review this assignment.');}
  }
  const candidates=groups.filter(g=>g.status==='pending'),movableIds=new Set(candidates.flatMap(g=>g.movable.map(task=>task.id))),busy=planningOccupancy(state,input.from,input.to).filter(item=>item.kind!=='task'||!movableIds.has(item.taskId));
- const movableMinutes=candidates.reduce((n,g)=>n+g.movable.reduce((m,t)=>m+taskDurationMinutes(t),0),0),availableMinutes=freeMinutes(busy,input,clock);
+ const movableMinutes=candidates.reduce((n,g)=>n+g.movable.reduce((m,t)=>m+taskDurationMinutes(t),0),0),availableMinutes=freeMinutes(busy,input,clock,planningDailyWork(state,input,movableIds));
  let proposal=null;const spacingCache=new Map();
- const attempt=selected=>previewCarryover(state,{...input,taskIds:selected.flatMap(g=>g.movable.map(task=>task.id))},clock,spacingCache);
+ const lockedWithinBudget=(group,selected,rows)=>{
+  if(!planningDailyLimit(input))return true;
+  for(const task of group.sessions.filter(task=>task.scheduleLocked)){
+   const work=planningDailyWork(state,{...input,from:task.date,to:task.date},selected);
+   for(const row of rows)addPlanningDailyWork(work,row.date,row.minutes);
+   if((work.get(task.date)||0)>planningDailyLimit(input))return false;
+  }
+  return true;
+ };
+ const attempt=selected=>{
+  const proposal=previewCarryover(state,{...input,taskIds:selected.flatMap(g=>g.movable.map(task=>task.id))},clock,spacingCache),excluded=new Set(proposal.rows.map(row=>row.taskId));
+  if(selected.some(g=>!lockedWithinBudget(g,excluded,proposal.rows)))throw Error('A locked session date exceeds the daily assignment-work limit.');
+  return proposal;
+ };
  if(candidates.length){
   try{proposal=attempt(candidates);for(const g of candidates){g.status='fits';g.reason='All movable sessions are included in the shared plan.'}}
   catch{
@@ -47,6 +60,8 @@ export function combinedPlanning(state,input,clock){
    for(const g of candidates){try{const trial=attempt([...accepted,g]);proposal=trial;accepted.push(g);g.status='fits';g.reason='All movable sessions are included in the partial shared plan.'}catch(error){g.status='not-placed';g.reason='Not placed by this check. '+String(error.message||'Review the range and available time.')}}
   }
  }
+ const proposedIds=new Set(proposal?.rows.map(row=>row.taskId)||[]);
+ for(const g of groups.filter(g=>g.status==='fixed'||g.status==='not-placed'))if(!lockedWithinBudget(g,proposedIds,proposal?.rows||[])){g.status='needs-review';g.reason='A locked session date exceeds the daily assignment-work limit.'}
  const excluded=groups.filter(g=>g.status==='needs-review'||g.status==='not-placed'),locked=groups.reduce((n,g)=>n+g.lockedCount,0),remainingMinutes=groups.reduce((n,g)=>n+g.remainingMinutes,0);
  if(proposal){
   const titles=new Map(groups.flatMap(g=>g.sessions.map(task=>[task.id,g.title])));

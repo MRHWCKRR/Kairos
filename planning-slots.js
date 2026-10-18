@@ -7,7 +7,7 @@ export function validatePlanningRange(from,to){
  if(!validPlanningDate(from)||!validPlanningDate(to)||to<from||(Date.parse(to)-Date.parse(from))/86400000>=31)throw Error('Choose a valid date range of at most 31 days.');
 }
 export function planningAvailability(input){
- planningGapMinutes(input);
+ planningGapMinutes(input);planningDailyLimit(input);
  if(input.availabilitySource==='saved'&&input.weeklyAvailability==null)throw Error('Your saved weekly availability changed. Review a new preview.');
  validatePlanningRange(input.from,input.to);const weekly=normaliseWeeklyAvailability(input.weeklyAvailability),start=weekly?0:parseTime(input.dayStart),end=weekly?1440:parseTime(input.dayEnd);
  if(start===null||end===null||end<=start)throw Error('Daily availability must end after it starts.');
@@ -25,6 +25,30 @@ export function planningGapMinutes(input){
  const value=input.gapMinutes===undefined?0:input.gapMinutes;
  if(!Number.isInteger(value)||![0,5,10,15].includes(value))throw Error('Choose a session gap of 0, 5, 10, or 15 minutes.');
  return value;
+}
+export function planningDailyLimit(input){
+ const value=input.dailyLimitMinutes===undefined?0:input.dailyLimitMinutes;
+ if(!Number.isInteger(value)||value!==0&&(value<15||value>1440))throw Error('Choose a daily assignment-work limit of 0 (no limit), or 15-1440 minutes.');return value;
+}
+export function planningDailyLimitText(input){const limit=planningDailyLimit(input);return limit?'Daily assignment-work limit: '+limit+' minutes. Existing dated assignment sessions, including completed and locked work, count; gaps do not.':'Daily assignment-work limit: none.'}
+export function addPlanningDailyWork(work,date,minutes,start=null){
+ if(!validPlanningDate(date)||!Number.isFinite(minutes)||minutes<=0)return;
+ const first=start===null?minutes:Math.min(minutes,1440-start);work.set(date,(work.get(date)||0)+first);
+ if(start!==null&&minutes>first){const next=shiftPlanningDate(date,1);work.set(next,(work.get(next)||0)+minutes-first)}
+}
+export function planningDailyRemaining(work,date,input){const limit=planningDailyLimit(input);return limit?Math.max(0,limit-(work?.get(date)||0)):Infinity}
+export function planningDailyWork(state,input,excluded=new Set()){
+ const work=new Map();if(!planningDailyLimit(input))return work;
+ for(const {task} of planningTasks(state)){
+  if(!task.assignmentId||excluded.has(task.id))continue;
+  if(task.recurrence?.enabled){
+   for(const occurrence of planningOccurrences(task,shiftPlanningDate(input.from,-1),input.to,input.from))if(occurrence.status!=='skipped'){
+    const explicit=task.recurrence.exceptions?.[occurrence.occurrenceDate]?.override?.durationMinutes;
+    addPlanningDailyWork(work,occurrence.displayDate,Number.isFinite(explicit)&&explicit>0?explicit:taskDurationMinutes(occurrence.task),parseTime(occurrence.startTime));
+   }
+  }else addPlanningDailyWork(work,task.date,taskDurationMinutes(task),parseTime(task.startTime));
+ }
+ return work;
 }
 export function planningGapText(input){const gap=planningGapMinutes(input);return gap?'Spacing: '+gap+' minutes before or after neighbouring scheduled commitments. Gaps stay as free time; no break tasks are created.':'Spacing: no added gap.'}
 export function planningIntervalsConflict(a,b,input,cache=new Map()){
@@ -90,7 +114,7 @@ export function findPlanningSlot(duration,input,busy,clock,spacingCache=new Map(
  if(input.dueDate&&!validPlanningDate(input.dueDate))throw Error('Review the task deadline first.');
  const last=input.dueDate&&input.dueDate<input.to?input.dueDate:input.to;
  for(let date=input.from;date<=last;date=shiftPlanningDate(date,1)){
-  if(date<clock.date)continue;
+  if(date<clock.date||input.assignmentWork!==false&&duration>planningDailyRemaining(input.dailyWork,date,input))continue;
   for(const available of planningWindows(input,date)){
   const earliest=Math.max(available.start,date===clock.date?parseTime(clock.time)+1:0);
   for(let start=Math.ceil(earliest/5)*5;start+duration<=available.end;start+=5){

@@ -98,3 +98,10 @@ test('an uncertain save remains retryable after closing and reopening when recov
 test('invalid range input stays recoverable when switching Planning views',async t=>{
  const f=await fixture();t.after(f.dispose);f.hub.open();f.tab('sessions');f.field('from','');f.click('preview-sessions');assert.match(f.text(),/valid date range/i);assert.doesNotThrow(()=>f.tab('conflicts'));assert.ok(f.document.querySelector('[name="from"]'));assert.equal(f.document.querySelector('[name="from"]').value,'2026-10-17');
 });
+
+test('daily limit is optional, spreads work, and survives recovered exact Retry',async t=>{
+ const f=await fixture({fail:true});t.after(f.dispose);f.hub.open();f.tab('sessions');assert.equal(f.document.querySelector('[name="dailyLimitMinutes"]').value,'0');f.field('dailyLimitMinutes','60');f.field('totalMinutes','120');f.click('preview-sessions');assert.match(f.text(),/Daily assignment-work limit: 60 minutes/);assert.match(f.text(),/2026-10-18/);f.click('apply');await tick();const first=f.calls[0];assert.equal(first.command.options.dailyLimitMinutes,60);f.click('close');f.hub.open();f.setOffline(false);f.click('apply');await tick();assert.equal(f.calls[1].identity.operationId,first.identity.operationId);assert.deepEqual(f.calls[1].command,first.command);
+});
+test('daily limit changes invalidate shared results and invalid limits preserve editable drafts',async t=>{
+ const f=await fixture();t.after(f.dispose);addCombined(f);f.field('dayEnd','12:00');f.field('dailyLimitMinutes','60');f.click('check-combined');assert.match(f.text(),/60 minutes short/);const field=f.document.querySelector('[name="dailyLimitMinutes"]');field.value='30';field.dispatchEvent(new f.window.Event('input',{bubbles:true}));assert.equal(f.document.querySelector('[data-planning-action="preview-combined"]'),null);assert.equal(f.document.querySelector('[name="dailyLimitMinutes"]'),field);field.value='14';f.click('check-combined');assert.match(f.text(),/15-1440/);assert.equal(field.value,'14');assert.equal(f.calls.length,0);
+});

@@ -114,3 +114,8 @@ test('public AI preview pins a real current command and rejects changed accounts
  await f.execute(a,options);assert.equal(f.writes.length,1);assert.equal(f.data().boards[0].sections[0].tasks.length,4);
 });
 
+
+test('AI daily-limit plans and read-only checks share budget assumptions',async()=>{
+ const s=combinedState(),a=combinedAction({dailyLimitMinutes:60}),p=preview(s,a);assert.equal(p.rows.length,1);assert.equal(p.command.options.dailyLimitMinutes,60);assert.equal(p.capacity.shortfallMinutes,60);const check=preview(s,combinedAction({dailyLimitMinutes:60,checkOnly:true}));assert.equal(check.command,null);assert.match(check.notice,/Daily assignment-work limit: 60 minutes/);
+ for(const task of s.boards[0].sections[0].tasks)if(task.dueDate)task.dueDate='2099-01-03';const f=await plannerFixture(s,{failAfterCommit:true}),future=combinedAction({dailyLimitMinutes:60,from:'2099-01-01',to:'2099-01-01'}),review=await f.context.previewKairosAction(future,{ownerId:'one',planId:'plan'});assert.match(review.summary.notice,/Daily assignment-work limit: 60/);const options={ownerId:'one',planId:'plan',operationId:'daily-budget',createdAt:Date.now(),confirmation:review.approval};await assert.rejects(f.execute(future,options),/response lost/);await f.execute(future,options);assert.equal(f.writes.length,1);
+});
