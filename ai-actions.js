@@ -1,11 +1,11 @@
 import { auth, db } from './firebase.js';
-import { persistAiPlanAction, getConfirmedAiAction } from './plan-store.js?v=3';
+import { persistAiPlanAction, getConfirmedAiAction } from './plan-store.js?v=4';
 import { validateActionShape } from './ai-action-schema.js?v=2';
 import { stableStringify, planState } from './plan-merge.js';
 import { taskDurationMinutes } from './schedule-utils.js';
-import {previewAiPlanning,resolveAiPlanningTimezone} from './ai-planning.js';
+import {previewAiPlanning,resolveAiPlanningTimezone} from './ai-planning.js?v=2';
 import {planningConflicts} from './planning-slots.js';
-import {applyPlanningCommand} from './planning-commands.js';
+import {applyPlanningCommand} from './planning-commands.js?v=2';
 import {
     collection, getDocs, query, where, doc, getDoc
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";

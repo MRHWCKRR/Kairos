@@ -2,7 +2,9 @@ import { showNotice, confirmDialog, promptDialog } from './ui-dialogs.js?v=1';
 import { aiFetch, aiErrorMessage } from './ai-client.js';
 import { requestBilling } from './billing-client.js';
 import { mountPlanUsage } from './plan-usage.js?v=3';
-import { createPageLoader } from './page-loader.js?v=40';
+import {assignmentProgressIndex,assignmentProgressMarkup} from './assignment-progress.js';
+import {planningClock} from './planning-model.js';
+import { createPageLoader } from './page-loader.js?v=41';
 import { mountPageRouter } from './page-router.js?v=2';
 import { createPageRenderCache } from './page-render-cache.js?v=1';
 import './boards-recurrence.js?v=10';
@@ -25,11 +27,11 @@ import {
     query, where, orderBy, limit, getDocs, updateDoc, deleteDoc, runTransaction
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { LANGUAGES, applyTranslations, getLocale, getLanguageName, t, ACHIEVEMENT_I18N } from './i18n.js';
-import { invalidateKairosContext } from './ai-context.js?v=4';
+import { invalidateKairosContext } from './ai-context.js?v=5';
 import { dueTaskReminders, dueBedtimeReminders, reminderDeliveryStatus } from './task-reminders.js?v=2';
 import { deliverTaskReminder, deliverBedtimeReminder, saveNotificationEdits, escapeNotificationText } from './reminder-notifications.js?v=2';
-import { savePlannerEdits, persistTaskListCommand } from './plan-store.js?v=3';
-import { resolveTaskDetail, taskListSection } from './task-list-model.js?v=2';
+import { savePlannerEdits, persistTaskListCommand } from './plan-store.js?v=4';
+import { resolveTaskDetail, taskListSection } from './task-list-model.js?v=3';
 import { mergePlanEdits, planState } from './plan-merge.js';
 import {createSettingsRecovery,overlaySettingsEdits} from './settings-recovery.js?v=1';
 import {mountGettingStarted,openGettingStartedDestination} from './getting-started.js?v=1';
@@ -593,10 +595,10 @@ function bootApp() {
     }
     const pageLoader = createPageLoader({scheduleEnabled:!!document.getElementById('schedule-calendar'),taskDetailsEnabled:true,setupTaskDetails:module=>{
         taskDetails=module.mountTaskDetailPane({root:document.getElementById('tasks-page'),getOwnerId:()=>auth.currentUser?.uid||null,getPlanId:()=>currentPlanDocId,
-            resolveTarget:target=>resolveTaskDetail({boards:boardsData},target),commit:commitTaskDetails,openSchedule:openTaskDetailsInSchedule});
+            getState:()=>({boards:boardsData}),getToday:()=>planningClock(Date.now(),userSettings.profile.timezone).date,resolveTarget:target=>resolveTaskDetail({boards:boardsData},target),commit:commitTaskDetails,openSchedule:openTaskDetailsInSchedule});
     },setupTaskWorkspace:module=>{
         taskWorkspace=module.mountTaskListWorkspace({root:document.getElementById('tasks-page'),overview:document.getElementById('tasks-manager-container'),
-            getState:()=>taskInteractions?.getDisplayState()||({boards:boardsData}),getOwnerId:()=>auth.currentUser?.uid||null,getPlanId:()=>currentPlanDocId,commit:commitTaskDetails,
+            getToday:()=>planningClock(Date.now(),userSettings.profile.timezone).date,getState:()=>taskInteractions?.getDisplayState()||({boards:boardsData}),getOwnerId:()=>auth.currentUser?.uid||null,getPlanId:()=>currentPlanDocId,commit:commitTaskDetails,
             ensurePlan:async()=>{const owner=auth.currentUser?.uid;if(!owner)return false;if(!currentPlanDocId&&!await updatePlanInFirestore())return false;return auth.currentUser?.uid===owner},
             isMutationBlocked:()=>{const state=taskInteractions?.getActionState({taskId:''});return !!(state?.busy||state?.pending)},requestCloseDetails:()=>taskDetails?.requestClose()??true,renderOverview:renderBoardsGrid,onRender:()=>{taskInteractions?.decorate();taskSelection?.sync();taskMenus?.sync();taskShortcuts?.sync()}});
         renderBoardsGrid();
@@ -637,8 +639,8 @@ function bootApp() {
         return taskDetails?.open({taskId},source);
     }
     document.getElementById('tasks-page')?.addEventListener('click',async event=>{
-        const button=event.target.closest?.('[data-task-detail]');if(!button)return;
-        event.preventDefault();await openTaskDetailsFromList(button.dataset.taskDetail,button);
+        const button=event.target.closest?.('[data-task-detail],[data-assignment-open]');if(!button)return;
+        event.preventDefault();await openTaskDetailsFromList(button.dataset.taskDetail||button.dataset.assignmentOpen,button);
     });
     document.getElementById('tasks-page')?.addEventListener('keydown',event=>{
         if(!['Enter','F2'].includes(event.key)||event.target.closest('input,textarea,select,button'))return;
@@ -700,8 +702,9 @@ function bootApp() {
     const focusContainer = document.getElementById("dashboard-focus-container");
     const managerContainer = document.getElementById("tasks-manager-container");
 
+    let assignmentSummaries=new Map();
     function createTaskHTML(task, sectionId, showDatePicker = false) {
-        if(showDatePicker&&taskWorkspace)return taskWorkspace.rowHTML(task,sectionId);
+        if(showDatePicker&&taskWorkspace)return taskWorkspace.rowHTML(task,sectionId,assignmentSummaries.get(task.id));
         return `
             <li class="task-item ${task.completed ? 'completed' : ''}" ${showDatePicker?`tabindex="0" data-detail-row="${escapeNotificationText(task.id)}"`:''}>
                 <label class="custom-checkbox">
@@ -819,6 +822,7 @@ function bootApp() {
         if (!managerContainer) return;
         if (pageRenders.defer('tasks-page',renderBoardsGrid)) return;
         if(taskWorkspace?.isFocused()){taskWorkspace.render();return}
+        assignmentSummaries=assignmentProgressIndex({boards:taskInteractions?.getDisplayState()?.boards||boardsData},planningClock(Date.now(),userSettings.profile.timezone).date);
         const visibleBoards = (taskInteractions?.getDisplayState()?.boards||boardsData).filter(b => !b.archived);
         if (!visibleBoards.length) {
             managerContainer.innerHTML = `<p class="boards-empty-state text-muted">${tr('no_boards_yet')}</p>`;

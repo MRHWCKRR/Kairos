@@ -2,10 +2,12 @@ import {stableStringify} from './plan-merge.js';
 import {taskDetailValues,TASK_DETAIL_FIELDS,applyTaskListCommand} from './task-list-model.js';
 import {recurrenceFieldsMarkup,bindRecurrenceFields,readRecurrenceFields} from './schedule-recurrence-ui.js';
 import {t} from './i18n.js';
+import {assignmentProgressIndex,assignmentProgressMarkup,refreshAssignmentProgress} from './assignment-progress.js';
+import {planningClock} from './planning-model.js';
 import {mountTaskChecklistEditor} from './task-checklist-editor.js?v=3';
 
 const esc=value=>String(value??'').replace(/[&<>'"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[ch]));
-export function mountTaskDetailPane({root,resolveTarget,commit,getOwnerId,getPlanId=()=>null,onClose=()=>{},openSchedule,document=globalThis.document,window=globalThis.window}){
+export function mountTaskDetailPane({root,resolveTarget,commit,getOwnerId,getPlanId=()=>null,getState=()=>({boards:[]}),getToday=()=>planningClock(Date.now(),Intl.DateTimeFormat().resolvedOptions().timeZone).date,onClose=()=>{},openSchedule,document=globalThis.document,window=globalThis.window}){
     let panel=null,form=null,target=null,baseline=null,displayBaseline=null,location=null,owner=null,planId=null,opener=null,pending=null,busy=false,dialog=null,choiceDialog=null,choiceFinish=null,revision=0,checklistEditor=null;
     let pendingFocus=null,pointerFocus=null;
     const copy=key=>t('task_detail_'+key,document.documentElement.lang||'en');
@@ -112,7 +114,7 @@ export function mountTaskDetailPane({root,resolveTarget,commit,getOwnerId,getPla
         const input=(name,label,type='text',attrs='')=>`<label>${esc(label)}<input name="${name}" type="${type}" ${attrs} value="${esc(values[name])}"></label>`;
         const select=(name,label,options)=>`<label>${esc(label)}<select name="${name}">${options.map(([value,text])=>`<option value="${value}" ${String(values[name]??'')===value?'selected':''}>${esc(text)}</option>`).join('')}</select></label>`;
         panel.innerHTML=`<header class="task-detail-header"><h2 id="task-detail-heading">${esc(copy('heading'))}</h2><div><button type="button" data-maximise>${esc(copy('expand'))}</button><button type="button" data-close aria-label="${esc(copy('close'))}">×</button></div></header>
-          <form class="task-detail-form" novalidate>
+          <div data-assignment-detail>${assignmentProgressMarkup(assignmentProgressIndex(getState(),getToday()).get(target.taskId),{details:true})}</div><form class="task-detail-form" novalidate>
           <fieldset class="task-detail-title task-detail-metadata" ${target.occurrenceDate?'disabled':''}>
           ${input('title',copy('title'),'text','maxlength="180" required')}
           </fieldset>
@@ -137,7 +139,7 @@ export function mountTaskDetailPane({root,resolveTarget,commit,getOwnerId,getPla
           <footer class="task-detail-footer"><p role="status" aria-live="polite">${esc(copy('saved'))}</p>
           <div class="task-detail-actions"><button type="submit" class="task-detail-primary">${esc(copy('save'))}</button><button type="button" data-close>${esc(copy('close'))}</button>${openSchedule?'<button type="button" data-schedule>'+esc(copy('schedule'))+'</button>':''}</div>
           </footer></form>`;
-        root.appendChild(panel);root.classList.add('has-task-details');form=panel.querySelector('form');
+        root.appendChild(panel);root.classList.add('has-task-details');form=panel.querySelector('form');refreshAssignmentProgress(panel.querySelector('[data-assignment-detail]'),assignmentProgressIndex(getState(),getToday()).get(target.taskId),{details:true});
         bindRecurrenceFields(form,{fallbackDate:found.task.date||values.recurrence?.startDate||null});
         checklistEditor=mountTaskChecklistEditor({root:panel.querySelector('.task-checklist'),isActive:()=>activePage()&&owner===getOwnerId()&&planId===getPlanId(),items:pending?.command?.changes?.checklist||values.checklist||[],canToggle:!!target.occurrenceDate||!values.recurrence?.enabled,hint:copy(values.recurrence?.enabled&&!target.occurrenceDate?'template_hint':target.occurrenceDate?'occurrence_hint':'checklist_hint'),copy,onStatus:status,onChange:()=>status(copy('unsaved')),document,window});
         displayBaseline=read();
@@ -145,6 +147,7 @@ export function mountTaskDetailPane({root,resolveTarget,commit,getOwnerId,getPla
         updatePropertySummaries();
         const formChanged=event=>{if(event.target.closest('.task-checklist-scope'))return;updatePropertySummaries();if(!busy&&!pending)status(copy('unsaved'))};
         form.addEventListener('input',formChanged);form.addEventListener('change',formChanged);
+        panel.addEventListener('click',event=>{const linked=event.target.closest('[data-assignment-open]');if(linked){event.preventDefault();event.stopPropagation();void open({taskId:linked.dataset.assignmentOpen},linked)}});
         panel.querySelector('[data-series-scope]')?.addEventListener('click',()=>void open({taskId:target.taskId},opener));
         panel.querySelector('[data-open-occurrence]')?.addEventListener('click',()=>{const date=panel.querySelector('[data-checklist-occurrence]').value;if(date)void open({taskId:target.taskId,occurrenceDate:date},opener)});
         form.addEventListener('submit',event=>{event.preventDefault();void save()});
@@ -193,6 +196,6 @@ export function mountTaskDetailPane({root,resolveTarget,commit,getOwnerId,getPla
             restoreUi(restore,canFocus);status(copy('saved'));return !!result;
         }catch(error){if(ticket!==revision)return false;busy=false;updateControls();status(copy('failed')+' '+error.message,true);return false}
     }
-    function sync(){if(!activePage())checklistEditor?.cancelReorder();if(panel&&(owner!==getOwnerId()||planId!==getPlanId())){forget();close()}}
+    function sync(){if(panel&&owner===getOwnerId()&&planId===getPlanId()){refreshAssignmentProgress(panel.querySelector('[data-assignment-detail]'),assignmentProgressIndex(getState(),getToday()).get(target.taskId),{details:true})}if(!activePage())checklistEditor?.cancelReorder();if(panel&&(owner!==getOwnerId()||planId!==getPlanId())){forget();close()}}
     return {open,save,requestClose,maximise,sync,dispose:close};
 }

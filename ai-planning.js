@@ -1,6 +1,6 @@
 import {planningTasks,planningClock,weeklyReview,deadlineSummary} from './planning-model.js';
 import {planningConflicts} from './planning-slots.js';
-import {previewSessions,previewCarryover} from './planning-commands.js';
+import {previewSessions,previewCarryover} from './planning-commands.js?v=2';
 
 export function resolveAiPlanningTimezone(userData,ownerId,storage=globalThis.localStorage) {
  const clean=value=>typeof value==='string'?value.trim().slice(0,80):'';

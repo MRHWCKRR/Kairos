@@ -1,0 +1,11 @@
+.assignment-progress{min-width:0;color:var(--text-muted);font-size:.75rem;line-height:1.5;display:flex;flex-wrap:wrap;gap:4px 10px}
+.assignment-progress small{flex-basis:100%;font:inherit}
+.assignment-progress button{font:inherit;text-align:left;color:var(--text-primary);background:transparent;border:0;text-decoration:underline;text-underline-offset:3px;padding:2px;cursor:pointer;overflow-wrap:anywhere}
+.assignment-progress button:focus-visible,.assignment-progress summary:focus-visible{outline:2px solid var(--accent-glow);outline-offset:2px}
+.assignment-progress details{width:100%;padding-top:6px}
+.assignment-progress summary{cursor:pointer;color:var(--text-primary)}
+.assignment-progress ul{list-style:none;margin:8px 0;padding:0;max-height:240px;overflow:auto}
+.assignment-progress li{display:flex;flex-direction:column;padding:6px 0;border-bottom:1px solid var(--border-subtle)}
+#tasks-page .task-item:has(>.assignment-progress){flex-wrap:wrap}
+#tasks-page .task-item>.assignment-progress{flex-basis:100%;grid-column:2 / -1;grid-row:auto}
+[data-assignment-detail]:has(.assignment-progress){padding:0 18px 14px;border-bottom:1px solid var(--border-subtle)}

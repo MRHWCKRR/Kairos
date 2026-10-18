@@ -1,5 +1,7 @@
 import {applyTaskListCommand} from './task-list-model.js';
 import {t} from './i18n.js';
+import {assignmentProgressIndex,assignmentProgressMarkup} from './assignment-progress.js';
+import {planningClock} from './planning-model.js';
 import {confirmDialog} from './ui-dialogs.js?v=1';
 
 const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
@@ -40,7 +42,7 @@ export function replaceTaskOverview(overview,html,{document=overview.ownerDocume
     }
     scrollElement.scrollTop=scroll;
 }
-export function renderTaskListRow(task,sectionId,copy=key=>t('task_list_'+key)){
+export function renderTaskListRow(task,sectionId,copy=key=>t('task_list_'+key),assignment=null){
     const id=esc(task.id),section=esc(sectionId),progress=Array.isArray(task.checklist)?task.checklist:[];
     return `<li class="task-item ${task.completed?'completed':''}" tabindex="0" data-detail-row="${id}">
       <span class="task-order-controls"><button type="button" data-task-action="drag" aria-label="${esc(t('task_order_drag')+' '+task.title)}" title="${esc(t('task_order_drag'))}">${orderIcon('drag')}</button></span>
@@ -50,10 +52,10 @@ export function renderTaskListRow(task,sectionId,copy=key=>t('task_list_'+key)){
       <span class="task-checklist-count" ${progress.length?'':'hidden'}>${task.recurrence?.enabled?0:progress.filter(item=>item.completed).length}/${progress.length}</span>
       <input type="date" class="task-date-input" data-section="${section}" data-task="${id}" value="${esc(task.date)}" aria-label="${esc(copy('date'))}">
 
-      <button type="button" class="task-menu-button" data-task-menu="${id}" aria-haspopup="menu" aria-expanded="false" aria-label="${esc((t('task_menu_heading')==='task_menu_heading'?'Task actions':t('task_menu_heading'))+': '+task.title)}" title="${esc(t('task_menu_heading')==='task_menu_heading'?'Task actions':t('task_menu_heading'))}"><svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></button></li>`;
+      <button type="button" class="task-menu-button" data-task-menu="${id}" aria-haspopup="menu" aria-expanded="false" aria-label="${esc((t('task_menu_heading')==='task_menu_heading'?'Task actions':t('task_menu_heading'))+': '+task.title)}" title="${esc(t('task_menu_heading')==='task_menu_heading'?'Task actions':t('task_menu_heading'))}"><svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></button>${assignmentProgressMarkup(assignment)}</li>`;
 }
 
-export function mountTaskListWorkspace({root,overview,scrollElement=root.closest('.main-content')||root,getState,getOwnerId,getPlanId,commit,isMutationBlocked=()=>false,ensurePlan=async()=>true,requestCloseDetails=async()=>true,confirmDiscard=warning=>confirmDialog(warning),renderOverview=()=>{},onRender=()=>{},document=root.ownerDocument,window=document.defaultView,storage}={}){
+export function mountTaskListWorkspace({root,overview,scrollElement=root.closest('.main-content')||root,getState,getOwnerId,getPlanId,commit,isMutationBlocked=()=>false,ensurePlan=async()=>true,requestCloseDetails=async()=>true,confirmDiscard=warning=>confirmDialog(warning),renderOverview=()=>{},onRender=()=>{},document=root.ownerDocument,window=document.defaultView,storage,getToday=()=>planningClock(Date.now(),Intl.DateTimeFormat().resolvedOptions().timeZone).date}={}){
     const copy=key=>t('task_list_'+key,document.documentElement.lang||'en');
     try{storage??=window.sessionStorage}catch{}
     const surface=document.createElement('section');surface.dataset.focusedSection='';surface.className='task-section-focus';surface.hidden=true;overview.before(surface);
@@ -105,15 +107,18 @@ export function mountTaskListWorkspace({root,overview,scrollElement=root.closest
         find('[data-show-completed]').textContent=copy(pref.showCompleted?'hide_completed':'show_completed');
         find('[data-section-state]').textContent=found.message||(tasks.length?(tasks.every(task=>task.completed)&&!pref.showCompleted?copy('hidden_completed'):''):copy('empty'));
         const rows=new Map([...list.children].map(row=>[row.dataset.detailRow,row])),active=document.activeElement,selection=active===input?null:[active?.selectionStart,active?.selectionEnd];
+        const assignments=assignmentProgressIndex(getState(),getToday());
         for(const [index,task] of tasks.entries()){
             let row=rows.get(task.id);rows.delete(task.id);
-            if(!row){const template=document.createElement('template');template.innerHTML=renderTaskListRow(task,current.sectionId,copy);row=template.content.firstElementChild;list.appendChild(row)}
+            if(!row){const template=document.createElement('template');template.innerHTML=renderTaskListRow(task,current.sectionId,copy,assignments.get(task.id));row=template.content.firstElementChild;list.appendChild(row)}
             if(list.children[index]!==row)list.insertBefore(row,list.children[index]||null);
             // Keep row controls alive, especially title typing/caret and completion focus.
             row.classList.toggle('completed',task.completed===true);row.hidden=!pref.showCompleted&&task.completed===true;
             const title=row.querySelector('.task-text'),date=row.querySelector('.task-date-input'),check=row.querySelector('[type="checkbox"]');
             if(active!==title)title.value=task.title;title.style.textDecoration=task.completed?'line-through':'none';
             if(active!==date)date.value=task.date||'';check.checked=task.completed===true;check.setAttribute('aria-label',copy('complete')+' '+task.title);
+            const assignmentHTML=assignmentProgressMarkup(assignments.get(task.id)),oldAssignment=row.querySelector('[data-assignment-progress]');
+            if(oldAssignment?.__assignmentHTML!==assignmentHTML){const activeLink=oldAssignment?.contains(document.activeElement)?document.activeElement?.dataset.assignmentOpen:null;oldAssignment?.remove();if(assignmentHTML){row.insertAdjacentHTML('beforeend',assignmentHTML);row.querySelector('[data-assignment-progress]').__assignmentHTML=assignmentHTML;if(activeLink)[...row.querySelectorAll('[data-assignment-open]')].find(button=>button.dataset.assignmentOpen===activeLink)?.focus?.({preventScroll:true})}}
             const time=row.querySelector('.task-scheduled-time');time.hidden=!task.startTime;time.textContent=(task.startTime||'')+(task.endTime?' – '+task.endTime:'');
             const progress=Array.isArray(task.checklist)?task.checklist:[],count=row.querySelector('.task-checklist-count');count.hidden=!progress.length;count.textContent=(task.recurrence?.enabled?0:progress.filter(item=>item.completed).length)+'/'+progress.length;
         }
@@ -228,5 +233,5 @@ export function mountTaskListWorkspace({root,overview,scrollElement=root.closest
         if(returnTarget&&sectionKey(returnTarget)===oldKey)returnTarget={...returnTarget,...to};
         render();
     }
-    return {getCurrentSection(){sync();return current?{...current}:null},cancelCapture(){sync();if(!current)return false;const entry=entryFor(current);if(entry.busy||entry.pending)return false;closeCapture();return true},sectionMoved,hasPendingCapture:()=>[...entries.values()].some(entry=>entry.busy||entry.pending),openSection,back,submit,discard,render,sync,decorateOverview,replaceOverview,async addTask(target,source,{isCurrent=()=>true}={}){return openSection(target,source,true,isCurrent)},async collapseSection(target){if(locate(target).message)return false;if(current&&sectionKey(current)===sectionKey(target)&&!await back())return false;preference(target).collapsed=true;rememberView();decorateOverview();return true},rowHTML:(task,sectionId)=>renderTaskListRow(task,sectionId,copy),isFocused:()=>!!current&&!inline,getViewKey:()=>current&&!inline?sectionKey(current):'overview',dispose(){disposed=true;generation++;navigation++;root.removeEventListener('click',onClick);root.removeEventListener('keydown',onKey);root.removeEventListener('input',onInput);form.removeEventListener('submit',onSubmit);form.remove();surface.remove();overview.hidden=false}};
+    return {getCurrentSection(){sync();return current?{...current}:null},cancelCapture(){sync();if(!current)return false;const entry=entryFor(current);if(entry.busy||entry.pending)return false;closeCapture();return true},sectionMoved,hasPendingCapture:()=>[...entries.values()].some(entry=>entry.busy||entry.pending),openSection,back,submit,discard,render,sync,decorateOverview,replaceOverview,async addTask(target,source,{isCurrent=()=>true}={}){return openSection(target,source,true,isCurrent)},async collapseSection(target){if(locate(target).message)return false;if(current&&sectionKey(current)===sectionKey(target)&&!await back())return false;preference(target).collapsed=true;rememberView();decorateOverview();return true},rowHTML:(task,sectionId,assignment)=>renderTaskListRow(task,sectionId,copy,assignment),isFocused:()=>!!current&&!inline,getViewKey:()=>current&&!inline?sectionKey(current):'overview',dispose(){disposed=true;generation++;navigation++;root.removeEventListener('click',onClick);root.removeEventListener('keydown',onKey);root.removeEventListener('input',onInput);form.removeEventListener('submit',onSubmit);form.remove();surface.remove();overview.hidden=false}};
 }
