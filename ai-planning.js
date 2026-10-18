@@ -1,4 +1,5 @@
-import {planningDefaults} from './weekly-availability.js';
+import {planningDefaults,weeklyAvailabilityText} from './weekly-availability.js';
+import {combinedPlanning} from './combined-planning.js';
 import {assignmentFeasibility,feasibilityAssignments,FEASIBILITY_LIMIT} from './deadline-feasibility.js?v=1';
 import {assignmentReadiness} from './assignment-order.js';
 import {planningTasks,planningClock,weeklyReview,deadlineSummary} from './planning-model.js';
@@ -17,7 +18,7 @@ export function resolveAiPlanningTimezone(userData,ownerId,storage=globalThis.lo
 export function aiPlanningSummary(state,{timezone='UTC',now=Date.now(),weeklyAvailability=null}={}) {
  const today=planningClock(now,timezone).date,deadlines=deadlineSummary(state,today).filter(item=>item.dueDate),review=weeklyReview(state,today,today);
  const parents=feasibilityAssignments(state);
- const capacityAssumptions={...planningDefaults(weeklyAvailability),meaning:'Each assignment is checked separately within 31 days against current commitments; assignments may compete for the same time. Free minutes are an upper bound; fits requires a complete validated plan. Planned effort is not a completion prediction. A fits result may require reviewed rescheduling; no changes are saved.'};
+ const capacityAssumptions={...planningDefaults(weeklyAvailability),meaning:'Each assignment is checked separately within 31 days against current commitments; assignments may compete for the same time. Free minutes are an upper bound; fits requires a complete validated plan. Planned effort is not a completion prediction. A fits result may require reviewed rescheduling; no changes are saved. For shared capacity across selected assignments, use plan_assignments with checkOnly:true; never add separate fits results.'};
  const feasibility=parents.slice(0,FEASIBILITY_LIMIT).map(task=>assignmentFeasibility(state,task.id,{...capacityAssumptions,timezone},planningClock(now,timezone)));
  const readiness=assignmentReadiness(state);return {assignmentFeasibility:feasibility.map(row=>({...row,title:row.title.slice(0,180),reason:row.reason.slice(0,400)})),assignmentFeasibilityOmitted:Math.max(0,parents.length-FEASIBILITY_LIMIT),capacityAssumptions,orderedSessionReadiness:[...readiness].slice(0,80).map(([taskId,value])=>({taskId,...value})),orderedReadinessOmitted:Math.max(0,readiness.size-80),timezone,today,deadlineCount:deadlines.length,deadlines:deadlines.slice(0,30).map(item=>({taskId:item.task.id,title:String(item.task.title||'').slice(0,180),dueDate:item.dueDate,status:item.status,scheduledAfterDeadline:item.afterDeadline})),deadlinesOmitted:Math.max(0,deadlines.length-30),week:{from:review.from,to:review.to,completed:review.completed.length,pending:review.pending.length,slipped:review.slipped.length,meaning:'Current status of work dated in this week, including recurring occurrences; not historical completion dates.'},conflicts:planningConflicts(state,review.from,review.to).length};
 }
@@ -26,6 +27,15 @@ export function aiPlanningSummary(state,{timezone='UTC',now=Date.now(),weeklyAva
 // from the current planner and the same commands used by Schedule > Planning.
 export function previewAiPlanning(state,action,{timezone='UTC',now=Date.now(),weeklyAvailability=null}={}) {
  const args=action.args,clock=planningClock(now,timezone),input={...args,...planningDefaults(weeklyAvailability,args),timezone};
+ if(action.type==='plan_assignments') {
+  const r=combinedPlanning(state,input,clock),capacity={remainingMinutes:r.remainingMinutes,movableMinutes:r.movableMinutes,availableMinutes:r.availableMinutes,shortfallMinutes:r.shortfallMinutes,assignments:r.assignments.map(a=>({...a,title:a.title.slice(0,180),reason:a.reason.slice(0,400)}))};
+  const totals='Shared capacity: '+capacity.remainingMinutes+' minutes remaining; up to '+capacity.availableMinutes+' free minutes for '+capacity.movableMinutes+' movable minutes in eligible assignments.'+(capacity.shortfallMinutes?' At least '+capacity.shortfallMinutes+' minutes short.':'')+' Free time is an upper bound before deadlines, preferences, fragmented gaps, and timezone transitions.';
+  if(args.checkOnly||!r.proposal||r.assignments.some(a=>a.status==='no-work')){
+   const labels={fits:'Fits in the candidate shared plan',fixed:'Locked sessions stay fixed','not-placed':'Not placed by this check','needs-review':'Needs review','no-work':'No unfinished sessions'};
+   return {command:null,rows:[],options:input,capacity,notice:totals+' '+input.from+' through '+input.to+' in '+timezone+'. '+(input.weeklyAvailability?'Saved weekly hours: '+weeklyAvailabilityText(input.weeklyAvailability):'Daily work hours: '+input.dayStart+'-'+input.dayEnd)+'. '+capacity.assignments.map(a=>a.title+': '+labels[a.status]+' ('+a.remainingMinutes+' minutes). '+a.reason).join(' ')+' Assignments without deadlines use the range end. Not placed is not proof that no arrangement can fit. Nothing changed. To schedule work, request a reviewed plan. For missing sessions, create or review them in Planning first. For unplaced work, adjust the work hours or date range.'};
+  }
+  return {...r.proposal,capacity,notice:totals+' '+r.proposal.notice};
+ }
  if(action.type==='plan_sessions') {
   const entries=planningTasks(state).filter(({task})=>args.taskId?task.id===args.taskId:String(task.title||'').trim().toLowerCase()===String(args.title||'').trim().toLowerCase());
   if(entries.length!==1)throw Error(entries.length?'Multiple assignments match. Choose an exact task ID.':'Assignment not found.');
