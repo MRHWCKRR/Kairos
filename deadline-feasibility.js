@@ -6,7 +6,7 @@ import {parseTime,taskDurationMinutes} from './schedule-utils.js';
 
 // Capacity is an upper bound: gaps may be too short, restricted by preferences,
 // or invalid across DST. Only a complete validated preview earns "fits".
-function freeMinutes(busy,options,clock){
+export function freeMinutes(busy,options,clock){
  planningAvailability(options);let total=0;
  for(let date=options.from;date<=options.to;date=shiftPlanningDate(date,1)){
   for(const available of planningWindows(options,date)){
