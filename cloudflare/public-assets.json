@@ -1,6 +1,7 @@
 {
   "files": [
     "assignment-order.js",
+    "deadline-feasibility.js",
     "assignment-progress.js",
     "assignment-progress.css",
     "ai-planning.js",

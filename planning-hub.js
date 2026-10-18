@@ -1,3 +1,4 @@
+import {assignmentFeasibility,feasibilityAssignments,FEASIBILITY_LIMIT} from './deadline-feasibility.js';
 import {deadlineSummary,weeklyReview,planningTasks,planningClock,planningWeekStart,shiftPlanningDate} from './planning-model.js';
 import {planningConflicts,planningAvailability} from './planning-slots.js';
 import {previewSessions,previewCarryover,previewSessionRevision} from './planning-commands.js?v=3';
@@ -28,9 +29,16 @@ export function mountPlanningHub({document=globalThis.document,window=globalThis
  function availability(){return `<fieldset class="planning-availability"><legend>Placement range and daily availability</legend><label>From<input type="date" name="from" value="${esc(filters.from)}" required></label><label>Through<input type="date" name="to" value="${esc(filters.to)}" required></label><label>Daily start<input type="time" name="dayStart" value="${esc(filters.dayStart)}" step="300" required></label><label>Daily end<input type="time" name="dayEnd" value="${esc(filters.dayEnd)}" step="300" required></label></fieldset><p class="planning-hint">Times use ${esc(timezone())}. Existing commitments, locks, preferences, and deadlines stay in force.</p>`}
  function capture(){const next={...filters,timezone:timezone()};for(const name of ['from','to','dayStart','dayEnd']){const input=dialog.querySelector('[name="'+name+'"]');if(input)next[name]=input.value}planningAvailability(next);filters=next;return next}
  const taskButton=(id,label='Edit deadline')=>`<button type="button" data-planning-task="${esc(id)}">${label}</button>`;
+ function capacity(){
+  const state=data(),parents=feasibilityAssignments(state),labels={fits:'Fits',shortfall:'Not enough time','needs-review':'Needs review',overdue:'Overdue','no-deadline':'No deadline','outside-range':'Outside check range','no-work':'No unfinished sessions'};
+  return '<h4>Assignment capacity</h4><p class="planning-hint">Each assignment is checked separately against saved commitments, from now to its deadline (up to 31 days). Assignments may compete for time. Fits means a candidate plan exists; it may require rescheduling. This measures planned effort, not completion. Check capacity refreshes after edits. Times use '+esc(timezone())+'.</p><fieldset class="planning-availability planning-capacity-availability"><legend>Daily availability for capacity checks</legend><label>Daily start<input type="time" name="dayStart" value="'+esc(filters.dayStart)+'" step="300"></label><label>Daily end<input type="time" name="dayEnd" value="'+esc(filters.dayEnd)+'" step="300"></label></fieldset>'+action('check-capacity','Check capacity')+'<ul class="planning-list">'+parents.slice(0,FEASIBILITY_LIMIT).map(task=>{
+   const r=assignmentFeasibility(state,task.id,{...filters,timezone:timezone()},clock());
+   return '<li><div><strong>'+esc(task.title)+' — '+esc(labels[r.status])+'</strong><span>'+r.remainingMinutes+' minutes remaining'+(r.availableMinutes!==null?' · Up to '+r.availableMinutes+' free minutes for '+r.movableMinutes+' movable minutes':'')+(r.shortfallMinutes?' · At least '+r.shortfallMinutes+' minutes short':'')+'</span><small>'+esc(r.dueDate?'Due '+r.dueDate+'. ':'')+esc(r.reason)+'</small></div>'+(r.canPreview?'<button type="button" data-planning-capacity="'+esc(task.id)+'">Preview session reschedule</button>':taskButton(task.id,'Review assignment'))+'</li>';
+  }).join('')+'</ul>'+(parents.length>FEASIBILITY_LIMIT?'<p>Showing the 10 nearest assignment deadlines. Other assignments have not been checked.</p>':'')+(!parents.length?'<p>Create assignment sessions to compare remaining effort with free time.</p>':'');
+ }
  function deadlines(){
   const rows=deadlineSummary(data(),clock().date);
-  return `<h3>Deadlines and overdue work</h3><p>A deadline is when work is due; the scheduled date is when you plan to work on it. Recurring work is managed by occurrence in Schedule.</p>${rows.length?'<ul class="planning-list">'+rows.map(row=>`<li><div><strong>${esc(row.task.title)}</strong><span>${row.dueDate?'Due '+esc(row.dueDate)+' · '+esc(row.status):'No deadline'}${row.afterDeadline?' · Scheduled after deadline':''}</span><small>${esc(row.board.title)} / ${esc(row.section.title)}${row.task.date?' · Planned '+esc(row.task.date):' · Not scheduled'}</small></div>${taskButton(row.task.id)}</li>`).join('')+'</ul>':'<p>No unfinished tasks. Add a task in Routines & Tasks to start planning.</p>'}`;
+  return `<h3>Deadlines and overdue work</h3><p>A deadline is when work is due; the scheduled date is when you plan to work on it. Recurring work is managed by occurrence in Schedule.</p>${capacity()}<h4>All unfinished deadlines</h4>${rows.length?'<ul class="planning-list">'+rows.map(row=>`<li><div><strong>${esc(row.task.title)}</strong><span>${row.dueDate?'Due '+esc(row.dueDate)+' · '+esc(row.status):'No deadline'}${row.afterDeadline?' · Scheduled after deadline':''}</span><small>${esc(row.board.title)} / ${esc(row.section.title)}${row.task.date?' · Planned '+esc(row.task.date):' · Not scheduled'}</small></div>${taskButton(row.task.id)}</li>`).join('')+'</ul>':'<p>No unfinished tasks. Add a task in Routines & Tasks to start planning.</p>'}`;
  }
  function sessions(){
   const entries=planningTasks(data()).filter(({task})=>!task.completed&&!task.recurrence?.enabled&&!task.scheduleLocked&&!task.startTime&&!task.assignmentId&&!planningTasks(data()).some(entry=>entry.task.assignmentId===task.id));
@@ -82,7 +90,14 @@ export function mountPlanningHub({document=globalThis.document,window=globalThis
   const task=event.target.closest('[data-planning-task]')?.dataset.planningTask;if(task){close();void bridge()?.openTaskEditor?.({taskId:task});return}
   const resolve=event.target.closest('[data-planning-resolve]')?.dataset.planningResolve;
   const name=event.target.closest('[data-planning-action]')?.dataset.planningAction;
+  const capacityId=event.target.closest('[data-planning-capacity]')?.dataset.planningCapacity;
   try{
+   if(name==='check-capacity'){capture();render();setStatus('Capacity checked against the current planner.');return}
+   if(capacityId){
+    const input=capture(),state=data(),current=clock(),r=assignmentFeasibility(state,capacityId,input,current);if(!r.canPreview)throw Error(r.reason);
+    const taskIds=planningTasks(state).filter(({task})=>task.assignmentId===capacityId&&!task.completed&&!task.scheduleLocked).map(({task})=>task.id);
+    prepare(previewCarryover(state,{...input,from:current.date,to:r.dueDate,taskIds},current));return;
+   }
    if(resolve){prepare(previewCarryover(data(),{...capture(),taskIds:[resolve]},clock()));return}
    if(name==='close'){close();return}
    if(name==='discard'){clearRecord();pending=null;status='Preview discarded. No undo was performed.';render();return}

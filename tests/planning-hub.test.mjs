@@ -16,6 +16,23 @@ async function fixture({store=new Map(),fail=false,gate=null,title='Essay'}={}){
 test('Planning exposes five real views and opens existing task editing without writing',async t=>{
  const f=await fixture();t.after(f.dispose);f.hub.open();assert.equal(f.document.querySelectorAll('[data-planning-tab]').length,5);assert.match(f.text(),/Due 2026-10-19/);f.document.querySelector('[data-planning-task="a"]').click();assert.equal(f.opened[0].taskId,'a');assert.equal(f.calls.length,0);
 });
+
+test('deadline capacity explains effort and previews all unfinished sessions before any save',async t=>{
+ const f=await fixture({title:'<img src=x onerror=alert(1)>'});t.after(f.dispose);f.hub.open();f.tab('sessions');f.field('totalMinutes','120');f.click('preview-sessions');f.click('apply');await tick();
+ f.tab('deadlines');assert.match(f.text(),/120 minutes remaining/);assert.match(f.text(),/Fits/);assert.match(f.text(),/separately|individually/);assert.equal(f.document.querySelector('dialog img'),null);assert.equal(f.calls.length,1);
+ f.field('dayStart','07:00');f.field('dayEnd','07:15');f.click('check-capacity');assert.match(f.text(),/75 minutes short/);assert.equal(f.document.querySelector('[data-planning-capacity="a"]'),null);
+ f.field('dayEnd','09:00');f.click('check-capacity');f.document.querySelector('[data-planning-capacity="a"]').click();assert.equal(f.document.querySelectorAll('[data-planning-preview-row]').length,4);assert.equal(f.calls.length,1);f.click('apply');await tick();assert.equal(f.calls.length,2);
+});
+
+test('invalid capacity availability leaves the deadline view editable without mutation',async t=>{
+ const f=await fixture();t.after(f.dispose);f.hub.open();f.field('dayStart','');f.click('check-capacity');assert.match(f.text(),/availability/i);assert.equal(f.calls.length,0);assert.equal(f.document.querySelector('[name="dayStart"]').value,'');
+});
+
+test('capacity preview rechecks changed data and Apply rejects a later stale plan',async t=>{
+ const f=await fixture();t.after(f.dispose);f.hub.open();f.tab('sessions');f.field('totalMinutes','60');f.click('preview-sessions');f.click('apply');await tick();f.tab('deadlines');
+ f.data().boards[0].sections[0].tasks[0].dueDate='2026-10-16';f.document.querySelector('[data-planning-capacity="a"]').click();assert.match(f.text(),/deadline has passed/);assert.equal(f.calls.length,1);assert.equal(f.document.querySelectorAll('[data-planning-preview-row]').length,0);
+ f.data().boards[0].sections[0].tasks[0].dueDate='2026-10-19';f.click('check-capacity');f.document.querySelector('[data-planning-capacity="a"]').click();f.data().boards[0].sections[0].tasks[0].dueDate='2026-10-18';f.click('apply');await tick();assert.match(f.text(),/changed/i);assert.equal(f.calls.length,2);assert.equal(f.data().boards[0].sections[0].tasks[0].dueDate,'2026-10-18');
+});
 test('existing session effort is reviewed and surplus archives are explicit before Apply',async t=>{
  const f=await fixture();t.after(f.dispose);f.hub.open();f.tab('sessions');f.field('totalMinutes','60');f.click('preview-sessions');f.click('apply');await tick();
  f.tab('plans');assert.equal(f.document.querySelector('[name="remainingMinutes"]').value,'60');f.field('remainingMinutes','15');f.click('preview-session-revision');assert.match(f.text(),/Sessions to archive \(1\)/);assert.equal(f.calls.length,1);f.click('apply');await tick();assert.equal(f.calls.length,2);assert.equal(f.data().boards[0].sections[0].tasks.filter(task=>task.assignmentId==='a'&&task.archived).length,1);

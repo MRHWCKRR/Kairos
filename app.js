@@ -4,7 +4,7 @@ import { requestBilling } from './billing-client.js';
 import { mountPlanUsage } from './plan-usage.js?v=3';
 import {assignmentProgressIndex,assignmentProgressMarkup} from './assignment-progress.js?v=2';
 import {planningClock} from './planning-model.js';
-import { createPageLoader } from './page-loader.js?v=42';
+import { createPageLoader } from './page-loader.js?v=43';
 import { mountPageRouter } from './page-router.js?v=2';
 import { createPageRenderCache } from './page-render-cache.js?v=1';
 import './boards-recurrence.js?v=10';
@@ -27,7 +27,7 @@ import {
     query, where, orderBy, limit, getDocs, updateDoc, deleteDoc, runTransaction
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { LANGUAGES, applyTranslations, getLocale, getLanguageName, t, ACHIEVEMENT_I18N } from './i18n.js';
-import { invalidateKairosContext } from './ai-context.js?v=6';
+import { invalidateKairosContext } from './ai-context.js?v=7';
 import { dueTaskReminders, dueBedtimeReminders, reminderDeliveryStatus } from './task-reminders.js?v=2';
 import { deliverTaskReminder, deliverBedtimeReminder, saveNotificationEdits, escapeNotificationText } from './reminder-notifications.js?v=2';
 import { savePlannerEdits, persistTaskListCommand } from './plan-store.js?v=5';

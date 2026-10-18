@@ -1,3 +1,4 @@
+import {assignmentFeasibility,feasibilityAssignments,FEASIBILITY_LIMIT} from './deadline-feasibility.js';
 import {assignmentReadiness} from './assignment-order.js';
 import {planningTasks,planningClock,weeklyReview,deadlineSummary} from './planning-model.js';
 import {planningConflicts} from './planning-slots.js';
@@ -14,7 +15,10 @@ export function resolveAiPlanningTimezone(userData,ownerId,storage=globalThis.lo
 
 export function aiPlanningSummary(state,{timezone='UTC',now=Date.now()}={}) {
  const today=planningClock(now,timezone).date,deadlines=deadlineSummary(state,today).filter(item=>item.dueDate),review=weeklyReview(state,today,today);
- const readiness=assignmentReadiness(state);return {orderedSessionReadiness:[...readiness].slice(0,80).map(([taskId,value])=>({taskId,...value})),orderedReadinessOmitted:Math.max(0,readiness.size-80),timezone,today,deadlineCount:deadlines.length,deadlines:deadlines.slice(0,30).map(item=>({taskId:item.task.id,title:String(item.task.title||'').slice(0,180),dueDate:item.dueDate,status:item.status,scheduledAfterDeadline:item.afterDeadline})),deadlinesOmitted:Math.max(0,deadlines.length-30),week:{from:review.from,to:review.to,completed:review.completed.length,pending:review.pending.length,slipped:review.slipped.length,meaning:'Current status of work dated in this week, including recurring occurrences; not historical completion dates.'},conflicts:planningConflicts(state,review.from,review.to).length};
+ const parents=feasibilityAssignments(state);
+ const capacityAssumptions={dayStart:'07:00',dayEnd:'22:00',meaning:'Each assignment is checked separately within 31 days against current commitments; assignments may compete for the same time. Free minutes are an upper bound; fits requires a complete validated plan. Planned effort is not a completion prediction. A fits result may require reviewed rescheduling; no changes are saved.'};
+ const feasibility=parents.slice(0,FEASIBILITY_LIMIT).map(task=>assignmentFeasibility(state,task.id,{...capacityAssumptions,timezone},planningClock(now,timezone)));
+ const readiness=assignmentReadiness(state);return {assignmentFeasibility:feasibility.map(row=>({...row,title:row.title.slice(0,180),reason:row.reason.slice(0,400)})),assignmentFeasibilityOmitted:Math.max(0,parents.length-FEASIBILITY_LIMIT),capacityAssumptions,orderedSessionReadiness:[...readiness].slice(0,80).map(([taskId,value])=>({taskId,...value})),orderedReadinessOmitted:Math.max(0,readiness.size-80),timezone,today,deadlineCount:deadlines.length,deadlines:deadlines.slice(0,30).map(item=>({taskId:item.task.id,title:String(item.task.title||'').slice(0,180),dueDate:item.dueDate,status:item.status,scheduledAfterDeadline:item.afterDeadline})),deadlinesOmitted:Math.max(0,deadlines.length-30),week:{from:review.from,to:review.to,completed:review.completed.length,pending:review.pending.length,slipped:review.slipped.length,meaning:'Current status of work dated in this week, including recurring occurrences; not historical completion dates.'},conflicts:planningConflicts(state,review.from,review.to).length};
 }
 
 // The model supplies intent only. IDs, occupancy, and exact placements come
