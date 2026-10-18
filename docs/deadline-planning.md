@@ -50,10 +50,12 @@ In Schedule → Planning → Session plans, select an assignment to revise its r
 
 Effort revisions require unfinished sessions to be unlocked and ordinary. Reschedule preserves duration and leaves locked or recurring sessions in place, with a preview notice. Both task and parent deadlines constrain placements. Every change uses a reviewed preview, stale-state validation, and exact operation/session IDs for uncertain retries.
 
-Schedule → Planning contains five views:
+Schedule → Planning contains six views:
 
 - Deadlines sorts unfinished ordinary tasks by dueDate, with overdue/today/upcoming labels, missing deadlines, and scheduled-after-deadline warnings. Edit deadline opens the existing Schedule inspector. Scheduled date and deadline remain separate.
 - Assignment sessions splits an unscheduled, unlocked ordinary task into up to 40 reviewed sessions within a date range of at most 31 days. Specify effort, session length, availability, and optionally a title for each work step. No partial plan is created when capacity is insufficient. The original task/checklist remain intact; sessions are ordinary tasks in the same section with additive assignmentId and sessionIndex metadata. They share the parent's deadline but do not complete the parent. Existing sessions prevent repeated generation.
+- Session plans revises remaining effort or reschedules unfinished sessions with an explicit preview. Completed work stays intact; surplus sessions are archived for recovery.
+- Combined plan checks up to 10 assignments and 40 unfinished sessions against one shared pool of free time. It tries all selected work first, then whole assignments in deadline order if a full plan cannot be found. Partial previews explicitly list assignments left unchanged. A failed placement is not proof that every possible arrangement fails. Free minutes are an upper bound, and any quantified minute shortfall is a lower bound. Missing deadlines use the range end; locks stay fixed.
 - Conflicts explains overlaps across tasks, recurring occurrences, and weekly fixed commitments. Only unlocked unfinished ordinary tasks receive proposed alternatives; recurring and locked items stay unchanged. Overnight carry-in, moved/skipped recurrence exceptions, deadlines, preferred time of day, daily availability, and profile timezone are respected. Nonexistent DST times and blocks whose elapsed duration changes across a transition are not suggested.
 - Weekly review shows the current completion status of work dated/scheduled within a Monday–Sunday week, including recurring occurrence statuses. It does not invent completion timestamps. Selected unfinished ordinary tasks can be carried into a reviewed range; expired deadlines must be deliberately edited before future work can fit.
 
@@ -71,8 +73,14 @@ In AI chat, request an assignment session plan, carry unfinished work to a new r
 - “Fix today's clashes.”
 - “Which deadlines should I focus on?”
 
-Session planning needs a total effort and session length; the assistant asks when these are missing. Placement ranges are inclusive and limited to 31 days. Default daily availability is 07:00–22:00 in the profile timezone. Existing commitments, deadlines, locks, and time preferences still apply. Overdue deadlines must be reviewed before future placements can fit.
+Session planning needs a total effort and session length; the assistant asks when these are missing. Placement ranges are inclusive and limited to 31 days. Saved weekly availability is used unless the user requests custom daily hours; without saved hours, daily availability defaults to 07:00-22:00 in the profile timezone. Existing commitments, deadlines, locks, and time preferences still apply. Overdue deadlines must be reviewed before future placements can fit.
 
 Changes open a review with the exact tasks, dates, and times. Nothing changes until **Apply changes**. Cancel or Escape leaves the planner untouched. Fixed or locked overlaps that cannot be resolved are disclosed. Session tasks remain linked to their assignment; finishing sessions does not complete the original assignment or its checklist.
 
 The preview is saved with the chat's pending operation. If a response is lost, retry checks the original receipt and reuses the reviewed session IDs. A changed schedule or timezone requires cancelling the stale request and making a fresh plan. Deadline and weekly questions use a fresh planner snapshot; weekly counts describe the current status of work dated in that week, not historical completion dates.
+
+Ask "Plan my English and Science assignments together before Friday" for a reviewed schedule, or "Will both assignments fit this week?" for a capacity-only report.
+
+Combined requests use one validated `plan_assignments` action with exact parent `assignmentIds`, a placement range, optional daily hours and an optional boolean `checkOnly`. They reuse the same `combinedPlanning` engine as Planning. Individual assignment feasibility results must never be added together to claim a shared plan fits. Missing or ambiguous IDs require clarification; effort and work sessions are never invented.
+
+Capacity-only questions use `checkOnly:true` and return a report without Apply or any planner write. No-fit results also return a report, rather than an uncertain-save error or retry prompt. If a selected assignment has no unfinished sessions, the request returns a report so the user can review or create sessions first. Scheduling requests with a candidate open one review with capacity results, per-assignment status, exact session rows, and explicit disclosure of excluded work. Only reviewed rows move. Partial saves report that sessions outside the preview stayed unchanged. No new AI call, listener, collection, or receipt schema is introduced.

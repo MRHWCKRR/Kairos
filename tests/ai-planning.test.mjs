@@ -8,6 +8,33 @@ const now=Date.parse('2026-10-17T06:00:00Z');
 const range={from:'2026-10-17',to:'2026-10-19',dayStart:'07:00',dayEnd:'18:00'};
 const state=()=>({userID:'one',boards:[{id:'b',sections:[{id:'s',tasks:[{id:'a',title:'Essay',dueDate:'2026-10-19'},{id:'b',title:'Revision',date:'2026-10-17',startTime:'09:00',endTime:'10:00'}]}]}],scheduleEvents:[{id:'e',title:'Class',day:6,start:'09:00',end:'10:00'}]});
 const action=()=>({type:'plan_sessions',args:{taskId:'a',totalMinutes:120,sessionMinutes:30,...range}});
+const combinedState=()=>{const s=state();s.scheduleEvents=[];s.boards[0].sections[0].tasks.push({id:'a1',title:'Research',assignmentId:'a',estimatedMinutes:60},{id:'q',title:'Science',dueDate:'2026-10-19'},{id:'q1',title:'Research',assignmentId:'q',estimatedMinutes:60});return s};
+const combinedAction=(extra={})=>({type:'plan_assignments',args:{assignmentIds:['a','q'],...range,to:range.from,dayEnd:'09:00',...extra}});
+test('combined AI schema accepts explicit bounded assignments and check-only intent',()=>{
+ assert.doesNotThrow(()=>validateActionShape(combinedAction()));assert.doesNotThrow(()=>validateActionShape(combinedAction({checkOnly:true})));
+ for(const extra of [{assignmentIds:[]},{assignmentIds:['a','a']},{assignmentIds:['a',4]},{assignmentIds:Array.from({length:11},(_,i)=>'p'+i)},{checkOnly:'yes'},{rows:[]},{assignmentIds:undefined}])assert.throws(()=>validateActionShape(combinedAction(extra)));
+});
+test('AI combined planning uses the same shared engine and preserves state',()=>{
+ const s=combinedState(),before=structuredClone(s),p=preview(s,combinedAction());assert.equal(p.rows.length,2);assert.equal(p.capacity.availableMinutes,120);assert.equal(p.capacity.remainingMinutes,120);assert.equal(p.capacity.assignments.every(a=>a.status==='fits'),true);assert.match(p.rows[0].title,/Essay.*Research/);assert.deepEqual(s,before);
+});
+test('AI partial plan explicitly identifies excluded assignments and remaining effort',()=>{
+ const p=preview(combinedState(),combinedAction({dayEnd:'08:00'}));assert.equal(p.rows.length,1);assert.equal(p.capacity.shortfallMinutes,60);assert.match(p.notice,/Partial plan/);assert.match(p.notice,/Science.*unchanged/);assert.equal(p.capacity.assignments.find(a=>a.taskId==='q').status,'not-placed');
+});
+test('no-fit and check-only combined requests return a report without an executable command',()=>{
+ for(const args of [{dayEnd:'07:30'},{checkOnly:true}]){const s=combinedState(),before=structuredClone(s),p=preview(s,combinedAction(args));assert.equal(p.command,null);assert.equal(p.rows.length,0);assert.match(p.notice,/Shared capacity/);assert.match(p.notice,/Essay/);assert.match(p.notice,/Science/);assert.match(p.notice,/Nothing changed/);assert.match(p.notice,/Daily work hours: 07:00-/);assert.deepEqual(s,before)}
+ const empty=combinedState();empty.boards[0].sections[0].tasks.push({id:'empty',title:'Empty assignment'});const p=preview(empty,combinedAction({assignmentIds:['a','empty']}));assert.equal(p.command,null);assert.match(p.notice,/No unfinished/);
+});
+test('public combined preview pins only reviewed rows and exact retry reconciles one partial write',async()=>{
+ const s=combinedState();s.boards[0].sections[0].tasks.find(t=>t.id==='a').dueDate='2099-01-03';s.boards[0].sections[0].tasks.find(t=>t.id==='q').dueDate='2099-01-03';const f=await plannerFixture(s,{failAfterCommit:true}),a=combinedAction({from:'2099-01-01',to:'2099-01-01',dayEnd:'08:00'}),p=await f.context.previewKairosAction(a,{ownerId:'one',planId:'plan'});assert.equal(p.summary.capacity.shortfallMinutes,60);assert.equal(p.summary.rows.length,1);assert.match(p.summary.notice,/Science.*unchanged/);assert.equal(f.writes.length,0);
+ const options={ownerId:'one',planId:'plan',operationId:'combined-partial',createdAt:Date.now(),confirmation:p.approval};await assert.rejects(f.execute(a,options),/response lost/);const r=await f.execute(a,options);assert.equal(r.combinedPlan,true);assert.equal(f.writes.length,1);assert.equal(f.data().boards[0].sections[0].tasks.find(t=>t.id==='q1').date,undefined);assert.equal(f.data().boards[0].sections[0].tasks.find(t=>t.id==='a1').title,'Research');
+});
+test('public check-only result has no approval and cannot execute',async()=>{
+ const s=combinedState();for(const task of s.boards[0].sections[0].tasks)if(task.dueDate)task.dueDate='2099-01-03';const f=await plannerFixture(s),a=combinedAction({checkOnly:true,from:'2099-01-01',to:'2099-01-01'}),p=await f.context.previewKairosAction(a,{ownerId:'one',planId:'plan'});assert.equal(p.approval,null);assert.match(p.summary.notice,/Nothing changed/);await assert.rejects(f.execute(a,{ownerId:'one',planId:'plan',operationId:'check',createdAt:Date.now(),confirmation:p.approval}),/reviewed|check-only/);assert.equal(f.writes.length,0);
+});
+test('combined requests use saved weekly windows and reject stale deadlines before mutation',async()=>{
+ const s=combinedState();for(const task of s.boards[0].sections[0].tasks)if(task.dueDate)task.dueDate='2099-01-03';const weekly=Object.fromEntries(Array.from({length:7},(_,day)=>[day,[{start:'18:00',end:'19:00'}]])),f=await plannerFixture(s,{userData:{settings:{profile:{timezone:'UTC'},planning:{weeklyAvailability:weekly}}}}),a=combinedAction({from:'2099-01-01',to:'2099-01-01'});delete a.args.dayStart;delete a.args.dayEnd;const p=await f.context.previewKairosAction(a,{ownerId:'one',planId:'plan'});assert.equal(p.summary.rows[0].startTime,'18:00');assert.equal(p.summary.rows.length,1);assert.equal(p.approval.command.options.availabilitySource,'saved');const check=await f.context.previewKairosAction({...a,args:{...a.args,checkOnly:true}},{ownerId:'one',planId:'plan'});assert.match(check.summary.notice,/Saved weekly hours:.*18:00.19:00/);
+ const changed=structuredClone(s);changed.boards[0].sections[0].tasks[0].dueDate='2099-01-02';const stale=await plannerFixture(changed,{userData:{settings:{profile:{timezone:'UTC'},planning:{weeklyAvailability:weekly}}}});await assert.rejects(stale.execute(a,{ownerId:'one',planId:'plan',operationId:'stale-combined',createdAt:Date.now(),confirmation:p.approval}),/changed/);assert.equal(stale.writes.length,0);
+});
 
 test('AI on-track context uses the same bounded feasibility calculations and discloses assumptions',()=>{
  const s=state();s.boards[0].sections[0].tasks.push({id:'child',assignmentId:'a',estimatedMinutes:60});const summary=planning.aiPlanningSummary(s,{timezone:'UTC',now});assert.equal(summary.assignmentFeasibility[0].remainingMinutes,60);assert.equal(summary.assignmentFeasibility[0].status,'fits');assert.equal(summary.capacityAssumptions.dayStart,'07:00');assert.match(summary.capacityAssumptions.meaning,/individually|separately/);assert.equal(summary.assignmentFeasibilityOmitted,0);

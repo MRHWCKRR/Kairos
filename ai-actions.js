@@ -1,10 +1,10 @@
 import {savedWeeklyAvailability} from './weekly-availability.js';
 import { auth, db } from './firebase.js';
 import { persistAiPlanAction, getConfirmedAiAction } from './plan-store.js?v=7';
-import { validateActionShape } from './ai-action-schema.js?v=5';
+import { validateActionShape } from './ai-action-schema.js?v=6';
 import { stableStringify, planState } from './plan-merge.js';
 import { taskDurationMinutes } from './schedule-utils.js';
-import {previewAiPlanning,resolveAiPlanningTimezone} from './ai-planning.js?v=5';
+import {previewAiPlanning,resolveAiPlanningTimezone} from './ai-planning.js?v=6';
 import {planningConflicts} from './planning-slots.js?v=1';
 import {applyPlanningCommand} from './planning-commands.js?v=4';
 import {
@@ -12,6 +12,8 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
 const ACTIONS_REQUIRING_CONFIRMATION = new Set(['delete_task', 'delete_schedule_event', 'delete_board', 'delete_section']);
+
+const aiActionResult=(type,result)=>result&&type==='plan_assignments'?{...result,combinedPlan:true}:result;
 
 const clean = (value, max = 240) => String(value ?? '').replace(/\s+/g, ' ').trim().slice(0, max);
 const makeId = prefix => prefix + '-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 7);
@@ -153,7 +155,7 @@ export async function previewKairosAction(action, options = {}) {
     if(action.type.startsWith('plan_')) {
         const preferences=await planningPreferences(user),timezone=preferences.timezone;
         const proposal=previewAiPlanning(planState(data),action,preferences);
-        return {action,approval:{request:stableStringify(action),command:proposal.command,expected:proposal.expected},summary:{kind:'planning',title:action.type==='plan_sessions'?'New work sessions':'Schedule changes',rows:proposal.rows,timezone,options:proposal.command.options,remainingConflicts:proposal.remainingConflicts||0,notice:[proposal.notice,proposal.command.ordered!==undefined?'Session order: '+(proposal.command.ordered?'numbered sequence (earlier work first).':'independent placement.'):''].filter(Boolean).join(' ')}};
+        return {action,approval:proposal.command?{request:stableStringify(action),command:proposal.command,expected:proposal.expected}:null,summary:{kind:'planning',title:action.type==='plan_sessions'?'New work sessions':action.type==='plan_assignments'?'Combined assignment plan':'Schedule changes',rows:proposal.rows,timezone,options:proposal.command?.options||proposal.options,...(proposal.capacity?{capacity:proposal.capacity}:{}),remainingConflicts:proposal.remainingConflicts||0,notice:[proposal.notice,proposal.command?.ordered!==undefined?'Session order: '+(proposal.command.ordered?'numbered sequence (earlier work first).':'independent placement.'):''].filter(Boolean).join(' ')}};
     }
     return actionPreview(planState(data), action);
 }
@@ -161,7 +163,7 @@ export async function previewKairosAction(action, options = {}) {
 export async function confirmedKairosAction(action, options) {
     const user = auth.currentUser;
     if (!user || options.ownerId !== user.uid) throw new Error('The signed-in account changed.');
-    return getConfirmedAiAction(options.planId, user.uid, action, options.operationId);
+    return aiActionResult(action.type,await getConfirmedAiAction(options.planId, user.uid, action, options.operationId));
 }
 
 function requireReviewedContents(plan, action, confirmation) {
@@ -212,16 +214,17 @@ export async function executeKairosAction(action, options = {}) {
     const operationId = options.operationId || makeId('operation');
     const createdAt = options.createdAt ?? Date.now();
     if (typeof operationId !== 'string' || !operationId || operationId.length > 160 || !Number.isFinite(createdAt) || createdAt <= 0) throw new Error('Invalid operation identity.');
+    if(type==='plan_assignments'&&args.checkOnly)throw Error('A check-only request cannot save planning changes.');
     if(type.startsWith('plan_')) {
         const confirmed=await getConfirmedAiAction(planId,user.uid,{type,args},operationId);
-        if(confirmed)return confirmed;
+        if(confirmed)return aiActionResult(type,confirmed);
         const approval=options.confirmation;
         if(!approval?.command || approval.request!==stableStringify({type,args}))throw Error('A reviewed planning preview is required.');
         if(approval.command.options?.timezone!==await planningTimezone(user))throw Error('Your timezone changed. Review a new preview.');
     }
     const result = await persistAiPlanAction(planId, user.uid, { type, args }, operationId, createdAt, plan => applyKairosAction(plan, type, args, options),{planningOptions:type.startsWith('plan_')?options.confirmation?.command?.options:null});
     window.dispatchEvent(new CustomEvent('kairos-data-changed'));
-    return result;
+    return aiActionResult(type,result);
 }
 
 function applyKairosAction(plan, type, args, options) {
