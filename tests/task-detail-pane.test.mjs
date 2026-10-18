@@ -7,6 +7,17 @@ test('Rename opening focuses title without changing normal detail opening',async
  const f=await fixture();let focused=null;f.window.HTMLElement.prototype.focus=function(){focused=this};await f.open();focused=null;
  await f.pane.open({taskId:'t'},f.document.getElementById('opener'),{focusField:'title'});assert.equal(focused?.name,'title');assert.equal(f.calls.length,0);
 });
+test('assignment links respect dirty drafts and progress refresh preserves unsaved title edits',async()=>{
+ const f=await fixture();f.data().boards[0].sections[0].tasks.push({id:'session',title:'Research',assignmentId:'t',sessionIndex:1,estimatedMinutes:30});
+ await f.open();assert.match(f.root.querySelector('[data-assignment-detail]').textContent,/0 of 1/);f.input('title','Unsaved assignment');
+ f.root.querySelector('[data-assignment-open="session"]').click();await new Promise(resolve=>setImmediate(resolve));assert.ok(f.document.querySelector('[data-draft-choice="stay"]'));f.document.querySelector('[data-draft-choice="stay"]').click();await new Promise(resolve=>setImmediate(resolve));assert.equal(f.root.querySelector('[name="title"]').value,'Unsaved assignment');
+ f.data().boards[0].sections[0].tasks[1].completed=true;f.pane.sync();assert.match(f.root.querySelector('[data-assignment-detail]').textContent,/1 of 1/);assert.equal(f.root.querySelector('[name="title"]').value,'Unsaved assignment');assert.equal(f.calls.length,0);f.pane.dispose();
+});
+test('sync keeps linked sessions expanded and retains focus when progress changes',async()=>{
+ const f=await fixture();f.data().boards[0].sections[0].tasks.push({id:'session',title:'Research',assignmentId:'t',sessionIndex:1,estimatedMinutes:30});await f.open();
+ const group=f.root.querySelector('[data-assignment-detail] details'),button=f.root.querySelector('[data-assignment-open="session"]');group.open=true;button.focus();f.pane.sync();assert.ok(f.root.querySelector('[data-assignment-open="session"]')===button,'keep the existing link node');assert.equal(group.open,true);
+ f.data().boards[0].sections[0].tasks[1].completed=true;f.pane.sync();assert.equal(f.root.querySelector('[data-assignment-detail] details').open,true);assert.equal(f.document.activeElement?.dataset.assignmentOpen,'session');f.pane.dispose();
+});
 test('account change during dirty-detail confirmation cannot open a same-ID task in the new account',async()=>{
  const f=await fixture();await f.open();f.input('title','Unsaved');const opening=f.pane.open({taskId:'t'},f.document.getElementById('opener'));
  f.setOwner('two');f.document.querySelector('[data-draft-choice="discard"]').click();assert.equal(await opening,false);assert.equal(f.root.querySelector('.task-detail-pane'),null);
@@ -20,7 +31,7 @@ async function fixture({storage=new Map()}={}){
   const selectValue=Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype,'value');if(!selectValue.set)Object.defineProperty(window.HTMLSelectElement.prototype,'value',{configurable:true,get:selectValue.get,set(value){for(const option of this.querySelectorAll('option'))option.selected=option.value===String(value)}});
   window.sessionStorage={getItem:key=>storage.get(key)||null,setItem:(key,value)=>storage.set(key,value),removeItem:key=>storage.delete(key)};
   Object.defineProperty(document,'activeElement',{get:()=>active?.isConnected?active:document.body});window.HTMLElement.prototype.focus=function(){active=this};window.HTMLInputElement.prototype.setSelectionRange=function(start,end){this.selectionStart=start;this.selectionEnd=end};window.innerWidth=1440;
-  const pane=mountTaskDetailPane({root,document,window,getOwnerId:()=>owner,getPlanId:()=>plan,resolveTarget:target=>resolveTaskDetail(data,target),commit:async(command,expected,identity)=>{calls.push(structuredClone({command,expected,identity}));if(gate)await gate;if(fail)throw new Error('Network failure');const result=applyTaskListCommand(data,command,expected);data=result.next;return result.result;}});
+  const pane=mountTaskDetailPane({root,document,window,getState:()=>data,getToday:()=> '2026-10-18',getOwnerId:()=>owner,getPlanId:()=>plan,resolveTarget:target=>resolveTaskDetail(data,target),commit:async(command,expected,identity)=>{calls.push(structuredClone({command,expected,identity}));if(gate)await gate;if(fail)throw new Error('Network failure');const result=applyTaskListCommand(data,command,expected);data=result.next;return result.result;}});
   const open=()=>pane.open({taskId:'t'},document.getElementById('opener'));
   const input=(name,value)=>{const el=root.querySelector('[name="'+name+'"]');el.value=value;el.dispatchEvent(new window.Event('input',{bubbles:true}));};
   return {pane,document,window,root,open,input,calls,data:()=>data,setFail:value=>fail=value,setOwner:value=>owner=value,setPlan:value=>plan=value,setGate:value=>gate=value};

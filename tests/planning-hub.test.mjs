@@ -13,8 +13,12 @@ async function fixture({store=new Map(),fail=false,gate=null,title='Essay'}={}){
  return {document,window,hub,bridge,store,calls,opened,data:()=>data,click,tab,text:()=>document.body.textContent,setOffline:value=>offline=value,setOwner:value=>{owner=value;window.dispatchEvent(new window.Event('kairos-data-changed'))},setPlan:value=>{plan=value;window.dispatchEvent(new window.Event('kairos-data-changed'))},field:(name,value)=>{document.querySelector('[name="'+name+'"]').value=value},dispose:()=>hub.dispose()};
 }
 
-test('Planning exposes four real views and opens existing task editing without writing',async t=>{
- const f=await fixture();t.after(f.dispose);f.hub.open();assert.equal(f.document.querySelectorAll('[data-planning-tab]').length,4);assert.match(f.text(),/Due 2026-10-19/);f.document.querySelector('[data-planning-task="a"]').click();assert.equal(f.opened[0].taskId,'a');assert.equal(f.calls.length,0);
+test('Planning exposes five real views and opens existing task editing without writing',async t=>{
+ const f=await fixture();t.after(f.dispose);f.hub.open();assert.equal(f.document.querySelectorAll('[data-planning-tab]').length,5);assert.match(f.text(),/Due 2026-10-19/);f.document.querySelector('[data-planning-task="a"]').click();assert.equal(f.opened[0].taskId,'a');assert.equal(f.calls.length,0);
+});
+test('existing session effort is reviewed and surplus archives are explicit before Apply',async t=>{
+ const f=await fixture();t.after(f.dispose);f.hub.open();f.tab('sessions');f.field('totalMinutes','60');f.click('preview-sessions');f.click('apply');await tick();
+ f.tab('plans');assert.equal(f.document.querySelector('[name="remainingMinutes"]').value,'60');f.field('remainingMinutes','15');f.click('preview-session-revision');assert.match(f.text(),/Sessions to archive \(1\)/);assert.equal(f.calls.length,1);f.click('apply');await tick();assert.equal(f.calls.length,2);assert.equal(f.data().boards[0].sections[0].tasks.filter(task=>task.assignmentId==='a'&&task.archived).length,1);
 });
 
 test('assignment sessions are previewed before Apply and preserve original parent data',async t=>{

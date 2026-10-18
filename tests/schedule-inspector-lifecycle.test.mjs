@@ -1,3 +1,5 @@
+import * as assignment from '../assignment-progress.js';
+import {planningClock} from '../planning-model.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -8,6 +10,11 @@ import * as recurrence from '../recurrence-utils.js';
 import * as recurrenceUi from '../schedule-recurrence-ui.js';
 
 const tick=()=>new Promise(resolve=>setTimeout(resolve,0));
+test('assignment progress refreshes while Schedule preserves a dirty form',async()=>{
+ const f=await fixture();f.boards[0].sections[0].tasks.push({id:'linked',title:'Research',assignmentId:'t',sessionIndex:1,estimatedMinutes:30});f.ws.render();await tick();
+ f.type('title','Unsaved assignment');const form=f.document.querySelector('[data-ks-rich-inspector]');f.boards[0].sections[0].tasks.find(task=>task.id==='linked').completed=true;f.ws.render();await tick();
+ assert.ok(f.document.querySelector('[data-ks-rich-inspector]')===form);assert.equal(f.field('title').value,'Unsaved assignment');assert.match(f.document.querySelector('[data-assignment-detail]').textContent,/1 of 1/);
+});
 let cleanup=()=>{};
 async function fixture({recurring=false,storage=new Map()}={}){
  cleanup();const observers=[];
@@ -30,7 +37,7 @@ async function fixture({recurring=false,storage=new Map()}={}){
  // explicitly below; actual MutationObserver timing is covered in Chrome QA.
  class Observer{observe(){}disconnect(){}}
  cleanup=()=>observers.forEach(observer=>observer.disconnect());
- const context=vm.createContext({document,window,MutationObserver:Observer,...utils,...recurrence,...recurrenceUi,...sessionModule,showRecurrenceScopeDialog:async()=> 'occurrence',CSS:{escape:String},console:{error(){},warn(){}},structuredClone,requestAnimationFrame:()=>1,cancelAnimationFrame(){},setTimeout:()=>1,clearTimeout(){},setInterval:()=>1,clearInterval(){},confirmDialog:async()=>true});
+ const context=vm.createContext({...assignment,planningClock,document,window,MutationObserver:Observer,...utils,...recurrence,...recurrenceUi,...sessionModule,showRecurrenceScopeDialog:async()=> 'occurrence',CSS:{escape:String},console:{error(){},warn(){}},structuredClone,requestAnimationFrame:()=>1,cancelAnimationFrame(){},setTimeout:()=>1,clearTimeout(){},setInterval:()=>1,clearInterval(){},confirmDialog:async()=>true});
  const workspaceSource=(await readFile(new URL('../schedule-workspace.js',import.meta.url),'utf8')).replace(/^import\s[\s\S]*?from ['"][^'"]+['"];\r?\n/gm,'').replace('export function initScheduleWorkspace','function initScheduleWorkspace');
  vm.runInContext(workspaceSource,context);const ws=context.initScheduleWorkspace(bridge);window.__kairosScheduleWorkspace=ws;
  // Each module has its own lexical scope, just as in the browser.

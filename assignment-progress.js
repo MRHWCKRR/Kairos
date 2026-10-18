@@ -1,0 +1,33 @@
+import {planningTasks,validPlanningDate} from './planning-model.js';
+import {taskDurationMinutes} from './schedule-utils.js';
+const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+
+export function assignmentProgressIndex(state,today){
+ const entries=planningTasks(state),byId=new Map(),counts=new Map(),groups=new Map(),result=new Map();
+ for(const board of state.boards||[])for(const section of board.sections||[])for(const task of section.tasks||[])counts.set(task.id,(counts.get(task.id)||0)+1);
+ for(const entry of entries)if(counts.get(entry.task.id)===1)byId.set(entry.task.id,entry.task);
+ for(const {task} of entries)if(task.assignmentId&&byId.has(task.id)&&byId.has(task.assignmentId)){
+  if(!groups.has(task.assignmentId))groups.set(task.assignmentId,[]);groups.get(task.assignmentId).push(task);
+ }
+ for(const [parentId,sessions] of groups){
+  const parent=byId.get(parentId);if(parent.assignmentId||parent.recurrence?.enabled)continue;
+  sessions.sort((a,b)=>(a.sessionIndex||0)-(b.sessionIndex||0)||String(a.id).localeCompare(String(b.id)));
+  const dueDate=validPlanningDate(parent.dueDate)?parent.dueDate:null;
+  const summary={parentId,parentTitle:String(parent.title||'Assignment'),total:sessions.length,completed:sessions.filter(task=>task.completed).length,remainingMinutes:sessions.filter(task=>!task.completed).reduce((sum,task)=>sum+taskDurationMinutes(task),0),dueDate,status:parent.completed?'Assignment marked complete':!dueDate?'No deadline':dueDate<today?'Overdue':dueDate===today?'Due today':'Due '+dueDate,lateSessions:sessions.filter(task=>!task.completed&&dueDate&&task.date>dueDate).length,sessions:sessions.map(task=>({id:task.id,title:String(task.title||'Session'),completed:!!task.completed,date:task.date||null,startTime:task.startTime||null,minutes:taskDurationMinutes(task)}))};
+  result.set(parentId,summary);for(const task of sessions)result.set(task.id,{...summary,sessionIndex:task.sessionIndex||null,isSession:true});
+ }
+ return result;
+}
+export function assignmentProgressMarkup(summary,{details=false}={}){
+ if(!summary)return '';
+ const parent=summary.isSession?`<button type="button" data-assignment-open="${esc(summary.parentId)}">${esc(summary.parentTitle)}</button>`:'';
+ return `<div class="assignment-progress" data-assignment-progress><span>${summary.isSession?'Session '+esc(summary.sessionIndex||'')+' · ':''}${summary.completed} of ${summary.total} sessions done · ${summary.remainingMinutes} min planned remaining</span>${parent}<small>${esc(summary.status)}${summary.lateSessions?' · Scheduled after deadline: '+summary.lateSessions:''}</small>${details?`<details><summary>Linked sessions (${summary.total})</summary><ul>${summary.sessions.map(task=>`<li><button type="button" data-assignment-open="${esc(task.id)}">${esc(task.title)}</button><span>${task.completed?'Completed':task.date?esc(task.date)+(task.startTime?' '+esc(task.startTime):''):'Unscheduled'} · ${task.minutes} min</span></li>`).join('')}</ul></details>`:''}</div>`;
+}
+export function refreshAssignmentProgress(root,summary,{details=false}={}){
+ if(!root)return;
+ const html=assignmentProgressMarkup(summary,{details});if(root.__assignmentHTML===html)return;
+ const opened=root.querySelector('details')?.open,active=root.ownerDocument.activeElement,focused=root.contains(active)?active?.closest('[data-assignment-open]')?.dataset.assignmentOpen:null;
+ root.__assignmentHTML=html;root.innerHTML=html;
+ if(opened!==undefined&&root.querySelector('details'))root.querySelector('details').open=opened;
+ if(focused){const replacement=[...root.querySelectorAll('[data-assignment-open]')].find(button=>button.dataset.assignmentOpen===focused);(replacement||root.querySelector('summary'))?.focus?.({preventScroll:true})}
+}
