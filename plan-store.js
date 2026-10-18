@@ -1,3 +1,4 @@
+import {assertScheduleAvailability} from './schedule-planning-availability.js';
 import {assertSavedAvailability} from './weekly-availability.js';
 import { db } from './firebase.js';
 import { doc, getDoc, runTransaction, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
@@ -22,11 +23,12 @@ function ownedPlan(snapshot, uid) {
     return data;
 }
 
-export async function savePlannerEdits(planId, uid, base, local) {
+export async function savePlannerEdits(planId, uid, base, local, options={}) {
     const ref = doc(db, 'study_plans', planId);
     return runTransaction(db, async transaction => {
         const snapshot = await transaction.get(ref);
         const data = ownedPlan(snapshot, uid);
+        if(options.scheduleAvailability){const userSnapshot=await transaction.get(doc(db,'users',uid));assertScheduleAvailability(options.scheduleAvailability,userSnapshot.exists()?userSnapshot.data():{});}
         const merged = mergePlanEdits(planState(base), planState(local), planState(data));
         validateAssignmentOrderChanges(planState(data),merged);
         transaction.set(ref, { ...(!snapshot.exists() ? data : {}), ...merged }, { merge: true });

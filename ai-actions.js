@@ -1,6 +1,6 @@
 import {savedWeeklyAvailability} from './weekly-availability.js';
 import { auth, db } from './firebase.js';
-import { persistAiPlanAction, getConfirmedAiAction } from './plan-store.js?v=6';
+import { persistAiPlanAction, getConfirmedAiAction } from './plan-store.js?v=7';
 import { validateActionShape } from './ai-action-schema.js?v=5';
 import { stableStringify, planState } from './plan-merge.js';
 import { taskDurationMinutes } from './schedule-utils.js';

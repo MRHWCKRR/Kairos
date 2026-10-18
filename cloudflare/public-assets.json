@@ -3,6 +3,7 @@
     "assignment-order.js",
     "deadline-feasibility.js",
     "weekly-availability.js",
+    "schedule-planning-availability.js",
     "weekly-availability-editor.js",
     "weekly-availability.css",
     "assignment-progress.js",

@@ -6,7 +6,7 @@ import { requestBilling } from './billing-client.js';
 import { mountPlanUsage } from './plan-usage.js?v=3';
 import {assignmentProgressIndex,assignmentProgressMarkup} from './assignment-progress.js?v=2';
 import {planningClock} from './planning-model.js';
-import { createPageLoader } from './page-loader.js?v=44';
+import { createPageLoader } from './page-loader.js?v=45';
 import { mountPageRouter } from './page-router.js?v=2';
 import { createPageRenderCache } from './page-render-cache.js?v=1';
 import './boards-recurrence.js?v=10';
@@ -32,7 +32,7 @@ import { LANGUAGES, applyTranslations, getLocale, getLanguageName, t, ACHIEVEMEN
 import { invalidateKairosContext } from './ai-context.js?v=8';
 import { dueTaskReminders, dueBedtimeReminders, reminderDeliveryStatus } from './task-reminders.js?v=2';
 import { deliverTaskReminder, deliverBedtimeReminder, saveNotificationEdits, escapeNotificationText } from './reminder-notifications.js?v=2';
-import { savePlannerEdits, persistTaskListCommand } from './plan-store.js?v=6';
+import { savePlannerEdits, persistTaskListCommand } from './plan-store.js?v=7';
 import { resolveTaskDetail, taskListSection } from './task-list-model.js?v=5';
 import { mergePlanEdits, planState } from './plan-merge.js';
 import {createSettingsRecovery,overlaySettingsEdits} from './settings-recovery.js?v=1';
@@ -1265,12 +1265,12 @@ function bootApp() {
     // --- 6 Cloud Sync Data Actions ---
     let planSnapshot = null, planSaveQueue = Promise.resolve(), planEditRevision = 0, planLoadRevision = 0;
 
-    async function savePlanToFirestore(planData) {
+    async function savePlanToFirestore(planData, options={}) {
         boardsData = planData;
-        return updatePlanInFirestore();
+        return updatePlanInFirestore(options);
     }
 
-    async function updatePlanInFirestore() {
+    async function updatePlanInFirestore(options={}) {
         const user = auth.currentUser;
         if (!user) return false;
         planEditRevision++;
@@ -1278,7 +1278,7 @@ function bootApp() {
             if (auth.currentUser?.uid !== user.uid) throw new Error('The signed-in account changed.');
             const planId = currentPlanDocId || 'plan-' + user.uid;
             const local = planState({ boards: boardsData, dayInsights, scheduleEvents: scheduleData });
-            const saved = await savePlannerEdits(planId, user.uid, planSnapshot || planState({}), local);
+            const saved = await savePlannerEdits(planId, user.uid, planSnapshot || planState({}), local, options);
             if (auth.currentUser?.uid !== user.uid) throw new Error('The signed-in account changed.');
             const live = planState({ boards: boardsData, dayInsights, scheduleEvents: scheduleData });
             const rebased = mergePlanEdits(local, live, saved);

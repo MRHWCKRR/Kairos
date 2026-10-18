@@ -34,3 +34,7 @@ test('empty days explain the alternative and disable preview instead of making a
   assert.equal(f.document.querySelector('[type="submit"]').disabled,true);assert.match(f.document.querySelector('[data-status]').textContent,/Use Plan/);
   f.controller.destroy();
 });
+
+test('day-change candidates and submitted date use profile time and reject settings changes while open',async()=>{
+ const {document,window}=parseHTML('<div id="schedule-toolbar"><button data-plan>Plan</button></div>');let calls=0;const availability={timezone:'Pacific/Honolulu',weeklyAvailability:null},tasks=[{id:'profile-day',title:'Essay',date:'2026-10-12',startTime:'20:00',endTime:'20:30'}];let planning={date:'2026-10-12',time:'18:00',scope:{owner:'one',plan:'plan'},availability,description:'Times use Pacific/Honolulu.'};const controller=mountDayChange({document,window,getBoards:()=>[{sections:[{tasks}]}],now:()=>new Date('2026-10-13T10:00:00'),getPlanningContext:()=>planning,onSubmit:async()=>{calls++;return {ok:true}}});controller.open();assert.equal(document.querySelector('[name="taskId"]').value,'profile-day');assert.match(document.body.textContent,/Pacific\/Honolulu/);document.querySelector('[name="description"]').value='Appointment moved';planning={...planning,availability:{...availability,timezone:'UTC'}};document.querySelector('form').dispatchEvent(new window.Event('submit',{cancelable:true}));await settle();assert.equal(calls,0);assert.match(document.querySelector('[data-status]').textContent,/changed|Reopen/);controller.destroy();
+});
