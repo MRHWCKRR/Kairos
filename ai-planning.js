@@ -1,8 +1,9 @@
-import {assignmentFeasibility,feasibilityAssignments,FEASIBILITY_LIMIT} from './deadline-feasibility.js';
+import {planningDefaults} from './weekly-availability.js';
+import {assignmentFeasibility,feasibilityAssignments,FEASIBILITY_LIMIT} from './deadline-feasibility.js?v=1';
 import {assignmentReadiness} from './assignment-order.js';
 import {planningTasks,planningClock,weeklyReview,deadlineSummary} from './planning-model.js';
-import {planningConflicts} from './planning-slots.js';
-import {previewSessions,previewCarryover} from './planning-commands.js?v=3';
+import {planningConflicts} from './planning-slots.js?v=1';
+import {previewSessions,previewCarryover} from './planning-commands.js?v=4';
 
 export function resolveAiPlanningTimezone(userData,ownerId,storage=globalThis.localStorage) {
  const clean=value=>typeof value==='string'?value.trim().slice(0,80):'';
@@ -13,18 +14,18 @@ export function resolveAiPlanningTimezone(userData,ownerId,storage=globalThis.lo
  return timezone;
 }
 
-export function aiPlanningSummary(state,{timezone='UTC',now=Date.now()}={}) {
+export function aiPlanningSummary(state,{timezone='UTC',now=Date.now(),weeklyAvailability=null}={}) {
  const today=planningClock(now,timezone).date,deadlines=deadlineSummary(state,today).filter(item=>item.dueDate),review=weeklyReview(state,today,today);
  const parents=feasibilityAssignments(state);
- const capacityAssumptions={dayStart:'07:00',dayEnd:'22:00',meaning:'Each assignment is checked separately within 31 days against current commitments; assignments may compete for the same time. Free minutes are an upper bound; fits requires a complete validated plan. Planned effort is not a completion prediction. A fits result may require reviewed rescheduling; no changes are saved.'};
+ const capacityAssumptions={...planningDefaults(weeklyAvailability),meaning:'Each assignment is checked separately within 31 days against current commitments; assignments may compete for the same time. Free minutes are an upper bound; fits requires a complete validated plan. Planned effort is not a completion prediction. A fits result may require reviewed rescheduling; no changes are saved.'};
  const feasibility=parents.slice(0,FEASIBILITY_LIMIT).map(task=>assignmentFeasibility(state,task.id,{...capacityAssumptions,timezone},planningClock(now,timezone)));
  const readiness=assignmentReadiness(state);return {assignmentFeasibility:feasibility.map(row=>({...row,title:row.title.slice(0,180),reason:row.reason.slice(0,400)})),assignmentFeasibilityOmitted:Math.max(0,parents.length-FEASIBILITY_LIMIT),capacityAssumptions,orderedSessionReadiness:[...readiness].slice(0,80).map(([taskId,value])=>({taskId,...value})),orderedReadinessOmitted:Math.max(0,readiness.size-80),timezone,today,deadlineCount:deadlines.length,deadlines:deadlines.slice(0,30).map(item=>({taskId:item.task.id,title:String(item.task.title||'').slice(0,180),dueDate:item.dueDate,status:item.status,scheduledAfterDeadline:item.afterDeadline})),deadlinesOmitted:Math.max(0,deadlines.length-30),week:{from:review.from,to:review.to,completed:review.completed.length,pending:review.pending.length,slipped:review.slipped.length,meaning:'Current status of work dated in this week, including recurring occurrences; not historical completion dates.'},conflicts:planningConflicts(state,review.from,review.to).length};
 }
 
 // The model supplies intent only. IDs, occupancy, and exact placements come
 // from the current planner and the same commands used by Schedule > Planning.
-export function previewAiPlanning(state,action,{timezone='UTC',now=Date.now()}={}) {
- const args=action.args,clock=planningClock(now,timezone),input={...args,timezone,dayStart:args.dayStart??'07:00',dayEnd:args.dayEnd??'22:00'};
+export function previewAiPlanning(state,action,{timezone='UTC',now=Date.now(),weeklyAvailability=null}={}) {
+ const args=action.args,clock=planningClock(now,timezone),input={...args,...planningDefaults(weeklyAvailability,args),timezone};
  if(action.type==='plan_sessions') {
   const entries=planningTasks(state).filter(({task})=>args.taskId?task.id===args.taskId:String(task.title||'').trim().toLowerCase()===String(args.title||'').trim().toLowerCase());
   if(entries.length!==1)throw Error(entries.length?'Multiple assignments match. Choose an exact task ID.':'Assignment not found.');

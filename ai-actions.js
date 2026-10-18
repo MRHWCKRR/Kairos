@@ -1,11 +1,12 @@
+import {savedWeeklyAvailability} from './weekly-availability.js';
 import { auth, db } from './firebase.js';
-import { persistAiPlanAction, getConfirmedAiAction } from './plan-store.js?v=5';
-import { validateActionShape } from './ai-action-schema.js?v=4';
+import { persistAiPlanAction, getConfirmedAiAction } from './plan-store.js?v=6';
+import { validateActionShape } from './ai-action-schema.js?v=5';
 import { stableStringify, planState } from './plan-merge.js';
 import { taskDurationMinutes } from './schedule-utils.js';
-import {previewAiPlanning,resolveAiPlanningTimezone} from './ai-planning.js?v=4';
-import {planningConflicts} from './planning-slots.js';
-import {applyPlanningCommand} from './planning-commands.js?v=3';
+import {previewAiPlanning,resolveAiPlanningTimezone} from './ai-planning.js?v=5';
+import {planningConflicts} from './planning-slots.js?v=1';
+import {applyPlanningCommand} from './planning-commands.js?v=4';
 import {
     collection, getDocs, query, where, doc, getDoc
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
@@ -15,11 +16,13 @@ const ACTIONS_REQUIRING_CONFIRMATION = new Set(['delete_task', 'delete_schedule_
 const clean = (value, max = 240) => String(value ?? '').replace(/\s+/g, ' ').trim().slice(0, max);
 const makeId = prefix => prefix + '-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 7);
 
-async function planningTimezone(user) {
+async function planningPreferences(user) {
     const snapshot=await getDoc(doc(db,'users',user.uid));
     if(auth.currentUser?.uid!==user.uid)throw Error('The signed-in account changed.');
-    return resolveAiPlanningTimezone(snapshot.data(),user.uid);
+    return {timezone:resolveAiPlanningTimezone(snapshot.data(),user.uid),weeklyAvailability:savedWeeklyAvailability(snapshot.data())};
 }
+
+async function planningTimezone(user){return (await planningPreferences(user)).timezone}
 
 async function latestPlan(user) {
     const snap = await getDocs(query(collection(db, 'study_plans'), where('userID', '==', user.uid)));
@@ -148,8 +151,8 @@ export async function previewKairosAction(action, options = {}) {
     const data = snapshot.data();
     if (data.userID !== user.uid) throw new Error('This planner belongs to another account.');
     if(action.type.startsWith('plan_')) {
-        const timezone=await planningTimezone(user);
-        const proposal=previewAiPlanning(planState(data),action,{timezone});
+        const preferences=await planningPreferences(user),timezone=preferences.timezone;
+        const proposal=previewAiPlanning(planState(data),action,preferences);
         return {action,approval:{request:stableStringify(action),command:proposal.command,expected:proposal.expected},summary:{kind:'planning',title:action.type==='plan_sessions'?'New work sessions':'Schedule changes',rows:proposal.rows,timezone,options:proposal.command.options,remainingConflicts:proposal.remainingConflicts||0,notice:[proposal.notice,proposal.command.ordered!==undefined?'Session order: '+(proposal.command.ordered?'numbered sequence (earlier work first).':'independent placement.'):''].filter(Boolean).join(' ')}};
     }
     return actionPreview(planState(data), action);
@@ -216,7 +219,7 @@ export async function executeKairosAction(action, options = {}) {
         if(!approval?.command || approval.request!==stableStringify({type,args}))throw Error('A reviewed planning preview is required.');
         if(approval.command.options?.timezone!==await planningTimezone(user))throw Error('Your timezone changed. Review a new preview.');
     }
-    const result = await persistAiPlanAction(planId, user.uid, { type, args }, operationId, createdAt, plan => applyKairosAction(plan, type, args, options));
+    const result = await persistAiPlanAction(planId, user.uid, { type, args }, operationId, createdAt, plan => applyKairosAction(plan, type, args, options),{planningOptions:type.startsWith('plan_')?options.confirmation?.command?.options:null});
     window.dispatchEvent(new CustomEvent('kairos-data-changed'));
     return result;
 }

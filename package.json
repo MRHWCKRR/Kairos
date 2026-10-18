@@ -13,7 +13,7 @@
     "deploy:cloudflare": "npm run build:cloudflare && wrangler deploy --env preview",
     "test:billing": "node --test tests/billing-entitlements.test.mjs tests/billing-store.test.mjs tests/billing-firestore.test.mjs tests/access-codes.test.mjs tests/access-code-cli.test.mjs tests/billing-checkout.test.mjs tests/billing-webhook.test.mjs tests/billing-deletion.test.mjs tests/billing-request.test.mjs tests/billing-status-routes.test.mjs tests/ai-tier-budget.test.mjs tests/ai-tier-firestore.test.mjs tests/plan-usage.test.mjs tests/billing-rules.test.mjs",
     "test:billing-rules": "node --test tests/billing-rules.test.mjs",
-    "test:pages": "node --test tests/page-*.test.mjs tests/getting-started.test.mjs tests/planning-*.test.mjs tests/assignment-*.test.mjs tests/deadline-feasibility.test.mjs",
+    "test:pages": "node --test tests/page-*.test.mjs tests/getting-started.test.mjs tests/planning-*.test.mjs tests/assignment-*.test.mjs tests/deadline-feasibility.test.mjs tests/weekly-availability.test.mjs",
     "test:reminders": "node --test tests/task-reminders.test.mjs tests/bedtime-reminders.test.mjs tests/reminder-notifications.test.mjs tests/reminder-runner.test.mjs tests/reminder-flow.test.mjs tests/ai-planner-reminders.test.mjs",
     "test:recovery": "node --test tests/settings-recovery.test.mjs tests/schedule-draft-recovery.test.mjs"
   },

@@ -1,0 +1,8 @@
+.weekly-availability-day{border:0;border-top:1px solid var(--border-subtle,#444);padding:14px 0;margin:12px 0;min-width:0}
+.weekly-availability-day legend{font-size:14px;font-weight:600;padding-right:12px}
+.weekly-availability-window{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;align-items:end;gap:12px;margin:8px 0 12px}
+.weekly-availability-window label{display:grid;gap:5px;min-width:0;font-size:13px}
+.weekly-availability-window .settings-input{width:100%;min-width:0;margin:0}
+.weekly-availability-window button{min-height:38px}
+#weekly-availability-editor :focus-visible{outline:2px solid var(--accent-glow,#a855f7);outline-offset:3px}
+#weekly-availability-editor .settings-hint{line-height:1.5}

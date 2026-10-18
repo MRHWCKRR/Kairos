@@ -1,3 +1,4 @@
+import {savedWeeklyAvailability} from '../weekly-availability.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
@@ -22,7 +23,7 @@ function fixture({ owner = 'one', name = 'Local name', cloudName = 'Cloud name' 
   ]);
   const auth = { currentUser: { uid: 'one', displayName: 'Auth name' } };
   let reads = 0;
-  const context = vm.createContext({ aiPlanningSummary,resolveAiPlanningTimezone,ACTION_INSTRUCTIONS,auth, db: {}, console,
+  const context = vm.createContext({savedWeeklyAvailability, aiPlanningSummary,resolveAiPlanningTimezone,ACTION_INSTRUCTIONS,auth, db: {}, console,
     localStorage: { getItem: key => storage.get(key) ?? null },
     doc: (...args) => args, collection: (...args) => args, query: (...args) => args, where: (...args) => args,
     getDoc: async () => { reads++; return { exists: () => true, data: () => ({ settings: { profile: { displayName: cloudName } } }) }; },
