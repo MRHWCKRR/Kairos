@@ -6,3 +6,11 @@
   padding-left: 20px;
   margin: 12px 0;
 }
+.ai-planning-dialog{color:var(--text-primary);width:min(760px,calc(100vw - 48px));max-height:85vh;overflow:auto}
+.ai-planning-preview{max-height:45vh;overflow:auto;border:1px solid var(--border-subtle)}
+.ai-planning-preview table{width:100%;border-collapse:collapse;text-align:left;font-size:.85rem}
+.ai-planning-preview caption{text-align:left;padding:10px;font-weight:700}
+.ai-planning-preview th,.ai-planning-preview td{padding:9px 10px;border-bottom:1px solid var(--border-subtle);vertical-align:top}
+.ai-planning-preview th[scope="row"]{min-width:140px;overflow-wrap:anywhere}
+.ai-planning-preview td{white-space:nowrap}
+.ai-planning-preview:focus-visible{outline:2px solid var(--accent-glow);outline-offset:2px}

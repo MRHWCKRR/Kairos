@@ -1,4 +1,7 @@
 export const ACTION_FIELDS = {
+    plan_sessions: ['taskId', 'title', 'totalMinutes', 'sessionMinutes', 'from', 'to', 'dayStart', 'dayEnd'],
+    plan_carryover: ['taskIds', 'week', 'from', 'to', 'dayStart', 'dayEnd'],
+    plan_conflicts: ['from', 'to', 'dayStart', 'dayEnd'],
     create_board: ['title', 'moveTaskId', 'moveTaskTitle'],
     update_board: ['boardId', 'title', 'newTitle', 'archived'],
     delete_board: ['boardId', 'title'],
@@ -35,7 +38,11 @@ export function validateActionShape(action) {
     const fields = ACTION_FIELDS[action?.type], args = action?.args;
     if (!fields || !args || typeof args !== 'object' || Array.isArray(args) || Object.keys(args).some(key => !fields.includes(key))) throw new Error('Unsupported or invalid AI action fields.');
     for (const [key, value] of Object.entries(args)) {
-        if (['completed', 'archived'].includes(key)) {
+        if (key === 'taskIds') {
+            if (!Array.isArray(value) || !value.length || value.length > 40 || new Set(value).size !== value.length || value.some(id => typeof id !== 'string' || !id.trim() || id.length > 120)) throw new Error('Invalid task IDs.');
+        } else if (['totalMinutes', 'sessionMinutes'].includes(key)) {
+            if (!Number.isInteger(value) || value < 15 || value > (key === 'totalMinutes' ? 2400 : 120)) throw new Error('Invalid session effort.');
+        } else if (['completed', 'archived'].includes(key)) {
             if (typeof value !== 'boolean') throw new Error('Invalid task status.');
         } else if (key === 'minutesBefore') {
             if (!Number.isInteger(value) || value < 1 || value > 10080) throw new Error('Invalid reminder lead time.');
@@ -47,6 +54,16 @@ export function validateActionShape(action) {
             if (!Number.isInteger(value) || value < 0 || value > 6) throw new Error('Invalid schedule event day.');
         } else if (value !== null && typeof value !== 'string') throw new Error('Invalid AI action value.');
     }
+    if (action.type.startsWith('plan_')) {
+        for (const key of ['from', 'to', ...(args.week !== undefined ? ['week'] : [])]) {
+            const value=args[key];
+            if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value) || !Number.isFinite(Date.parse(value+'T12:00:00Z')) || new Date(value+'T12:00:00Z').toISOString().slice(0,10)!==value) throw new Error('Invalid planning date range.');
+        }
+        if (args.to < args.from || (Date.parse(args.to)-Date.parse(args.from))/86400000 > 30) throw new Error('Invalid planning range: use at most 31 days.');
+        for (const key of ['dayStart','dayEnd']) if (args[key] !== undefined && (typeof args[key] !== 'string' || !/^([01]\d|2[0-3]):[0-5]\d$/.test(args[key]))) throw new Error('Invalid planning availability.');
+        if (action.type === 'plan_sessions' && ((!args.taskId && !args.title?.trim()) || args.totalMinutes === undefined || args.sessionMinutes === undefined)) throw new Error('A task, total effort and session length are required.');
+        if (action.type === 'plan_carryover' && args.taskIds === undefined && args.week === undefined) throw new Error('Task IDs or a source week are required.');
+    }
     if (args.newTitle !== undefined && (typeof args.newTitle !== 'string' || !args.newTitle.trim())) throw new Error('Invalid entity title.');
     if (action.type === 'create_section' && args.boardId === undefined && !args.board?.trim()) throw new Error('A board is required.');
     if (action.type === 'resize_task' && args.endTime === undefined && args.durationMinutes === undefined) throw new Error('Invalid duration change.');
@@ -57,7 +74,8 @@ export function validateActionShape(action) {
 
 export const ACTION_INSTRUCTIONS = 'Supported actions and allowed args: ' +
     Object.entries(ACTION_FIELDS).map(([type, fields]) => type + ' {' + fields.join(',') + '}').join('; ') +
-    '. IDs identify exact supplied entities. Omit unknown IDs rather than guessing. Board/section names must match unambiguously. ' +
+    '. For splitting an existing assignment use plan_sessions, never multiple create_task actions. Supply taskId or exact title, totalMinutes and sessionMinutes. Ask for missing effort/session length; do not invent them. For unfinished work carry-over use plan_carryover with explicit taskIds or week (a date in the source week). For fixing clashes use plan_conflicts. These three planning actions ALWAYS require a reviewed preview before Apply, and never mean work is already saved. Use from/to dates (inclusive, at most 31 days) in the profile timezone. Omitted dayStart/dayEnd use 07:00/22:00; state these defaults if relevant. Locks, recurring commitments, preferences and deadlines remain in force. If a deadline is already overdue, explain that the user must review it before a future placement can be made. Questions about deadlines or weekly progress use the current planning summary with actions: []; distinguish dated-work status from historical completion dates. Do not mark a parent assignment complete when its sessions finish. ' +
+    'IDs identify exact supplied entities. Omit unknown IDs rather than guessing. Board/section names must match unambiguously. ' +
     'For update_board or delete_board, title selects the existing board; newTitle renames it. For update_section or delete_section, title selects the section, optionally within boardId/board; newTitle renames it. ' +
     'For create_section, title is the new section name and boardId/board is required. Archive/restore a board or section through its update action with archived true/false. Permanent deletions use delete actions and require a preview and confirmation. ' +
     'Ordinary task moves use update_task and preserve duration. Only use resize_task when the user explicitly changes the duration or end time, such as "end at 5pm" or "make it 90 minutes". ' +
