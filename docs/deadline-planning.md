@@ -1,3 +1,15 @@
+# Assignment deadline feasibility
+
+Planning > Deadlines checks remaining active, unfinished session effort against the free time from now through the assignment deadline. Capacity checks use the selected daily start/end and the profile timezone. Kairos AI receives the same calculations with the stated 07:00–22:00 default. These are planned minutes, not measured work or predicted completion dates.
+
+Each assignment is checked independently against existing tasks, recurring occurrences, and fixed commitments. Its own movable sessions are excluded from occupancy so they are not counted twice; locked sessions remain fixed and occupied. A parent estimate is never added to its session effort. Archived/completed sessions are excluded. Several assignments may compete for the same free time, so individual fits results are not a combined plan.
+
+Fits means the shared scheduling preview found a complete valid placement, respecting session durations, child/parent deadlines, ordering, preferences, timezone/DST and locks. It may require rescheduling; it does not certify current saved times. Free minutes are an upper bound before session fragmentation and preference/DST constraints, and a quantified shortfall is a lower bound. Needs review is shown if the search cannot produce a full plan without a proven total-minute deficit. Missing/past deadlines, deadlines beyond 31 days, invalid fixed work and more than 40 active unfinished sessions receive explicit guidance rather than an assurance. No unfinished sessions does not complete the assignment.
+
+To bound synchronous work, the ten nearest active assignment deadlines are checked; omitted assignments are disclosed in the UI and AI summary. Check capacity refreshes the snapshot after edits. Preview session reschedule recomputes against the current planner and opens exact reviewed rows; Apply uses the existing stale-state validation, durable receipts and retry handling. Checking capacity and asking whether work is on track never write data.
+
+Validation covers overlap merging, overnight carry-in, current-time clipping, completed/archived work, locked placements, earlier child deadlines, preferences/order, fragmented gaps, DST, bounded summaries, escaped titles, invalid inputs, stale previews and exact Retry. Browser checks use actual modules with simulated persistence; authenticated Firebase writes still require a verified test-account smoke check.
+
 # Deadline planning
 
 ## Optional session ordering

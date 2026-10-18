@@ -8,6 +8,14 @@ const now=Date.parse('2026-10-17T06:00:00Z');
 const range={from:'2026-10-17',to:'2026-10-19',dayStart:'07:00',dayEnd:'18:00'};
 const state=()=>({userID:'one',boards:[{id:'b',sections:[{id:'s',tasks:[{id:'a',title:'Essay',dueDate:'2026-10-19'},{id:'b',title:'Revision',date:'2026-10-17',startTime:'09:00',endTime:'10:00'}]}]}],scheduleEvents:[{id:'e',title:'Class',day:6,start:'09:00',end:'10:00'}]});
 const action=()=>({type:'plan_sessions',args:{taskId:'a',totalMinutes:120,sessionMinutes:30,...range}});
+
+test('AI on-track context uses the same bounded feasibility calculations and discloses assumptions',()=>{
+ const s=state();s.boards[0].sections[0].tasks.push({id:'child',assignmentId:'a',estimatedMinutes:60});const summary=planning.aiPlanningSummary(s,{timezone:'UTC',now});assert.equal(summary.assignmentFeasibility[0].remainingMinutes,60);assert.equal(summary.assignmentFeasibility[0].status,'fits');assert.equal(summary.capacityAssumptions.dayStart,'07:00');assert.match(summary.capacityAssumptions.meaning,/individually|separately/);assert.equal(summary.assignmentFeasibilityOmitted,0);
+});
+
+test('capacity context bounds expensive checks and prioritises the nearest deadlines',()=>{
+ const s=state(),tasks=s.boards[0].sections[0].tasks;for(let i=0;i<15;i++){tasks.push({id:'p'+i,title:'Assignment '+i,dueDate:i===14?'2026-10-17':'2026-10-19'});tasks.push({id:'s'+i,assignmentId:'p'+i,estimatedMinutes:30})}const r=planning.aiPlanningSummary(s,{timezone:'UTC',now});assert.equal(r.assignmentFeasibility.length,10);assert.equal(r.assignmentFeasibility[0].taskId,'p14');assert.equal(r.assignmentFeasibilityOmitted,5);
+});
 function preview(s,a=action()){assert.equal(typeof planning.previewAiPlanning,'function');return planning.previewAiPlanning(s,a,{timezone:'UTC',now})}
 
 test('chat planning schema accepts bounded requests and rejects model supplied commands',()=>{

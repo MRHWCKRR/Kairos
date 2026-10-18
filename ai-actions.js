@@ -1,9 +1,9 @@
 import { auth, db } from './firebase.js';
 import { persistAiPlanAction, getConfirmedAiAction } from './plan-store.js?v=5';
-import { validateActionShape } from './ai-action-schema.js?v=3';
+import { validateActionShape } from './ai-action-schema.js?v=4';
 import { stableStringify, planState } from './plan-merge.js';
 import { taskDurationMinutes } from './schedule-utils.js';
-import {previewAiPlanning,resolveAiPlanningTimezone} from './ai-planning.js?v=3';
+import {previewAiPlanning,resolveAiPlanningTimezone} from './ai-planning.js?v=4';
 import {planningConflicts} from './planning-slots.js';
 import {applyPlanningCommand} from './planning-commands.js?v=3';
 import {

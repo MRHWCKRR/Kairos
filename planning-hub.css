@@ -22,3 +22,5 @@
 .planning-table-wrap{overflow:auto}.planning-hub table{width:100%;border-collapse:collapse;font-size:14px}.planning-hub caption{text-align:left;font-size:13px;padding:10px 0;color:var(--text-muted,#aaa)}.planning-hub th,.planning-hub td{text-align:left;padding:10px;border-bottom:1px solid var(--border-subtle,#444);overflow-wrap:anywhere}.planning-hub th:first-child{min-width:160px}.planning-hub td{white-space:nowrap}
 .planning-hub [data-planning-status]{padding:0 22px 18px;line-height:1.6;font-size:14px;white-space:pre-wrap}.planning-hub [data-planning-status]:empty{padding:0}
 @media(max-width:1000px){.planning-availability{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+.planning-capacity-availability{grid-template-columns:repeat(2,minmax(0,1fr))}
