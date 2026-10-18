@@ -2,9 +2,9 @@ import { aiFetch, aiErrorMessage, aiConversationMessages } from './ai-client.js'
 import { auth, db } from './firebase.js';
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { getKairosContext } from './ai-context.js?v=3';
-import { actionNeedsConfirmation, executeKairosAction, getAiPlanId, previewKairosAction, confirmedKairosAction } from './ai-actions.js';
-import { ACTION_TYPES, ACTION_INSTRUCTIONS, explicitDurationIntent, validateActionShape } from './ai-action-schema.js';
+import { getKairosContext } from './ai-context.js?v=4';
+import { actionNeedsConfirmation, executeKairosAction, getAiPlanId, previewKairosAction, confirmedKairosAction } from './ai-actions.js?v=2';
+import { ACTION_TYPES, ACTION_INSTRUCTIONS, explicitDurationIntent, validateActionShape } from './ai-action-schema.js?v=2';
 import { appendPlanLimitActions } from './plan-usage.js';
 import {savedMessageCount} from './ai-usage.js?v=1';
 import {recordSentMessage,initializeMessageUsage} from './ai-usage-store.js?v=1';
@@ -137,6 +137,7 @@ function actionResultReply(results){return results.filter(Boolean).map(result=>s
 function singleActionResultReply(results){
   const r=results.filter(Boolean).at(-1);
   if(!r)return 'Done.';
+  if(r.type==='planning_batch')return r.action==='sessions'?'Created '+r.affectedCount+' reviewed work sessions. Your assignment and checklist remain intact.':'Moved '+r.affectedCount+' tasks to the reviewed times.'+(r.remainingConflicts?' '+r.remainingConflicts+' overlaps remain; review fixed or locked commitments in Schedule.':'');
   if(r.type==='remove_task_reminder'&&r.task)return 'Removed the reminder for "'+r.task.title+'".';
   if(r.type==='set_task_reminder'&&r.task){
     const status=window.__kairosTaskReminders?.status?.();
@@ -180,6 +181,7 @@ function entityUpdateReply(kind,entity,result){
   return [rename,status].filter(Boolean).join(' ')||'Updated the '+kind+' "'+entity.title+'".';
 }
 function actionPreviewMarkup(summary){
+  if(summary.kind==='planning')return (summary.remainingConflicts?'<p role="note">'+esc(summary.remainingConflicts)+' fixed, locked or recurring overlaps will remain. Review these commitments in Schedule.</p>':'')+'<p>Times use '+esc(summary.timezone)+'. Daily availability: '+esc(summary.options.dayStart)+'-'+esc(summary.options.dayEnd)+'.</p><p>Review every row. '+(summary.title==='New work sessions'?'Your assignment and checklist stay intact.':'Only the listed tasks move; durations and deadlines stay intact.')+'</p><div class="ai-planning-preview" tabindex="0" role="region" aria-label="Proposed planning changes"><table><caption>'+esc(summary.title)+'</caption><thead><tr><th>Task</th><th>Date</th><th>Time</th><th>Minutes</th></tr></thead><tbody>'+summary.rows.map(row=>'<tr><th scope="row">'+esc(row.title)+'</th><td>'+esc(row.date)+'</td><td>'+esc(row.startTime)+'-'+esc(row.endTime)+'</td><td>'+esc(row.minutes)+'</td></tr>').join('')+'</tbody></table></div>';
   const parts=['<p>'+esc(summary.title)+' contains '+summary.sectionCount+' section'+(summary.sectionCount===1?'':'s')+' and '+summary.taskCount+' task'+(summary.taskCount===1?'':'s')+'.</p>'];
   let remaining=20;
   const sections=summary.sections.slice(0,12);
@@ -303,7 +305,7 @@ async function send(){
         const options={ownerId,planId:batch.planId,operationId:entry.operationId,createdAt:batch.createdAt,allowDurationChange:explicitDurationIntent(requestText),reminderFollowup:chat.lastActionTarget?.kind==="reminder"&&/^(remove|delete|cancel)\b/i.test(requestText)&&/\b(it|that|reminder)\b/i.test(requestText)&&!/\btask\b/i.test(requestText)};
         if(options.reminderFollowup&&entry.action.type==='delete_task')throw new Error('Removing a reminder must not delete its task. Ask to remove the reminder explicitly.');
         entry.result=actionNeedsConfirmation(entry.action)
-          ? await requestActionConfirmation(chatId,entry.action,options)
+          ? await requestActionConfirmation(chatId,entry.action,options,entry)
           : await runAction(chatId,entry.action,options);
         if(!entry.result)throw new Error('cancelled');
         if(user?.uid!==ownerId||auth.currentUser?.uid!==ownerId||!chats.some(item=>item.id===chatId))throw new Error('The signed-in account or conversation changed.');
@@ -347,22 +349,36 @@ async function runAction(chatId,action,options={}){
   if(!chats.some(chat=>chat.id===chatId)||auth.currentUser?.uid!==options.ownerId)throw new Error('The signed-in account or conversation changed.');
   return executeKairosAction(action,options);
 }
-async function requestActionConfirmation(chatId,action,options){
+async function requestActionConfirmation(chatId,action,options,entry=null){
   if(options.operationId&&options.planId){
     const confirmed=await confirmedKairosAction(action,options);
     if(confirmed)return confirmed;
   }
-  const preview=await previewKairosAction(action,options);
+  const planning=action.type.startsWith('plan_');
+  const preview=(planning&&entry?.preview)||await previewKairosAction(action,options);
   action.args=preview.action.args;
+  if(planning&&entry)entry.preview=preview;
   // Pin the reviewed IDs durably before the confirmation can execute.
   await save();
   if(auth.currentUser?.uid!==options.ownerId||!chats.some(chat=>chat.id===chatId))throw new Error('The signed-in account or conversation changed.');
   return new Promise((resolve,reject)=>{
     const label=action.type.replace(/_/g,' ');
     const archive=action.args.archived===true;
-    const contents=['board','section'].includes(preview.summary.kind)?actionPreviewMarkup(preview.summary):'';
-    const note=archive?'Its tasks remain saved and can be restored from the Archive.':'This change cannot be undone automatically.';
-    const modal=dialogBox('<span class="close-modal" data-cancel>x</span><h2>Confirm action</h2><p>Kairos is ready to '+esc(label)+' for "'+esc(preview.summary.title)+'".</p>'+contents+'<p>'+note+'</p><div class="ai-chat-dialog-actions"><button class="settings-cancel-btn" data-cancel>Cancel</button><button class="action-btn ai-chat-dialog-danger" data-ok>Confirm</button></div>');
+    const contents=['board','section','planning'].includes(preview.summary.kind)?actionPreviewMarkup(preview.summary):'';
+    const note=planning?'Nothing changes until you Apply. If this preview becomes stale, cancel and request a fresh plan.':archive?'Its tasks remain saved and can be restored from the Archive.':'This change cannot be undone automatically.';
+    const modal=dialogBox('<button type="button" class="close-modal" aria-label="Cancel action" data-cancel>x</button><h2>'+(planning?'Review planning changes':'Confirm action')+'</h2><p>Kairos is ready to '+esc(label)+' for "'+esc(preview.summary.title)+'".</p>'+contents+'<p>'+note+'</p><div class="ai-chat-dialog-actions"><button class="settings-cancel-btn" data-cancel>Cancel</button><button class="action-btn '+(planning?'':'ai-chat-dialog-danger')+'" data-ok>'+(planning?'Apply changes':'Confirm')+'</button></div>');
+    if(planning){
+      modal.querySelector('.ai-chat-dialog')?.classList.add('ai-planning-dialog');
+      modal.querySelector('h2').id='ai-planning-review-title';
+      modal.querySelector('[role="dialog"]').setAttribute('aria-labelledby','ai-planning-review-title');
+      modal.addEventListener('keydown',event=>{
+        if(event.key==='Escape'){event.preventDefault();closeDialog();return}
+        if(event.key!=='Tab')return;
+        const controls=[...modal.querySelectorAll('button,[tabindex="0"]')].filter(el=>!el.disabled),first=controls[0],last=controls.at(-1);
+        if(event.shiftKey&&document.activeElement===first){event.preventDefault();last?.focus()}
+        else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first?.focus()}
+      });
+    }
     dialogCancel=()=>resolve(false);
     modal.querySelector('[data-ok]').focus?.();
     modal.querySelector('[data-ok]').onclick=async()=>{

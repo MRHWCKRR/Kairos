@@ -1,5 +1,6 @@
 {
   "files": [
+    "ai-planning.js",
     "planning-model.js",
     "planning-slots.js",
     "planning-commands.js",

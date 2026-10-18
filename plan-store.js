@@ -45,6 +45,7 @@ function receiptResult(result) {
     if (result.sectionCreated !== undefined) compact.sectionCreated = result.sectionCreated;
     if (result.archiveChanged !== undefined) compact.archiveChanged = result.archiveChanged;
     if (result.affectedCount !== undefined) compact.affectedCount = result.affectedCount;
+    if (result.remainingConflicts !== undefined) compact.remainingConflicts = result.remainingConflicts;
     return compact;
 }
 

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import vm from 'node:vm';
 import {ACTION_INSTRUCTIONS} from '../ai-action-schema.js';
+import {aiPlanningSummary,resolveAiPlanningTimezone} from '../ai-planning.js';
 
 async function fixture() {
   const events = {};
@@ -10,7 +11,7 @@ async function fixture() {
     {id:'task-1',title:'Revision',date:'2026-10-14',startTime:'13:00',endTime:'15:00',scheduleLocked:true,recurrence:{enabled:true}},
     {id:'task-2',title:'Revision',completed:true}
   ]}]}],scheduleEvents:[{id:'event-1',title:'School',day:3,start:'08:00',end:'15:00'}]};
-  const context=vm.createContext({ACTION_INSTRUCTIONS,console,auth:{currentUser:{uid:'one'}},db:{},
+  const context=vm.createContext({aiPlanningSummary,resolveAiPlanningTimezone,ACTION_INSTRUCTIONS,console,auth:{currentUser:{uid:'one'}},db:{},
     localStorage:{getItem:()=>null},doc:()=>({}),collection:()=>({}),query:x=>x,where:()=>({}),
     getDoc:async()=>({exists:()=>true,data:()=>({settings:{profile:{timezone:'Australia/Brisbane'}}})}),
     getDocs:async()=>({docs:[{id:'plan-1',data:()=>structuredClone(plan)}]}),
@@ -39,6 +40,12 @@ test('AI context exposes checklist counts without carrying every step title',asy
   const data=await context.loadContextData(context.auth.currentUser);
   assert.equal(data.tasks[1].checklistProgress.total,2);assert.equal(data.tasks[1].checklistProgress.completed,1);
   const prompt=await context.getKairosContext();assert.match(prompt,/checklistProgress/);assert.doesNotMatch(prompt,/Private step text/);
+});
+test('chat receives current planning facts and linked session metadata without additional reads',async()=>{
+ const {context,plan}=await fixture();const task=plan.boards[0].sections[0].tasks[1];
+ Object.assign(task,{completed:false,dueDate:'2026-10-01',assignmentId:'parent',sessionIndex:2,estimatedMinutes:30,schedulingPreference:'afternoon'});
+ const data=await context.loadContextData(context.auth.currentUser);assert.equal(data.planning.deadlines[0].status,'overdue');assert.equal(data.tasks.find(item=>item.id===task.id).assignmentId,'parent');
+ const text=await context.getKairosContext();assert.match(text,/Current planning summary/);assert.match(text,/not historical completion dates/);
 });
 test('historical occurrence step titles are omitted from AI recurrence metadata',async()=>{
   const {context,plan}=await fixture();plan.boards[0].sections[0].tasks[0].recurrence.exceptions={'2026-10-15':{override:{checklist:[{id:'a',title:'Historical private step',completed:true}],date:'2026-10-16'}}};
