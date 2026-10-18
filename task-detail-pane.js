@@ -2,7 +2,7 @@ import {stableStringify} from './plan-merge.js';
 import {taskDetailValues,TASK_DETAIL_FIELDS,applyTaskListCommand} from './task-list-model.js';
 import {recurrenceFieldsMarkup,bindRecurrenceFields,readRecurrenceFields} from './schedule-recurrence-ui.js';
 import {t} from './i18n.js';
-import {assignmentProgressIndex,assignmentProgressMarkup,refreshAssignmentProgress} from './assignment-progress.js';
+import {assignmentProgressIndex,assignmentProgressMarkup,refreshAssignmentProgress} from './assignment-progress.js?v=2';
 import {planningClock} from './planning-model.js';
 import {mountTaskChecklistEditor} from './task-checklist-editor.js?v=3';
 

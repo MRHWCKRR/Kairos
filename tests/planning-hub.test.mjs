@@ -24,6 +24,10 @@ test('existing session effort is reviewed and surplus archives are explicit befo
 test('assignment sessions are previewed before Apply and preserve original parent data',async t=>{
  const f=await fixture();t.after(f.dispose);f.hub.open();f.tab('sessions');f.field('totalMinutes','60');f.click('preview-sessions');assert.equal(f.calls.length,0);assert.equal(f.document.querySelectorAll('[data-planning-preview-row]').length,2);f.click('apply');await tick();assert.equal(f.data().boards[0].sections[0].tasks.length,4);assert.equal(f.data().boards[0].sections[0].tasks[0].notes,'Keep');assert.match(f.text(),/Saved/);
 });
+test('session ordering is opt-in and only persists after its reviewed preview is applied',async t=>{
+ const f=await fixture();t.after(f.dispose);f.hub.open();f.tab('sessions');assert.equal(!!f.document.querySelector('[name="ordered"]').checked,false);f.document.querySelector('[name="ordered"]').checked=true;f.field('totalMinutes','60');f.click('preview-sessions');assert.match(f.text(),/numbered sequence/);assert.equal(f.calls.length,0);f.click('apply');await tick();assert.equal(f.data().boards[0].sections[0].tasks[0].sessionOrder,'sequential');
+ f.tab('plans');assert.equal(f.document.querySelector('[name="revisionOrdered"]').hasAttribute('checked'),true);
+});
 
 test('failed Apply retains exact operation/session IDs for Retry, including reopen after reload',async t=>{
  const f=await fixture({fail:true});t.after(f.dispose);f.hub.open();f.tab('sessions');f.field('totalMinutes','60');f.click('preview-sessions');f.click('apply');await tick();assert.match(f.text(),/Retry/);const first=f.calls[0];f.hub.dispose();

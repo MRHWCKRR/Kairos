@@ -1,5 +1,15 @@
 # Deadline planning
 
+## Optional session ordering
+
+Keep numbered session order is opt-in when creating sessions. Existing plans stay independent until you enable it in Session plans and apply a reviewed effort preview. It follows the session numbers shown in the linked-session list; this is a linear sequence rather than an arbitrary dependency graph. Session titles entered during creation follow that same sequence.
+
+Ordered sessions show Ready when all earlier active sessions are complete, or Waiting for the first unfinished prerequisite. Ready describes prerequisites, not whether the scheduled time has arrived. Completing a later session or reopening work remains possible; if reopening creates conflicting saved times, an order-needs-rescheduling warning appears. The assignment is never completed automatically. Archived sessions are excluded from the active sequence.
+
+Planning and AI carry-over previews include movable later unfinished sessions when an earlier session is selected. Every affected task and time is reviewed before Apply. Completed work and locked sessions remain fixed. A fixed successor that prevents the requested sequence, or an unscheduled prerequisite outside the request, produces an error with guidance to review the lock/range or reschedule the whole assignment. Session-plan rescheduling uses the saved ordering setting; change that setting through Preview effort changes.
+
+Both task duration and overnight end dates constrain order. Occupancy, deadlines, profile timezone, and DST validation still apply. The transactional planner store rejects scheduling or ordering writes that would introduce a reversed sequence, including direct AI moves. Unrelated notes/reminders and completion-only edits remain editable when an existing order needs repair. Sequence settings and session numbers are included in stale-preview checks; retries retain the reviewed operation and session IDs.
+
 Assignment task rows and both task inspectors show active session progress, remaining planned minutes, and the parent deadline status. Linked-session buttons open the existing editor with its Save/Discard/Stay draft guard. Counts exclude archived sessions; they measure planned work rather than time tracked. Completing sessions never completes the parent assignment automatically.
 
 In Schedule → Planning → Session plans, select an assignment to revise its remaining effort or reschedule unfinished work. Effort excludes completed sessions. Revisions reuse unfinished task IDs and preserve notes and checklists. Increasing effort can add sessions; reducing effort explicitly lists surplus sessions for archival. Zero remaining minutes archives every unfinished session without completing the assignment. Archived tasks remain recoverable in Archive. There may be at most 40 active sessions, including completed sessions.

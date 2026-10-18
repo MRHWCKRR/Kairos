@@ -22,8 +22,8 @@ export function createPageLoader({importModule=url=>import(url),loadStyle=loadPa
     const task=(async()=>{
       if(page==='tasks-page'&&taskDetailsEnabled){
         await Promise.all([loadStyle('task-list.css?v=18'),loadStyle('assignment-progress.css?v=1'),loadStyle('schedule-inspector.css?v=10')]);
-        await setupTaskDetails(await importModule('./task-detail-pane.js?v=8'));
-        if(setupTaskWorkspace)await setupTaskWorkspace(await importModule('./task-list-workspace.js?v=11'));
+        await setupTaskDetails(await importModule('./task-detail-pane.js?v=9'));
+        if(setupTaskWorkspace)await setupTaskWorkspace(await importModule('./task-list-workspace.js?v=12'));
         if(setupTaskInteractions)await setupTaskInteractions(await importModule('./task-list-interactions.js?v=9'));
         if(setupTaskSelection)await setupTaskSelection(await importModule('./task-selection.js?v=4'));
         if(setupTaskMenus){const [actions,menu]=await Promise.all([importModule('./task-actions.js?v=5'),importModule('./task-action-menu.js?v=6')]);await setupTaskMenus({actions,menu})}
@@ -34,7 +34,7 @@ export function createPageLoader({importModule=url=>import(url),loadStyle=loadPa
         // Markdown enhances already-escaped text; a CDN outage must not prevent
         // authentication or plain-text chat. Sanitisation stays in ai-markdown.
         void importModule('./ai-markdown.js?v=1').catch(error=>warn('[Kairos] Markdown unavailable; using plain text.',error));
-        await importModule('./ai-workspace.js?v=32');
+        await importModule('./ai-workspace.js?v=33');
         await waitForChat();
       }
       if(page==='statistics-page') {
@@ -46,7 +46,7 @@ export function createPageLoader({importModule=url=>import(url),loadStyle=loadPa
         await importModule('./schedule-workspace.js?v=12');
         // These modules inspect the workspace during boot. Preserve that order
         // even when network responses arrive out of order.
-        for(const name of scheduleModules)await importModule('./'+name+(name==='planning-hub.js'?'?v=2':name==='schedule-interactions.js'?'?v=14':name==='schedule-inspector.js'?'?v=14':name==='schedule-ai.js'?'?v=12':'?v=11'));
+        for(const name of scheduleModules)await importModule('./'+name+(name==='planning-hub.js'?'?v=3':name==='schedule-interactions.js'?'?v=14':name==='schedule-inspector.js'?'?v=15':name==='schedule-ai.js'?'?v=12':'?v=11'));
       }
     })();
     loaded.set(page,task);

@@ -1,4 +1,5 @@
 import {planningConflicts} from '../../planning-slots.js';
+import {validateAssignmentOrderChanges} from '../../assignment-order.js';
 import vm from 'node:vm';
 import {readFile} from 'node:fs/promises';
 import {mergePlanEdits,planState,stableStringify} from '../../plan-merge.js';
@@ -9,7 +10,7 @@ import {applyPlanningCommand} from '../../planning-commands.js';
 
 export async function plannerFixture(data, {failAfterCommit=false,retryTransaction=false}={}) {
   let stored=structuredClone(data), writes=[], events=0, fail=failAfterCommit;
-  const context=vm.createContext({structuredClone,console,Date,Intl,previewAiPlanning,aiPlanningSummary,resolveAiPlanningTimezone,planningConflicts,applyPlanningCommand,mergePlanEdits,planState,stableStringify,taskDurationMinutes,taskListFingerprint,
+  const context=vm.createContext({validateAssignmentOrderChanges,structuredClone,console,Date,Intl,previewAiPlanning,aiPlanningSummary,resolveAiPlanningTimezone,planningConflicts,applyPlanningCommand,mergePlanEdits,planState,stableStringify,taskDurationMinutes,taskListFingerprint,
     auth:{currentUser:{uid:'one'}},db:{},collection:()=>({}),query:x=>x,where:()=>({}),doc:(...args)=>args,
     serverTimestamp:()=>({seconds:1}),getDoc:async()=>({exists:()=>!!stored,data:()=>structuredClone(stored)}),
     getDocs:async()=>({docs:stored?[{id:'plan',data:()=>structuredClone(stored)}]:[]}),

@@ -16,3 +16,8 @@ test('deadline status and session links are escaped readable markup',()=>{
  const s=state();s.boards[0].sections[0].tasks[0].title='<img src=x>';const p=index(s).get('p');
  assert.equal(typeof m.assignmentProgressMarkup,'function');const html=m.assignmentProgressMarkup(p,{details:true});assert.match(html,/1 of 2 sessions/);assert.match(html,/60 min/);assert.match(html,/Scheduled after deadline/);assert.match(html,/data-assignment-open="a"/);assert.doesNotMatch(html,/<img/);
 });
+test('opt-in sequence exposes ready and waiting prerequisites in cards and linked sessions',()=>{
+ const s=state();s.boards[0].sections[0].tasks[0].sessionOrder='sequential';s.boards[0].sections[0].tasks[1].completed=false;s.boards[0].sections[0].tasks[1].title='<img src=x>';
+ const p=index(s);assert.match(m.assignmentProgressMarkup(p.get('p'),{details:true}),/1 ready.*1 waiting/);const html=m.assignmentProgressMarkup(p.get('b'));assert.match(html,/Waiting for &lt;img/);assert.doesNotMatch(html,/<img/);
+ s.boards[0].sections[0].tasks[1].completed=true;assert.match(m.assignmentProgressMarkup(index(s).get('b')),/Ready/);
+});
