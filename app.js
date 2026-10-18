@@ -1771,12 +1771,19 @@ function bootApp() {
         const cachedInsight = dayInsights[selectedCalendarDate];
         if (dayDetailAiContent) {
             if (cachedInsight) {
-                dayDetailAiContent.innerHTML = `<p>${cachedInsight}</p>`;
+                renderDayInsightText(cachedInsight);
             } else {
                 dayDetailAiContent.innerHTML = `<p class="text-muted">${tr('no_insight_yet')}</p>`;
                 generateDayInsight(selectedCalendarDate);
             }
         }
+    }
+
+    function renderDayInsightText(text) {
+        // Model output and saved insights are untrusted plain text.
+        const paragraph = document.createElement('p');
+        paragraph.textContent = text;
+        dayDetailAiContent.replaceChildren(paragraph);
     }
 
     if (dayDetailCloseBtn) dayDetailCloseBtn.addEventListener('click', closeDayPanel);
@@ -1827,7 +1834,7 @@ function bootApp() {
 
             dayInsights[dateKey] = commentText;
             if (selectedCalendarDate === dateKey && dayDetailAiContent) {
-                dayDetailAiContent.innerHTML = `<p>${commentText}</p>`;
+                renderDayInsightText(commentText);
             }
             await updatePlanInFirestore();
 
