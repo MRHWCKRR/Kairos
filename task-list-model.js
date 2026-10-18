@@ -3,7 +3,7 @@ import {applySectionCommand} from './task-section-model.js';
 import {buildTaskToolCommand,applyTaskToolCommand} from './task-tools-model.js';
 import {parseTime,formatTime,taskDurationMinutes} from './schedule-utils.js';
 import {normalizeRecurrence,validateRecurrence,generateTaskOccurrences,applyOccurrenceOverride} from './recurrence-utils.js';
-import {applyPlanningCommand} from './planning-commands.js?v=5';
+import {applyPlanningCommand} from './planning-commands.js?v=6';
 
 export const TASK_DETAIL_FIELDS=['title','notes','date','startTime','dueDate','durationMinutes','priority','reminderMinutes','scheduleLocked','schedulingPreference','color','recurrence','checklist'];
 const dateValid=value=>/^\d{4}-\d{2}-\d{2}$/.test(value)&&Number.isFinite(Date.parse(value+'T12:00:00Z'))&&new Date(value+'T12:00:00Z').toISOString().slice(0,10)===value;
