@@ -3,18 +3,22 @@ import assert from 'node:assert/strict';
 import {parseHTML} from 'linkedom';
 import {applyTaskListCommand} from '../task-list-model.js';
 const now=Date.parse('2026-10-17T06:00:00Z'),tick=()=>new Promise(resolve=>setImmediate(resolve));
-async function fixture({store=new Map(),fail=false,gate=null,title='Essay'}={}){
+async function fixture({store=new Map(),fail=false,gate=null,title='Essay',weeklyAvailability=null}={}){
  const {document,window}=parseHTML('<html><body><section id="schedule-page" class="active"><div id="schedule-toolbar"></div></section></body></html>');
  let data={boards:[{id:'b',title:'Study',sections:[{id:'s',title:'Assignments',tasks:[{id:'a',title,dueDate:'2026-10-19',notes:'Keep',date:null},{id:'old',title:'Slipped',date:'2026-10-13',startTime:'08:00',endTime:'08:30'}]}]}],scheduleEvents:[]},owner='one',plan='plan',offline=fail;const calls=[],opened=[];
- const bridge={getOwnerId:()=>owner,getPlanId:()=>plan,getBoards:()=>data.boards,getScheduleEvents:()=>data.scheduleEvents,getTimezone:()=> 'UTC',openTaskEditor:target=>opened.push(target),commitTaskCommand:async(command,expected,identity)=>{calls.push({command,expected,identity});if(gate)await gate;if(offline)throw Error('Offline');const result=applyTaskListCommand(data,command,expected,{now});data=result.next;return result.result}};
+ const bridge={getWeeklyAvailability:()=>weeklyAvailability,getOwnerId:()=>owner,getPlanId:()=>plan,getBoards:()=>data.boards,getScheduleEvents:()=>data.scheduleEvents,getTimezone:()=> 'UTC',openTaskEditor:target=>opened.push(target),commitTaskCommand:async(command,expected,identity)=>{calls.push({command,expected,identity});if(gate)await gate;if(offline)throw Error('Offline');const result=applyTaskListCommand(data,command,expected,{now});data=result.next;return result.result}};
  let module={};try{module=await import('../planning-hub.js')}catch(error){if(error.code!=='ERR_MODULE_NOT_FOUND')throw error}assert.equal(typeof module.mountPlanningHub,'function');
  const hub=module.mountPlanningHub({document,window,getBridge:()=>bridge,now:()=>now,storage:{getItem:key=>store.get(key)||null,setItem:(key,value)=>store.set(key,value),removeItem:key=>store.delete(key)}});
  const click=action=>document.querySelector('[data-planning-action="'+action+'"]').click(),tab=name=>document.querySelector('[data-planning-tab="'+name+'"]').click();
- return {document,window,hub,bridge,store,calls,opened,data:()=>data,click,tab,text:()=>document.body.textContent,setOffline:value=>offline=value,setOwner:value=>{owner=value;window.dispatchEvent(new window.Event('kairos-data-changed'))},setPlan:value=>{plan=value;window.dispatchEvent(new window.Event('kairos-data-changed'))},field:(name,value)=>{document.querySelector('[name="'+name+'"]').value=value},dispose:()=>hub.dispose()};
+ return {document,window,hub,bridge,store,calls,opened,data:()=>data,click,tab,text:()=>document.body.textContent,setOffline:value=>offline=value,setOwner:value=>{owner=value;window.dispatchEvent(new window.Event('kairos-data-changed'))},setPlan:value=>{plan=value;window.dispatchEvent(new window.Event('kairos-data-changed'))},field:(name,value)=>{const el=document.querySelector('[name="'+name+'"]');if(el.tagName==='SELECT')el.querySelectorAll('option').forEach(option=>option.selected=option.value===value);else el.value=value},dispose:()=>hub.dispose()};
 }
 
 test('Planning exposes five real views and opens existing task editing without writing',async t=>{
  const f=await fixture();t.after(f.dispose);f.hub.open();assert.equal(f.document.querySelectorAll('[data-planning-tab]').length,5);assert.match(f.text(),/Due 2026-10-19/);f.document.querySelector('[data-planning-task="a"]').click();assert.equal(f.opened[0].taskId,'a');assert.equal(f.calls.length,0);
+});
+
+test('Planning starts with saved weekly hours, discloses them, and allows an explicit daily override',async t=>{
+ const weeklyAvailability=Object.fromEntries(Array.from({length:7},(_,day)=>[day,[{start:'18:00',end:'19:00'}]])),f=await fixture({weeklyAvailability});t.after(f.dispose);f.hub.open();assert.match(f.text(),/Monday|Mon/);assert.match(f.text(),/18:00/);f.tab('sessions');assert.equal(f.document.querySelector('[name="availabilityMode"]').value,'saved');f.field('totalMinutes','60');f.click('preview-sessions');assert.match(f.text(),/Saved weekly/);assert.match(f.text(),/18:00/);f.click('discard');f.field('availabilityMode','daily');f.field('dayStart','07:00');f.field('dayEnd','08:00');f.click('preview-sessions');assert.match(f.text(),/07:00/);assert.equal(f.calls.length,0);
 });
 
 test('deadline capacity explains effort and previews all unfinished sessions before any save',async t=>{

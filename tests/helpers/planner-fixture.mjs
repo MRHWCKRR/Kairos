@@ -1,23 +1,24 @@
+import {savedWeeklyAvailability,assertSavedAvailability} from '../../weekly-availability.js';
 import {planningConflicts} from '../../planning-slots.js';
 import {validateAssignmentOrderChanges} from '../../assignment-order.js';
 import vm from 'node:vm';
 import {readFile} from 'node:fs/promises';
 import {mergePlanEdits,planState,stableStringify} from '../../plan-merge.js';
 import {taskDurationMinutes} from '../../schedule-utils.js';
-import {taskListFingerprint} from '../../task-list-model.js';
+import {taskListFingerprint,applyTaskListCommand} from '../../task-list-model.js';
 import {previewAiPlanning,aiPlanningSummary,resolveAiPlanningTimezone} from '../../ai-planning.js';
 import {applyPlanningCommand} from '../../planning-commands.js';
 
-export async function plannerFixture(data, {failAfterCommit=false,retryTransaction=false}={}) {
-  let stored=structuredClone(data), writes=[], events=0, fail=failAfterCommit;
-  const context=vm.createContext({validateAssignmentOrderChanges,structuredClone,console,Date,Intl,previewAiPlanning,aiPlanningSummary,resolveAiPlanningTimezone,planningConflicts,applyPlanningCommand,mergePlanEdits,planState,stableStringify,taskDurationMinutes,taskListFingerprint,
+export async function plannerFixture(data, {failAfterCommit=false,retryTransaction=false,userData={}}={}) {
+  let stored=structuredClone(data), userStored=structuredClone(userData), writes=[], events=0, fail=failAfterCommit;
+  const context=vm.createContext({savedWeeklyAvailability,assertSavedAvailability,applyTaskListCommand,validateAssignmentOrderChanges,structuredClone,console,Date,Intl,previewAiPlanning,aiPlanningSummary,resolveAiPlanningTimezone,planningConflicts,applyPlanningCommand,mergePlanEdits,planState,stableStringify,taskDurationMinutes,taskListFingerprint,
     auth:{currentUser:{uid:'one'}},db:{},collection:()=>({}),query:x=>x,where:()=>({}),doc:(...args)=>args,
-    serverTimestamp:()=>({seconds:1}),getDoc:async()=>({exists:()=>!!stored,data:()=>structuredClone(stored)}),
+    serverTimestamp:()=>({seconds:1}),getDoc:async ref=>({exists:()=>!!stored,data:()=>structuredClone(ref?.[1]==='users'?userStored:stored)}),
     getDocs:async()=>({docs:stored?[{id:'plan',data:()=>structuredClone(stored)}]:[]}),
     setDoc:async(_,next)=>{stored={...stored,...structuredClone(next)};writes.push(structuredClone(stored))},
     runTransaction:async(_,callback)=>{
       let pending;
-      const tx={get:async()=>({exists:()=>!!stored,data:()=>structuredClone(stored)}),
+      const tx={get:async ref=>({exists:()=>!!stored,data:()=>structuredClone(ref?.[1]==='users'?userStored:stored)}),
         set:(_,next)=>pending=structuredClone(next)};
       if(retryTransaction){await callback(tx);pending=undefined}
       const result=await callback(tx);
@@ -32,6 +33,6 @@ export async function plannerFixture(data, {failAfterCommit=false,retryTransacti
   try{store=await readFile(new URL('../../plan-store.js',import.meta.url),'utf8')}catch(e){if(e.code!=='ENOENT')throw e}
   vm.runInContext(strip(store),context);
   vm.runInContext(strip(await readFile(new URL('../../ai-actions.js',import.meta.url),'utf8')),context);
-  return {context,writes,data:()=>structuredClone(stored),events:()=>events,
+  return {context,writes,data:()=>structuredClone(stored),setUserData:value=>userStored=structuredClone(value),events:()=>events,
     execute:(action,options)=>context.executeKairosAction(action,options)};
 }

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {readFile} from 'node:fs/promises';
 import {parseHTML} from 'linkedom';
+import {normaliseWeeklyAvailability} from '../weekly-availability.js';
 
 async function fixture({cache=new Map(),cloud={appearance:{mode:'dark'},profile:{displayName:'Original'}},fail=false,loadFail=false,blockedStorage=false}={}){
  const app=await readFile(new URL('../app.js',import.meta.url),'utf8');
@@ -12,7 +13,7 @@ async function fixture({cache=new Map(),cloud={appearance:{mode:'dark'},profile:
  let stored=structuredClone(cloud),offline=fail,gate=null,writes=0,owner='one',saveClick,cancelClick;
  const save=document.getElementById('settings-save-btn'),cancel=document.getElementById('settings-cancel-btn');save.addEventListener=(_event,fn)=>saveClick=fn;cancel.addEventListener=(_event,fn)=>cancelClick=fn;
  const defaults=()=>({appearance:{mode:'dark'},profile:{displayName:'Original'}});
- const context=vm.createContext({...helper,document,window,Event:window.Event,localStorage:storage,auth:{get currentUser(){return owner?{uid:owner}:null}},db:{},doc:(_db,_collection,id)=>id,
+ const context=vm.createContext({...helper,normaliseWeeklyAvailability,document,window,Event:window.Event,localStorage:storage,auth:{get currentUser(){return owner?{uid:owner}:null}},db:{},doc:(_db,_collection,id)=>id,
   userSettings:defaults(),pendingSettings:defaults(),settingsCloudSnapshot:defaults(),settingsPendingRecord:null,settingsSaveTicket:null,settingsLoadRevision:0,
   settingsRecovery:helper.createSettingsRecovery?.(storage),defaultSettings:defaults,cloneDeep:structuredClone,deepMerge:(base,value)=>({...base,...value}),console:{error(){}},tr:key=>key,
   triggerMiscAchievement(){},applyAllSettings(){},previewLive(){},invalidateKairosContext(){},renderUserProfileMenu(){},populateSettingsForm(){},setupNotificationBell(){},markInitialLoadComplete(){},showNotice(){},
@@ -32,6 +33,18 @@ async function fixture({cache=new Map(),cloud={appearance:{mode:'dark'},profile:
 test('failed settings save remains retryable and recovers over stale cloud values after reload',async()=>{
  const f=await fixture({fail:true});f.context.pendingSettings.appearance.mode='light';await f.clickSave();assert.equal(f.document.getElementById('settings-save-bar').classList.contains('active'),true);assert.match(f.save.textContent,/Retry/i);
  const reloaded=await fixture({cache:f.cache});assert.equal(reloaded.context.pendingSettings.appearance.mode,'light');assert.equal(reloaded.writes(),0);assert.match(reloaded.save.textContent,/Retry/i);await reloaded.clickSave();assert.equal(reloaded.stored().appearance.mode,'light');assert.equal(reloaded.document.getElementById('settings-save-bar').classList.contains('active'),false);
+});
+
+test('weekly-hour settings recover after a failed save, merge unrelated cloud edits and persist on Retry',async()=>{
+ const weeklyAvailability=Object.fromEntries(Array.from({length:7},(_,day)=>[day,[]]));weeklyAvailability[1]=[{start:'15:30',end:'16:30'}];const f=await fixture({fail:true});f.context.pendingSettings.planning={weeklyAvailability};await f.clickSave();assert.equal(f.writes(),0);assert.equal(f.context.settingsCloudSnapshot.planning,undefined);const loaded=await fixture({cache:f.cache,cloud:{appearance:{mode:'dark'},profile:{displayName:'New name'}}});assert.equal(loaded.context.pendingSettings.planning.weeklyAvailability[1][0].start,'15:30');await loaded.clickSave();assert.deepEqual(loaded.stored().planning.weeklyAvailability,weeklyAvailability);assert.equal(loaded.stored().profile.displayName,'New name');
+});
+
+test('invalid weekly hours stay editable and cannot be written with settings',async()=>{
+ const f=await fixture();f.context.pendingSettings.planning={weeklyAvailability:Object.fromEntries(Array.from({length:7},(_,day)=>[day,[{start:'18:00',end:'07:00'}]]))};await f.clickSave();assert.equal(f.writes(),0);assert.equal(f.context.pendingSettings.planning.weeklyAvailability[0][0].end,'07:00');assert.equal(f.context.settingsSaveTicket,null);
+});
+
+test('saving unsorted weekly windows settles the settings draft after canonical sorting',async()=>{
+ const f=await fixture(),weeklyAvailability=Object.fromEntries(Array.from({length:7},(_,day)=>[day,[]]));weeklyAvailability[1]=[{start:'18:00',end:'19:00'},{start:'15:30',end:'16:30'}];f.context.pendingSettings.planning={weeklyAvailability};await f.clickSave();assert.equal(f.writes(),1);assert.equal(f.context.settingsPendingRecord,null);assert.equal(f.context.pendingSettings.planning.weeklyAvailability[1][0].start,'15:30');
 });
 
 test('recovered settings preserve unrelated newer cloud changes and discard explicitly',async()=>{

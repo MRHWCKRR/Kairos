@@ -1,5 +1,6 @@
+import {normaliseWeeklyAvailability} from './weekly-availability.js';
 import {planningTasks,planningClock,validPlanningDate} from './planning-model.js';
-import {planningOccupancy,findPlanningSlot,planningAvailability,planningBlockValid,intervalsOverlap} from './planning-slots.js';
+import {planningOccupancy,findPlanningSlot,planningAvailability,planningWindows,planningBlockValid,intervalsOverlap} from './planning-slots.js?v=1';
 import {parseTime,taskDurationMinutes} from './schedule-utils.js';
 import {zonedTaskStart} from './task-reminders.js';
 import {stableStringify} from './plan-merge.js';
@@ -11,7 +12,7 @@ function eligible(state,id){const entry=locate(state,id),task=entry.task;if(task
 const idValid=id=>typeof id==='string'&&id.length>0&&id.length<=160;
 function recurrenceSnapshot(rule){if(!rule?.enabled)return null;return {...rule,exceptions:Object.fromEntries(Object.entries(rule.exceptions||{}).map(([date,value])=>[date,{status:value.status||'pending',override:Object.fromEntries(['date','startTime','endTime','durationMinutes'].filter(key=>value.override?.[key]!==undefined).map(key=>[key,value.override[key]]))}]))}}
 export function planningSignature(state){return stableStringify({tasks:planningTasks(state).map(({board,section,task})=>({board:board.id,section:section.id,...Object.fromEntries(['id','date','startTime','endTime','dueDate','estimatedMinutes','lastScheduledMinutes','completed','scheduleLocked','schedulingPreference','assignmentId','sessionIndex','sessionOrder'].map(key=>[key,task[key]??null])),recurrence:recurrenceSnapshot(task.recurrence)})),events:(state.scheduleEvents||[]).map(event=>Object.fromEntries(['id','day','start','end','archived'].map(key=>[key,event[key]??null])))})}
-const options=input=>({from:input.from,to:input.to,dayStart:input.dayStart,dayEnd:input.dayEnd,timezone:input.timezone||'UTC'});
+const options=input=>({from:input.from,to:input.to,...(input.dayStart!==undefined?{dayStart:input.dayStart}:{}),...(input.dayEnd!==undefined?{dayEnd:input.dayEnd}:{}),timezone:input.timezone||'UTC',...(input.weeklyAvailability!=null?{weeklyAvailability:normaliseWeeklyAvailability(input.weeklyAvailability)}:{}),...(input.availabilitySource?{availabilitySource:input.availabilitySource}:{})});
 const interval=row=>({date:row.date,startMin:parseTime(row.startTime),endMin:parseTime(row.startTime)+row.minutes});
 function effectiveDeadline(state,task){
  const parent=task.assignmentId?planningTasks(state).find(entry=>entry.task.id===task.assignmentId)?.task:null;
@@ -109,8 +110,8 @@ export function applyPlanningCommand(state,command,expected,{now=Date.now()}={})
  }
  const selected=new Set(revising?[...existingIds]:command.mode==='move'?ids:[]),busy=planningOccupancy(state,opts.from,opts.to).filter(item=>item.kind!=='task'||!selected.has(item.taskId));
  for(const row of rows){
-  const task=revising&&existingIds.has(row.taskId)?eligible(state,row.taskId).task:parent||eligible(state,row.taskId).task,start=parseTime(row.startTime),end=parseTime(row.endTime),available=planningAvailability({...opts,preference:task.schedulingPreference||parent?.schedulingPreference});
-  if(!Number.isInteger(row.minutes)||row.minutes<1||row.minutes>=1440||start===null||end===null||(end-start+1440)%1440!==row.minutes||start%5!==0||start<available.start||start+row.minutes>available.end||!validPlanningDate(row.date)||row.date<opts.from||row.date>opts.to)throw Error('Invalid session schedule, time, or duration.');
+  const task=revising&&existingIds.has(row.taskId)?eligible(state,row.taskId).task:parent||eligible(state,row.taskId).task,start=parseTime(row.startTime),end=parseTime(row.endTime),windows=planningWindows({...opts,preference:task.schedulingPreference||parent?.schedulingPreference},row.date);
+  if(!Number.isInteger(row.minutes)||row.minutes<1||row.minutes>=1440||start===null||end===null||(end-start+1440)%1440!==row.minutes||start%5!==0||!windows.some(window=>start>=window.start&&start+row.minutes<=window.end)||!validPlanningDate(row.date)||row.date<opts.from||row.date>opts.to)throw Error('Invalid session schedule, time, or duration.');
   if(!parent&&row.minutes!==taskDurationMinutes(task))throw Error('This task duration changed. Refresh the preview.');
   if(task.dueDate&&(!validPlanningDate(task.dueDate)||row.date>task.dueDate))throw Error('This placement would miss its deadline.');
   const deadline=effectiveDeadline(state,task);if(deadline&&row.date>deadline)throw Error('This placement would miss the task or assignment deadline.');

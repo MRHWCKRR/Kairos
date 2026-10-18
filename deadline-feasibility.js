@@ -1,18 +1,20 @@
 import {assertAssignmentOrder} from './assignment-order.js';
 import {planningTasks,validPlanningDate,shiftPlanningDate} from './planning-model.js';
-import {planningAvailability,planningOccupancy,planningBlockValid,intervalsOverlap} from './planning-slots.js';
-import {previewCarryover} from './planning-commands.js?v=3';
+import {planningAvailability,planningWindows,planningOccupancy,planningBlockValid,intervalsOverlap} from './planning-slots.js?v=1';
+import {previewCarryover} from './planning-commands.js?v=4';
 import {parseTime,taskDurationMinutes} from './schedule-utils.js';
 
 // Capacity is an upper bound: gaps may be too short, restricted by preferences,
 // or invalid across DST. Only a complete validated preview earns "fits".
 function freeMinutes(busy,options,clock){
- const available=planningAvailability(options);let total=0;
+ planningAvailability(options);let total=0;
  for(let date=options.from;date<=options.to;date=shiftPlanningDate(date,1)){
+  for(const available of planningWindows(options,date)){
   let cursor=Math.ceil(Math.max(available.start,date===clock.date?parseTime(clock.time)+1:0)/5)*5;
   const intervals=busy.filter(item=>item.date===date).sort((a,b)=>a.startMin-b.startMin);
   for(const item of intervals){if(item.endMin<=cursor||item.startMin>=available.end)continue;total+=Math.max(0,Math.min(item.startMin,available.end)-cursor);cursor=Math.max(cursor,item.endMin);cursor=Math.ceil(cursor/5)*5;if(cursor>=available.end)break}
   total+=Math.max(0,available.end-cursor);
+  }
  }
  return total;
 }
@@ -27,7 +29,7 @@ export function assignmentFeasibility(state,parentId,input,clock){
  if(!validPlanningDate(parent.dueDate))return finish('needs-review','Review the assignment deadline.');
  if(parent.dueDate<clock.date)return finish('overdue','The deadline has passed. Review it before planning future work.');
  if(parent.dueDate>shiftPlanningDate(clock.date,30))return finish('outside-range','Capacity checks cover deadlines within the next 31 days.');
- const options={from:clock.date,to:parent.dueDate,dayStart:input.dayStart||'07:00',dayEnd:input.dayEnd||'22:00',timezone:input.timezone||'UTC'};
+ const options={from:clock.date,to:parent.dueDate,dayStart:input.dayStart||'07:00',dayEnd:input.dayEnd||'22:00',timezone:input.timezone||'UTC',...(input.availabilitySource?{availabilitySource:input.availabilitySource}:{}),...(input.weeklyAvailability!=null?{weeklyAvailability:input.weeklyAvailability}:{})};
  try{
   const all=(state.boards||[]).flatMap(board=>(board.sections||[]).flatMap(section=>section.tasks||[]));
   if(sessions.length>40||parent.startTime||all.filter(task=>task.id===parentId).length!==1||sessions.some(task=>task.recurrence?.enabled||all.filter(other=>other.id===task.id).length!==1))return finish('needs-review','Review session identities, recurring work, or the separately scheduled parent. Capacity checks support at most 40 sessions.');

@@ -1,8 +1,9 @@
+import {assertSavedAvailability} from './weekly-availability.js';
 import { db } from './firebase.js';
 import { doc, getDoc, runTransaction, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { mergePlanEdits, planState, stableStringify } from './plan-merge.js';
 import {validateAssignmentOrderChanges} from './assignment-order.js';
-import { applyTaskListCommand, taskListFingerprint } from './task-list-model.js?v=4';
+import { applyTaskListCommand, taskListFingerprint } from './task-list-model.js?v=5';
 
 export async function persistTaskListCommand(planId, uid, command, expected, operationId, createdAt) {
     if(typeof operationId!=='string'||!operationId||operationId.length>160||!Number.isFinite(createdAt)||createdAt<=0)throw new Error('Invalid operation identity.');
@@ -11,7 +12,7 @@ export async function persistTaskListCommand(planId, uid, command, expected, ope
         const applied=applyTaskListCommand(plan.data,command,expected);
         Object.assign(plan.data,applied.next);
         return applied.result;
-    },{legacyFingerprint:stableStringify({command,expected})});
+    },{legacyFingerprint:stableStringify({command,expected}),planningOptions:command.type==='planning_batch'?command.options:null});
 }
 
 function ownedPlan(snapshot, uid) {
@@ -75,6 +76,7 @@ export async function persistAiPlanAction(planId, uid, action, operationId, crea
         }
         // Never replay an evicted receipt: its save may already have succeeded.
         if (createdAt <= (data.aiActionReceiptFloor || 0)) throw new Error('This retry is too old to reconcile safely. Check the planner before requesting a new change.');
+        if(options.planningOptions?.availabilitySource==='saved'){const userSnapshot=await transaction.get(doc(db,'users',uid));assertSavedAvailability(options.planningOptions,userSnapshot.exists()?userSnapshot.data():{});}
         const next = planState(data);
         const result = receiptResult(apply({ data: next }));
         validateAssignmentOrderChanges(planState(data),next);

@@ -17,6 +17,7 @@ const BRIDGE=`
         getBoards: () => boardsData,
         getOwnerId: () => auth.currentUser?.uid || null,
         getPlanId: () => currentPlanDocId || null,
+        getWeeklyAvailability: () => settingsCloudSnapshot.planning?.weeklyAvailability ?? null,
         getTimezone: () => userSettings.profile.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
         commitTaskCommand: (command, expected, identity) => {
             const zone = userSettings.profile.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';

@@ -1,3 +1,4 @@
+import {weeklyAvailabilityText} from '../weekly-availability.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -10,7 +11,7 @@ async function fixture(){
  const entry={action:{type:'plan_sessions',args:{taskId:'a'}},operationId:'op'},calls=[];
  const preview={action:entry.action,approval:{command:{rows:[{taskId:'stable-id'}]},expected:{signature:'before'}},summary:{kind:'planning',title:'New sessions',timezone:'Australia/Brisbane',options:{dayStart:'07:00',dayEnd:'22:00'},rows:[{title:'<img src=x> Essay',date:'2026-10-19',startTime:'09:00',endTime:'09:30',minutes:30}]}};
  document.addEventListener=()=>{};
- const c=vm.createContext({document,window,console,auth:{currentUser:{uid:'one'}},confirmedKairosAction:async()=>null,previewKairosAction:async()=>{calls.push('preview');return preview},executeKairosAction:async(a,o)=>{calls.push(o);return {type:'planning_batch',action:'sessions',affectedCount:1}},entry,calls});
+ const c=vm.createContext({weeklyAvailabilityText,document,window,console,auth:{currentUser:{uid:'one'}},confirmedKairosAction:async()=>null,previewKairosAction:async()=>{calls.push('preview');return preview},executeKairosAction:async(a,o)=>{calls.push(o);return {type:'planning_batch',action:'sessions',affectedCount:1}},entry,calls});
  vm.runInContext(source,c);vm.runInContext("chats=[{id:'chat'}];user={uid:'one'};save=async()=>{calls.push('save')}",c);
  return {c,document,entry,calls,review:()=>c.requestActionConfirmation('chat',entry.action,{ownerId:'one',planId:'plan',operationId:'op'},entry)};
 }
@@ -30,3 +31,5 @@ test('a reloaded review reuses its exact command and only Apply executes it',asy
 test('planning success reports the saved session count without completing the parent',async()=>{
  const f=await fixture();assert.match(f.c.singleActionResultReply([{type:'planning_batch',action:'sessions',affectedCount:4}]),/4.*session/i);
 });
+
+test('chat review discloses the saved weekly windows instead of undefined daily hours',async()=>{const f=await fixture();vm.runInContext("globalThis.markup=actionPreviewMarkup({kind:'planning',title:'New sessions',timezone:'UTC',options:{weeklyAvailability:Object.fromEntries(Array.from({length:7},(_,day)=>[day,[{start:'18:00',end:'19:00'}]]))},rows:[]})",f.c);assert.match(f.c.markup,/Saved weekly hours/);assert.match(f.c.markup,/Monday: 18:00/);assert.doesNotMatch(f.c.markup,/undefined/)});

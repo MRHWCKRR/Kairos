@@ -1,3 +1,15 @@
+# Saved weekly availability
+
+Settings > Personal > Weekly availability supports optional saved work hours, with zero to four same-day windows per day. The editor displays Monday first; stored day keys use Sunday=0 through Saturday=6. Hours use the profile timezone. Empty days are unavailable; an entirely empty week never falls back to daily hours. Windows must have valid HH:MM times, end after their start and not overlap. Use separate day windows instead of an overnight interval. Touching windows count as one continuous period for placement.
+
+Hours live in the existing users/{uid}.settings.planning.weeklyAvailability field as a day-keyed map of window arrays, avoiding Firestore nested arrays. Null or missing means no saved weekly schedule. No existing tasks move and no migration or new listener/collection is needed. Settings Save/Cancel, conflict-preserving merge, local failed-save recovery and Retry are reused. Invalid drafts remain editable and cannot be saved. Confirmed settings feed Planning; an unconfirmed local settings save does not replace the cloud planning defaults.
+
+Planning defaults to saved weekly hours when present and offers Custom daily hours for this plan. The same windows constrain session creation, revision, carry-over, conflict alternatives and deadline capacity. A session must fit wholly inside a window. Closed days, breaks, preferences, occupancy and DST stay enforced. Exact windows are disclosed with the preview. Kairos AI chat's structured planning actions use cloud weekly defaults when dayStart/dayEnd are omitted; explicit daily hours override the weekly schedule for that request. Status summaries use the same saved hours. Manual task editing and the separate legacy generative Schedule Plan proposal editor remain authoritative.
+
+Each saved-hours command pins its exact hours. Before the first write, the existing planner transaction reads current user settings and rejects changed weekly hours; it checks the durable receipt first so a lost-response retry still reconciles a previously successful operation. Custom daily previews keep their explicit hours. Timezone and normal schedule stale-preview validation remain in force. Preview payloads omit undefined fields and use the same persistable day map.
+
+Validation covers closed days, separate and adjacent windows, malformed/overlapping hours, preferences and DST, exact command containment, daily overrides, shared AI/capacity defaults, changed-hours rejection, durable retries, invalid settings and failed-save recovery. Chrome checks use actual Settings save/recovery functions and feature modules with simulated persistence; authenticated Firebase writes and live model inference still require a real-account smoke check.
+
 # Assignment deadline feasibility
 
 Planning > Deadlines checks remaining active, unfinished session effort against the free time from now through the assignment deadline. Capacity checks use the selected daily start/end and the profile timezone. Kairos AI receives the same calculations with the stated 07:00–22:00 default. These are planned minutes, not measured work or predicted completion dates.

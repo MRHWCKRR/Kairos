@@ -1,5 +1,6 @@
+import {savedWeeklyAvailability} from './weekly-availability.js';
 import { auth, db } from './firebase.js';
-import {aiPlanningSummary,resolveAiPlanningTimezone} from './ai-planning.js?v=4';
+import {aiPlanningSummary,resolveAiPlanningTimezone} from './ai-planning.js?v=5';
 import { collection, doc, getDoc, getDocs, query, where } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
 const PROFILE_CACHE_MS = 15000;
@@ -160,6 +161,7 @@ async function loadProfileData(user) {
 
     const result = {
         timeZone,
+        weeklyAvailability:savedWeeklyAvailability(userData),
         notifications: { enabled: cloudSettings.notifications?.enabled !== false, browserEnabled: cloudSettings.notifications?.browserPush === true },
         language: clean(accessibility.language, 20) || 'en',
         displayName: clean(profile.displayName, 80) || clean(user.displayName, 80),
@@ -243,7 +245,7 @@ async function loadContextData(user) {
     const result = {
         ...profile,
         planId: latestPlan?.planId || null,
-        planning: aiPlanningSummary({boards,scheduleEvents:latestPlan?.scheduleEvents||[]},{timezone:profile.timeZone}),
+        planning: aiPlanningSummary({boards,scheduleEvents:latestPlan?.scheduleEvents||[]},{timezone:profile.timeZone,weeklyAvailability:profile.weeklyAvailability}),
         tasks: tasks.slice(0, 120),
         tasksOmitted: Math.max(0, tasks.length - 120),
         scheduleEvents,

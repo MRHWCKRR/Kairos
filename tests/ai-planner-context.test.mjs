@@ -1,3 +1,4 @@
+import {savedWeeklyAvailability} from '../weekly-availability.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
@@ -11,7 +12,7 @@ async function fixture() {
     {id:'task-1',title:'Revision',date:'2026-10-14',startTime:'13:00',endTime:'15:00',scheduleLocked:true,recurrence:{enabled:true}},
     {id:'task-2',title:'Revision',completed:true}
   ]}]}],scheduleEvents:[{id:'event-1',title:'School',day:3,start:'08:00',end:'15:00'}]};
-  const context=vm.createContext({aiPlanningSummary,resolveAiPlanningTimezone,ACTION_INSTRUCTIONS,console,auth:{currentUser:{uid:'one'}},db:{},
+  const context=vm.createContext({savedWeeklyAvailability,aiPlanningSummary,resolveAiPlanningTimezone,ACTION_INSTRUCTIONS,console,auth:{currentUser:{uid:'one'}},db:{},
     localStorage:{getItem:()=>null},doc:()=>({}),collection:()=>({}),query:x=>x,where:()=>({}),
     getDoc:async()=>({exists:()=>true,data:()=>({settings:{profile:{timezone:'Australia/Brisbane'}}})}),
     getDocs:async()=>({docs:[{id:'plan-1',data:()=>structuredClone(plan)}]}),
