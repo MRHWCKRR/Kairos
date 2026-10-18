@@ -1,3 +1,5 @@
+import * as availability from '../schedule-planning-availability.js';
+import {shiftPlanningDate} from '../planning-model.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
@@ -21,7 +23,7 @@ function setup({planner,persist}={}) {
     persistPlan:async()=>{saves++;if(persist)await persist();},refreshAppViews:()=>{}};
   window.__kairosScheduleWorkspace={state:{anchor:new Clock(),view:'day',selected:{type:null,id:null}},render:()=>{},focusDateTime:()=>{}};
   const context=vm.createContext({document,window,Date:Clock,console:{error:()=>{}},CSS:{escape:String},requestAnimationFrame:fn=>fn(),setTimeout:()=>1,structuredClone,
-    ...utils,...recurrence,...changes,aiErrorMessage,mountDayChange:()=>({setBusy:()=>{}})});
+    ...utils,...recurrence,...changes,...availability,shiftPlanningDate,schedulePlanningClock:(bridge,now=epoch)=>availability.schedulePlanningClock(bridge,now),aiErrorMessage,mountDayChange:()=>({setBusy:()=>{}})});
   vm.runInContext(source,context);
   return {document,context,tasks,events,boards,saves:()=>saves,sent:()=>sentContext,advance:time=>epoch=Date.parse('2026-10-13T'+time),switchOwner:()=>owner='two',
     preview:(taskId='a')=>{context.selectedTaskIds=Array.isArray(taskId)?taskId:[taskId];return vm.runInContext("requestPlan(null,{description:'Appointment changed',currentDate:'2026-10-13',taskIds:selectedTaskIds,blockedWindows:[{date:'2026-10-13',startTime:'15:00',endTime:'16:00'}]})",context);},

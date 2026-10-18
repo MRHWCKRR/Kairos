@@ -27,7 +27,7 @@ test('the reminder runner includes bedtime checks and respects the bedtime setti
 });
 
 test('saving a plan checks reminders immediately after persistence, with no check on failure',async()=>{
- const app=await readFile(new URL('../app.js',import.meta.url),'utf8'),source=app.slice(app.indexOf('    async function updatePlanInFirestore()'),app.indexOf('    async function loadLatestPlanFromFirestore('));
+ const app=await readFile(new URL('../app.js',import.meta.url),'utf8'),source=app.slice(app.indexOf('    async function updatePlanInFirestore('),app.indexOf('    async function loadLatestPlanFromFirestore('));
  for(const fail of [false,true]){
   let resolveSave,rejectSave,checks=0;const stored=new Promise((resolve,reject)=>{resolveSave=resolve;rejectSave=reject});
   const context=vm.createContext({auth:{currentUser:{uid:'one'}},currentPlanDocId:'plan',planEditRevision:0,planSaveQueue:Promise.resolve(),planSnapshot:{},boardsData:[],dayInsights:{},scheduleData:[],planState:value=>value,savePlannerEdits:()=>stored,mergePlanEdits:(_base,_local,saved)=>saved,invalidateKairosContext(){},renderApp(){},showNotice(){},console:{error(){}},window:{__kairosTaskReminders:{check:()=>{checks++}}}});
