@@ -1,7 +1,7 @@
 import {assertAssignmentOrder} from './assignment-order.js';
 import {planningTasks,validPlanningDate,shiftPlanningDate} from './planning-model.js';
-import {planningAvailability,planningWindows,planningOccupancy,planningBlockValid,intervalsOverlap} from './planning-slots.js?v=1';
-import {previewCarryover} from './planning-commands.js?v=4';
+import {planningAvailability,planningWindows,planningOccupancy,planningBlockValid,intervalsOverlap} from './planning-slots.js?v=2';
+import {previewCarryover} from './planning-commands.js?v=5';
 import {parseTime,taskDurationMinutes} from './schedule-utils.js';
 
 // Capacity is an upper bound: gaps may be too short, restricted by preferences,
@@ -18,7 +18,7 @@ export function freeMinutes(busy,options,clock){
  }
  return total;
 }
-export function assignmentFeasibility(state,parentId,input,clock){
+export function assignmentFeasibility(state,parentId,input,clock,spacingCache=new Map()){
  const tasks=planningTasks(state).map(entry=>entry.task),parents=tasks.filter(task=>task.id===parentId),parent=parents[0],sessions=tasks.filter(task=>task.assignmentId===parentId&&!task.completed);
  const movable=sessions.filter(task=>!task.scheduleLocked&&!task.recurrence?.enabled),remainingMinutes=sessions.reduce((sum,task)=>sum+taskDurationMinutes(task),0),movableMinutes=movable.reduce((sum,task)=>sum+taskDurationMinutes(task),0);
  const result={taskId:parentId,title:String(parent?.title||'Assignment'),dueDate:parent?.dueDate||null,remainingMinutes,movableMinutes,availableMinutes:null,shortfallMinutes:0,canPreview:false};
@@ -29,7 +29,7 @@ export function assignmentFeasibility(state,parentId,input,clock){
  if(!validPlanningDate(parent.dueDate))return finish('needs-review','Review the assignment deadline.');
  if(parent.dueDate<clock.date)return finish('overdue','The deadline has passed. Review it before planning future work.');
  if(parent.dueDate>shiftPlanningDate(clock.date,30))return finish('outside-range','Capacity checks cover deadlines within the next 31 days.');
- const options={from:clock.date,to:parent.dueDate,dayStart:input.dayStart||'07:00',dayEnd:input.dayEnd||'22:00',timezone:input.timezone||'UTC',...(input.availabilitySource?{availabilitySource:input.availabilitySource}:{}),...(input.weeklyAvailability!=null?{weeklyAvailability:input.weeklyAvailability}:{})};
+ const options={from:clock.date,to:parent.dueDate,dayStart:input.dayStart||'07:00',dayEnd:input.dayEnd||'22:00',timezone:input.timezone||'UTC',...(input.gapMinutes!==undefined?{gapMinutes:input.gapMinutes}:{}),...(input.availabilitySource?{availabilitySource:input.availabilitySource}:{}),...(input.weeklyAvailability!=null?{weeklyAvailability:input.weeklyAvailability}:{})};
  try{
   const all=(state.boards||[]).flatMap(board=>(board.sections||[]).flatMap(section=>section.tasks||[]));
   if(sessions.length>40||parent.startTime||all.filter(task=>task.id===parentId).length!==1||sessions.some(task=>task.recurrence?.enabled||all.filter(other=>other.id===task.id).length!==1))return finish('needs-review','Review session identities, recurring work, or the separately scheduled parent. Capacity checks support at most 40 sessions.');
@@ -51,7 +51,7 @@ export function assignmentFeasibility(state,parentId,input,clock){
    assertAssignmentOrder(state,new Set([parentId]));
    return finish('fits','All unfinished sessions have safe locked placements.');
   }
-  previewCarryover(state,{...options,taskIds:movable.map(task=>task.id)},clock);
+  previewCarryover(state,{...options,taskIds:movable.map(task=>task.id)},clock,spacingCache);
   return finish('fits','A complete session plan fits before the deadline.',{canPreview:true});
  }catch(error){return finish('needs-review',String(error?.message||'Review the sessions and available time.'))}
 }

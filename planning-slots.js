@@ -7,6 +7,7 @@ export function validatePlanningRange(from,to){
  if(!validPlanningDate(from)||!validPlanningDate(to)||to<from||(Date.parse(to)-Date.parse(from))/86400000>=31)throw Error('Choose a valid date range of at most 31 days.');
 }
 export function planningAvailability(input){
+ planningGapMinutes(input);
  if(input.availabilitySource==='saved'&&input.weeklyAvailability==null)throw Error('Your saved weekly availability changed. Review a new preview.');
  validatePlanningRange(input.from,input.to);const weekly=normaliseWeeklyAvailability(input.weeklyAvailability),start=weekly?0:parseTime(input.dayStart),end=weekly?1440:parseTime(input.dayEnd);
  if(start===null||end===null||end<=start)throw Error('Daily availability must end after it starts.');
@@ -20,6 +21,21 @@ export function planningWindows(input,date){
  const result=[];for(const window of windows){const start=Math.max(parseTime(window.start),bounds.start),end=Math.min(parseTime(window.end),bounds.end);if(end<=start)continue;const prior=result.at(-1);if(prior&&prior.end===start)prior.end=end;else result.push({start,end})}return result;
 }
 export const intervalsOverlap=(a,b)=>a.date===b.date&&a.startMin<b.endMin&&b.startMin<a.endMin;
+export function planningGapMinutes(input){
+ const value=input.gapMinutes===undefined?0:input.gapMinutes;
+ if(!Number.isInteger(value)||![0,5,10,15].includes(value))throw Error('Choose a session gap of 0, 5, 10, or 15 minutes.');
+ return value;
+}
+export function planningGapText(input){const gap=planningGapMinutes(input);return gap?'Spacing: '+gap+' minutes before or after neighbouring scheduled commitments. Gaps stay as free time; no break tasks are created.':'Spacing: no added gap.'}
+export function planningIntervalsConflict(a,b,input,cache=new Map()){
+ if(intervalsOverlap(a,b))return true;
+ const gap=planningGapMinutes(input);if(!gap||Math.abs(Date.parse(a.date)-Date.parse(b.date))>86400000)return false;
+ const stamp=(date,minute)=>{const key=(input.timezone||'UTC')+'/'+date+'/'+minute;if(!cache.has(key))cache.set(key,zonedTaskStart(minute===1440?shiftPlanningDate(date,1):date,formatTime(minute%1440,false),input.timezone||'UTC'));return cache.get(key)};
+ const first=stamp(a.date,a.startMin),last=stamp(a.date,a.endMin),otherFirst=stamp(b.date,b.startMin),otherLast=stamp(b.date,b.endMin);
+ // An invalid commitment boundary cannot establish a safe elapsed-time gap.
+ if([first,last,otherFirst,otherLast].some(value=>value===null))return true;
+ return first<otherLast+gap*60000&&otherFirst<last+gap*60000;
+}
 export function planningBlockValid(date,start,duration,timezone){
  const end=start+duration;if(start<0||end>1440||duration<1)return false;
  const first=zonedTaskStart(date,formatTime(start,false),timezone),last=zonedTaskStart(end===1440?shiftPlanningDate(date,1):date,formatTime(end%1440,false),timezone);
@@ -60,7 +76,14 @@ export function planningConflicts(state,from,to){
  }
  return out;
 }
-export function findPlanningSlot(duration,input,busy,clock){
+export function planningPlacementOccupancy(state,input){
+ const busy=planningOccupancy(state,input.from,input.to);if(!planningGapMinutes(input))return busy;
+ // Boundary neighbours matter for gaps, even when a 31-day placement range
+ // cannot be widened. Keep the underlying occupancy range limit unchanged.
+ for(const date of [shiftPlanningDate(input.from,-1),shiftPlanningDate(input.to,1)])busy.push(...planningOccupancy(state,date,date));
+ return busy;
+}
+export function findPlanningSlot(duration,input,busy,clock,spacingCache=new Map()){
  planningAvailability(input);
  if(!Number.isInteger(duration)||duration<1||duration>=1440)throw Error('Choose a duration from 1 to 1439 minutes.');
  if(!validPlanningDate(clock.date)||parseTime(clock.time)===null)throw Error('Current planning time is unavailable.');
@@ -71,7 +94,7 @@ export function findPlanningSlot(duration,input,busy,clock){
   for(const available of planningWindows(input,date)){
   const earliest=Math.max(available.start,date===clock.date?parseTime(clock.time)+1:0);
   for(let start=Math.ceil(earliest/5)*5;start+duration<=available.end;start+=5){
-   const candidate={date,startMin:start,endMin:start+duration};if(busy.some(item=>intervalsOverlap(candidate,item)))continue;
+   const candidate={date,startMin:start,endMin:start+duration};if(busy.some(item=>planningIntervalsConflict(candidate,item,input,spacingCache)))continue;
    if(!planningBlockValid(date,start,duration,input.timezone||'UTC'))continue;
    return {date,startTime:formatTime(start,false),endTime:formatTime((start+duration)%1440,false)};
   }

@@ -1,6 +1,6 @@
 import {savedWeeklyAvailability} from './weekly-availability.js';
 import { auth, db } from './firebase.js';
-import {aiPlanningSummary,resolveAiPlanningTimezone} from './ai-planning.js?v=6';
+import {aiPlanningSummary,resolveAiPlanningTimezone} from './ai-planning.js?v=7';
 import { collection, doc, getDoc, getDocs, query, where } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
 const PROFILE_CACHE_MS = 15000;
