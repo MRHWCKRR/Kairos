@@ -22,9 +22,9 @@ export function createPageLoader({importModule=url=>import(url),loadStyle=loadPa
     const task=(async()=>{
       if(page==='tasks-page'&&taskDetailsEnabled){
         await Promise.all([loadStyle('task-list.css?v=18'),loadStyle('assignment-progress.css?v=2'),loadStyle('schedule-inspector.css?v=10')]);
-        await setupTaskDetails(await importModule('./task-detail-pane.js?v=12'));
-        if(setupTaskWorkspace)await setupTaskWorkspace(await importModule('./task-list-workspace.js?v=13'));
-        if(setupTaskInteractions)await setupTaskInteractions(await importModule('./task-list-interactions.js?v=10'));
+        await setupTaskDetails(await importModule('./task-detail-pane.js?v=13'));
+        if(setupTaskWorkspace)await setupTaskWorkspace(await importModule('./task-list-workspace.js?v=14'));
+        if(setupTaskInteractions)await setupTaskInteractions(await importModule('./task-list-interactions.js?v=11'));
         if(setupTaskSelection)await setupTaskSelection(await importModule('./task-selection.js?v=4'));
         if(setupTaskMenus){const [actions,menu]=await Promise.all([importModule('./task-actions.js?v=5'),importModule('./task-action-menu.js?v=6')]);await setupTaskMenus({actions,menu})}
         if(setupTaskShortcuts)await setupTaskShortcuts(await importModule('./task-keyboard-shortcuts.js?v=1'));
@@ -34,7 +34,7 @@ export function createPageLoader({importModule=url=>import(url),loadStyle=loadPa
         // Markdown enhances already-escaped text; a CDN outage must not prevent
         // authentication or plain-text chat. Sanitisation stays in ai-markdown.
         void importModule('./ai-markdown.js?v=1').catch(error=>warn('[Kairos] Markdown unavailable; using plain text.',error));
-        await importModule('./ai-workspace.js?v=43');
+        await importModule('./ai-workspace.js?v=44');
         await waitForChat();
       }
       if(page==='statistics-page') {
@@ -43,10 +43,10 @@ export function createPageLoader({importModule=url=>import(url),loadStyle=loadPa
       }
       if(page==='schedule-page'&&scheduleEnabled) {
         await Promise.all(scheduleStyles.map(name=>loadStyle(name+(name==='schedule-ai.css'?'?v=11':name==='planning-hub.css'?'?v=3':name==='assignment-progress.css'?'?v=2':name==='schedule-day-change.css'?'?v=1':name==='schedule-interactions.css'?'?v=11':'?v=10'))));
-        await importModule('./schedule-workspace.js?v=12');
+        await importModule('./schedule-workspace.js?v=13');
         // These modules inspect the workspace during boot. Preserve that order
         // even when network responses arrive out of order.
-        for(const name of scheduleModules)await importModule('./'+name+(name==='planning-hub.js'?'?v=13':name==='schedule-interactions.js'?'?v=14':name==='schedule-inspector.js'?'?v=18':name==='schedule-ai.js'?'?v=13':'?v=11'));
+        for(const name of scheduleModules)await importModule('./'+name+(name==='planning-hub.js'?'?v=14':name==='schedule-interactions.js'?'?v=15':name==='schedule-inspector.js'?'?v=19':name==='schedule-ai.js'?'?v=14':name==='schedule-task-create.js'?'?v=12':'?v=11'));
       }
     })();
     loaded.set(page,task);

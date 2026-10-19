@@ -1,9 +1,9 @@
-import {combinedPlanning} from './combined-planning.js?v=4';
-import {applyPlanningCommand} from './planning-commands.js?v=8';
-import {planningGapMinutes,planningDailyLimit,planningGapText,planningDailyLimitText} from './planning-slots.js?v=3';
+import {combinedPlanning} from './combined-planning.js?v=5';
+import {applyPlanningCommand} from './planning-commands.js?v=9';
+import {planningGapMinutes,planningDailyLimit,planningGapText,planningDailyLimitText} from './planning-slots.js?v=4';
 import {normaliseWeeklyAvailability,weeklyAvailabilityText} from './weekly-availability.js';
 import {parseTime,formatTime} from './schedule-utils.js';
-import {zonedTaskStart} from './task-reminders.js';
+import {zonedTaskStart} from './task-reminders.js?v=3';
 
 export function planningReportText(value,max=400){return [...String(value).replace(/\s+/g,' ').slice(0,max)].map(ch=>'&<>[]`*_\\'.includes(ch)?'&#'+ch.charCodeAt(0)+';':ch).join('')}
 const fits=g=>['fits','fixed'].includes(g.status);

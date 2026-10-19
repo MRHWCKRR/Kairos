@@ -1,12 +1,12 @@
-import {bindTaskFocus} from './task-focus.js?v=2';
-import {bindDeadlineImpact} from './deadline-impact.js?v=2';
+import {bindTaskFocus} from './task-focus.js?v=3';
+import {bindDeadlineImpact} from './deadline-impact.js?v=3';
 import {stableStringify} from './plan-merge.js';
-import {taskDetailValues,TASK_DETAIL_FIELDS,applyTaskListCommand} from './task-list-model.js?v=9';
-import {recurrenceFieldsMarkup,bindRecurrenceFields,readRecurrenceFields} from './schedule-recurrence-ui.js';
+import {taskDetailValues,TASK_DETAIL_FIELDS,applyTaskListCommand} from './task-list-model.js?v=10';
+import {recurrenceFieldsMarkup,bindRecurrenceFields,readRecurrenceFields} from './schedule-recurrence-ui.js?v=11';
 import {t} from './i18n.js';
-import {assignmentProgressIndex,assignmentProgressMarkup,refreshAssignmentProgress} from './assignment-progress.js?v=3';
-import {planningClock} from './planning-model.js';
-import {mountTaskChecklistEditor} from './task-checklist-editor.js?v=4';
+import {assignmentProgressIndex,assignmentProgressMarkup,refreshAssignmentProgress} from './assignment-progress.js?v=4';
+import {planningClock} from './planning-model.js?v=1';
+import {mountTaskChecklistEditor} from './task-checklist-editor.js?v=5';
 
 const esc=value=>String(value??'').replace(/[&<>'"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[ch]));
 export function mountTaskDetailPane({root,resolveTarget,commit,getOwnerId,getPlanId=()=>null,getState=()=>({boards:[]}),getToday=()=>planningClock(Date.now(),Intl.DateTimeFormat().resolvedOptions().timeZone).date,onClose=()=>{},openSchedule,onStartFocus,document=globalThis.document,window=globalThis.window}){
@@ -146,7 +146,7 @@ export function mountTaskDetailPane({root,resolveTarget,commit,getOwnerId,getPla
         bindRecurrenceFields(form,{fallbackDate:found.task.date||values.recurrence?.startDate||null});
         checklistEditor=mountTaskChecklistEditor({root:panel.querySelector('.task-checklist'),isActive:()=>activePage()&&owner===getOwnerId()&&planId===getPlanId(),items:pending?.command?.changes?.checklist||values.checklist||[],canToggle:!!target.occurrenceDate||!values.recurrence?.enabled,hint:copy(values.recurrence?.enabled&&!target.occurrenceDate?'template_hint':target.occurrenceDate?'occurrence_hint':'checklist_hint'),copy,onStatus:status,onChange:()=>status(copy('unsaved')),document,window});
         deadlineImpactView?.dispose();deadlineImpactView=bindDeadlineImpact({root:panel,taskId:target.taskId,getState,isBlocked:()=>busy||!!pending,onReview:async id=>{if(!openSchedule)return;const actor=owner,actorPlan=planId;if(await requestClose()&&getOwnerId()===actor&&getPlanId()===actorPlan)await openSchedule({taskId:id,reviewDeadline:true})}});
-        taskFocusView?.dispose();taskFocusView=bindTaskFocus({root:panel,taskId:target.taskId,getState,isBlocked:()=>busy||!!pending,onStart:id=>onStartFocus?.(id)});
+        taskFocusView?.dispose();taskFocusView=bindTaskFocus({root:panel,taskId:target.taskId,occurrenceDate:target.occurrenceDate,getState,isBlocked:()=>busy||!!pending,onStart:(id,date)=>onStartFocus?.(id,date)});
         displayBaseline=read();
         if(pending){for(const [name,value] of Object.entries(pending.command.changes)){const el=field(name);if(el){if(el.type==='checkbox')el.checked=value===true;else el.value=value??''}}status(copy('uncertain'),true)}
         updatePropertySummaries();

@@ -1,5 +1,5 @@
 import { applyResize, applyScheduledMove, clearScheduledFields, snapMinutes, formatTime, parseTime, taskDurationMinutes, preserveScheduledDuration, blockGeometry } from './schedule-utils.js';
-import { generateTaskOccurrences, applyOccurrenceOverride } from './recurrence-utils.js';
+import { generateTaskOccurrences, applyOccurrenceOverride } from './recurrence-utils.js?v=12';
 
 const DAY_MINUTES=1440;
 const HOUR_HEIGHT=56;

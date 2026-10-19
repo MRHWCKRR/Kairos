@@ -1,6 +1,6 @@
-import {planningTasks,planningOccurrences,validPlanningDate,shiftPlanningDate} from './planning-model.js';
+import {planningTasks,planningOccurrences,validPlanningDate,shiftPlanningDate} from './planning-model.js?v=1';
 import {parseTime,formatTime,taskDurationMinutes} from './schedule-utils.js';
-import {zonedTaskStart} from './task-reminders.js';
+import {zonedTaskStart} from './task-reminders.js?v=3';
 import {normaliseWeeklyAvailability} from './weekly-availability.js';
 
 export function validatePlanningRange(from,to){

@@ -1,4 +1,4 @@
-import { formatRecurrenceSummary, nextOccurrenceDate } from './recurrence-utils.js';
+import { formatRecurrenceSummary, nextOccurrenceDate } from './recurrence-utils.js?v=12';
 
 const bridge=()=>window.__kairosScheduleBridge;
 const workspace=()=>window.__kairosScheduleWorkspace;

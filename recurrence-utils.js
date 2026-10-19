@@ -68,6 +68,9 @@ export function generateTaskOccurrences(task,rangeStart,rangeEnd,options={}){
     const exception=rule.exceptions?.[occurrenceDate]&&typeof rule.exceptions[occurrenceDate]==='object'?rule.exceptions[occurrenceDate]:null,override=exception?.override&&typeof exception.override==='object'?exception.override:{},effectiveTask={...task,...override,recurrence:task.recurrence},displayDate=validDateKey(override.date)?override.date:occurrenceDate,status=['completed','skipped','deleted'].includes(exception?.status)?exception.status:'pending',duration=override.durationMinutes?Math.max(1,Math.round(Number(override.durationMinutes))):taskDuration(effectiveTask);
     if(Array.isArray(override.checklist))effectiveTask.checklist=structuredClone(override.checklist);
     else if(Array.isArray(task.checklist))effectiveTask.checklist=task.checklist.map(item=>({...item,completed:false}));
+    // Focus belongs to the logical occurrence, never to inherited template data.
+    effectiveTask.focusLoggedSeconds=Number.isSafeInteger(exception?.focusLoggedSeconds)&&exception.focusLoggedSeconds>=0?exception.focusLoggedSeconds:0;
+    if(Number.isInteger(exception?.remainingMinutes)&&exception.remainingMinutes>=1&&exception.remainingMinutes<=1440)effectiveTask.remainingMinutes=exception.remainingMinutes;else delete effectiveTask.remainingMinutes;
     let startTime=null,endTime=null;
     if(rule.mode==='fixed'){startTime=effectiveTask.startTime||null;endTime=effectiveTask.endTime||null;const start=parseMinutes(startTime);if(start!==null&&(!endTime||parseMinutes(endTime)===null))endTime=formatMinutes(start+duration)}
     else if(Object.prototype.hasOwnProperty.call(override,'startTime')){startTime=override.startTime||null;endTime=override.endTime||null;const start=parseMinutes(startTime);if(start!==null&&(!endTime||parseMinutes(endTime)===null))endTime=formatMinutes(start+duration)}
@@ -124,9 +127,13 @@ export function applyOccurrenceOverride(task,occurrenceDate,changes={}){
 export function splitRecurringSeries(task,occurrenceDate,edits={},newTaskId){
   const originalTask=structuredClone(task),baseRule=normalizeRecurrence(originalTask,originalTask?.date||occurrenceDate),historical={};
   for(const [key,value] of Object.entries(baseRule.exceptions||{}))if(key<occurrenceDate)historical[key]=structuredClone(value);
+  // Keep the original identity's time ledger available to history corrections.
+  // The new series starts with fresh occurrences and receives no copied time.
+  for(const [key,value] of Object.entries(baseRule.exceptions||{}))if(key>=occurrenceDate&&Object.hasOwn(value||{},'focusLoggedSeconds'))historical[key]={focusLoggedSeconds:value.focusLoggedSeconds};
   originalTask.recurrence={...baseRule,endType:'date',endDate:addDays(occurrenceDate,-1),count:null,exceptions:historical};
   const recurrenceEdits=edits?.recurrence&&typeof edits.recurrence==='object'?edits.recurrence:{},taskEdits={...edits};delete taskEdits.recurrence;
   const newTask={...structuredClone(task),...structuredClone(taskEdits),id:newTaskId,completed:false};
+  delete newTask.focusLoggedSeconds;delete newTask.remainingMinutes;
   newTask.recurrence=normalizeRecurrence({...baseRule,...recurrenceEdits,enabled:true,startDate:occurrenceDate,exceptions:{},endType:recurrenceEdits.endType||baseRule.endType,endDate:recurrenceEdits.endType==='date'?recurrenceEdits.endDate:baseRule.endType==='date'?baseRule.endDate:null,count:recurrenceEdits.endType==='count'?recurrenceEdits.count:baseRule.endType==='count'?baseRule.count:null},occurrenceDate);
   if(newTask.recurrence.endType==='date'&&newTask.recurrence.endDate&&newTask.recurrence.endDate<occurrenceDate){newTask.recurrence.endType='never';newTask.recurrence.endDate=null}
   return {originalTask,newTask};

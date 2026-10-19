@@ -1,12 +1,12 @@
-import {taskRemainingMinutes} from './remaining-work.js?v=1';
-import {capturePlanningUndo} from './planning-undo.js?v=2';
+import {taskRemainingMinutes} from './remaining-work.js?v=2';
+import {capturePlanningUndo} from './planning-undo.js?v=3';
 import {normaliseWeeklyAvailability} from './weekly-availability.js';
-import {planningTasks,planningClock,validPlanningDate} from './planning-model.js';
-import {findPlanningSlot,planningAvailability,planningWindows,planningBlockValid,planningPlacementOccupancy,planningIntervalsConflict,planningDailyWork,planningDailyRemaining,addPlanningDailyWork,planningDailyLimitText} from './planning-slots.js?v=3';
+import {planningTasks,planningClock,validPlanningDate} from './planning-model.js?v=1';
+import {findPlanningSlot,planningAvailability,planningWindows,planningBlockValid,planningPlacementOccupancy,planningIntervalsConflict,planningDailyWork,planningDailyRemaining,addPlanningDailyWork,planningDailyLimitText} from './planning-slots.js?v=4';
 import {parseTime,taskDurationMinutes} from './schedule-utils.js';
-import {zonedTaskStart} from './task-reminders.js';
+import {zonedTaskStart} from './task-reminders.js?v=3';
 import {stableStringify} from './plan-merge.js';
-import {orderedSessionGroup,orderedPlacementClock,clockAfterSession,expandOrderedTaskIds,assertAssignmentOrder,validateAssignmentOrderChanges} from './assignment-order.js';
+import {orderedSessionGroup,orderedPlacementClock,clockAfterSession,expandOrderedTaskIds,assertAssignmentOrder,validateAssignmentOrderChanges} from './assignment-order.js?v=1';
 
 const allTasks=state=>(state.boards||[]).flatMap(board=>(board.sections||[]).flatMap(section=>section.tasks||[]));
 function locate(state,id){const entries=planningTasks(state).filter(entry=>entry.task.id===id);if(entries.length!==1||allTasks(state).filter(task=>task.id===id).length!==1)throw Error('A task is missing, archived, or has duplicate IDs.');return entries[0]}

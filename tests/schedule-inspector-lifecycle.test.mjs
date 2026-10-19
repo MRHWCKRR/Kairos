@@ -30,8 +30,8 @@ async function fixture({recurring=false,storage=new Map()}={}){
  if(recurring)task.recurrence=recurrence.normalizeRecurrence({enabled:true,frequency:'daily',interval:1,startDate:date,mode:'fixed'});
  boards[0].sections.push({id:'dest',title:'Destination',tasks:[]});
  boards.push({id:'other-board',title:'Other board',sections:[{id:'other-section',title:'Other section',tasks:[]}]});
- let owner='one',plan='plan',saves=[],reviews=[];window.__kairosPlanningHub={openAssignmentReview:(id,actor)=>reviews.push({id,actor})};
- const bridge={getBoards:()=>boards,getOwnerId:()=>owner,getPlanId:()=>plan,getTimeFormat:()=> '24',getScheduleEvents:()=>[],persistPlan:()=>new Promise((resolve,reject)=>saves.push({resolve,reject})),refreshAppViews(){}};
+ let owner='one',plan='plan',saves=[],reviews=[],focusTargets=[];window.__kairosPlanningHub={openAssignmentReview:(id,actor)=>reviews.push({id,actor})};
+ const bridge={startTaskFocus:(id,occurrenceDate)=>focusTargets.push({id,occurrenceDate}),getBoards:()=>boards,getOwnerId:()=>owner,getPlanId:()=>plan,getTimeFormat:()=> '24',getScheduleEvents:()=>[],persistPlan:()=>new Promise((resolve,reject)=>saves.push({resolve,reject})),refreshAppViews(){}};
  window.__kairosScheduleBridge=bridge;window.__kairosScheduleInspectorBooted=false;window.__kairosScheduleWorkspace=null;
  window.sessionStorage={getItem:key=>storage.get(key)||null,setItem:(key,value)=>storage.set(key,value),removeItem:key=>storage.delete(key)};
  let sessionModule={};try{sessionModule=await import('../schedule-inspector-session.js')}catch(error){if(error.code!=='ERR_MODULE_NOT_FOUND')throw error}
@@ -51,7 +51,7 @@ async function fixture({recurring=false,storage=new Map()}={}){
  const field=name=>document.querySelector('#schedule-inspector [name="'+name+'"]');
  const type=(name,value)=>{const el=field(name);el.value=value;el.dispatchEvent(new window.Event('input',{bubbles:true}))};
  const submit=()=>document.querySelector('#schedule-inspector form').dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true}));
- return {document,window,ws,task,other,boards,saves,reviews,field,type,submit,selectTask,storage,setOwner:v=>owner=v,setPlan:v=>plan=v};
+ return {document,window,ws,task,other,boards,saves,reviews,focusTargets,field,type,submit,selectTask,storage,setOwner:v=>owner=v,setPlan:v=>plan=v};
 }
 
 test('Schedule permits only one inspector save while persistence is pending',async()=>{
@@ -148,3 +148,5 @@ test('recovered move fields rebuild sections for the restored destination board'
 });
 
 test('Schedule deadline impact waits for confirmed save, handles failure and uses the existing dirty guard',async()=>{const f=await fixture();f.task.dueDate='2099-01-05';f.boards[0].sections[0].tasks.push({id:'linked',assignmentId:'t',title:'Draft',date:'2099-01-04',startTime:'09:00',endTime:'10:00'});await f.ws.clearSelection();await f.selectTask('t');f.type('dueDate','2099-01-03');assert.match(f.document.querySelector('[data-deadline-impact]').textContent,/1 unfinished session/);assert.equal(f.document.querySelector('[data-deadline-review]'),null);f.submit();await tick();assert.equal(f.reviews.length,0);f.saves[0].reject(Error('Offline'));await tick();assert.equal(f.document.querySelector('[data-deadline-review]'),null);assert.equal(f.task.dueDate,'2099-01-05');f.submit();await tick();f.saves[1].resolve();await tick();assert.ok(f.document.querySelector('[data-deadline-review]'));f.type('notes','Keep notes');f.document.querySelector('[data-deadline-review]').click();await tick();f.document.querySelector('[data-schedule-draft-choice="stay"]').click();await tick();assert.equal(f.reviews.length,0);assert.equal(f.field('notes').value,'Keep notes');f.document.querySelector('[data-deadline-review]').click();await tick();f.document.querySelector('[data-schedule-draft-choice="save"]').click();await tick();f.saves[2].resolve();await tick();await tick();assert.equal(f.reviews[0].id,'t');assert.equal(f.reviews[0].actor.ownerId,'one');assert.equal(f.ws.state.selected.type,null);assert.equal(f.task.notes,'Keep notes')});
+
+test('recurring occurrence view starts focus with its logical date and refreshes logged seconds',async()=>{const f=await fixture({recurring:true});f.document.querySelector('[data-occurrence-cancel]').click();await tick();await tick();const button=f.document.querySelector('[data-task-focus-start]');assert.ok(button);button.click();const date=utils.toDateKey(new Date());assert.deepEqual(f.focusTargets,[{id:'t',occurrenceDate:date}]);f.task.recurrence.exceptions[date]={focusLoggedSeconds:60};f.ws.render();await tick();assert.match(f.document.querySelector('[data-task-focus]').textContent,/Logged: 1 min/);assert.equal(f.saves.length,0)});

@@ -1,4 +1,4 @@
-import { generateTaskOccurrences } from './recurrence-utils.js';
+import { generateTaskOccurrences } from './recurrence-utils.js?v=12';
 
 export function validReminderMinutes(value) {
     return Number.isInteger(value) && value >= 1 && value <= 10080;
