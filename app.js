@@ -1499,7 +1499,12 @@ function bootApp() {
     function openAiDestinationModal() {
         if (!aiDestinationModal) return;
         if (aiDestinationExistingSelect) {
-            aiDestinationExistingSelect.innerHTML = boardsData.map(b => `<option value="${b.id}">${b.title}</option>`).join('');
+            aiDestinationExistingSelect.replaceChildren(...boardsData.map(b => {
+                const option = document.createElement('option');
+                option.value = b.id;
+                option.textContent = b.title;
+                return option;
+            }));
         }
         const hasExisting = boardsData.length > 0;
         const newRadio = aiDestinationModal.querySelector('input[name="ai-destination"][value="new"]');
@@ -1513,9 +1518,11 @@ function bootApp() {
         const recurringList = document.getElementById('ai-destination-recurring-list');
         if (recurringPreview && recurringList) {
             if (pendingAiRecurringEvents.length) {
-                recurringList.innerHTML = pendingAiRecurringEvents.map(ev => {
-                    const cat = SCHEDULE_CATEGORIES[ev.category] || SCHEDULE_CATEGORIES.other;
-                    return `<li>${ev.title} — ${getScheduleDayLabels()[ev.day]}, ${scheduleMinutesToLabel(scheduleTimeToMinutes(ev.start))}–${scheduleMinutesToLabel(scheduleTimeToMinutes(ev.end))} (${tr('cat_' + ev.category)})</li>`;                }).join('');
+                recurringList.replaceChildren(...pendingAiRecurringEvents.map(ev => {
+                    const item = document.createElement('li');
+                    item.textContent = `${ev.title} — ${getScheduleDayLabels()[ev.day]}, ${scheduleMinutesToLabel(scheduleTimeToMinutes(ev.start))}–${scheduleMinutesToLabel(scheduleTimeToMinutes(ev.end))} (${tr('cat_' + ev.category)})`;
+                    return item;
+                }));
                 recurringPreview.style.display = 'block';
             } else {
                 recurringPreview.style.display = 'none';
