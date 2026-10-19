@@ -1,5 +1,6 @@
-import {mountFocusTimer} from './focus-timer.js?v=1';
-import {persistFocusLog} from './focus-store.js?v=1';
+import {mountFocusTimer} from './focus-timer.js?v=2';
+import {persistFocusLog,persistFocusCorrection,loadFocusHistory} from './focus-store.js?v=2';
+import {mountFocusHistory} from './focus-history.js?v=1';
 import {taskFocusTarget} from './task-focus.js?v=1';
 import {normalisePlanningPreferences} from './planning-preferences.js?v=1';
 import {mountPlanningPreferencesEditor} from './planning-preferences-editor.js?v=1';
@@ -419,7 +420,7 @@ function bootApp() {
     let focusData = defaultFocusData();
     let statsRange = 'week';
     let statisticsRenderedDate = null;
-    let focusTimerController = null;
+    let focusTimerController = null, focusHistoryController = null;
 
     let appReady = false; // guards against calling render functions before they're defined below
     const pageRenders = createPageRenderCache({
@@ -485,6 +486,7 @@ function bootApp() {
 
     onAuthStateChanged(auth, async (user) => {
         focusTimerController?.sync();
+        focusHistoryController?.sync();
         gettingStarted?.sync();
         taskMenus?.sync();taskShortcuts?.sync();
         taskInteractions?.sync();
@@ -3691,17 +3693,18 @@ function bootApp() {
 
     function renderFocusTimerWidget() {
         if(!focusTimerController){focusTimerController=mountFocusTimer({getIdentity:()=>({ownerId:auth.currentUser?.uid||null,planId:currentPlanDocId}),persist:commitFocusTime,getLongestSeconds:()=>focusData.longestSessionSeconds,confirmDiscard:()=>confirmAction('Discard this unlogged focus session?')});window.__kairosFocusTimer=focusTimerController}
-        focusTimerController.sync();
+        if(!focusHistoryController)focusHistoryController=mountFocusHistory({getIdentity:()=>({ownerId:auth.currentUser?.uid||null,planId:currentPlanDocId}),load:loadFocusHistory,persist:entry=>commitFocusTime(entry,true),confirmRemove:()=>confirmDialog('Remove this focus log? Its time will be subtracted; task completion stays unchanged.',{destructive:true,confirmText:'Remove'})});
+        focusHistoryController.sync();focusTimerController.sync();
     }
     async function startTaskFocus(taskId){
         const target=taskFocusTarget({boards:boardsData},taskId);if(!target||!auth.currentUser)return false;
         renderFocusTimerWidget();const owner=auth.currentUser.uid,started=await focusTimerController.start(target);if(!started&&!focusTimerController.getState()&&auth.currentUser?.uid===owner)showNotice(focusTimerController.getMessage()||'Could not start the focus timer. Try again.');return started;
     }
-    async function commitFocusTime(entry){
+    async function commitFocusTime(entry,correction=false){
         const uid=auth.currentUser?.uid;if(uid!==entry.ownerId||entry.planId&&entry.planId!==currentPlanDocId)throw Error('The signed-in account or planner changed.');
         const work=planSaveQueue.catch(()=>{}).then(async()=>{
             if(auth.currentUser?.uid!==uid||entry.planId&&entry.planId!==currentPlanDocId)throw Error('The signed-in account or planner changed.');
-            const before=planState({boards:boardsData,dayInsights,scheduleEvents:scheduleData}),result=await persistFocusLog(entry.planId,uid,entry);
+            const before=planState({boards:boardsData,dayInsights,scheduleEvents:scheduleData}),result=await (correction?persistFocusCorrection:persistFocusLog)(entry.planId,uid,entry);
             if(auth.currentUser?.uid!==uid||entry.planId&&entry.planId!==currentPlanDocId)throw Error('The signed-in account or planner changed.');
             if(entry.planId){const snapshot=await getDoc(doc(db,'study_plans',entry.planId));if(auth.currentUser?.uid!==uid||currentPlanDocId!==entry.planId)throw Error('The signed-in account or planner changed.');if(snapshot.exists()&&snapshot.data().userID===uid){const saved=planState(snapshot.data()),live=planState({boards:boardsData,dayInsights,scheduleEvents:scheduleData}),rebased=mergePlanEdits(before,live,saved);boardsData=rebased.boards;dayInsights=rebased.dayInsights;scheduleData=rebased.scheduleEvents;invalidateKairosContext({ownerId:uid,planId:entry.planId,before:planSnapshot,after:saved});planSnapshot=saved;}}
             focusData=deepMerge(defaultFocusData(),result.focusData||{});if(result.completedTaskIds?.length)recordTaskListCompletion({type:'complete_task',value:true},result);
