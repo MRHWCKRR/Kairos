@@ -1,3 +1,4 @@
+import {savedPlanningPreferences,planningPreferencesText} from '../planning-preferences.js';
 import {savedWeeklyAvailability} from '../weekly-availability.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -12,14 +13,15 @@ async function fixture() {
     {id:'task-1',title:'Revision',date:'2026-10-14',startTime:'13:00',endTime:'15:00',scheduleLocked:true,recurrence:{enabled:true}},
     {id:'task-2',title:'Revision',completed:true}
   ]}]}],scheduleEvents:[{id:'event-1',title:'School',day:3,start:'08:00',end:'15:00'}]};
-  const context=vm.createContext({savedWeeklyAvailability,aiPlanningSummary,resolveAiPlanningTimezone,ACTION_INSTRUCTIONS,console,auth:{currentUser:{uid:'one'}},db:{},
+  const userData={settings:{profile:{timezone:'Australia/Brisbane'}}};
+  const context=vm.createContext({savedPlanningPreferences,planningPreferencesText,savedWeeklyAvailability,aiPlanningSummary,resolveAiPlanningTimezone,ACTION_INSTRUCTIONS,console,auth:{currentUser:{uid:'one'}},db:{},
     localStorage:{getItem:()=>null},doc:()=>({}),collection:()=>({}),query:x=>x,where:()=>({}),
-    getDoc:async()=>({exists:()=>true,data:()=>({settings:{profile:{timezone:'Australia/Brisbane'}}})}),
+    getDoc:async()=>({exists:()=>true,data:()=>structuredClone(userData)}),
     getDocs:async()=>({docs:[{id:'plan-1',data:()=>structuredClone(plan)}]}),
     window:{addEventListener:(name,fn)=>events[name]=fn}});
   const source=await readFile(new URL('../ai-context.js',import.meta.url),'utf8');
   vm.runInContext(source.replace(/^import[^\n]*\n/gm,'').replace(/^export /gm,''),context);
-  return {context,plan,events};
+  return {context,plan,events,userData};
 }
 
 test('AI context includes stable targets, schedule times, locks and recurrence',async()=>{
@@ -193,4 +195,9 @@ test('monthly and yearly date-rule edits remain visible in confirmed history',as
     assert.ok(history.includes(JSON.stringify(field)+':'+JSON.stringify(oldValue)),field+' before');
     assert.ok(history.includes(JSON.stringify(field)+':'+JSON.stringify(newValue)),field+' after');
   }
+});
+
+
+test('fresh AI context capacity assumptions follow saved planning defaults after invalidation',async()=>{
+ const {context,userData}=await fixture();userData.settings.planning={dailyLimitMinutes:120,gapMinutes:10};let data=await context.loadContextData(context.auth.currentUser);assert.equal(data.planning.capacityAssumptions.dailyLimitMinutes,120);assert.equal(data.planning.capacityAssumptions.gapMinutes,10);userData.settings.planning={dailyLimitMinutes:60,gapMinutes:0};context.invalidateKairosContext();data=await context.loadContextData(context.auth.currentUser);assert.equal(data.planning.capacityAssumptions.dailyLimitMinutes,60);assert.equal(data.planning.capacityAssumptions.gapMinutes,0);
 });

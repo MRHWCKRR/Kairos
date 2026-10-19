@@ -6,3 +6,7 @@
 .weekly-availability-window button{min-height:38px}
 #weekly-availability-editor :focus-visible{outline:2px solid var(--accent-glow,#a855f7);outline-offset:3px}
 #weekly-availability-editor .settings-hint{line-height:1.5}
+
+#planning-preferences-editor{display:grid;gap:10px;max-width:560px}
+#planning-preferences-editor label{display:grid;gap:6px}
+#planning-preferences-editor :focus-visible{outline:2px solid var(--accent-glow,#a855f7);outline-offset:3px}

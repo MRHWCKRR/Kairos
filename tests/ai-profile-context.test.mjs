@@ -1,3 +1,4 @@
+import {savedPlanningPreferences,planningPreferencesText} from '../planning-preferences.js';
 import {savedWeeklyAvailability} from '../weekly-availability.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -23,7 +24,7 @@ function fixture({ owner = 'one', name = 'Local name', cloudName = 'Cloud name' 
   ]);
   const auth = { currentUser: { uid: 'one', displayName: 'Auth name' } };
   let reads = 0;
-  const context = vm.createContext({savedWeeklyAvailability, aiPlanningSummary,resolveAiPlanningTimezone,ACTION_INSTRUCTIONS,auth, db: {}, console,
+  const context = vm.createContext({savedPlanningPreferences,planningPreferencesText,savedWeeklyAvailability, aiPlanningSummary,resolveAiPlanningTimezone,ACTION_INSTRUCTIONS,auth, db: {}, console,
     localStorage: { getItem: key => storage.get(key) ?? null },
     doc: (...args) => args, collection: (...args) => args, query: (...args) => args, where: (...args) => args,
     getDoc: async () => { reads++; return { exists: () => true, data: () => ({ settings: { profile: { displayName: cloudName } } }) }; },
@@ -82,7 +83,7 @@ test('settings loading binds its cache to the account and invalidates AI context
   for (const owner of ['one', 'other']) for(const offline of [false,true]) {
     const storage = new Map([['kairos_settings_cache_uid', owner], ['kairos_settings_cache', JSON.stringify({ profile: { displayName: 'Saved name' } })]]);
     let invalidated = 0;
-    const context = vm.createContext({ db: {}, console: {error(){}}, document: { dispatchEvent() {} }, Event, structuredClone,createSettingsRecovery,
+    const context = vm.createContext({savedPlanningPreferences,planningPreferencesText, db: {}, console: {error(){}}, document: { dispatchEvent() {} }, Event, structuredClone,createSettingsRecovery,
       auth:{currentUser:{uid:'one'}},updateSaveBarVisibility(){},
       localStorage: { getItem: key => storage.get(key), setItem: (key, value) => storage.set(key, value) },
       doc: (...args) => args, getDoc: async () => {if(offline)throw Error('Offline');return { exists: () => false };},

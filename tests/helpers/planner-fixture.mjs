@@ -1,3 +1,4 @@
+import {savedPlanningPreferences,planningPreferencesText} from '../../planning-preferences.js';
 import {assertScheduleAvailability} from '../../schedule-planning-availability.js';
 import {savedWeeklyAvailability,assertSavedAvailability} from '../../weekly-availability.js';
 import {planningConflicts,planningGapText,planningDailyLimitText} from '../../planning-slots.js';
@@ -12,7 +13,7 @@ import {applyPlanningCommand} from '../../planning-commands.js';
 
 export async function plannerFixture(data, {failAfterCommit=false,retryTransaction=false,userData={}}={}) {
   let stored=structuredClone(data), userStored=structuredClone(userData), writes=[], events=0, fail=failAfterCommit;
-  const context=vm.createContext({assertScheduleAvailability,savedWeeklyAvailability,assertSavedAvailability,applyTaskListCommand,validateAssignmentOrderChanges,structuredClone,console,Date,Intl,previewAiPlanning,aiPlanningSummary,resolveAiPlanningTimezone,planningConflicts,planningGapText,planningDailyLimitText,applyPlanningCommand,mergePlanEdits,planState,stableStringify,taskDurationMinutes,taskListFingerprint,
+  const context=vm.createContext({savedPlanningPreferences,planningPreferencesText,assertScheduleAvailability,savedWeeklyAvailability,assertSavedAvailability,applyTaskListCommand,validateAssignmentOrderChanges,structuredClone,console,Date,Intl,previewAiPlanning,aiPlanningSummary,resolveAiPlanningTimezone,planningConflicts,planningGapText,planningDailyLimitText,applyPlanningCommand,mergePlanEdits,planState,stableStringify,taskDurationMinutes,taskListFingerprint,
     auth:{currentUser:{uid:'one'}},db:{},collection:()=>({}),query:x=>x,where:()=>({}),doc:(...args)=>args,
     serverTimestamp:()=>({seconds:1}),getDoc:async ref=>({exists:()=>!!stored,data:()=>structuredClone(ref?.[1]==='users'?userStored:stored)}),
     getDocs:async()=>({docs:stored?[{id:'plan',data:()=>structuredClone(stored)}]:[]}),

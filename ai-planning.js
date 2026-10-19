@@ -1,3 +1,4 @@
+import {resolvePlanningPreferences} from './planning-preferences.js?v=1';
 import {planningDefaults,weeklyAvailabilityText} from './weekly-availability.js';
 import {combinedPlanning} from './combined-planning.js?v=2';
 import {assignmentFeasibility,feasibilityAssignments,FEASIBILITY_LIMIT} from './deadline-feasibility.js?v=4';
@@ -15,18 +16,18 @@ export function resolveAiPlanningTimezone(userData,ownerId,storage=globalThis.lo
  return timezone;
 }
 
-export function aiPlanningSummary(state,{timezone='UTC',now=Date.now(),weeklyAvailability=null}={}) {
+export function aiPlanningSummary(state,{timezone='UTC',now=Date.now(),weeklyAvailability=null,planningPreferences={}}={}) {
  const today=planningClock(now,timezone).date,deadlines=deadlineSummary(state,today).filter(item=>item.dueDate),review=weeklyReview(state,today,today);
  const parents=feasibilityAssignments(state);
- const capacityAssumptions={...planningDefaults(weeklyAvailability),gapMinutes:0,dailyLimitMinutes:0,meaning:'Each assignment is checked separately within 31 days against current commitments; assignments may compete for the same time. Free minutes are an upper bound; fits requires a complete validated plan. Planned effort is not a completion prediction. A fits result may require reviewed rescheduling; no changes are saved. For shared capacity across selected assignments, use plan_assignments with checkOnly:true; never add separate fits results.'};
+ const capacityAssumptions={...planningDefaults(weeklyAvailability),...resolvePlanningPreferences(planningPreferences),meaning:'Each assignment is checked separately within 31 days against current commitments; assignments may compete for the same time. Free minutes are an upper bound; fits requires a complete validated plan. Planned effort is not a completion prediction. A fits result may require reviewed rescheduling; no changes are saved. For shared capacity across selected assignments, use plan_assignments with checkOnly:true; never add separate fits results.'};
  const spacingCache=new Map();const feasibility=parents.slice(0,FEASIBILITY_LIMIT).map(task=>assignmentFeasibility(state,task.id,{...capacityAssumptions,timezone},planningClock(now,timezone),spacingCache));
  const readiness=assignmentReadiness(state);return {assignmentFeasibility:feasibility.map(row=>({...row,title:row.title.slice(0,180),reason:row.reason.slice(0,400)})),assignmentFeasibilityOmitted:Math.max(0,parents.length-FEASIBILITY_LIMIT),capacityAssumptions,orderedSessionReadiness:[...readiness].slice(0,80).map(([taskId,value])=>({taskId,...value})),orderedReadinessOmitted:Math.max(0,readiness.size-80),timezone,today,deadlineCount:deadlines.length,deadlines:deadlines.slice(0,30).map(item=>({taskId:item.task.id,title:String(item.task.title||'').slice(0,180),dueDate:item.dueDate,status:item.status,scheduledAfterDeadline:item.afterDeadline})),deadlinesOmitted:Math.max(0,deadlines.length-30),week:{from:review.from,to:review.to,completed:review.completed.length,pending:review.pending.length,slipped:review.slipped.length,meaning:'Current status of work dated in this week, including recurring occurrences; not historical completion dates.'},conflicts:planningConflicts(state,review.from,review.to).length};
 }
 
 // The model supplies intent only. IDs, occupancy, and exact placements come
 // from the current planner and the same commands used by Schedule > Planning.
-export function previewAiPlanning(state,action,{timezone='UTC',now=Date.now(),weeklyAvailability=null}={}) {
- const args=action.args,clock=planningClock(now,timezone),input={...args,...planningDefaults(weeklyAvailability,args),timezone};
+export function previewAiPlanning(state,action,{timezone='UTC',now=Date.now(),weeklyAvailability=null,planningPreferences={}}={}) {
+ const args=action.args,clock=planningClock(now,timezone),input={...args,...planningDefaults(weeklyAvailability,args),...resolvePlanningPreferences(planningPreferences,args),timezone};
  if(action.type==='plan_assignments') {
   const r=combinedPlanning(state,input,clock),capacity={remainingMinutes:r.remainingMinutes,movableMinutes:r.movableMinutes,availableMinutes:r.availableMinutes,shortfallMinutes:r.shortfallMinutes,assignments:r.assignments.map(a=>({...a,title:a.title.slice(0,180),reason:a.reason.slice(0,400)}))};
   const totals='Shared capacity: '+capacity.remainingMinutes+' minutes remaining; up to '+capacity.availableMinutes+' free minutes for '+capacity.movableMinutes+' movable minutes in eligible assignments.'+(capacity.shortfallMinutes?' At least '+capacity.shortfallMinutes+' minutes short.':'')+' Free time is an upper bound before deadlines, preferences, fragmented gaps, spacing, and timezone transitions.';

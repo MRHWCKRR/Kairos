@@ -1,3 +1,5 @@
+import {normalisePlanningPreferences} from './planning-preferences.js?v=1';
+import {mountPlanningPreferencesEditor} from './planning-preferences-editor.js?v=1';
 import {normaliseWeeklyAvailability} from './weekly-availability.js';
 import {mountWeeklyAvailabilityEditor} from './weekly-availability-editor.js';
 import { showNotice, confirmDialog, promptDialog } from './ui-dialogs.js?v=1';
@@ -6,7 +8,7 @@ import { requestBilling } from './billing-client.js';
 import { mountPlanUsage } from './plan-usage.js?v=3';
 import {assignmentProgressIndex,assignmentProgressMarkup} from './assignment-progress.js?v=2';
 import {planningClock} from './planning-model.js';
-import { createPageLoader } from './page-loader.js?v=49';
+import { createPageLoader } from './page-loader.js?v=50';
 import { mountPageRouter } from './page-router.js?v=2';
 import { createPageRenderCache } from './page-render-cache.js?v=1';
 import './boards-recurrence.js?v=10';
@@ -29,7 +31,7 @@ import {
     query, where, orderBy, limit, getDocs, updateDoc, deleteDoc, runTransaction
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { LANGUAGES, applyTranslations, getLocale, getLanguageName, t, ACHIEVEMENT_I18N } from './i18n.js';
-import { invalidateKairosContext } from './ai-context.js?v=11';
+import { invalidateKairosContext } from './ai-context.js?v=12';
 import { dueTaskReminders, dueBedtimeReminders, reminderDeliveryStatus } from './task-reminders.js?v=2';
 import { deliverTaskReminder, deliverBedtimeReminder, saveNotificationEdits, escapeNotificationText } from './reminder-notifications.js?v=2';
 import { savePlannerEdits, persistTaskListCommand } from './plan-store.js?v=9';
@@ -170,7 +172,7 @@ function defaultSettings() {
             customAmbientYoutubeUrl: '',
             confetti: true
         },
-        planning: {weeklyAvailability:null},
+        planning: {weeklyAvailability:null,dailyLimitMinutes:0,gapMinutes:0},
         notifications: { enabled: true, boardCompletion: true, bedtimeReminders: true, browserPush: false }
     };
 }
@@ -2053,7 +2055,7 @@ function bootApp() {
             const defaults=defaultSettings(),ref=doc(db,'users',owner);
             const saved=await runTransaction(db,async transaction=>{
                 const snapshot=await transaction.get(ref),remote=deepMerge(defaults,snapshot.exists()?snapshot.data().settings||{}:{});
-                const next=overlaySettingsEdits(base,settings,remote);if(next.planning)next.planning.weeklyAvailability=normaliseWeeklyAvailability(next.planning.weeklyAvailability);transaction.set(ref,{settings:next},{merge:true});return next;
+                const next=overlaySettingsEdits(base,settings,remote);if(next.planning){next.planning.weeklyAvailability=normaliseWeeklyAvailability(next.planning.weeklyAvailability);Object.assign(next.planning,normalisePlanningPreferences(next.planning));}transaction.set(ref,{settings:next},{merge:true});return next;
             });
             return auth.currentUser?.uid===owner?saved:false;
         } catch(error) {
@@ -2167,8 +2169,10 @@ function bootApp() {
         select.value = pendingSettings.profile.timezone;
     }
 
-    let weeklyAvailabilityEditor=null;
+    let weeklyAvailabilityEditor=null,planningPreferencesEditor=null;
     function populateSettingsForm() {
+        planningPreferencesEditor ||= mountPlanningPreferencesEditor({root:document.getElementById('planning-preferences-editor'),getValue:()=>pendingSettings.planning||{},onChange:value=>{pendingSettings.planning={...(pendingSettings.planning||{}),...value};checkDirty()}});
+        planningPreferencesEditor?.refresh();
         weeklyAvailabilityEditor ||= mountWeeklyAvailabilityEditor({root:document.getElementById('weekly-availability-editor'),getValue:()=>pendingSettings.planning?.weeklyAvailability??null,onChange:value=>{pendingSettings.planning={...(pendingSettings.planning||{}),weeklyAvailability:value};checkDirty()}});
         weeklyAvailabilityEditor?.refresh();
         const user = auth.currentUser;
@@ -2568,7 +2572,7 @@ function bootApp() {
     if(settingsSaveBtn)settingsSaveBtn.addEventListener('click',async()=>{
         const owner=auth.currentUser?.uid;if(!owner||settingsSaveTicket?.ownerId===owner)return;
         const submitted=cloneDeep(pendingSettings),base=cloneDeep(settingsCloudSnapshot),ticket={ownerId:owner};
-        try{if(submitted.planning)submitted.planning.weeklyAvailability=normaliseWeeklyAvailability(submitted.planning.weeklyAvailability);}catch(error){showNotice(error.message);return;}
+        try{if(submitted.planning){submitted.planning.weeklyAvailability=normaliseWeeklyAvailability(submitted.planning.weeklyAvailability);Object.assign(submitted.planning,normalisePlanningPreferences(submitted.planning));}}catch(error){showNotice(error.message);return;}
         pendingSettings=cloneDeep(submitted);
         settingsSaveTicket=ticket;settingsLoadRevision++;
         const record=settingsRecovery.stage(owner,base,submitted);settingsPendingRecord=record;

@@ -1,5 +1,7 @@
 {
   "files": [
+    "planning-preferences.js",
+    "planning-preferences-editor.js",
     "combined-planning.js",
     "assignment-order.js",
     "deadline-feasibility.js",
