@@ -45,6 +45,7 @@ import { resolveTaskDetail, taskListSection } from './task-list-model.js?v=10';
 import { mergePlanEdits, planState } from './plan-merge.js';
 import {createSettingsRecovery,overlaySettingsEdits} from './settings-recovery.js?v=1';
 import {mountGettingStarted,openGettingStartedDestination} from './getting-started.js?v=1';
+import {mountFocusBreakdown} from './focus-breakdown.js?v=1';
 console.log("APP.js is loaded and running");
 
 // ===========================================================
@@ -567,7 +568,7 @@ function bootApp() {
 
     let aiPageAutoCollapsed = false;
     let sidebarManuallyToggledOnAI = false;
-    let taskDetails=null,taskWorkspace=null,taskInteractions=null,taskMenus=null,taskSelection=null,taskShortcuts=null;
+    let taskDetails=null,taskWorkspace=null,taskInteractions=null,taskMenus=null,taskSelection=null,taskShortcuts=null,focusBreakdownView=null;
     async function commitTaskDetails(command,expected,identity){
         const user=auth.currentUser;
         if(!user||identity.ownerId!==user.uid||identity.planId!==currentPlanDocId)throw new Error('The signed-in account or planner changed.');
@@ -748,6 +749,7 @@ function bootApp() {
         renderFocusTimerWidget();
         renderMiniAchievementsWidget();
         renderArchivePanel();
+        renderFocusBreakdown();
     }
 
     function findFirstIncompleteSection() {
@@ -3779,12 +3781,30 @@ function bootApp() {
         `;
     }
 
+    async function openFocusBreakdownTask(target) {
+        const owner=auth.currentUser?.uid,plan=currentPlanDocId;if(!owner||!plan)return false;
+        resolveTaskDetail({boards:boardsData},target);
+        if(!await (taskDetails?.requestClose?.()??true)||auth.currentUser?.uid!==owner||currentPlanDocId!==plan)return false;
+        await pageLoader.prepare('tasks-page');
+        if(auth.currentUser?.uid!==owner||currentPlanDocId!==plan)return false;
+        resolveTaskDetail({boards:boardsData},target);
+        await pageRouter.navigate('tasks-page');
+        if(auth.currentUser?.uid!==owner||currentPlanDocId!==plan)return false;
+        return taskDetails?.open(target,document.querySelector('.nav-item[data-target="tasks-page"]'))??false;
+    }
+    function renderFocusBreakdown() {
+        if(pageRenders.defer('statistics-page',renderFocusBreakdown))return;
+        const root=document.getElementById('focus-breakdown');if(!root)return;
+        if(!focusBreakdownView)focusBreakdownView=mountFocusBreakdown({root,getIdentity:()=>({ownerId:auth.currentUser?.uid||null,planId:currentPlanDocId}),getState:()=>({boards:boardsData}),onOpen:openFocusBreakdownTask});
+        else focusBreakdownView.refresh();
+    }
     function renderStatisticsPage() {
         const chartsContainer = document.getElementById('stats-charts-container');
         const totalsContainer = document.getElementById('stats-totals-container');
         if (!chartsContainer) return;
         if (pageRenders.defer('statistics-page',renderStatisticsPage)) return;
         statisticsRenderedDate = toDateKey(new Date());
+        renderFocusBreakdown();
 
         const focusChartData = aggregateDailyLog(focusData.dailyFocusLog || {}, statsRange);
         const taskChartData = aggregateDailyLog(focusData.dailyTasksLog || {}, statsRange);

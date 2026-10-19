@@ -138,7 +138,10 @@
     "focus-checkin.js",
     "occurrence-focus.js",
     "manual-focus-model.js",
-    "manual-focus-form.js"
+    "manual-focus-form.js",
+    "focus-breakdown-model.js",
+    "focus-breakdown.js",
+    "focus-breakdown.css"
   ],
   "directories": [
     "images",
