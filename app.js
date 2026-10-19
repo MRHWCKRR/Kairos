@@ -1,8 +1,8 @@
 import {taskWorkCheckin} from './remaining-work.js?v=2';
 import {promptFocusCheckin} from './focus-checkin.js?v=1';
-import {mountFocusTimer} from './focus-timer.js?v=4';
-import {persistFocusLog,persistFocusCorrection,loadFocusHistory} from './focus-store.js?v=4';
-import {mountFocusHistory} from './focus-history.js?v=2';
+import {mountFocusTimer} from './focus-timer.js?v=5';
+import {persistFocusLog,persistFocusCorrection,loadFocusHistory} from './focus-store.js?v=5';
+import {mountFocusHistory} from './focus-history.js?v=3';
 import {taskFocusTarget} from './task-focus.js?v=3';
 import {normalisePlanningPreferences} from './planning-preferences.js?v=2';
 import {mountPlanningPreferencesEditor} from './planning-preferences-editor.js?v=2';
@@ -3695,7 +3695,7 @@ function bootApp() {
 
     function renderFocusTimerWidget() {
         if(!focusTimerController){focusTimerController=mountFocusTimer({getIdentity:()=>({ownerId:auth.currentUser?.uid||null,planId:currentPlanDocId}),persist:commitFocusTime,chooseOutcome:({target,signal})=>{const work=taskWorkCheckin({boards:boardsData},target.taskId,target.occurrenceDate);return work?promptFocusCheckin(work,{signal}):Promise.resolve({mode:'log'})},getLongestSeconds:()=>focusData.longestSessionSeconds,confirmDiscard:()=>confirmAction('Discard this unlogged focus session?')});window.__kairosFocusTimer=focusTimerController}
-        if(!focusHistoryController)focusHistoryController=mountFocusHistory({getIdentity:()=>({ownerId:auth.currentUser?.uid||null,planId:currentPlanDocId}),load:loadFocusHistory,persist:entry=>commitFocusTime(entry,true),confirmRemove:()=>confirmDialog('Remove this focus log? Its time will be subtracted; task completion stays unchanged.',{destructive:true,confirmText:'Remove'})});
+        if(!focusHistoryController)focusHistoryController=mountFocusHistory({getIdentity:()=>({ownerId:auth.currentUser?.uid||null,planId:currentPlanDocId}),load:loadFocusHistory,getState:()=>({boards:boardsData}),getTimezone:()=>userSettings.profile?.timezone||Intl.DateTimeFormat().resolvedOptions().timeZone||'UTC',persistManual:entry=>commitFocusTime(entry),persist:entry=>commitFocusTime(entry,true),confirmClearPending:()=>confirmDialog('Clear this unconfirmed manual entry? Review focus history first; it may already have been saved.',{confirmText:'Clear request'}),confirmRemove:()=>confirmDialog('Remove this focus log? Its time will be subtracted; task completion stays unchanged.',{destructive:true,confirmText:'Remove'})});
         focusHistoryController.sync();focusTimerController.sync();
     }
     async function startTaskFocus(taskId,occurrenceDate=null){

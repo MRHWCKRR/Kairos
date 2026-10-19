@@ -13,7 +13,7 @@ const stale=message=>Object.assign(Error(message),{code:'focus-history-stale'});
 export function appendFocusHistory(user,plan,entry,result,day){
  const history=structuredClone(user.focusHistory||{sessions:[],baselineLongest:count(user.focusData?.longestSessionSeconds)});
  const parent=entry.target?.assignmentId?tasks(plan).filter(t=>t.id===entry.target.assignmentId):[];
- history.sessions.push({id:entry.id,planId:entry.planId,endedAt:entry.endedAt,day,seconds:entry.seconds,revision:0,taskId:result.taskId,title:result.task?.title||entry.target?.title||'General focus',assignmentTitle:parent.length===1?String(parent[0].title||'Assignment').slice(0,180):'',attributed:result.attributed,...(entry.target?.occurrenceDate?{occurrenceDate:entry.target.occurrenceDate,occurrenceDisplayDate:result.occurrenceDisplayDate||entry.target.occurrenceDate}:{})});
+ history.sessions.push({id:entry.id,planId:entry.planId,endedAt:entry.endedAt,day,seconds:entry.seconds,revision:0,taskId:result.taskId,title:result.task?.title||entry.target?.title||'General focus',assignmentTitle:parent.length===1?String(parent[0].title||'Assignment').slice(0,180):'',attributed:result.attributed,...(entry.source==='manual'?{source:'manual'}:{}),...(entry.target?.occurrenceDate?{occurrenceDate:entry.target.occurrenceDate,occurrenceDisplayDate:result.occurrenceDisplayDate||entry.target.occurrenceDate}:{})});
  while(history.sessions.length>100||history.sessions.length>1&&JSON.stringify(history).length>65536){const old=history.sessions.shift();history.baselineLongest=Math.max(count(history.baselineLongest),old.removed?0:old.seconds)}
  return history;
 }
