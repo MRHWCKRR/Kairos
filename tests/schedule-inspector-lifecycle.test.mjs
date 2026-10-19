@@ -1,3 +1,4 @@
+import {bindTaskFocus} from '../task-focus.js';
 import {bindDeadlineImpact} from '../deadline-impact.js';
 import * as assignment from '../assignment-progress.js';
 import {planningClock} from '../planning-model.js';
@@ -38,7 +39,7 @@ async function fixture({recurring=false,storage=new Map()}={}){
  // explicitly below; actual MutationObserver timing is covered in Chrome QA.
  class Observer{observe(){}disconnect(){}}
  cleanup=()=>observers.forEach(observer=>observer.disconnect());
- const context=vm.createContext({bindDeadlineImpact,...assignment,planningClock,document,window,MutationObserver:Observer,...utils,...recurrence,...recurrenceUi,...sessionModule,showRecurrenceScopeDialog:async()=> 'occurrence',CSS:{escape:String},console:{error(){},warn(){}},structuredClone,requestAnimationFrame:()=>1,cancelAnimationFrame(){},setTimeout:()=>1,clearTimeout(){},setInterval:()=>1,clearInterval(){},confirmDialog:async()=>true});
+ const context=vm.createContext({bindTaskFocus,bindDeadlineImpact,...assignment,planningClock,document,window,MutationObserver:Observer,...utils,...recurrence,...recurrenceUi,...sessionModule,showRecurrenceScopeDialog:async()=> 'occurrence',CSS:{escape:String},console:{error(){},warn(){}},structuredClone,requestAnimationFrame:()=>1,cancelAnimationFrame(){},setTimeout:()=>1,clearTimeout(){},setInterval:()=>1,clearInterval(){},confirmDialog:async()=>true});
  const workspaceSource=(await readFile(new URL('../schedule-workspace.js',import.meta.url),'utf8')).replace(/^import\s[\s\S]*?from ['"][^'"]+['"];\r?\n/gm,'').replace('export function initScheduleWorkspace','function initScheduleWorkspace');
  vm.runInContext(workspaceSource,context);const ws=context.initScheduleWorkspace(bridge);window.__kairosScheduleWorkspace=ws;
  // Each module has its own lexical scope, just as in the browser.
