@@ -1,12 +1,12 @@
-import {bindTaskFocus} from './task-focus.js?v=1';
-import {bindDeadlineImpact} from './deadline-impact.js?v=1';
+import {bindTaskFocus} from './task-focus.js?v=2';
+import {bindDeadlineImpact} from './deadline-impact.js?v=2';
 import {stableStringify} from './plan-merge.js';
-import {taskDetailValues,TASK_DETAIL_FIELDS,applyTaskListCommand} from './task-list-model.js';
+import {taskDetailValues,TASK_DETAIL_FIELDS,applyTaskListCommand} from './task-list-model.js?v=9';
 import {recurrenceFieldsMarkup,bindRecurrenceFields,readRecurrenceFields} from './schedule-recurrence-ui.js';
 import {t} from './i18n.js';
-import {assignmentProgressIndex,assignmentProgressMarkup,refreshAssignmentProgress} from './assignment-progress.js?v=2';
+import {assignmentProgressIndex,assignmentProgressMarkup,refreshAssignmentProgress} from './assignment-progress.js?v=3';
 import {planningClock} from './planning-model.js';
-import {mountTaskChecklistEditor} from './task-checklist-editor.js?v=3';
+import {mountTaskChecklistEditor} from './task-checklist-editor.js?v=4';
 
 const esc=value=>String(value??'').replace(/[&<>'"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[ch]));
 export function mountTaskDetailPane({root,resolveTarget,commit,getOwnerId,getPlanId=()=>null,getState=()=>({boards:[]}),getToday=()=>planningClock(Date.now(),Intl.DateTimeFormat().resolvedOptions().timeZone).date,onClose=()=>{},openSchedule,onStartFocus,document=globalThis.document,window=globalThis.window}){

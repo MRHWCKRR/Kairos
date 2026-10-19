@@ -1,5 +1,5 @@
-import {combinedPlanning} from './combined-planning.js?v=3';
-import {applyPlanningCommand} from './planning-commands.js?v=7';
+import {combinedPlanning} from './combined-planning.js?v=4';
+import {applyPlanningCommand} from './planning-commands.js?v=8';
 import {planningGapMinutes,planningDailyLimit,planningGapText,planningDailyLimitText} from './planning-slots.js?v=3';
 import {normaliseWeeklyAvailability,weeklyAvailabilityText} from './weekly-availability.js';
 import {parseTime,formatTime} from './schedule-utils.js';

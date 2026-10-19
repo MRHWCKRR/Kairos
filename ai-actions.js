@@ -1,14 +1,14 @@
-import {planningUndoPreview} from './planning-undo.js?v=1';
+import {planningUndoPreview} from './planning-undo.js?v=2';
 import {savedPlanningPreferences,planningPreferencesText} from './planning-preferences.js?v=1';
 import {savedWeeklyAvailability} from './weekly-availability.js';
 import { auth, db } from './firebase.js';
-import { persistAiPlanAction, getConfirmedAiAction, applyStoredPlanningUndo } from './plan-store.js?v=10';
+import { persistAiPlanAction, getConfirmedAiAction, applyStoredPlanningUndo } from './plan-store.js?v=11';
 import { validateActionShape } from './ai-action-schema.js?v=11';
 import { stableStringify, planState } from './plan-merge.js';
 import { taskDurationMinutes } from './schedule-utils.js';
-import {previewAiPlanning,resolveAiPlanningTimezone} from './ai-planning.js?v=11';
+import {previewAiPlanning,resolveAiPlanningTimezone} from './ai-planning.js?v=12';
 import {planningConflicts,planningGapText,planningDailyLimitText} from './planning-slots.js?v=3';
-import {applyPlanningCommand} from './planning-commands.js?v=7';
+import {applyPlanningCommand} from './planning-commands.js?v=8';
 import {
     collection, getDocs, query, where, doc, getDoc
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";

@@ -1,7 +1,8 @@
+import {taskRemainingMinutes} from './remaining-work.js?v=1';
 import {assertAssignmentOrder} from './assignment-order.js';
 import {planningTasks,validPlanningDate,shiftPlanningDate} from './planning-model.js';
 import {planningAvailability,planningWindows,planningOccupancy,planningBlockValid,intervalsOverlap,planningDailyWork,planningDailyRemaining,planningDailyLimit} from './planning-slots.js?v=3';
-import {previewCarryover} from './planning-commands.js?v=7';
+import {previewCarryover} from './planning-commands.js?v=8';
 import {parseTime,taskDurationMinutes} from './schedule-utils.js';
 
 // Capacity is an upper bound: gaps may be too short, restricted by preferences,
@@ -21,7 +22,7 @@ export function freeMinutes(busy,options,clock,dailyWork=new Map()){
 }
 export function assignmentFeasibility(state,parentId,input,clock,spacingCache=new Map()){
  const tasks=planningTasks(state).map(entry=>entry.task),parents=tasks.filter(task=>task.id===parentId),parent=parents[0],sessions=tasks.filter(task=>task.assignmentId===parentId&&!task.completed);
- const movable=sessions.filter(task=>!task.scheduleLocked&&!task.recurrence?.enabled),remainingMinutes=sessions.reduce((sum,task)=>sum+taskDurationMinutes(task),0),movableMinutes=movable.reduce((sum,task)=>sum+taskDurationMinutes(task),0);
+ const movable=sessions.filter(task=>!task.scheduleLocked&&!task.recurrence?.enabled),remainingMinutes=sessions.reduce((sum,task)=>sum+taskRemainingMinutes(task),0),movableMinutes=movable.reduce((sum,task)=>sum+taskRemainingMinutes(task),0);
  const result={taskId:parentId,title:String(parent?.title||'Assignment'),dueDate:parent?.dueDate||null,remainingMinutes,movableMinutes,availableMinutes:null,shortfallMinutes:0,canPreview:false};
  const finish=(status,reason,extra={})=>({...result,status,reason,...extra});
  if(parents.length!==1||parent.assignmentId||parent.recurrence?.enabled||parent.completed)return finish('needs-review','Review the active parent assignment.');
@@ -43,6 +44,7 @@ export function assignmentFeasibility(state,parentId,input,clock,spacingCache=ne
    if(task.dueDate&&!validPlanningDate(task.dueDate))return finish('needs-review','Review a session deadline.');
    if(!task.scheduleLocked)continue;
    if(planningDailyLimit(options)&&(dailyWork.get(task.date)||0)>planningDailyLimit(options))return finish('needs-review','A locked session date exceeds the daily assignment-work limit.');
+   if(taskRemainingMinutes(task)>taskDurationMinutes(task))throw Error('A locked session is shorter than its remaining work. Unlock it and review rescheduling.');
    const start=parseTime(task.startTime),minutes=taskDurationMinutes(task),deadline=[parent.dueDate,task.dueDate].filter(Boolean).sort()[0];
    if(!validPlanningDate(task.date)||task.date<clock.date||task.date>deadline||start===null||task.date===clock.date&&start<=parseTime(clock.time)||!planningBlockValid(task.date,start,minutes,options.timezone)||busy.some(item=>!(item.kind==='task'&&item.taskId===task.id)&&intervalsOverlap(item,{date:task.date,startMin:start,endMin:start+minutes})))return finish('needs-review','A locked session needs review: its saved time is past, missing, conflicting, or after its deadline.');
   }

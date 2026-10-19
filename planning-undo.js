@@ -5,7 +5,7 @@ import {parseTime,formatTime,taskDurationMinutes} from './schedule-utils.js';
 import {zonedTaskStart} from './task-reminders.js';
 import {validateAssignmentOrderChanges} from './assignment-order.js';
 
-const FIELDS=['date','startTime','endTime','lastScheduledMinutes','estimatedMinutes','archived','sessionOrder'];
+const FIELDS=['date','startTime','endTime','lastScheduledMinutes','estimatedMinutes','remainingMinutes','archived','sessionOrder'];
 const GUARDS=[...FIELDS,'dueDate','assignmentId','sessionIndex','scheduleLocked','schedulingPreference'];
 const all=state=>(state.boards||[]).flatMap(board=>(board.sections||[]).flatMap(section=>(section.tasks||[]).map(task=>({board,section,task}))));
 const guard=task=>stableStringify({...Object.fromEntries(GUARDS.filter(key=>task[key]!==undefined).map(key=>[key,task[key]])),archived:task.archived===true,recurring:task.recurrence?.enabled===true});

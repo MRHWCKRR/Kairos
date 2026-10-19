@@ -1,7 +1,8 @@
+import {taskRemainingMinutes} from './remaining-work.js?v=1';
 import {planningTasks,validPlanningDate} from './planning-model.js';
 import {planningAvailability,planningOccupancy,planningBlockValid,intervalsOverlap,planningDailyWork,planningDailyLimit,addPlanningDailyWork} from './planning-slots.js?v=3';
-import {previewCarryover} from './planning-commands.js?v=7';
-import {freeMinutes} from './deadline-feasibility.js?v=5';
+import {previewCarryover} from './planning-commands.js?v=8';
+import {freeMinutes} from './deadline-feasibility.js?v=6';
 import {orderedSessionGroup,assertAssignmentOrder} from './assignment-order.js';
 import {parseTime,taskDurationMinutes} from './schedule-utils.js';
 
@@ -15,7 +16,7 @@ export function combinedPlanning(state,input,clock){
   const parent=active.find(task=>task.id===id);
   if(!parent||parent.completed||parent.assignmentId||parent.recurrence?.enabled)throw Error('Review the selected active assignments.');
   const sessions=active.filter(task=>task.assignmentId===id&&!task.completed),movable=sessions.filter(task=>!task.scheduleLocked&&!task.recurrence?.enabled);
-  return {parent,sessions,movable,taskId:id,title:String(parent.title||'Assignment'),dueDate:parent.dueDate||null,priority:[parent.dueDate,...sessions.map(task=>task.dueDate)].filter(Boolean).sort()[0]||input.to,remainingMinutes:sessions.reduce((n,task)=>n+taskDurationMinutes(task),0),sessionCount:sessions.length,lockedCount:sessions.filter(task=>task.scheduleLocked).length,status:'pending',reason:''};
+  return {parent,sessions,movable,taskId:id,title:String(parent.title||'Assignment'),dueDate:parent.dueDate||null,priority:[parent.dueDate,...sessions.map(task=>task.dueDate)].filter(Boolean).sort()[0]||input.to,remainingMinutes:sessions.reduce((n,task)=>n+taskRemainingMinutes(task),0),sessionCount:sessions.length,lockedCount:sessions.filter(task=>task.scheduleLocked).length,status:'pending',reason:''};
  }).sort((a,b)=>a.priority.localeCompare(b.priority)||String(a.taskId).localeCompare(String(b.taskId)));
  if(groups.reduce((n,g)=>n+g.sessionCount,0)>40)throw Error('Choose at most 40 unfinished sessions in one combined plan.');
  for(const g of groups){
@@ -27,7 +28,8 @@ export function combinedPlanning(state,input,clock){
    // occupied here because a later fallback may leave them unchanged.
    const ownMovable=new Set(g.movable.map(task=>task.id));
    for(const task of g.sessions.filter(task=>task.scheduleLocked)){
-    const start=parseTime(task.startTime),minutes=taskDurationMinutes(task),deadline=[g.dueDate,task.dueDate].filter(Boolean).sort()[0];
+    if(taskRemainingMinutes(task)>taskDurationMinutes(task))throw Error('A locked session is shorter than its remaining work. Unlock it and review rescheduling.');
+   const start=parseTime(task.startTime),minutes=taskDurationMinutes(task),deadline=[g.dueDate,task.dueDate].filter(Boolean).sort()[0];
     if(!validPlanningDate(task.date)||task.date<clock.date||deadline&&task.date>deadline||start===null||task.date===clock.date&&start<=parseTime(clock.time)||!planningBlockValid(task.date,start,minutes,input.timezone||'UTC')||planningOccupancy(state,task.date,task.date).some(item=>!(item.kind==='task'&&(item.taskId===task.id||ownMovable.has(item.taskId)))&&intervalsOverlap(item,{date:task.date,startMin:start,endMin:start+minutes})))throw Error('A locked session needs review: its time is past, missing, conflicting, or after its deadline.');
    }
    if(!g.sessions.length){g.status='no-work';g.reason='No unfinished active sessions.'}
@@ -35,7 +37,7 @@ export function combinedPlanning(state,input,clock){
   }catch(error){g.status='needs-review';g.reason=String(error.message||'Review this assignment.');}
  }
  const candidates=groups.filter(g=>g.status==='pending'),movableIds=new Set(candidates.flatMap(g=>g.movable.map(task=>task.id))),busy=planningOccupancy(state,input.from,input.to).filter(item=>item.kind!=='task'||!movableIds.has(item.taskId));
- const movableMinutes=candidates.reduce((n,g)=>n+g.movable.reduce((m,t)=>m+taskDurationMinutes(t),0),0),availableMinutes=freeMinutes(busy,input,clock,planningDailyWork(state,input,movableIds));
+ const movableMinutes=candidates.reduce((n,g)=>n+g.movable.reduce((m,t)=>m+taskRemainingMinutes(t),0),0),availableMinutes=freeMinutes(busy,input,clock,planningDailyWork(state,input,movableIds));
  let proposal=null;const spacingCache=new Map();
  const lockedWithinBudget=(group,selected,rows)=>{
   if(!planningDailyLimit(input))return true;

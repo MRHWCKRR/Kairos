@@ -1,5 +1,5 @@
-import {bindTaskFocus} from './task-focus.js?v=1';
-import {bindDeadlineImpact} from './deadline-impact.js?v=1';
+import {bindTaskFocus} from './task-focus.js?v=2';
+import {bindDeadlineImpact} from './deadline-impact.js?v=2';
 import { showNotice, confirmDialog, promptDialog } from './ui-dialogs.js?v=1';
 import { normalizeTaskMetadata, scheduleFieldsFromDuration, taskDurationMinutes, clearScheduledFields, preserveScheduledDuration, toDateKey } from './schedule-utils.js';
 import { recurrenceFieldsMarkup, bindRecurrenceFields, readRecurrenceFields, showRecurrenceScopeDialog } from './schedule-recurrence-ui.js';
@@ -7,7 +7,7 @@ import { generateTaskOccurrences, formatRecurrenceSummary, setOccurrenceStatus, 
 
 import {createScheduleInspectorSession} from './schedule-inspector-session.js?v=2';
 
-import {assignmentProgressIndex,assignmentProgressMarkup,refreshAssignmentProgress} from './assignment-progress.js?v=2';
+import {assignmentProgressIndex,assignmentProgressMarkup,refreshAssignmentProgress} from './assignment-progress.js?v=3';
 import {planningClock} from './planning-model.js';
 let session;
 const bridge=()=>window.__kairosScheduleBridge;
