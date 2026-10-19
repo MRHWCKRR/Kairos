@@ -1,5 +1,6 @@
 {
   "files": [
+    "planning-alternatives.js",
     "planning-preferences.js",
     "planning-preferences-editor.js",
     "combined-planning.js",
