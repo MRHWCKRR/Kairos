@@ -125,7 +125,8 @@
     "task-list-interactions.js",
     "task-actions.js",
     "task-action-menu.js",
-    "task-checklist-reorder.js"
+    "task-checklist-reorder.js",
+    "deadline-impact.js"
   ],
   "directories": [
     "images",

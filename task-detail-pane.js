@@ -1,3 +1,4 @@
+import {bindDeadlineImpact} from './deadline-impact.js?v=1';
 import {stableStringify} from './plan-merge.js';
 import {taskDetailValues,TASK_DETAIL_FIELDS,applyTaskListCommand} from './task-list-model.js';
 import {recurrenceFieldsMarkup,bindRecurrenceFields,readRecurrenceFields} from './schedule-recurrence-ui.js';
@@ -9,7 +10,7 @@ import {mountTaskChecklistEditor} from './task-checklist-editor.js?v=3';
 const esc=value=>String(value??'').replace(/[&<>'"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[ch]));
 export function mountTaskDetailPane({root,resolveTarget,commit,getOwnerId,getPlanId=()=>null,getState=()=>({boards:[]}),getToday=()=>planningClock(Date.now(),Intl.DateTimeFormat().resolvedOptions().timeZone).date,onClose=()=>{},openSchedule,document=globalThis.document,window=globalThis.window}){
     let panel=null,form=null,target=null,baseline=null,displayBaseline=null,location=null,owner=null,planId=null,opener=null,pending=null,busy=false,dialog=null,choiceDialog=null,choiceFinish=null,revision=0,checklistEditor=null;
-    let pendingFocus=null,pointerFocus=null;
+    let pendingFocus=null,pointerFocus=null,deadlineImpactView=null;
     const copy=key=>t('task_detail_'+key,document.documentElement.lang||'en');
     const field=name=>form?.querySelector('[name="'+name+'"]');
     const key=()=> 'kairos-task-detail-pending:'+owner+':'+planId;
@@ -47,6 +48,7 @@ export function mountTaskDetailPane({root,resolveTarget,commit,getOwnerId,getPla
         if(panel)panel.scrollTop=view.scroll;if(dialog)dialog.scrollTop=view.dialogScroll;
     }
     function updateControls(){
+        deadlineImpactView?.refresh();
         panel?.querySelectorAll('input,select,textarea').forEach(el=>el.disabled=busy||!!pending);
         checklistEditor?.setDisabled(busy||!!pending);
         panel?.querySelectorAll('[data-series-scope],[data-open-occurrence]').forEach(el=>el.disabled=busy||!!pending);
@@ -60,7 +62,7 @@ export function mountTaskDetailPane({root,resolveTarget,commit,getOwnerId,getPla
         set('planning',[preference?copy(preference):null,field('scheduleLocked').checked?copy('lock'):null,color?copy('color')+' '+color:null].filter(Boolean).join(' · ')||copy('none'));
     }
     function close(){
-        revision++;checklistEditor?.dispose();checklistEditor=null;pendingFocus=null;pointerFocus=null;
+        revision++;deadlineImpactView?.dispose();deadlineImpactView=null;checklistEditor?.dispose();checklistEditor=null;pendingFocus=null;pointerFocus=null;
         const returnFocus=opener?.isConnected?opener:[...root.querySelectorAll('[data-task-detail]')].find(el=>el.dataset.taskDetail===target?.taskId);
         choiceFinish?.('stay');choiceDialog?.remove();choiceDialog=null;
         dialog?.close?.();dialog?.remove();dialog=null;panel?.remove();panel=null;form=null;target=null;pending=null;busy=false;
@@ -127,7 +129,7 @@ export function mountTaskDetailPane({root,resolveTarget,commit,getOwnerId,getPla
           <section class="task-checklist" aria-label="${esc(copy('checklist'))}"></section>
           </div><fieldset class="task-detail-properties task-detail-metadata" ${target.occurrenceDate?'disabled':''}>
           <legend>${esc(copy('properties'))}</legend>
-          <div class="task-detail-grid">${input('date',copy('date'),'date')}${input('startTime',copy('start'),'time','step="60"')}${input('durationMinutes',copy('duration'),'number','min="1" max="1439" step="1" required')}${input('dueDate',copy('deadline'),'date')}</div>
+          <div class="task-detail-grid">${input('date',copy('date'),'date')}${input('startTime',copy('start'),'time','step="60"')}${input('durationMinutes',copy('duration'),'number','min="1" max="1439" step="1" required')}${input('dueDate',copy('deadline'),'date')}</div><div data-deadline-impact></div>
           ${select('priority',copy('priority'),[['',copy('none')],['low',copy('low')],['medium',copy('medium')],['high',copy('high')]])}
           <details data-detail-group="reminder"><summary>${esc(copy('reminders'))}<span data-detail-summary="reminder"></span></summary>
           ${input('reminderMinutes',copy('reminder'),'number','min="1" max="10080" step="1"')}<p class="task-detail-hint">${esc(copy('reminder_hint'))}</p></details>
@@ -142,6 +144,7 @@ export function mountTaskDetailPane({root,resolveTarget,commit,getOwnerId,getPla
         root.appendChild(panel);root.classList.add('has-task-details');form=panel.querySelector('form');refreshAssignmentProgress(panel.querySelector('[data-assignment-detail]'),assignmentProgressIndex(getState(),getToday()).get(target.taskId),{details:true});
         bindRecurrenceFields(form,{fallbackDate:found.task.date||values.recurrence?.startDate||null});
         checklistEditor=mountTaskChecklistEditor({root:panel.querySelector('.task-checklist'),isActive:()=>activePage()&&owner===getOwnerId()&&planId===getPlanId(),items:pending?.command?.changes?.checklist||values.checklist||[],canToggle:!!target.occurrenceDate||!values.recurrence?.enabled,hint:copy(values.recurrence?.enabled&&!target.occurrenceDate?'template_hint':target.occurrenceDate?'occurrence_hint':'checklist_hint'),copy,onStatus:status,onChange:()=>status(copy('unsaved')),document,window});
+        deadlineImpactView?.dispose();deadlineImpactView=bindDeadlineImpact({root:panel,taskId:target.taskId,getState,isBlocked:()=>busy||!!pending,onReview:async id=>{if(!openSchedule)return;const actor=owner,actorPlan=planId;if(await requestClose()&&getOwnerId()===actor&&getPlanId()===actorPlan)await openSchedule({taskId:id,reviewDeadline:true})}});
         displayBaseline=read();
         if(pending){for(const [name,value] of Object.entries(pending.command.changes)){const el=field(name);if(el){if(el.type==='checkbox')el.checked=value===true;else el.value=value??''}}status(copy('uncertain'),true)}
         updatePropertySummaries();
@@ -196,6 +199,6 @@ export function mountTaskDetailPane({root,resolveTarget,commit,getOwnerId,getPla
             restoreUi(restore,canFocus);status(copy('saved'));return !!result;
         }catch(error){if(ticket!==revision)return false;busy=false;updateControls();status(copy('failed')+' '+error.message,true);return false}
     }
-    function sync(){if(panel&&owner===getOwnerId()&&planId===getPlanId()){refreshAssignmentProgress(panel.querySelector('[data-assignment-detail]'),assignmentProgressIndex(getState(),getToday()).get(target.taskId),{details:true})}if(!activePage())checklistEditor?.cancelReorder();if(panel&&(owner!==getOwnerId()||planId!==getPlanId())){forget();close()}}
+    function sync(){deadlineImpactView?.refresh();if(panel&&owner===getOwnerId()&&planId===getPlanId()){refreshAssignmentProgress(panel.querySelector('[data-assignment-detail]'),assignmentProgressIndex(getState(),getToday()).get(target.taskId),{details:true})}if(!activePage())checklistEditor?.cancelReorder();if(panel&&(owner!==getOwnerId()||planId!==getPlanId())){forget();close()}}
     return {open,save,requestClose,maximise,sync,dispose:close};
 }

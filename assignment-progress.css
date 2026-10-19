@@ -9,3 +9,5 @@
 #tasks-page .task-item:has(>.assignment-progress){flex-wrap:wrap}
 #tasks-page .task-item>.assignment-progress{flex-basis:100%;grid-column:2 / -1;grid-row:auto}
 [data-assignment-detail]:has(.assignment-progress){padding:0 18px 14px;border-bottom:1px solid var(--border-subtle)}
+
+.deadline-impact{margin:12px 0;padding:12px 0;border-top:1px solid var(--border-subtle,#444);color:var(--text-primary,inherit);font-size:13px;line-height:1.6;overflow-wrap:anywhere}.deadline-impact p{margin:6px 0}.deadline-impact ul{padding-left:20px;max-height:160px;overflow:auto}.deadline-impact button{font:inherit;color:inherit;background:var(--bg-main,transparent);border:1px solid var(--border-subtle,#777);border-radius:6px;padding:8px 12px;cursor:pointer}.deadline-impact button:focus-visible{outline:2px solid var(--accent-glow,#a855f7);outline-offset:3px}.deadline-impact button:disabled{opacity:.55;cursor:default}
