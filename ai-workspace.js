@@ -3,9 +3,9 @@ import { aiFetch, aiErrorMessage, aiConversationMessages } from './ai-client.js'
 import { auth, db } from './firebase.js';
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { getKairosContext } from './ai-context.js?v=13';
-import { actionNeedsConfirmation, executeKairosAction, getAiPlanId, previewKairosAction, confirmedKairosAction } from './ai-actions.js?v=12';
-import { ACTION_TYPES, ACTION_INSTRUCTIONS, explicitDurationIntent, validateActionShape } from './ai-action-schema.js?v=10';
+import { getKairosContext } from './ai-context.js?v=14';
+import { actionNeedsConfirmation, executeKairosAction, getAiPlanId, previewKairosAction, confirmedKairosAction } from './ai-actions.js?v=13';
+import { ACTION_TYPES, ACTION_INSTRUCTIONS, explicitDurationIntent, validateActionShape } from './ai-action-schema.js?v=11';
 import { appendPlanLimitActions } from './plan-usage.js';
 import {savedMessageCount} from './ai-usage.js?v=1';
 import {recordSentMessage,initializeMessageUsage} from './ai-usage-store.js?v=1';
@@ -138,6 +138,7 @@ function actionResultReply(results){return results.filter(Boolean).map(result=>s
 function singleActionResultReply(results){
   const r=results.filter(Boolean).at(-1);
   if(!r)return 'Done.';
+  if(r.type==='planning_undo')return 'Undid the reviewed planning change. Notes, checklists and completion changes were preserved.';
   if(r.type==='planning_check')return r.report;
   if(r.type==='planning_batch'&&r.combinedPlan)return 'Moved '+r.affectedCount+' reviewed sessions. Assignments and sessions outside the preview stayed unchanged.';
   if(r.type==='planning_batch')return r.action==='sessions'?'Created '+r.affectedCount+' reviewed work sessions. Your assignment and checklist remain intact.':'Moved '+r.affectedCount+' tasks to the reviewed times.'+(r.remainingConflicts?' '+r.remainingConflicts+' overlaps remain; review fixed or locked commitments in Schedule.':'');
@@ -189,6 +190,8 @@ function combinedCapacityMarkup(capacity){
   return '<ul class="ai-action-preview-list">'+capacity.assignments.map(a=>'<li><strong>'+esc(a.title)+' - '+esc(labels[a.status]||a.status)+'</strong>: '+esc(a.remainingMinutes)+' minutes.'+(a.status==='fits'?'':' '+esc(a.reason.replace(/^Not placed by this check\. /,'')))+'</li>').join('')+'</ul>';
 }
 function actionPreviewMarkup(summary){
+  if(summary.kind==='planning-undo'){const placement=v=>v?.archived?'Archive':(v?.date||'Unscheduled')+(v?.startTime?' '+v.startTime+'-'+(v.endTime||''):'')+(v?.minutes?' / '+v.minutes+' min':'')+(v?.sessionOrder?' ('+v.sessionOrder+')':'');return '<p>'+esc(summary.notice)+'</p><p>Times use '+esc(summary.timezone)+'.</p><div class="ai-planning-preview" tabindex="0" role="region" aria-label="Reviewed Undo changes"><table><caption>'+esc(summary.title)+'</caption><thead><tr><th>Task</th><th>Change</th><th>Current</th><th>Restored</th></tr></thead><tbody>'+summary.rows.map(row=>'<tr><th scope="row">'+esc(row.title)+'</th><td>'+esc(row.action)+'</td><td>'+esc(placement(row.from))+'</td><td>'+esc(placement(row.to))+'</td></tr>').join('')+'</tbody></table></div>'}
+
   if(summary.kind==='planning')return combinedCapacityMarkup(summary.capacity)+(summary.notice?'<p>'+esc(summary.notice)+'</p>':'')+(summary.remainingConflicts?'<p role="note">'+esc(summary.remainingConflicts)+' fixed, locked or recurring overlaps will remain. Review these commitments in Schedule.</p>':'')+'<p>Times use '+esc(summary.timezone)+'. '+(summary.options.weeklyAvailability?(summary.options.availabilitySource==='custom-weekly'?'Custom weekly hours for this plan: ':'Saved weekly hours: ')+esc(weeklyAvailabilityText(summary.options.weeklyAvailability)):'Daily availability: '+esc(summary.options.dayStart)+'-'+esc(summary.options.dayEnd))+'.</p><p>Review every row. '+(summary.title==='New work sessions'?'Your assignment and checklist stay intact.':'Only the listed tasks move; durations and deadlines stay intact.')+'</p><div class="ai-planning-preview" tabindex="0" role="region" aria-label="Proposed planning changes"><table><caption>'+esc(summary.title)+'</caption><thead><tr><th>Task</th><th>Date</th><th>Time</th><th>Minutes</th></tr></thead><tbody>'+summary.rows.map(row=>'<tr><th scope="row">'+esc(row.title)+'</th><td>'+esc(row.date)+'</td><td>'+esc(row.startTime)+'-'+esc(row.endTime)+'</td><td>'+esc(row.minutes)+'</td></tr>').join('')+'</tbody></table></div>';
   const parts=['<p>'+esc(summary.title)+' contains '+summary.sectionCount+' section'+(summary.sectionCount===1?'':'s')+' and '+summary.taskCount+' task'+(summary.taskCount===1?'':'s')+'.</p>'];
   let remaining=20;
@@ -375,9 +378,9 @@ async function requestActionConfirmation(chatId,action,options,entry=null){
   return new Promise((resolve,reject)=>{
     const label=action.type.replace(/_/g,' ');
     const archive=action.args.archived===true;
-    const contents=['board','section','planning'].includes(preview.summary.kind)?actionPreviewMarkup(preview.summary):'';
+    const contents=['board','section','planning','planning-undo'].includes(preview.summary.kind)?actionPreviewMarkup(preview.summary):'';
     const note=planning?'Nothing changes until you Apply. If this preview becomes stale, cancel and request a fresh plan.':archive?'Its tasks remain saved and can be restored from the Archive.':'This change cannot be undone automatically.';
-    const modal=dialogBox('<button type="button" class="close-modal" aria-label="Cancel action" data-cancel>x</button><h2>'+(planning?'Review planning changes':'Confirm action')+'</h2>'+(planning?'<p>Review the proposed work and schedule below.</p>':'<p>Kairos is ready to '+esc(label)+' for "'+esc(preview.summary.title)+'".</p>')+contents+'<p>'+note+'</p><div class="ai-chat-dialog-actions"><button class="settings-cancel-btn" data-cancel>Cancel</button><button class="action-btn '+(planning?'':'ai-chat-dialog-danger')+'" data-ok>'+(planning?'Apply changes':'Confirm')+'</button></div>');
+    const modal=dialogBox('<button type="button" class="close-modal" aria-label="Cancel action" data-cancel>x</button><h2>'+(action.type==='plan_undo'?'Review Undo':planning?'Review planning changes':'Confirm action')+'</h2>'+(planning?'<p>Review the proposed work and schedule below.</p>':'<p>Kairos is ready to '+esc(label)+' for "'+esc(preview.summary.title)+'".</p>')+contents+'<p>'+note+'</p><div class="ai-chat-dialog-actions"><button class="settings-cancel-btn" data-cancel>Cancel</button><button class="action-btn '+(planning?'':'ai-chat-dialog-danger')+'" data-ok>'+(action.type==='plan_undo'?'Undo reviewed changes':planning?'Apply changes':'Confirm')+'</button></div>');
     if(planning){
       modal.querySelector('.ai-chat-dialog')?.classList.add('ai-planning-dialog');
       modal.querySelector('h2').id='ai-planning-review-title';

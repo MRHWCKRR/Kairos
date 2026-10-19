@@ -1,13 +1,14 @@
+import {planningUndoPreview} from './planning-undo.js?v=1';
 import {savedPlanningPreferences,planningPreferencesText} from './planning-preferences.js?v=1';
 import {savedWeeklyAvailability} from './weekly-availability.js';
 import { auth, db } from './firebase.js';
-import { persistAiPlanAction, getConfirmedAiAction } from './plan-store.js?v=9';
-import { validateActionShape } from './ai-action-schema.js?v=10';
+import { persistAiPlanAction, getConfirmedAiAction, applyStoredPlanningUndo } from './plan-store.js?v=10';
+import { validateActionShape } from './ai-action-schema.js?v=11';
 import { stableStringify, planState } from './plan-merge.js';
 import { taskDurationMinutes } from './schedule-utils.js';
-import {previewAiPlanning,resolveAiPlanningTimezone} from './ai-planning.js?v=10';
+import {previewAiPlanning,resolveAiPlanningTimezone} from './ai-planning.js?v=11';
 import {planningConflicts,planningGapText,planningDailyLimitText} from './planning-slots.js?v=3';
-import {applyPlanningCommand} from './planning-commands.js?v=6';
+import {applyPlanningCommand} from './planning-commands.js?v=7';
 import {
     collection, getDocs, query, where, doc, getDoc
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
@@ -155,6 +156,7 @@ export async function previewKairosAction(action, options = {}) {
     if (data.userID !== user.uid) throw new Error('This planner belongs to another account.');
     if(action.type.startsWith('plan_')) {
         const preferences=await planningPreferences(user),timezone=preferences.timezone;
+        if(action.type==='plan_undo'){const proposal=planningUndoPreview(data,null,timezone);return {action,approval:{request:stableStringify(action),command:proposal.command,expected:proposal.expected},summary:{kind:'planning-undo',title:'Undo last planning change',rows:proposal.rows,timezone,notice:proposal.notice}}}
         const proposal=previewAiPlanning(planState(data),action,preferences);
         return {action,approval:proposal.command?{request:stableStringify(action),command:proposal.command,expected:proposal.expected}:null,summary:{kind:'planning',title:action.type==='plan_sessions'?'New work sessions':action.type==='plan_assignments'?'Combined assignment plan':'Schedule changes',rows:proposal.rows,timezone,options:proposal.command?.options||proposal.options,...(proposal.capacity?{capacity:proposal.capacity}:{}),remainingConflicts:proposal.remainingConflicts||0,notice:[proposal.notice,planningPreferencesText(preferences.planningPreferences,proposal.command?.options||proposal.options),proposal.command?planningDailyLimitText(proposal.command.options)+' '+planningGapText(proposal.command.options):'',proposal.command?.ordered!==undefined?'Session order: '+(proposal.command.ordered?'numbered sequence (earlier work first).':'independent placement.'):''].filter(Boolean).join(' ')}};
     }
@@ -223,12 +225,13 @@ export async function executeKairosAction(action, options = {}) {
         if(!approval?.command || approval.request!==stableStringify({type,args}))throw Error('A reviewed planning preview is required.');
         if(approval.command.options?.timezone!==await planningTimezone(user))throw Error('Your timezone changed. Review a new preview.');
     }
-    const result = await persistAiPlanAction(planId, user.uid, { type, args }, operationId, createdAt, plan => applyKairosAction(plan, type, args, options),{planningOptions:type.startsWith('plan_')?options.confirmation?.command?.options:null});
+    const result = await persistAiPlanAction(planId, user.uid, { type, args }, operationId, createdAt, plan => applyKairosAction(plan, type, args, options),{planningOptions:type.startsWith('plan_')?options.confirmation?.command?.options:null,...(type==='plan_undo'?{undoSourceOperationId:options.confirmation?.command?.sourceOperationId,undoTimezone:options.confirmation?.command?.options?.timezone}:{})});
     window.dispatchEvent(new CustomEvent('kairos-data-changed'));
     return aiActionResult(type,result);
 }
 
 function applyKairosAction(plan, type, args, options) {
+    if(type==='plan_undo')return applyStoredPlanningUndo(plan,options.confirmation.command,options.confirmation.expected);
     if(type.startsWith('plan_')) {
         const applied=applyPlanningCommand(plan.data,options.confirmation.command,options.confirmation.expected);
         Object.assign(plan.data,applied.next);

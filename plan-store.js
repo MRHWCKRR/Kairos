@@ -1,19 +1,33 @@
+import {planningUndoSource,planningUndoPreview,applyPlanningUndo} from './planning-undo.js?v=1';
 import {assertScheduleAvailability} from './schedule-planning-availability.js';
 import {assertSavedAvailability} from './weekly-availability.js';
 import { db } from './firebase.js';
 import { doc, getDoc, runTransaction, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { mergePlanEdits, planState, stableStringify } from './plan-merge.js';
 import {validateAssignmentOrderChanges} from './assignment-order.js';
-import { applyTaskListCommand, taskListFingerprint } from './task-list-model.js?v=7';
+import { applyTaskListCommand, taskListFingerprint } from './task-list-model.js?v=8';
 
 export async function persistTaskListCommand(planId, uid, command, expected, operationId, createdAt) {
     if(typeof operationId!=='string'||!operationId||operationId.length>160||!Number.isFinite(createdAt)||createdAt<=0)throw new Error('Invalid operation identity.');
     const commandHash=await taskListFingerprint(command,expected);
     return persistAiPlanAction(planId,uid,{type:'task_list',commandHash},operationId,createdAt,plan=>{
+        if(command.type==='planning_undo')return applyStoredPlanningUndo(plan,command,expected);
         const applied=applyTaskListCommand(plan.data,command,expected);
         Object.assign(plan.data,applied.next);
         return applied.result;
-    },{legacyFingerprint:stableStringify({command,expected}),planningOptions:command.type==='planning_batch'?command.options:null});
+    },{legacyFingerprint:stableStringify({command,expected}),planningOptions:command.type==='planning_batch'?command.options:null,...(command.type==='planning_undo'?{undoSourceOperationId:command.sourceOperationId,undoTimezone:command.options?.timezone}:{})});
+}
+
+export function applyStoredPlanningUndo(plan,command,expected){
+ if(command?.type!=='planning_undo'||Object.keys(command).some(key=>!['type','sourceOperationId','options'].includes(key))||typeof command.sourceOperationId!=='string'||!command.sourceOperationId||command.sourceOperationId.length>160||expected?.sourceOperationId!==command.sourceOperationId||!command.options||Object.keys(command.options).some(key=>key!=='timezone'))throw Error('Invalid reviewed planning Undo command.');
+ const source=planningUndoSource({aiActionReceipts:plan.receipts},command.sourceOperationId);
+ if(command.options.timezone!==source.result.planningUndo.timezone)throw Error('The Undo timezone changed. Review it again.');
+ const applied=applyPlanningUndo(plan.data,source.result.planningUndo);Object.assign(plan.data,applied.next);
+ return {...applied.result,undoneOperationId:source.id};
+}
+export async function loadPlanningUndoPreview(planId,uid,timezone){
+ const [snapshot,userSnapshot]=await Promise.all([getDoc(doc(db,'study_plans',planId)),getDoc(doc(db,'users',uid))]);
+ return planningUndoPreview(ownedPlan(snapshot,uid),null,userSnapshot.data()?.settings?.profile?.timezone||timezone);
 }
 
 function ownedPlan(snapshot, uid) {
@@ -38,7 +52,10 @@ export async function savePlannerEdits(planId, uid, base, local, options={}) {
 
 function receiptResult(result) {
     const compact = { type: result.type };
-    if(Array.isArray(result.taskIds)){compact.taskIds=structuredClone(result.taskIds);compact.completedTaskIds=structuredClone(result.completedTaskIds||[]);compact.action=result.action;}
+    if(result.planningUndo)compact.planningUndo=structuredClone(result.planningUndo);
+    if(result.planningUndoUnavailable)compact.planningUndoUnavailable=true;
+    if(result.type==='planning_undo')compact.undoneOperationId=result.undoneOperationId;
+    if(Array.isArray(result.taskIds)){compact.taskIds=structuredClone(result.taskIds);compact.completedTaskIds=structuredClone(result.completedTaskIds||[]);if(result.action!==undefined)compact.action=result.action;}
     for (const field of ['task', 'event', 'movedTask']) {
         const item = result[field];
         if (item) compact[field] = Object.fromEntries(['id', 'title', 'date', 'startTime', 'endTime', 'completed', 'archived', 'day', 'start', 'end', 'estimatedMinutes', 'lastScheduledMinutes', 'reminderMinutes'].filter(key => item[key] !== undefined).map(key => [key, item[key]]));
@@ -79,10 +96,13 @@ export async function persistAiPlanAction(planId, uid, action, operationId, crea
         // Never replay an evicted receipt: its save may already have succeeded.
         if (createdAt <= (data.aiActionReceiptFloor || 0)) throw new Error('This retry is too old to reconcile safely. Check the planner before requesting a new change.');
         if(options.planningOptions?.availabilitySource==='saved'){const userSnapshot=await transaction.get(doc(db,'users',uid));assertSavedAvailability(options.planningOptions,userSnapshot.exists()?userSnapshot.data():{});}
+        if(options.undoSourceOperationId){const source=planningUndoSource(data,options.undoSourceOperationId),userSnapshot=await transaction.get(doc(db,'users',uid)),timezone=userSnapshot.data()?.settings?.profile?.timezone||options.undoTimezone;if(timezone!==source.result.planningUndo.timezone||options.undoTimezone!==timezone)throw Error('Your timezone changed. Review the previous placements manually.');}
         const next = planState(data);
-        const result = receiptResult(apply({ data: next }));
+        const result = receiptResult(apply({ data: next,receipts }));
+        if(result.type==='planning_undo'&&result.undoneOperationId!==options.undoSourceOperationId)throw Error('A saved planning receipt is required for Undo.');
         validateAssignmentOrderChanges(planState(data),next);
-        const updated = [...receipts, { id: operationId, createdAt, fingerprint, result }];
+        const history=result.type==='planning_undo'?receipts.map(receipt=>receipt.id===result.undoneOperationId?{...receipt,planningUndoUsedBy:operationId}:receipt):receipts;
+        const updated = [...history, { id: operationId, createdAt, fingerprint, result }];
         const removed = updated.slice(0, Math.max(0, updated.length - 100));
         const retained=updated.slice(-100);
         // Batch results stay small; bound the whole history as well as its count.

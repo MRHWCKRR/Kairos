@@ -113,3 +113,16 @@ Extra weekly hours retain closed days and merge overlapping extended windows. Th
 Selecting **Review this option** rechecks current state and opens exact rows plus the changed assumptions. Actual Apply still independently checks live state, deadlines, timezone and collisions. Recovered previews and receipt retries retain their reviewed command, option disclosure and operation identity; changing saved defaults does not regenerate them.
 
 Kairos AI uses `plan_assignments` with `compareAlternatives:true` (and normally `checkOnly:true`) for read-only alternatives questions. Comparison reports include the range, timezone, original assumptions, changed assumptions and fitted/unplaced work. They finish without Apply. A user-chosen option is requested with `alternative` equal to `daily-limit`, `gap`, `hours` or `focus`, using the original range/IDs/base settings; the deterministic engine derives the changed options. `focusAssignmentIds` must be explicit selected IDs and is allowed only for comparison or a focus choice. Chosen plans still require review and Apply. No additional inference call, listener, collection or receipt schema is introduced.
+
+
+### Undo the last applied planning change
+
+Schedule > Planning > Undo last planning change loads a review from the current planner's latest retained planning receipt. Kairos AI supports the same review through an explicit Undo request (`plan_undo`, empty args). Review the changed fields, then choose Undo reviewed changes. Closing or discarding the preview does not change the planner.
+
+Planning receipts now retain only the scheduling fields changed by their batch, their original values (including missing fields), and guards for the applied state and assignment membership. Undo restores previous dates, times, effort, archive state and ordering only where the original batch changed them. Generated sessions are archived rather than deleted. Notes, titles, checklists, reminders and completion edits remain intact; a newly generated session that has since been completed blocks Undo for manual review. Original placements may be in the past.
+
+The transaction resolves the source receipt rather than accepting an inverse from the browser or AI. It rejects a newer planning batch, missing or moved targets, changed scheduling fields, locks, deadlines, recurring state, assignment membership, current collisions, invalid timezone transitions or invalid session order. A changed profile timezone requires manual review. Undo does not relax current deadlines, and restoring original times does not reapply current planning-hour, gap or daily-limit preferences.
+
+Undo marks its source used and has its own idempotent receipt. Lost replies retain the same operation across retry/reload and reconcile an existing successful receipt before checking current state. An already undone batch cannot be undone again under another operation. This is a single last-change action, not a chain of older rollbacks or Redo.
+
+No collection migration is needed. Older receipts without Undo metadata, evicted receipts and oversized inverse records cannot be undone automatically. The existing history remains bounded to 100 receipts and 64 KiB; a batch with inverse metadata over 48,000 characters still saves normally but reports Undo unavailable. No additional listeners or AI inference are needed to load or apply Undo.

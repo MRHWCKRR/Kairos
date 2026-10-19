@@ -34,7 +34,7 @@ export function createPageLoader({importModule=url=>import(url),loadStyle=loadPa
         // Markdown enhances already-escaped text; a CDN outage must not prevent
         // authentication or plain-text chat. Sanitisation stays in ai-markdown.
         void importModule('./ai-markdown.js?v=1').catch(error=>warn('[Kairos] Markdown unavailable; using plain text.',error));
-        await importModule('./ai-workspace.js?v=41');
+        await importModule('./ai-workspace.js?v=42');
         await waitForChat();
       }
       if(page==='statistics-page') {
@@ -42,7 +42,7 @@ export function createPageLoader({importModule=url=>import(url),loadStyle=loadPa
         await importModule('./statistics-ai.js?v=1');
       }
       if(page==='schedule-page'&&scheduleEnabled) {
-        await Promise.all(scheduleStyles.map(name=>loadStyle(name+(name==='schedule-ai.css'?'?v=11':name==='planning-hub.css'?'?v=2':name==='schedule-day-change.css'||name==='assignment-progress.css'?'?v=1':name==='schedule-interactions.css'?'?v=11':'?v=10'))));
+        await Promise.all(scheduleStyles.map(name=>loadStyle(name+(name==='schedule-ai.css'?'?v=11':name==='planning-hub.css'?'?v=3':name==='schedule-day-change.css'||name==='assignment-progress.css'?'?v=1':name==='schedule-interactions.css'?'?v=11':'?v=10'))));
         await importModule('./schedule-workspace.js?v=12');
         // These modules inspect the workspace during boot. Preserve that order
         // even when network responses arrive out of order.
