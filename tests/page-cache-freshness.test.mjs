@@ -7,6 +7,7 @@ import * as scheduleUtils from '../schedule-utils.js';
 import {generateTaskOccurrencesThrough} from '../recurrence-utils.js';
 import {createPageRenderCache} from '../page-render-cache.js';
 import {injectScheduleShell} from '../build-transforms.js';
+import {mountFocusBreakdown} from '../focus-breakdown.js';
 
 const html=injectScheduleShell(await readFile(new URL('../app.html',import.meta.url),'utf8'));
 const scheduleSource=(await readFile(new URL('../schedule-workspace.js',import.meta.url),'utf8')).replace(/^import[\s\S]*?;\n/gm,'').replace('export function initScheduleWorkspace','function initScheduleWorkspace');
@@ -60,6 +61,7 @@ test('Statistics refreshes its current month after rollover without redrawing a 
     pageRenders:createPageRenderCache({isActive:page=>document.getElementById(page).classList.contains('active'),scheduleIdle:()=>{}}),
     toDateKey:scheduleUtils.toDateKey,getLocale:()=> 'en',tr:key=>key,trFmt:(_,values)=>String(values.n),formatHMS:String,
     userSettings:{accessibility:{language:'en'}},achievementsData:{lifetimeTasksCompleted:0},
+    focusBreakdownView:null,mountFocusBreakdown,auth:{currentUser:{uid:'one'}},currentPlanDocId:'plan',boardsData:[],
     focusData:{totalSeconds:10,longestSessionSeconds:7,dailyFocusLog:{'2026-10-02':7,'2026-11-02':3},dailyTasksLog:{}}});
   const stats=appSource.slice(appSource.indexOf('    function aggregateDailyLog('),appSource.indexOf("    document.querySelectorAll('#stats-range-toggle"));
   const activate=appSource.match(/onNavigate:targetName=>\{([\s\S]*?)\n\s*if \(targetName === "settings-page"\)/)[1];
