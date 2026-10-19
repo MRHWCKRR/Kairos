@@ -2,10 +2,10 @@ import {savedPlanningPreferences,planningPreferencesText} from './planning-prefe
 import {savedWeeklyAvailability} from './weekly-availability.js';
 import { auth, db } from './firebase.js';
 import { persistAiPlanAction, getConfirmedAiAction } from './plan-store.js?v=9';
-import { validateActionShape } from './ai-action-schema.js?v=9';
+import { validateActionShape } from './ai-action-schema.js?v=10';
 import { stableStringify, planState } from './plan-merge.js';
 import { taskDurationMinutes } from './schedule-utils.js';
-import {previewAiPlanning,resolveAiPlanningTimezone} from './ai-planning.js?v=9';
+import {previewAiPlanning,resolveAiPlanningTimezone} from './ai-planning.js?v=10';
 import {planningConflicts,planningGapText,planningDailyLimitText} from './planning-slots.js?v=3';
 import {applyPlanningCommand} from './planning-commands.js?v=6';
 import {
@@ -215,7 +215,7 @@ export async function executeKairosAction(action, options = {}) {
     const operationId = options.operationId || makeId('operation');
     const createdAt = options.createdAt ?? Date.now();
     if (typeof operationId !== 'string' || !operationId || operationId.length > 160 || !Number.isFinite(createdAt) || createdAt <= 0) throw new Error('Invalid operation identity.');
-    if(type==='plan_assignments'&&args.checkOnly)throw Error('A check-only request cannot save planning changes.');
+    if(type==='plan_assignments'&&(args.checkOnly||args.compareAlternatives))throw Error('A check-only request cannot save planning changes.');
     if(type.startsWith('plan_')) {
         const confirmed=await getConfirmedAiAction(planId,user.uid,{type,args},operationId);
         if(confirmed)return aiActionResult(type,confirmed);
