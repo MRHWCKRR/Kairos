@@ -1,7 +1,7 @@
 import {assertAssignmentOrder} from './assignment-order.js';
 import {planningTasks,validPlanningDate,shiftPlanningDate} from './planning-model.js';
 import {planningAvailability,planningWindows,planningOccupancy,planningBlockValid,intervalsOverlap,planningDailyWork,planningDailyRemaining,planningDailyLimit} from './planning-slots.js?v=3';
-import {previewCarryover} from './planning-commands.js?v=6';
+import {previewCarryover} from './planning-commands.js?v=7';
 import {parseTime,taskDurationMinutes} from './schedule-utils.js';
 
 // Capacity is an upper bound: gaps may be too short, restricted by preferences,

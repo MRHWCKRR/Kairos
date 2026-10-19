@@ -1,3 +1,4 @@
+import {capturePlanningUndo} from './planning-undo.js?v=1';
 import {normaliseWeeklyAvailability} from './weekly-availability.js';
 import {planningTasks,planningClock,validPlanningDate} from './planning-model.js';
 import {findPlanningSlot,planningAvailability,planningWindows,planningBlockValid,planningPlacementOccupancy,planningIntervalsConflict,planningDailyWork,planningDailyRemaining,addPlanningDailyWork,planningDailyLimitText} from './planning-slots.js?v=3';
@@ -133,5 +134,6 @@ export function applyPlanningCommand(state,command,expected,{now=Date.now()}={})
   for(const id of archiveIds)locate(next,id).task.archived=true;
  }else for(const row of rows){const task=locate(next,row.taskId).task;Object.assign(task,{date:row.date,startTime:row.startTime,endTime:row.endTime,lastScheduledMinutes:row.minutes})}
  validateAssignmentOrderChanges(state,next);
- return {next,result:{type:'planning_batch',action:command.mode,taskIds:[...ids,...archiveIds],completedTaskIds:[],affectedCount:rows.length+archiveIds.length}};
+ const planningUndo=capturePlanningUndo(state,next,command);
+ return {next,result:{type:'planning_batch',action:command.mode,taskIds:[...ids,...archiveIds],completedTaskIds:[],affectedCount:rows.length+archiveIds.length,...(planningUndo?{planningUndo}:{planningUndoUnavailable:true})}};
 }

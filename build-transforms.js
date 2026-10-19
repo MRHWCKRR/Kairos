@@ -20,6 +20,7 @@ const BRIDGE=`
         getPlanningPreferences: () => ({dailyLimitMinutes:settingsCloudSnapshot.planning?.dailyLimitMinutes??0,gapMinutes:settingsCloudSnapshot.planning?.gapMinutes??0}),
         getWeeklyAvailability: () => settingsCloudSnapshot.planning?.weeklyAvailability ?? null,
         getTimezone: () => userSettings.profile.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+        previewPlanningUndo: () => loadPlanningUndoPreview(currentPlanDocId,auth.currentUser?.uid,userSettings.profile.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'),
         commitTaskCommand: (command, expected, identity) => {
             const zone = userSettings.profile.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
             if (command.options?.timezone !== zone) throw new Error('Your planning timezone changed. Refresh the preview.');
