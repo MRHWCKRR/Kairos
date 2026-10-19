@@ -1,3 +1,4 @@
+import {normalisePlanningPreferences} from '../planning-preferences.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -13,7 +14,7 @@ async function fixture({cache=new Map(),cloud={appearance:{mode:'dark'},profile:
  let stored=structuredClone(cloud),offline=fail,gate=null,writes=0,owner='one',saveClick,cancelClick;
  const save=document.getElementById('settings-save-btn'),cancel=document.getElementById('settings-cancel-btn');save.addEventListener=(_event,fn)=>saveClick=fn;cancel.addEventListener=(_event,fn)=>cancelClick=fn;
  const defaults=()=>({appearance:{mode:'dark'},profile:{displayName:'Original'}});
- const context=vm.createContext({...helper,normaliseWeeklyAvailability,document,window,Event:window.Event,localStorage:storage,auth:{get currentUser(){return owner?{uid:owner}:null}},db:{},doc:(_db,_collection,id)=>id,
+ const context=vm.createContext({...helper,normalisePlanningPreferences,normaliseWeeklyAvailability,document,window,Event:window.Event,localStorage:storage,auth:{get currentUser(){return owner?{uid:owner}:null}},db:{},doc:(_db,_collection,id)=>id,
   userSettings:defaults(),pendingSettings:defaults(),settingsCloudSnapshot:defaults(),settingsPendingRecord:null,settingsSaveTicket:null,settingsLoadRevision:0,
   settingsRecovery:helper.createSettingsRecovery?.(storage),defaultSettings:defaults,cloneDeep:structuredClone,deepMerge:(base,value)=>({...base,...value}),console:{error(){}},tr:key=>key,
   triggerMiscAchievement(){},applyAllSettings(){},previewLive(){},invalidateKairosContext(){},renderUserProfileMenu(){},populateSettingsForm(){},setupNotificationBell(){},markInitialLoadComplete(){},showNotice(){},
@@ -79,4 +80,12 @@ test('quota failure keeps Retry visible without claiming local recovery is avail
 
 test('an old-account save completion cannot overwrite the current account settings',async()=>{
  const f=await fixture();let release;f.block(new Promise(resolve=>release=resolve));f.context.pendingSettings.profile.displayName='Old account draft';const saving=f.clickSave();f.setOwner('two');f.setCloud({appearance:{mode:'dark'},profile:{displayName:'Second account'}});await f.context.loadUserSettingsFromFirestore({uid:'two'});release();await saving;assert.equal(f.context.pendingSettings.profile.displayName,'Second account');
+});
+
+
+test('planning defaults save, recover from failed sync and preserve newer unrelated edits',async()=>{
+ const f=await fixture({fail:true});f.context.pendingSettings.planning={dailyLimitMinutes:120,gapMinutes:10};await f.clickSave();assert.equal(f.writes(),0);const reload=await fixture({cache:f.cache,cloud:{appearance:{mode:'light'},profile:{displayName:'Updated'}}});assert.equal(reload.context.pendingSettings.planning.dailyLimitMinutes,120);assert.equal(reload.context.pendingSettings.planning.gapMinutes,10);await reload.clickSave();assert.equal(reload.writes(),1);assert.equal(reload.stored().planning.dailyLimitMinutes,120);assert.equal(reload.stored().planning.gapMinutes,10);assert.equal(reload.stored().profile.displayName,'Updated');assert.equal(reload.stored().appearance.mode,'light');
+});
+test('invalid planning-default drafts never write or stage a save',async()=>{
+ for(const planning of [{dailyLimitMinutes:14,gapMinutes:0},{dailyLimitMinutes:60,gapMinutes:2},{dailyLimitMinutes:NaN,gapMinutes:0}]){const f=await fixture();f.context.pendingSettings.planning=planning;await f.clickSave();assert.equal(f.writes(),0);assert.equal(f.context.settingsSaveTicket,null);assert.equal(f.context.settingsPendingRecord,null)}
 });

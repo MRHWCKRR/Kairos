@@ -87,8 +87,17 @@ Capacity-only questions use `checkOnly:true` and return a report without Apply o
 
 # Optional spacing
 
-Planning offers None (default), 5, 10 or 15 minutes of spacing for each plan. Kairos AI accepts the same choices as `gapMinutes` on session, combined-assignment, carry-over and conflict-planning actions. It defaults to zero unless the user asks for a gap. Spacing is retained in the reviewed command and exact Retry; older previews without the field retain their original zero-gap behavior. It is not a saved account preference.
+Planning offers None, 5, 10 or 15 minutes of spacing for each plan, starting from the saved default. Kairos AI accepts the same choices as `gapMinutes` on session, combined-assignment, carry-over and conflict-planning actions. Omitting the field inherits the saved default; explicit zero requests no added gap. Spacing is retained in the reviewed command and exact Retry; older previews without the field retain their original zero-gap behavior. Accounts without a saved preference keep zero-gap behavior.
 
 Every proposed session leaves the chosen elapsed-time gap before or after neighbouring active scheduled tasks, locked/recurring work and fixed commitments. Existing commitments are not moved to add spacing between themselves. No break tasks are created, session effort is not inflated, and no extra padding is required at an otherwise empty work-window edge. Neighbouring days are checked at range boundaries; split weekly windows and timezone transitions still constrain placement. Invalid nearby commitment time boundaries are treated conservatively and may require review.
 
 Capacity free-minute totals remain an upper bound before spacing. Actual candidate placement and Apply both enforce the chosen gap. A spacing-related failure can leave a whole assignment unplaced even when raw free minutes exceed its effort; this does not establish impossibility for every arrangement. Reports disclose the gap and explain when it prevents the checked candidate from fitting. Calculations are cached only for the lifetime of a preview/check/Apply operation and scoped by timezone.
+
+
+# Saved planning defaults
+
+Settings → Personal → Planning defaults saves `dailyLimitMinutes` and `gapMinutes` beside `weeklyAvailability` in `users/{uid}.settings.planning`. No migration is required: missing fields mean no daily limit and no added gap. Limits accept 0 or integer 15–1440 minutes; gaps accept 0, 5, 10 or 15. Settings validation runs before staging and again inside the existing merge transaction. Failed saves use the existing account-scoped Settings recovery and Retry flow; unrelated edits on another device remain intact.
+
+New Planning dialogs use cloud-confirmed defaults, and new Kairos AI previews read the user's saved settings. AI capacity summaries use those same defaults. Omitted action fields inherit their individual defaults; explicit zero overrides either field independently. Per-plan overrides never change Settings. Previews disclose the actual values and any overrides before Apply. Existing pending previews and receipt retries keep their exact reviewed values even if defaults change later; saved weekly-hour and timezone freshness checks still apply.
+
+The daily limit counts dated assignment-linked sessions across all active assignments, including completed and locked work. Ordinary tasks and fixed events occupy time without spending the assignment budget. Gaps do not count as effort. Existing over-limit work is not moved automatically; capacity checks disclose locked dates needing review. Missing deadlines, session ordering, overnight work, and recurrence exceptions retain the same planning rules.

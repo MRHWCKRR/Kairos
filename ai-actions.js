@@ -1,10 +1,11 @@
+import {savedPlanningPreferences,planningPreferencesText} from './planning-preferences.js?v=1';
 import {savedWeeklyAvailability} from './weekly-availability.js';
 import { auth, db } from './firebase.js';
 import { persistAiPlanAction, getConfirmedAiAction } from './plan-store.js?v=9';
-import { validateActionShape } from './ai-action-schema.js?v=8';
+import { validateActionShape } from './ai-action-schema.js?v=9';
 import { stableStringify, planState } from './plan-merge.js';
 import { taskDurationMinutes } from './schedule-utils.js';
-import {previewAiPlanning,resolveAiPlanningTimezone} from './ai-planning.js?v=8';
+import {previewAiPlanning,resolveAiPlanningTimezone} from './ai-planning.js?v=9';
 import {planningConflicts,planningGapText,planningDailyLimitText} from './planning-slots.js?v=3';
 import {applyPlanningCommand} from './planning-commands.js?v=6';
 import {
@@ -21,7 +22,7 @@ const makeId = prefix => prefix + '-' + Date.now().toString(36) + '-' + Math.ran
 async function planningPreferences(user) {
     const snapshot=await getDoc(doc(db,'users',user.uid));
     if(auth.currentUser?.uid!==user.uid)throw Error('The signed-in account changed.');
-    return {timezone:resolveAiPlanningTimezone(snapshot.data(),user.uid),weeklyAvailability:savedWeeklyAvailability(snapshot.data())};
+    return {timezone:resolveAiPlanningTimezone(snapshot.data(),user.uid),weeklyAvailability:savedWeeklyAvailability(snapshot.data()),planningPreferences:savedPlanningPreferences(snapshot.data())};
 }
 
 async function planningTimezone(user){return (await planningPreferences(user)).timezone}
@@ -155,7 +156,7 @@ export async function previewKairosAction(action, options = {}) {
     if(action.type.startsWith('plan_')) {
         const preferences=await planningPreferences(user),timezone=preferences.timezone;
         const proposal=previewAiPlanning(planState(data),action,preferences);
-        return {action,approval:proposal.command?{request:stableStringify(action),command:proposal.command,expected:proposal.expected}:null,summary:{kind:'planning',title:action.type==='plan_sessions'?'New work sessions':action.type==='plan_assignments'?'Combined assignment plan':'Schedule changes',rows:proposal.rows,timezone,options:proposal.command?.options||proposal.options,...(proposal.capacity?{capacity:proposal.capacity}:{}),remainingConflicts:proposal.remainingConflicts||0,notice:[proposal.notice,proposal.command?planningDailyLimitText(proposal.command.options)+' '+planningGapText(proposal.command.options):'',proposal.command?.ordered!==undefined?'Session order: '+(proposal.command.ordered?'numbered sequence (earlier work first).':'independent placement.'):''].filter(Boolean).join(' ')}};
+        return {action,approval:proposal.command?{request:stableStringify(action),command:proposal.command,expected:proposal.expected}:null,summary:{kind:'planning',title:action.type==='plan_sessions'?'New work sessions':action.type==='plan_assignments'?'Combined assignment plan':'Schedule changes',rows:proposal.rows,timezone,options:proposal.command?.options||proposal.options,...(proposal.capacity?{capacity:proposal.capacity}:{}),remainingConflicts:proposal.remainingConflicts||0,notice:[proposal.notice,planningPreferencesText(preferences.planningPreferences,proposal.command?.options||proposal.options),proposal.command?planningDailyLimitText(proposal.command.options)+' '+planningGapText(proposal.command.options):'',proposal.command?.ordered!==undefined?'Session order: '+(proposal.command.ordered?'numbered sequence (earlier work first).':'independent placement.'):''].filter(Boolean).join(' ')}};
     }
     return actionPreview(planState(data), action);
 }

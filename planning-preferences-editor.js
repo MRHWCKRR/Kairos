@@ -1,0 +1,11 @@
+import {normalisePlanningPreferences} from './planning-preferences.js?v=1';
+const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+export function mountPlanningPreferencesEditor({root,getValue,onChange}){
+ if(!root)return null;let draft={};
+ function status(){const el=root.querySelector('[data-planning-defaults-status]');try{normalisePlanningPreferences(draft);el.textContent='Save settings to use these defaults in new Planning and Kairos AI previews. Existing reviewed previews keep their original values.'}catch(error){el.textContent=error.message}}
+ function refresh(){const value=getValue()||{};draft={dailyLimitMinutes:value.dailyLimitMinutes===undefined?0:value.dailyLimitMinutes,gapMinutes:value.gapMinutes===undefined?0:value.gapMinutes};
+  root.innerHTML='<label>Daily assignment work limit (minutes)<input class="settings-input" type="number" name="planningDailyLimitMinutes" min="0" max="1440" step="1" value="'+esc(draft.dailyLimitMinutes)+'" required></label><p class="settings-hint">0 means no limit; otherwise use 15–1440 minutes. Counts dated assignment sessions across all assignments, including completed and locked work. Gaps do not count.</p><label>Gap between planned sessions<select class="settings-input" name="planningGapMinutes">'+[0,5,10,15].map(n=>'<option value="'+n+'" '+(draft.gapMinutes===n?'selected':'')+'>'+(n?n+' minutes':'None')+'</option>').join('')+'</select></label><p class="settings-hint">Gaps stay as free time before or after neighbouring commitments. Override either value for an individual plan without changing these defaults.</p><p class="settings-hint" role="status" aria-live="polite" data-planning-defaults-status></p>';status();
+ }
+ function change(event){const field={planningDailyLimitMinutes:'dailyLimitMinutes',planningGapMinutes:'gapMinutes'}[event.target.name];if(!field)return;draft[field]=event.target.value===''?NaN:Number(event.target.value);onChange({...draft});status()}
+ root.addEventListener('input',change);root.addEventListener('change',change);refresh();return {refresh,dispose(){root.removeEventListener('input',change);root.removeEventListener('change',change);root.replaceChildren()}};
+}

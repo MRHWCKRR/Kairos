@@ -15,7 +15,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Quicksand:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script defer src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-<link rel="stylesheet" href="weekly-availability.css?v=1">
+<link rel="stylesheet" href="weekly-availability.css?v=2">
 </head>
 <body>
     <script>
@@ -487,6 +487,7 @@
                                 <label class="settings-label" data-i18n="timezone">Timezone</label>
                                 <select id="settings-timezone" class="settings-input"></select>
                             </div>
+                        <div class="settings-group"><h3>Planning defaults</h3><div id="planning-preferences-editor"></div></div>
                         <div class="settings-group"><h3>Weekly availability</h3><div id="weekly-availability-editor"></div></div>
                         </section>
 
@@ -830,7 +831,7 @@
 
     <div id="achievement-toast-container" class="achievement-toast-container"></div>
     
-    <script type="module" src="app-bootstrap.js?v=29"></script>
+    <script type="module" src="app-bootstrap.js?v=30"></script>
 <script type="module" src="ui-bootstrap.js?v=2"></script>
 </body>
 </html>
