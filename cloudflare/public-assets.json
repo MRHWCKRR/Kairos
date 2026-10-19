@@ -131,7 +131,9 @@
     "focus-store.js",
     "focus-timer.js",
     "task-focus.js",
-    "task-focus.css"
+    "task-focus.css",
+    "focus-history.js",
+    "focus-history-model.js"
   ],
   "directories": [
     "images",

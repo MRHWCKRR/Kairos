@@ -1,4 +1,4 @@
-import {focusElapsedMs,recoverFocus,validFocusSession,MAX_FOCUS_MS} from './focus-model.js?v=1';
+import {focusElapsedMs,recoverFocus,validFocusSession,MAX_FOCUS_MS} from './focus-model.js?v=2';
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const format=ms=>{const s=Math.floor(ms/1000);return [Math.floor(s/3600),Math.floor(s%3600/60),s%60].map(n=>String(n).padStart(2,'0')).join(':')};
 export function mountFocusTimer({document=globalThis.document,window=globalThis.window,getIdentity,persist,getLongestSeconds=()=>0,confirmDiscard=async()=>false,storage,locks=window.navigator?.locks,now=()=>Date.now(),setInterval=window.setInterval.bind(window),clearInterval=window.clearInterval.bind(window)}={}){
@@ -31,7 +31,7 @@ export function mountFocusTimer({document=globalThis.document,window=globalThis.
  }
  function render(){if(disposed)return;const home=document.getElementById('focus-timer-container'),active=document.activeElement,action=active?.dataset?.focusAction,inBar=bar.contains(active),name=state?.target?.title||'General focus';
   const html='<div class="task-focus-heading"><strong>'+esc(name)+'</strong><span data-focus-elapsed>'+format(focusElapsedMs(state,now()))+'</span></div><div class="focus-timer-controls">'+controls()+'</div><p data-focus-status role="status" aria-live="polite">'+esc(!samePlan()?'Switch back to this timer’s planner before logging.':message)+'</p>';
-  if(home)home.innerHTML='<h3>Focus timer</h3>'+html+'<p class="text-muted focus-timer-longest-row">Longest session '+format((getLongestSeconds()||0)*1000)+'</p>';
+  if(home)home.innerHTML='<h3>Focus timer</h3>'+html+'<p class="text-muted focus-timer-longest-row">Longest session '+format((getLongestSeconds()||0)*1000)+'</p><button type="button" data-focus-history-open>Focus history</button>';
   bar.hidden=!owner||!state;bar.innerHTML=html;
   if(action)(inBar?bar:home)?.querySelector('[data-focus-action="'+action+'"]')?.focus?.({preventScroll:true});
  }

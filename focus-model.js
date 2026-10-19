@@ -1,5 +1,6 @@
 import {stableStringify,planState} from './plan-merge.js';
 import {planningClock} from './planning-model.js';
+import {appendFocusHistory} from './focus-history-model.js?v=1';
 export const MAX_FOCUS_MS=86400000;
 const keys=(value,allowed)=>value&&typeof value==='object'&&!Array.isArray(value)&&Object.keys(value).every(k=>allowed.includes(k));
 const id=value=>typeof value==='string'&&value.length>0&&value.length<=160;
@@ -23,5 +24,5 @@ export function applyFocusLog(user,plan,entry,{now=Date.now()}={}){
  const timezone=user.settings?.profile?.timezone||Intl.DateTimeFormat().resolvedOptions().timeZone||'UTC',day=planningClock(entry.endedAt,timezone).date,old=user.focusData||{},focusData={...structuredClone(old),totalSeconds:add(old.totalSeconds,entry.seconds),longestSessionSeconds:Math.max(total(old.longestSessionSeconds),entry.seconds),dailyFocusLog:{...old.dailyFocusLog,[day]:add(old.dailyFocusLog?.[day],entry.seconds)}};
  const result={type:'focus_log',seconds:entry.seconds,attributed,taskId:attributed?target.taskId:null,completedTaskIds,...(attributed?{task:{id:found.task.id,title:String(found.task.title||'Task').slice(0,180),completed:!!found.task.completed}}:{})};
  const retained=[...receipts,{id:entry.id,createdAt:entry.createdAt,fingerprint,result}],removed=[];while(retained.length>100||retained.length>1&&JSON.stringify(retained).length>65536)removed.push(retained.shift());
- return {userPatch:{focusData,focusLogReceipts:retained,focusLogReceiptFloor:Math.max(user.focusLogReceiptFloor||0,...removed.map(r=>r.createdAt))},planPatch:attributed?next:null,result:{...result,focusData}};
+ return {userPatch:{focusData,focusHistory:appendFocusHistory(user,next,entry,result,day),focusLogReceipts:retained,focusLogReceiptFloor:Math.max(user.focusLogReceiptFloor||0,...removed.map(r=>r.createdAt))},planPatch:attributed?next:null,result:{...result,focusData}};
 }
