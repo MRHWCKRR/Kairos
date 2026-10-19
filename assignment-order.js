@@ -1,4 +1,4 @@
-import {planningTasks,validPlanningDate} from './planning-model.js';
+import {planningTasks,validPlanningDate} from './planning-model.js?v=1';
 import {parseTime,taskDurationMinutes} from './schedule-utils.js';
 
 const active=state=>planningTasks(state).map(entry=>entry.task);

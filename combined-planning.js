@@ -1,9 +1,9 @@
-import {taskRemainingMinutes} from './remaining-work.js?v=1';
-import {planningTasks,validPlanningDate} from './planning-model.js';
-import {planningAvailability,planningOccupancy,planningBlockValid,intervalsOverlap,planningDailyWork,planningDailyLimit,addPlanningDailyWork} from './planning-slots.js?v=3';
-import {previewCarryover} from './planning-commands.js?v=8';
-import {freeMinutes} from './deadline-feasibility.js?v=6';
-import {orderedSessionGroup,assertAssignmentOrder} from './assignment-order.js';
+import {taskRemainingMinutes} from './remaining-work.js?v=2';
+import {planningTasks,validPlanningDate} from './planning-model.js?v=1';
+import {planningAvailability,planningOccupancy,planningBlockValid,intervalsOverlap,planningDailyWork,planningDailyLimit,addPlanningDailyWork} from './planning-slots.js?v=4';
+import {previewCarryover} from './planning-commands.js?v=9';
+import {freeMinutes} from './deadline-feasibility.js?v=7';
+import {orderedSessionGroup,assertAssignmentOrder} from './assignment-order.js?v=1';
 import {parseTime,taskDurationMinutes} from './schedule-utils.js';
 
 export function combinedPlanning(state,input,clock){

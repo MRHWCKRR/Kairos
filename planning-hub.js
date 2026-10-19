@@ -1,12 +1,12 @@
-import {taskRemainingMinutes} from './remaining-work.js?v=1';
-import {planningAlternatives,choosePlanningAlternative,planningHoursText} from './planning-alternatives.js?v=3';
-import {planningPreferencesText} from './planning-preferences.js?v=1';
-import {combinedPlanning} from './combined-planning.js?v=4';
+import {taskRemainingMinutes} from './remaining-work.js?v=2';
+import {planningAlternatives,choosePlanningAlternative,planningHoursText} from './planning-alternatives.js?v=4';
+import {planningPreferencesText} from './planning-preferences.js?v=2';
+import {combinedPlanning} from './combined-planning.js?v=5';
 import {weeklyAvailabilityText} from './weekly-availability.js';
-import {assignmentFeasibility,feasibilityAssignments,FEASIBILITY_LIMIT} from './deadline-feasibility.js?v=6';
-import {deadlineSummary,weeklyReview,planningTasks,planningClock,planningWeekStart,shiftPlanningDate} from './planning-model.js';
-import {planningConflicts,planningAvailability,planningGapText,planningDailyLimitText} from './planning-slots.js?v=3';
-import {previewSessions,previewCarryover,previewSessionRevision} from './planning-commands.js?v=8';
+import {assignmentFeasibility,feasibilityAssignments,FEASIBILITY_LIMIT} from './deadline-feasibility.js?v=7';
+import {deadlineSummary,weeklyReview,planningTasks,planningClock,planningWeekStart,shiftPlanningDate} from './planning-model.js?v=1';
+import {planningConflicts,planningAvailability,planningGapText,planningDailyLimitText} from './planning-slots.js?v=4';
+import {previewSessions,previewCarryover,previewSessionRevision} from './planning-commands.js?v=9';
 
 const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 const undoPlacement=value=>value?.archived?'Archive':(value?.date||'Unscheduled')+(value?.startTime?' '+value.startTime+'-'+(value.endTime||''):'')+(value?.minutes?' / '+value.minutes+' min':'')+(value?.sessionOrder?' ('+value.sessionOrder+')':'');

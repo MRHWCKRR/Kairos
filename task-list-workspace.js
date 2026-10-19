@@ -1,7 +1,7 @@
-import {applyTaskListCommand} from './task-list-model.js?v=9';
+import {applyTaskListCommand} from './task-list-model.js?v=10';
 import {t} from './i18n.js';
-import {assignmentProgressIndex,assignmentProgressMarkup} from './assignment-progress.js?v=3';
-import {planningClock} from './planning-model.js';
+import {assignmentProgressIndex,assignmentProgressMarkup} from './assignment-progress.js?v=4';
+import {planningClock} from './planning-model.js?v=1';
 import {confirmDialog} from './ui-dialogs.js?v=1';
 
 const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));

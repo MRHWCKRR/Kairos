@@ -1,5 +1,5 @@
-import {taskRemainingMinutes} from './remaining-work.js?v=1';
-import {planningTasks,validPlanningDate} from './planning-model.js';
+import {taskRemainingMinutes} from './remaining-work.js?v=2';
+import {planningTasks,validPlanningDate} from './planning-model.js?v=1';
 const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 export function deadlineImpact(state,parentId,dueDate){
  const entries=planningTasks(state),parents=entries.filter(({task})=>task.id===parentId),parent=parents[0]?.task;

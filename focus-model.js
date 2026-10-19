@@ -1,14 +1,16 @@
+import {focusOccurrence,focusRecurrenceSignature,setOccurrenceFocus,validFocusDate} from './occurrence-focus.js?v=1';
+import {setOccurrenceStatus} from './recurrence-utils.js?v=12';
 import {stableStringify,planState} from './plan-merge.js';
-import {planningClock} from './planning-model.js';
-import {appendFocusHistory} from './focus-history-model.js?v=1';
-import {remainingWorkSnapshot,taskWorkCheckin} from './remaining-work.js?v=1';
+import {planningClock} from './planning-model.js?v=1';
+import {appendFocusHistory} from './focus-history-model.js?v=2';
+import {remainingWorkSnapshot,taskWorkCheckin} from './remaining-work.js?v=2';
 export const MAX_FOCUS_MS=86400000;
 const keys=(value,allowed)=>value&&typeof value==='object'&&!Array.isArray(value)&&Object.keys(value).every(k=>allowed.includes(k));
 const id=value=>typeof value==='string'&&value.length>0&&value.length<=160;
 const nonnegative=value=>Number.isSafeInteger(value)&&value>=0;
 const total=value=>value===undefined?0:nonnegative(value)?value:(()=>{throw Error('Saved focus totals need review.');})();
 function add(a,b){const result=total(a)+b;if(!Number.isSafeInteger(result))throw Error('Focus total is too large.');return result}
-function validTarget(target){return target===null||keys(target,['taskId','boardId','sectionId','assignmentId','title'])&&[target.taskId,target.boardId,target.sectionId].every(id)&&(target.assignmentId===null||id(target.assignmentId))&&typeof target.title==='string'&&target.title.length<=180}
+function validTarget(target){return target===null||keys(target,['taskId','boardId','sectionId','assignmentId','title','occurrenceDate','recurrenceSignature'])&&[target.taskId,target.boardId,target.sectionId].every(id)&&(target.assignmentId===null||id(target.assignmentId))&&typeof target.title==='string'&&target.title.length<=180&&(target.occurrenceDate===undefined&&target.recurrenceSignature===undefined||validFocusDate(target.occurrenceDate)&&typeof target.recurrenceSignature==='string'&&target.recurrenceSignature.length>0&&target.recurrenceSignature.length<=2000)}
 export function focusElapsedMs(session,now=Date.now()){return Math.min(MAX_FOCUS_MS,Math.max(0,(session?.accumulatedMs||0)+(session?.startedAt!=null?Math.max(0,now-session.startedAt):0)))}
 export function validFocusSession(s){return s?.version===1&&id(s.id)&&id(s.ownerId)&&(s.planId===null||id(s.planId))&&Number.isFinite(s.createdAt)&&s.createdAt>0&&nonnegative(s.accumulatedMs)&&s.accumulatedMs<=MAX_FOCUS_MS&&(s.startedAt===null||Number.isFinite(s.startedAt))&&Number.isFinite(s.lastSeenAt)&&validTarget(s.target)&&(!s.pending||keys(s.pending,['id','ownerId','planId','createdAt','endedAt','seconds','target','mode','remainingMinutes','workExpected']))}
 export function recoverFocus(s,now=Date.now()){if(!validFocusSession(s))throw Error('The saved focus timer needs review.');return {...structuredClone(s),accumulatedMs:focusElapsedMs(s,Math.min(now,Math.max(s.startedAt||0,s.lastSeenAt))),startedAt:null,lastSeenAt:now}}
@@ -20,12 +22,16 @@ export function applyFocusLog(user,plan,entry,{now=Date.now()}={}){
  if(existing){if(existing.fingerprint!==fingerprint)throw Error('This focus identity belongs to a different log.');return {userPatch:null,planPatch:null,result:{...structuredClone(existing.result),focusData:structuredClone(user.focusData||{})}}}
  if(entry.createdAt<=(user.focusLogReceiptFloor||0))throw Object.assign(Error('This focus retry is too old to reconcile. Check your logged time before discarding this session.'),{code:'focus-log-expired'});
  const next=plan?planState(plan):null,all=(next?.boards||[]).flatMap(board=>(board.sections||[]).flatMap(section=>(section.tasks||[]).map(task=>({board,section,task})))),matches=entry.target?all.filter(e=>e.task.id===entry.target.taskId):[],found=matches[0],target=entry.target;
- const attributed=!!(target&&matches.length===1&&!found.board.archived&&!found.section.archived&&!found.task.archived&&!found.task.recurrence?.enabled&&found.board.id===target.boardId&&found.section.id===target.sectionId&&(found.task.assignmentId||null)===target.assignmentId);
+ const occurrence=target?.occurrenceDate&&matches.length===1?focusOccurrence(found.task,target.occurrenceDate):null;
+ const attributed=!!(target&&matches.length===1&&!found.board.archived&&!found.section.archived&&!found.task.archived&&(!target.occurrenceDate?!found.task.recurrence?.enabled:occurrence&&focusRecurrenceSignature(found.task)===target.recurrenceSignature)&&found.board.id===target.boardId&&found.section.id===target.sectionId&&(found.task.assignmentId||null)===target.assignmentId);
  if(entry.mode==='complete'&&!attributed)throw Object.assign(Error('This task changed or is unavailable. Choose Log time to keep the time without completing it.'),{code:'focus-target-unavailable'});
- if(entry.remainingMinutes!==undefined){if(!attributed||!taskWorkCheckin(next,target.taskId)||remainingWorkSnapshot(found.task)!==entry.workExpected)throw Object.assign(Error('This task or remaining estimate changed. Review the check-in again, or keep the estimate.'),{code:'focus-target-unavailable'});found.task.remainingMinutes=entry.remainingMinutes}
- const completedTaskIds=[];if(attributed){found.task.focusLoggedSeconds=add(found.task.focusLoggedSeconds,entry.seconds);if(entry.mode==='complete'&&!found.task.completed){found.task.completed=true;completedTaskIds.push(found.task.id)}}
+ if(entry.remainingMinutes!==undefined){if(!attributed|| !taskWorkCheckin(next,target.taskId,target.occurrenceDate)||remainingWorkSnapshot(occurrence?.task||found.task)!==entry.workExpected)throw Object.assign(Error('This task or remaining estimate changed. Review the check-in again, or keep the estimate.'),{code:'focus-target-unavailable'});if(occurrence)setOccurrenceFocus(found.task,target.occurrenceDate,{remainingMinutes:entry.remainingMinutes});else found.task.remainingMinutes=entry.remainingMinutes}
+ const completedTaskIds=[];if(attributed){
+  if(occurrence){setOccurrenceFocus(found.task,target.occurrenceDate,{focusLoggedSeconds:add(found.task.recurrence.exceptions?.[target.occurrenceDate]?.focusLoggedSeconds,entry.seconds)});if(entry.mode==='complete'&&occurrence.status!=='completed'){Object.assign(found.task,setOccurrenceStatus(found.task,target.occurrenceDate,'completed',new Date(now).toISOString()));completedTaskIds.push(occurrence.occurrenceId)}}
+  else{found.task.focusLoggedSeconds=add(found.task.focusLoggedSeconds,entry.seconds);if(entry.mode==='complete'&&!found.task.completed){found.task.completed=true;completedTaskIds.push(found.task.id)}}
+ }
  const timezone=user.settings?.profile?.timezone||Intl.DateTimeFormat().resolvedOptions().timeZone||'UTC',day=planningClock(entry.endedAt,timezone).date,old=user.focusData||{},focusData={...structuredClone(old),totalSeconds:add(old.totalSeconds,entry.seconds),longestSessionSeconds:Math.max(total(old.longestSessionSeconds),entry.seconds),dailyFocusLog:{...old.dailyFocusLog,[day]:add(old.dailyFocusLog?.[day],entry.seconds)}};
- const result={type:'focus_log',seconds:entry.seconds,attributed,taskId:attributed?target.taskId:null,completedTaskIds,...(attributed?{task:{id:found.task.id,title:String(found.task.title||'Task').slice(0,180),completed:!!found.task.completed}}:{})};
+ const result={type:'focus_log',seconds:entry.seconds,attributed,taskId:attributed?target.taskId:null,completedTaskIds,...(attributed?{...(occurrence?{occurrenceDisplayDate:occurrence.displayDate}:{}),task:{id:occurrence?.occurrenceId||found.task.id,title:String(occurrence?.task.title||found.task.title||'Task').slice(0,180),completed:occurrence?entry.mode==='complete'||occurrence.status==='completed':!!found.task.completed}}:{})};
  const retained=[...receipts,{id:entry.id,createdAt:entry.createdAt,fingerprint,result}],removed=[];while(retained.length>100||retained.length>1&&JSON.stringify(retained).length>65536)removed.push(retained.shift());
  return {userPatch:{focusData,focusHistory:appendFocusHistory(user,next,entry,result,day),focusLogReceipts:retained,focusLogReceiptFloor:Math.max(user.focusLogReceiptFloor||0,...removed.map(r=>r.createdAt))},planPatch:attributed?next:null,result:{...result,focusData}};
 }

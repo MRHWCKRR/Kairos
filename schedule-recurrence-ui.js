@@ -1,4 +1,4 @@
-import { normalizeRecurrence, formatRecurrenceSummary } from './recurrence-utils.js';
+import { normalizeRecurrence, formatRecurrenceSummary } from './recurrence-utils.js?v=12';
 
 const esc=value=>String(value??'').replace(/[&<>'"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[ch]));
 const DAY_SHORT=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];

@@ -1,9 +1,9 @@
 import {stableStringify} from './plan-merge.js';
-import {planningTasks,validPlanningDate,shiftPlanningDate} from './planning-model.js';
-import {planningOccupancy,intervalsOverlap} from './planning-slots.js?v=3';
+import {planningTasks,validPlanningDate,shiftPlanningDate} from './planning-model.js?v=1';
+import {planningOccupancy,intervalsOverlap} from './planning-slots.js?v=4';
 import {parseTime,formatTime,taskDurationMinutes} from './schedule-utils.js';
-import {zonedTaskStart} from './task-reminders.js';
-import {validateAssignmentOrderChanges} from './assignment-order.js';
+import {zonedTaskStart} from './task-reminders.js?v=3';
+import {validateAssignmentOrderChanges} from './assignment-order.js?v=1';
 
 const FIELDS=['date','startTime','endTime','lastScheduledMinutes','estimatedMinutes','remainingMinutes','archived','sessionOrder'];
 const GUARDS=[...FIELDS,'dueDate','assignmentId','sessionIndex','scheduleLocked','schedulingPreference'];
