@@ -136,7 +136,9 @@
     "focus-history-model.js",
     "remaining-work.js",
     "focus-checkin.js",
-    "occurrence-focus.js"
+    "occurrence-focus.js",
+    "manual-focus-model.js",
+    "manual-focus-form.js"
   ],
   "directories": [
     "images",
