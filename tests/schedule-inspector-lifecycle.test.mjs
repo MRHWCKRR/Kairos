@@ -1,3 +1,4 @@
+import {bindDeadlineImpact} from '../deadline-impact.js';
 import * as assignment from '../assignment-progress.js';
 import {planningClock} from '../planning-model.js';
 import test from 'node:test';
@@ -28,7 +29,7 @@ async function fixture({recurring=false,storage=new Map()}={}){
  if(recurring)task.recurrence=recurrence.normalizeRecurrence({enabled:true,frequency:'daily',interval:1,startDate:date,mode:'fixed'});
  boards[0].sections.push({id:'dest',title:'Destination',tasks:[]});
  boards.push({id:'other-board',title:'Other board',sections:[{id:'other-section',title:'Other section',tasks:[]}]});
- let owner='one',plan='plan',saves=[];
+ let owner='one',plan='plan',saves=[],reviews=[];window.__kairosPlanningHub={openAssignmentReview:(id,actor)=>reviews.push({id,actor})};
  const bridge={getBoards:()=>boards,getOwnerId:()=>owner,getPlanId:()=>plan,getTimeFormat:()=> '24',getScheduleEvents:()=>[],persistPlan:()=>new Promise((resolve,reject)=>saves.push({resolve,reject})),refreshAppViews(){}};
  window.__kairosScheduleBridge=bridge;window.__kairosScheduleInspectorBooted=false;window.__kairosScheduleWorkspace=null;
  window.sessionStorage={getItem:key=>storage.get(key)||null,setItem:(key,value)=>storage.set(key,value),removeItem:key=>storage.delete(key)};
@@ -37,7 +38,7 @@ async function fixture({recurring=false,storage=new Map()}={}){
  // explicitly below; actual MutationObserver timing is covered in Chrome QA.
  class Observer{observe(){}disconnect(){}}
  cleanup=()=>observers.forEach(observer=>observer.disconnect());
- const context=vm.createContext({...assignment,planningClock,document,window,MutationObserver:Observer,...utils,...recurrence,...recurrenceUi,...sessionModule,showRecurrenceScopeDialog:async()=> 'occurrence',CSS:{escape:String},console:{error(){},warn(){}},structuredClone,requestAnimationFrame:()=>1,cancelAnimationFrame(){},setTimeout:()=>1,clearTimeout(){},setInterval:()=>1,clearInterval(){},confirmDialog:async()=>true});
+ const context=vm.createContext({bindDeadlineImpact,...assignment,planningClock,document,window,MutationObserver:Observer,...utils,...recurrence,...recurrenceUi,...sessionModule,showRecurrenceScopeDialog:async()=> 'occurrence',CSS:{escape:String},console:{error(){},warn(){}},structuredClone,requestAnimationFrame:()=>1,cancelAnimationFrame(){},setTimeout:()=>1,clearTimeout(){},setInterval:()=>1,clearInterval(){},confirmDialog:async()=>true});
  const workspaceSource=(await readFile(new URL('../schedule-workspace.js',import.meta.url),'utf8')).replace(/^import\s[\s\S]*?from ['"][^'"]+['"];\r?\n/gm,'').replace('export function initScheduleWorkspace','function initScheduleWorkspace');
  vm.runInContext(workspaceSource,context);const ws=context.initScheduleWorkspace(bridge);window.__kairosScheduleWorkspace=ws;
  // Each module has its own lexical scope, just as in the browser.
@@ -49,7 +50,7 @@ async function fixture({recurring=false,storage=new Map()}={}){
  const field=name=>document.querySelector('#schedule-inspector [name="'+name+'"]');
  const type=(name,value)=>{const el=field(name);el.value=value;el.dispatchEvent(new window.Event('input',{bubbles:true}))};
  const submit=()=>document.querySelector('#schedule-inspector form').dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true}));
- return {document,window,ws,task,other,boards,saves,field,type,submit,selectTask,storage,setOwner:v=>owner=v,setPlan:v=>plan=v};
+ return {document,window,ws,task,other,boards,saves,reviews,field,type,submit,selectTask,storage,setOwner:v=>owner=v,setPlan:v=>plan=v};
 }
 
 test('Schedule permits only one inspector save while persistence is pending',async()=>{
@@ -144,3 +145,5 @@ test('recovered move fields rebuild sections for the restored destination board'
  const first=await fixture();first.type('title','Recover draft');first.field('board').value='other-board';first.field('board').dispatchEvent(new first.window.Event('change',{bubbles:true}));first.field('section').value='other-section';first.field('section').dispatchEvent(new first.window.Event('change',{bubbles:true}));
  const next=await fixture({storage:first.storage});assert.equal(next.field('board').value,'other-board');assert.equal(next.field('section').value,'other-section');
 });
+
+test('Schedule deadline impact waits for confirmed save, handles failure and uses the existing dirty guard',async()=>{const f=await fixture();f.task.dueDate='2099-01-05';f.boards[0].sections[0].tasks.push({id:'linked',assignmentId:'t',title:'Draft',date:'2099-01-04',startTime:'09:00',endTime:'10:00'});await f.ws.clearSelection();await f.selectTask('t');f.type('dueDate','2099-01-03');assert.match(f.document.querySelector('[data-deadline-impact]').textContent,/1 unfinished session/);assert.equal(f.document.querySelector('[data-deadline-review]'),null);f.submit();await tick();assert.equal(f.reviews.length,0);f.saves[0].reject(Error('Offline'));await tick();assert.equal(f.document.querySelector('[data-deadline-review]'),null);assert.equal(f.task.dueDate,'2099-01-05');f.submit();await tick();f.saves[1].resolve();await tick();assert.ok(f.document.querySelector('[data-deadline-review]'));f.type('notes','Keep notes');f.document.querySelector('[data-deadline-review]').click();await tick();f.document.querySelector('[data-schedule-draft-choice="stay"]').click();await tick();assert.equal(f.reviews.length,0);assert.equal(f.field('notes').value,'Keep notes');f.document.querySelector('[data-deadline-review]').click();await tick();f.document.querySelector('[data-schedule-draft-choice="save"]').click();await tick();f.saves[2].resolve();await tick();await tick();assert.equal(f.reviews[0].id,'t');assert.equal(f.reviews[0].actor.ownerId,'one');assert.equal(f.ws.state.selected.type,null);assert.equal(f.task.notes,'Keep notes')});

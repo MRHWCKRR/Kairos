@@ -126,3 +126,14 @@ The transaction resolves the source receipt rather than accepting an inverse fro
 Undo marks its source used and has its own idempotent receipt. Lost replies retain the same operation across retry/reload and reconcile an existing successful receipt before checking current state. An already undone batch cannot be undone again under another operation. This is a single last-change action, not a chain of older rollbacks or Redo.
 
 No collection migration is needed. Older receipts without Undo metadata, evicted receipts and oversized inverse records cannot be undone automatically. The existing history remains bounded to 100 receipts and 64 KiB; a batch with inverse metadata over 48,000 characters still saves normally but reports Undo unavailable. No additional listeners or AI inference are needed to load or apply Undo.
+
+
+### Deadline-change impact review
+
+Both the task details pane and Schedule inspector show local impact feedback while editing an assignment deadline. The report lists active unfinished sessions dated after the proposed deadline, labels locked/recurring work, shows remaining planned effort and warns about missing placements. Completed and archived sessions are excluded. Draft feedback does not save anything or claim capacity; removing/extending the deadline does not move work.
+
+Save the deadline first, then choose **Review revised schedule**. Existing unsaved-note/checklist guards still offer Save, Discard or Stay. The task-pane route loads Schedule before opening Planning; Schedule closes its editor through the same leave guard. Account and planner identity are checked after any asynchronous transition. An existing pending Planning preview is preserved rather than replaced.
+
+Review checks the current parent, sessions, current time, timezone, saved weekly hours, gaps and daily assignment limit through the existing feasibility and carry-over engines. All unfinished movable sessions in that assignment are reviewed together, preserving session order and completed/locked work. Capacity shortfalls, invalid locked work, overdue deadlines and deadlines outside the 31-day check window show actionable reasons without changing times. Review selects the requested assignment even when it is not first in the list. The resulting command retains normal stale-state validation, receipt recovery, Apply and guarded Undo. Undo may require manual review when restoring the old placements would violate the newly saved deadline; it never reverts the deadline itself.
+
+This adds no collections, listeners, AI calls or background rescheduling. Browser verification uses mocked Firebase transport with real editor, planning, command and receipt-store code; live verified-account persistence remains outside that test.

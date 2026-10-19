@@ -8,7 +8,7 @@ import { requestBilling } from './billing-client.js';
 import { mountPlanUsage } from './plan-usage.js?v=3';
 import {assignmentProgressIndex,assignmentProgressMarkup} from './assignment-progress.js?v=2';
 import {planningClock} from './planning-model.js';
-import { createPageLoader } from './page-loader.js?v=52';
+import { createPageLoader } from './page-loader.js?v=53';
 import { mountPageRouter } from './page-router.js?v=2';
 import { createPageRenderCache } from './page-render-cache.js?v=1';
 import './boards-recurrence.js?v=10';
@@ -586,8 +586,9 @@ function bootApp() {
     async function openTaskDetailsInSchedule(target){
         const actor=auth.currentUser?.uid,actorPlan=currentPlanDocId;if(!actor)return false;
         if(!await (taskDetails?.requestClose?.()??true)||auth.currentUser?.uid!==actor||currentPlanDocId!==actorPlan)return false;
-        await pageRouter.navigate('schedule-page');
+        try{await pageRouter.navigate('schedule-page')}catch(error){if(auth.currentUser?.uid===actor&&currentPlanDocId===actorPlan)showNotice('Could not open Schedule. Your saved deadline is unchanged. Try again.');return false}
         if(auth.currentUser?.uid!==actor||currentPlanDocId!==actorPlan)return false;
+        if(target.reviewDeadline)return window.__kairosPlanningHub?.openAssignmentReview(target.taskId,{ownerId:actor,planId:actorPlan})??false;
         if(target.occurrenceDate)window.__kairosScheduleWorkspace?.selectOccurrence?.({seriesId:target.taskId,occurrenceId:target.taskId+'::'+target.occurrenceDate,occurrenceDate:target.occurrenceDate});
         else window.__kairosScheduleWorkspace?.selectItem?.('task',target.taskId);
         return true;
