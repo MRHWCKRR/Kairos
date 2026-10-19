@@ -1,5 +1,5 @@
+import {taskRemainingMinutes} from './remaining-work.js?v=1';
 import {planningTasks,validPlanningDate} from './planning-model.js';
-import {taskDurationMinutes} from './schedule-utils.js';
 const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 export function deadlineImpact(state,parentId,dueDate){
  const entries=planningTasks(state),parents=entries.filter(({task})=>task.id===parentId),parent=parents[0]?.task;
@@ -7,7 +7,7 @@ export function deadlineImpact(state,parentId,dueDate){
  if(parents.length!==1||all.filter(t=>t.id===parentId).length!==1||parent.assignmentId||parent.completed||parent.recurrence?.enabled)return null;
  const sessions=entries.map(e=>e.task).filter(t=>t.assignmentId===parentId&&!t.completed);if(!sessions.length)return null;
  const changed=(dueDate||null)!==(parent.dueDate||null),valid=validPlanningDate(dueDate),late=valid?sessions.filter(t=>validPlanningDate(t.date)&&t.date>dueDate):[];
- return {parentId,dueDate:dueDate||null,changed,valid,remainingMinutes:sessions.reduce((sum,t)=>sum+taskDurationMinutes(t),0),unscheduled:sessions.filter(t=>!validPlanningDate(t.date)||!t.startTime).length,late:late.map(t=>({id:t.id,title:String(t.title||'Session'),date:t.date,locked:!!t.scheduleLocked,recurring:!!t.recurrence?.enabled})),canReview:valid&&!changed&&late.length>0};
+ return {parentId,dueDate:dueDate||null,changed,valid,remainingMinutes:sessions.reduce((sum,t)=>sum+taskRemainingMinutes(t),0),unscheduled:sessions.filter(t=>!validPlanningDate(t.date)||!t.startTime).length,late:late.map(t=>({id:t.id,title:String(t.title||'Session'),date:t.date,locked:!!t.scheduleLocked,recurring:!!t.recurrence?.enabled})),canReview:valid&&!changed&&late.length>0};
 }
 export function deadlineImpactMarkup(report,{blocked=false}={}){
  if(!report||!report.changed&&!report.late.length)return '';

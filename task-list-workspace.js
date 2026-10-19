@@ -1,6 +1,6 @@
-import {applyTaskListCommand} from './task-list-model.js';
+import {applyTaskListCommand} from './task-list-model.js?v=9';
 import {t} from './i18n.js';
-import {assignmentProgressIndex,assignmentProgressMarkup} from './assignment-progress.js?v=2';
+import {assignmentProgressIndex,assignmentProgressMarkup} from './assignment-progress.js?v=3';
 import {planningClock} from './planning-model.js';
 import {confirmDialog} from './ui-dialogs.js?v=1';
 

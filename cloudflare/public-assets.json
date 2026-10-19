@@ -133,7 +133,9 @@
     "task-focus.js",
     "task-focus.css",
     "focus-history.js",
-    "focus-history-model.js"
+    "focus-history-model.js",
+    "remaining-work.js",
+    "focus-checkin.js"
   ],
   "directories": [
     "images",

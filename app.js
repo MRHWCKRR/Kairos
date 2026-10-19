@@ -1,7 +1,9 @@
-import {mountFocusTimer} from './focus-timer.js?v=2';
-import {persistFocusLog,persistFocusCorrection,loadFocusHistory} from './focus-store.js?v=2';
+import {taskWorkCheckin} from './remaining-work.js?v=1';
+import {promptFocusCheckin} from './focus-checkin.js?v=1';
+import {mountFocusTimer} from './focus-timer.js?v=3';
+import {persistFocusLog,persistFocusCorrection,loadFocusHistory} from './focus-store.js?v=3';
 import {mountFocusHistory} from './focus-history.js?v=1';
-import {taskFocusTarget} from './task-focus.js?v=1';
+import {taskFocusTarget} from './task-focus.js?v=2';
 import {normalisePlanningPreferences} from './planning-preferences.js?v=1';
 import {mountPlanningPreferencesEditor} from './planning-preferences-editor.js?v=1';
 import {normaliseWeeklyAvailability} from './weekly-availability.js';
@@ -10,9 +12,9 @@ import { showNotice, confirmDialog, promptDialog } from './ui-dialogs.js?v=1';
 import { aiFetch, aiErrorMessage } from './ai-client.js';
 import { requestBilling } from './billing-client.js';
 import { mountPlanUsage } from './plan-usage.js?v=3';
-import {assignmentProgressIndex,assignmentProgressMarkup} from './assignment-progress.js?v=2';
+import {assignmentProgressIndex,assignmentProgressMarkup} from './assignment-progress.js?v=3';
 import {planningClock} from './planning-model.js';
-import { createPageLoader } from './page-loader.js?v=54';
+import { createPageLoader } from './page-loader.js?v=55';
 import { mountPageRouter } from './page-router.js?v=2';
 import { createPageRenderCache } from './page-render-cache.js?v=1';
 import './boards-recurrence.js?v=10';
@@ -35,11 +37,11 @@ import {
     query, where, orderBy, limit, getDocs, updateDoc, deleteDoc, runTransaction
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { LANGUAGES, applyTranslations, getLocale, getLanguageName, t, ACHIEVEMENT_I18N } from './i18n.js';
-import { invalidateKairosContext } from './ai-context.js?v=14';
+import { invalidateKairosContext } from './ai-context.js?v=15';
 import { dueTaskReminders, dueBedtimeReminders, reminderDeliveryStatus } from './task-reminders.js?v=2';
 import { deliverTaskReminder, deliverBedtimeReminder, saveNotificationEdits, escapeNotificationText } from './reminder-notifications.js?v=2';
-import { savePlannerEdits, persistTaskListCommand,loadPlanningUndoPreview } from './plan-store.js?v=10';
-import { resolveTaskDetail, taskListSection } from './task-list-model.js?v=8';
+import { savePlannerEdits, persistTaskListCommand,loadPlanningUndoPreview } from './plan-store.js?v=11';
+import { resolveTaskDetail, taskListSection } from './task-list-model.js?v=9';
 import { mergePlanEdits, planState } from './plan-merge.js';
 import {createSettingsRecovery,overlaySettingsEdits} from './settings-recovery.js?v=1';
 import {mountGettingStarted,openGettingStartedDestination} from './getting-started.js?v=1';
@@ -3692,7 +3694,7 @@ function bootApp() {
     }
 
     function renderFocusTimerWidget() {
-        if(!focusTimerController){focusTimerController=mountFocusTimer({getIdentity:()=>({ownerId:auth.currentUser?.uid||null,planId:currentPlanDocId}),persist:commitFocusTime,getLongestSeconds:()=>focusData.longestSessionSeconds,confirmDiscard:()=>confirmAction('Discard this unlogged focus session?')});window.__kairosFocusTimer=focusTimerController}
+        if(!focusTimerController){focusTimerController=mountFocusTimer({getIdentity:()=>({ownerId:auth.currentUser?.uid||null,planId:currentPlanDocId}),persist:commitFocusTime,chooseOutcome:({target,signal})=>{const work=taskWorkCheckin({boards:boardsData},target.taskId);return work?promptFocusCheckin(work,{signal}):Promise.resolve({mode:'log'})},getLongestSeconds:()=>focusData.longestSessionSeconds,confirmDiscard:()=>confirmAction('Discard this unlogged focus session?')});window.__kairosFocusTimer=focusTimerController}
         if(!focusHistoryController)focusHistoryController=mountFocusHistory({getIdentity:()=>({ownerId:auth.currentUser?.uid||null,planId:currentPlanDocId}),load:loadFocusHistory,persist:entry=>commitFocusTime(entry,true),confirmRemove:()=>confirmDialog('Remove this focus log? Its time will be subtracted; task completion stays unchanged.',{destructive:true,confirmText:'Remove'})});
         focusHistoryController.sync();focusTimerController.sync();
     }

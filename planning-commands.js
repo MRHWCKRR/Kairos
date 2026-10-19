@@ -1,4 +1,5 @@
-import {capturePlanningUndo} from './planning-undo.js?v=1';
+import {taskRemainingMinutes} from './remaining-work.js?v=1';
+import {capturePlanningUndo} from './planning-undo.js?v=2';
 import {normaliseWeeklyAvailability} from './weekly-availability.js';
 import {planningTasks,planningClock,validPlanningDate} from './planning-model.js';
 import {findPlanningSlot,planningAvailability,planningWindows,planningBlockValid,planningPlacementOccupancy,planningIntervalsConflict,planningDailyWork,planningDailyRemaining,addPlanningDailyWork,planningDailyLimitText} from './planning-slots.js?v=3';
@@ -12,7 +13,7 @@ function locate(state,id){const entries=planningTasks(state).filter(entry=>entry
 function eligible(state,id){const entry=locate(state,id),task=entry.task;if(task.completed||task.recurrence?.enabled||task.scheduleLocked)throw Error('Completed, recurring, or locked tasks cannot be moved by this planner.');return entry}
 const idValid=id=>typeof id==='string'&&id.length>0&&id.length<=160;
 function recurrenceSnapshot(rule){if(!rule?.enabled)return null;return {...rule,exceptions:Object.fromEntries(Object.entries(rule.exceptions||{}).map(([date,value])=>[date,{status:value.status||'pending',override:Object.fromEntries(['date','startTime','endTime','durationMinutes'].filter(key=>value.override?.[key]!==undefined).map(key=>[key,value.override[key]]))}]))}}
-export function planningSignature(state){return stableStringify({tasks:planningTasks(state).map(({board,section,task})=>({board:board.id,section:section.id,...Object.fromEntries(['id','date','startTime','endTime','dueDate','estimatedMinutes','lastScheduledMinutes','completed','scheduleLocked','schedulingPreference','assignmentId','sessionIndex','sessionOrder'].map(key=>[key,task[key]??null])),recurrence:recurrenceSnapshot(task.recurrence)})),events:(state.scheduleEvents||[]).map(event=>Object.fromEntries(['id','day','start','end','archived'].map(key=>[key,event[key]??null])))})}
+export function planningSignature(state){return stableStringify({tasks:planningTasks(state).map(({board,section,task})=>({board:board.id,section:section.id,...Object.fromEntries(['id','date','startTime','endTime','dueDate','estimatedMinutes','remainingMinutes','lastScheduledMinutes','completed','scheduleLocked','schedulingPreference','assignmentId','sessionIndex','sessionOrder'].map(key=>[key,task[key]??null])),recurrence:recurrenceSnapshot(task.recurrence)})),events:(state.scheduleEvents||[]).map(event=>Object.fromEntries(['id','day','start','end','archived'].map(key=>[key,event[key]??null])))})}
 const options=input=>({...(input.dailyLimitMinutes!==undefined?{dailyLimitMinutes:input.dailyLimitMinutes}:{}),from:input.from,to:input.to,...(input.dayStart!==undefined?{dayStart:input.dayStart}:{}),...(input.dayEnd!==undefined?{dayEnd:input.dayEnd}:{}),timezone:input.timezone||'UTC',...(input.gapMinutes!==undefined?{gapMinutes:input.gapMinutes}:{}),...(input.weeklyAvailability!=null?{weeklyAvailability:normaliseWeeklyAvailability(input.weeklyAvailability)}:{}),...(input.availabilitySource?{availabilitySource:input.availabilitySource}:{})});
 const interval=row=>({date:row.date,startMin:parseTime(row.startTime),endMin:parseTime(row.startTime)+row.minutes});
 function effectiveDeadline(state,task){
@@ -50,7 +51,7 @@ export function previewCarryover(state,input,clock,spacingCache=new Map()){
  while(sources.length){
   const ready=sources.findIndex(({task})=>{const group=task.assignmentId?orderedSessionGroup(working,task.assignmentId):null;return !group||!group.sessions.some(prior=>!prior.completed&&prior.sessionIndex<task.sessionIndex&&sources.some(entry=>entry.task.id===prior.id))});
   if(ready<0)throw Error('Review the prerequisite session order.');const {task}=sources.splice(ready,1)[0];
-  const minutes=taskDurationMinutes(task),placement=findPlanningSlot(minutes,{...opts,dailyWork,assignmentWork:!!task.assignmentId,dueDate:effectiveDeadline(state,task),preference:task.schedulingPreference},busy,orderedPlacementClock(working,task,clock),spacingCache);
+  const minutes=taskRemainingMinutes(task),placement=findPlanningSlot(minutes,{...opts,dailyWork,assignmentWork:!!task.assignmentId,dueDate:effectiveDeadline(state,task),preference:task.schedulingPreference},busy,orderedPlacementClock(working,task,clock),spacingCache);
   if(!placement)throw Error(`No safe time fits before the deadline for “${String(task.title||'Task')}”. Adjust the range or availability. ${planningDailyLimitText(opts)}${opts.gapMinutes?' This check includes '+opts.gapMinutes+'-minute gaps.':''}`);
   const row={taskId:task.id,title:String(task.title||'Task'),minutes,...placement};rows.push(row);busy.push(interval(row));if(task.assignmentId)addPlanningDailyWork(dailyWork,row.date,minutes);
   Object.assign(locate(working,task.id).task,placement);
@@ -113,7 +114,7 @@ export function applyPlanningCommand(state,command,expected,{now=Date.now()}={})
  for(const row of rows){
   const task=revising&&existingIds.has(row.taskId)?eligible(state,row.taskId).task:parent||eligible(state,row.taskId).task,start=parseTime(row.startTime),end=parseTime(row.endTime),windows=planningWindows({...opts,preference:task.schedulingPreference||parent?.schedulingPreference},row.date);
   if(!Number.isInteger(row.minutes)||row.minutes<1||row.minutes>=1440||start===null||end===null||(end-start+1440)%1440!==row.minutes||start%5!==0||!windows.some(window=>start>=window.start&&start+row.minutes<=window.end)||!validPlanningDate(row.date)||row.date<opts.from||row.date>opts.to)throw Error('Invalid session schedule, time, or duration.');
-  if(!parent&&row.minutes!==taskDurationMinutes(task))throw Error('This task duration changed. Refresh the preview.');
+  if(!parent&&row.minutes!==taskRemainingMinutes(task))throw Error('This task duration changed. Refresh the preview.');
   if(task.dueDate&&(!validPlanningDate(task.dueDate)||row.date>task.dueDate))throw Error('This placement would miss its deadline.');
   const deadline=effectiveDeadline(state,task);if(deadline&&row.date>deadline)throw Error('This placement would miss the task or assignment deadline.');
   if(parent?.dueDate&&(!validPlanningDate(parent.dueDate)||row.date>parent.dueDate))throw Error('This placement would miss the assignment deadline.');
@@ -128,7 +129,7 @@ export function applyPlanningCommand(state,command,expected,{now=Date.now()}={})
   if(command.ordered!==undefined&&(command.ordered||parent.sessionOrder!==undefined))locate(next,parent.id).task.sessionOrder=command.ordered?'sequential':'independent';
   let sequence=Math.max(0,...allTasks(state).filter(task=>task.assignmentId===parent.id).map(task=>Number(task.sessionIndex)||0));
   for(const row of rows){
-   if(revising&&existingIds.has(row.taskId)){Object.assign(locate(next,row.taskId).task,{date:row.date,startTime:row.startTime,endTime:row.endTime,estimatedMinutes:row.minutes,lastScheduledMinutes:row.minutes});continue}
+   if(revising&&existingIds.has(row.taskId)){Object.assign(locate(next,row.taskId).task,{date:row.date,startTime:row.startTime,endTime:row.endTime,estimatedMinutes:row.minutes,lastScheduledMinutes:row.minutes,...(locate(next,row.taskId).task.remainingMinutes!==undefined?{remainingMinutes:row.minutes}:{})});continue}
    destination.tasks.push({id:row.taskId,title:row.title.trim(),completed:false,archived:false,assignmentId:parent.id,sessionIndex:++sequence,date:row.date,startTime:row.startTime,endTime:row.endTime,dueDate:parent.dueDate||null,estimatedMinutes:row.minutes,lastScheduledMinutes:row.minutes,priority:parent.priority||null,schedulingPreference:parent.schedulingPreference||null,scheduleLocked:false,notes:'',checklist:[]});
   }
   for(const id of archiveIds)locate(next,id).task.archived=true;
