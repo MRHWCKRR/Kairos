@@ -17,6 +17,7 @@ const BRIDGE=`
         getBoards: () => boardsData,
         getOwnerId: () => auth.currentUser?.uid || null,
         getPlanId: () => currentPlanDocId || null,
+        startTaskFocus: taskId => startTaskFocus(taskId),
         getPlanningPreferences: () => ({dailyLimitMinutes:settingsCloudSnapshot.planning?.dailyLimitMinutes??0,gapMinutes:settingsCloudSnapshot.planning?.gapMinutes??0}),
         getWeeklyAvailability: () => settingsCloudSnapshot.planning?.weeklyAvailability ?? null,
         getTimezone: () => userSettings.profile.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',

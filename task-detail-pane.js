@@ -1,3 +1,4 @@
+import {bindTaskFocus} from './task-focus.js?v=1';
 import {bindDeadlineImpact} from './deadline-impact.js?v=1';
 import {stableStringify} from './plan-merge.js';
 import {taskDetailValues,TASK_DETAIL_FIELDS,applyTaskListCommand} from './task-list-model.js';
@@ -8,9 +9,9 @@ import {planningClock} from './planning-model.js';
 import {mountTaskChecklistEditor} from './task-checklist-editor.js?v=3';
 
 const esc=value=>String(value??'').replace(/[&<>'"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[ch]));
-export function mountTaskDetailPane({root,resolveTarget,commit,getOwnerId,getPlanId=()=>null,getState=()=>({boards:[]}),getToday=()=>planningClock(Date.now(),Intl.DateTimeFormat().resolvedOptions().timeZone).date,onClose=()=>{},openSchedule,document=globalThis.document,window=globalThis.window}){
+export function mountTaskDetailPane({root,resolveTarget,commit,getOwnerId,getPlanId=()=>null,getState=()=>({boards:[]}),getToday=()=>planningClock(Date.now(),Intl.DateTimeFormat().resolvedOptions().timeZone).date,onClose=()=>{},openSchedule,onStartFocus,document=globalThis.document,window=globalThis.window}){
     let panel=null,form=null,target=null,baseline=null,displayBaseline=null,location=null,owner=null,planId=null,opener=null,pending=null,busy=false,dialog=null,choiceDialog=null,choiceFinish=null,revision=0,checklistEditor=null;
-    let pendingFocus=null,pointerFocus=null,deadlineImpactView=null;
+    let pendingFocus=null,pointerFocus=null,deadlineImpactView=null,taskFocusView=null;
     const copy=key=>t('task_detail_'+key,document.documentElement.lang||'en');
     const field=name=>form?.querySelector('[name="'+name+'"]');
     const key=()=> 'kairos-task-detail-pending:'+owner+':'+planId;
@@ -48,7 +49,7 @@ export function mountTaskDetailPane({root,resolveTarget,commit,getOwnerId,getPla
         if(panel)panel.scrollTop=view.scroll;if(dialog)dialog.scrollTop=view.dialogScroll;
     }
     function updateControls(){
-        deadlineImpactView?.refresh();
+        deadlineImpactView?.refresh();taskFocusView?.refresh();
         panel?.querySelectorAll('input,select,textarea').forEach(el=>el.disabled=busy||!!pending);
         checklistEditor?.setDisabled(busy||!!pending);
         panel?.querySelectorAll('[data-series-scope],[data-open-occurrence]').forEach(el=>el.disabled=busy||!!pending);
@@ -62,7 +63,7 @@ export function mountTaskDetailPane({root,resolveTarget,commit,getOwnerId,getPla
         set('planning',[preference?copy(preference):null,field('scheduleLocked').checked?copy('lock'):null,color?copy('color')+' '+color:null].filter(Boolean).join(' · ')||copy('none'));
     }
     function close(){
-        revision++;deadlineImpactView?.dispose();deadlineImpactView=null;checklistEditor?.dispose();checklistEditor=null;pendingFocus=null;pointerFocus=null;
+        revision++;taskFocusView?.dispose();taskFocusView=null;deadlineImpactView?.dispose();deadlineImpactView=null;checklistEditor?.dispose();checklistEditor=null;pendingFocus=null;pointerFocus=null;
         const returnFocus=opener?.isConnected?opener:[...root.querySelectorAll('[data-task-detail]')].find(el=>el.dataset.taskDetail===target?.taskId);
         choiceFinish?.('stay');choiceDialog?.remove();choiceDialog=null;
         dialog?.close?.();dialog?.remove();dialog=null;panel?.remove();panel=null;form=null;target=null;pending=null;busy=false;
@@ -116,7 +117,7 @@ export function mountTaskDetailPane({root,resolveTarget,commit,getOwnerId,getPla
         const input=(name,label,type='text',attrs='')=>`<label>${esc(label)}<input name="${name}" type="${type}" ${attrs} value="${esc(values[name])}"></label>`;
         const select=(name,label,options)=>`<label>${esc(label)}<select name="${name}">${options.map(([value,text])=>`<option value="${value}" ${String(values[name]??'')===value?'selected':''}>${esc(text)}</option>`).join('')}</select></label>`;
         panel.innerHTML=`<header class="task-detail-header"><h2 id="task-detail-heading">${esc(copy('heading'))}</h2><div><button type="button" data-maximise>${esc(copy('expand'))}</button><button type="button" data-close aria-label="${esc(copy('close'))}">×</button></div></header>
-          <div data-assignment-detail>${assignmentProgressMarkup(assignmentProgressIndex(getState(),getToday()).get(target.taskId),{details:true})}</div><form class="task-detail-form" novalidate>
+          <div data-assignment-detail>${assignmentProgressMarkup(assignmentProgressIndex(getState(),getToday()).get(target.taskId),{details:true})}</div><div data-task-focus></div><form class="task-detail-form" novalidate>
           <fieldset class="task-detail-title task-detail-metadata" ${target.occurrenceDate?'disabled':''}>
           ${input('title',copy('title'),'text','maxlength="180" required')}
           </fieldset>
@@ -145,6 +146,7 @@ export function mountTaskDetailPane({root,resolveTarget,commit,getOwnerId,getPla
         bindRecurrenceFields(form,{fallbackDate:found.task.date||values.recurrence?.startDate||null});
         checklistEditor=mountTaskChecklistEditor({root:panel.querySelector('.task-checklist'),isActive:()=>activePage()&&owner===getOwnerId()&&planId===getPlanId(),items:pending?.command?.changes?.checklist||values.checklist||[],canToggle:!!target.occurrenceDate||!values.recurrence?.enabled,hint:copy(values.recurrence?.enabled&&!target.occurrenceDate?'template_hint':target.occurrenceDate?'occurrence_hint':'checklist_hint'),copy,onStatus:status,onChange:()=>status(copy('unsaved')),document,window});
         deadlineImpactView?.dispose();deadlineImpactView=bindDeadlineImpact({root:panel,taskId:target.taskId,getState,isBlocked:()=>busy||!!pending,onReview:async id=>{if(!openSchedule)return;const actor=owner,actorPlan=planId;if(await requestClose()&&getOwnerId()===actor&&getPlanId()===actorPlan)await openSchedule({taskId:id,reviewDeadline:true})}});
+        taskFocusView?.dispose();taskFocusView=bindTaskFocus({root:panel,taskId:target.taskId,getState,isBlocked:()=>busy||!!pending,onStart:id=>onStartFocus?.(id)});
         displayBaseline=read();
         if(pending){for(const [name,value] of Object.entries(pending.command.changes)){const el=field(name);if(el){if(el.type==='checkbox')el.checked=value===true;else el.value=value??''}}status(copy('uncertain'),true)}
         updatePropertySummaries();
@@ -199,6 +201,6 @@ export function mountTaskDetailPane({root,resolveTarget,commit,getOwnerId,getPla
             restoreUi(restore,canFocus);status(copy('saved'));return !!result;
         }catch(error){if(ticket!==revision)return false;busy=false;updateControls();status(copy('failed')+' '+error.message,true);return false}
     }
-    function sync(){deadlineImpactView?.refresh();if(panel&&owner===getOwnerId()&&planId===getPlanId()){refreshAssignmentProgress(panel.querySelector('[data-assignment-detail]'),assignmentProgressIndex(getState(),getToday()).get(target.taskId),{details:true})}if(!activePage())checklistEditor?.cancelReorder();if(panel&&(owner!==getOwnerId()||planId!==getPlanId())){forget();close()}}
+    function sync(){deadlineImpactView?.refresh();taskFocusView?.refresh();if(panel&&owner===getOwnerId()&&planId===getPlanId()){refreshAssignmentProgress(panel.querySelector('[data-assignment-detail]'),assignmentProgressIndex(getState(),getToday()).get(target.taskId),{details:true})}if(!activePage())checklistEditor?.cancelReorder();if(panel&&(owner!==getOwnerId()||planId!==getPlanId())){forget();close()}}
     return {open,save,requestClose,maximise,sync,dispose:close};
 }

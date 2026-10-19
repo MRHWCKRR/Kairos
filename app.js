@@ -1,3 +1,6 @@
+import {mountFocusTimer} from './focus-timer.js?v=1';
+import {persistFocusLog} from './focus-store.js?v=1';
+import {taskFocusTarget} from './task-focus.js?v=1';
 import {normalisePlanningPreferences} from './planning-preferences.js?v=1';
 import {mountPlanningPreferencesEditor} from './planning-preferences-editor.js?v=1';
 import {normaliseWeeklyAvailability} from './weekly-availability.js';
@@ -8,7 +11,7 @@ import { requestBilling } from './billing-client.js';
 import { mountPlanUsage } from './plan-usage.js?v=3';
 import {assignmentProgressIndex,assignmentProgressMarkup} from './assignment-progress.js?v=2';
 import {planningClock} from './planning-model.js';
-import { createPageLoader } from './page-loader.js?v=53';
+import { createPageLoader } from './page-loader.js?v=54';
 import { mountPageRouter } from './page-router.js?v=2';
 import { createPageRenderCache } from './page-render-cache.js?v=1';
 import './boards-recurrence.js?v=10';
@@ -416,10 +419,7 @@ function bootApp() {
     let focusData = defaultFocusData();
     let statsRange = 'week';
     let statisticsRenderedDate = null;
-    let focusTimerRunning = false;
-    let focusTimerStartTs = null;
-    let focusTimerAccumulatedMs = 0;
-    let focusTimerIntervalId = null;
+    let focusTimerController = null;
 
     let appReady = false; // guards against calling render functions before they're defined below
     const pageRenders = createPageRenderCache({
@@ -484,6 +484,7 @@ function bootApp() {
     },{once:true});
 
     onAuthStateChanged(auth, async (user) => {
+        focusTimerController?.sync();
         gettingStarted?.sync();
         taskMenus?.sync();taskShortcuts?.sync();
         taskInteractions?.sync();
@@ -601,7 +602,7 @@ function bootApp() {
     }
     const pageLoader = createPageLoader({scheduleEnabled:!!document.getElementById('schedule-calendar'),taskDetailsEnabled:true,setupTaskDetails:module=>{
         taskDetails=module.mountTaskDetailPane({root:document.getElementById('tasks-page'),getOwnerId:()=>auth.currentUser?.uid||null,getPlanId:()=>currentPlanDocId,
-            getState:()=>({boards:boardsData}),getToday:()=>planningClock(Date.now(),userSettings.profile.timezone).date,resolveTarget:target=>resolveTaskDetail({boards:boardsData},target),commit:commitTaskDetails,openSchedule:openTaskDetailsInSchedule});
+            getState:()=>({boards:boardsData}),getToday:()=>planningClock(Date.now(),userSettings.profile.timezone).date,resolveTarget:target=>resolveTaskDetail({boards:boardsData},target),commit:commitTaskDetails,onStartFocus:startTaskFocus,openSchedule:openTaskDetailsInSchedule});
     },setupTaskWorkspace:module=>{
         taskWorkspace=module.mountTaskListWorkspace({root:document.getElementById('tasks-page'),overview:document.getElementById('tasks-manager-container'),
             getToday:()=>planningClock(Date.now(),userSettings.profile.timezone).date,getState:()=>taskInteractions?.getDisplayState()||({boards:boardsData}),getOwnerId:()=>auth.currentUser?.uid||null,getPlanId:()=>currentPlanDocId,commit:commitTaskDetails,
@@ -3496,7 +3497,7 @@ function bootApp() {
         const user = auth.currentUser;
         if (!user) return;
         try {
-            await setDoc(doc(db, 'users', user.uid), { focusData: focusData }, { merge: true });
+            await setDoc(doc(db, 'users', user.uid), { focusData: {dailyTasksLog:focusData.dailyTasksLog} }, { merge: true });
         } catch (error) {
             console.error('Error saving focus data:', error);
         }
@@ -3688,74 +3689,24 @@ function bootApp() {
         return [h, m, s].map(n => String(n).padStart(2, '0')).join(':');
     }
 
-    function getFocusTimerElapsedSeconds() {
-        let ms = focusTimerAccumulatedMs;
-        if (focusTimerRunning) ms += Date.now() - focusTimerStartTs;
-        return Math.floor(ms / 1000);
-    }
-
     function renderFocusTimerWidget() {
-        const container = document.getElementById('focus-timer-container');
-        if (!container) return;
-
-        container.innerHTML = `
-            <h3>${tr('focus_timer_title')}</h3>
-            <div id="focus-timer-display" class="focus-timer-display">${formatHMS(getFocusTimerElapsedSeconds())}</div>
-            <p class="text-muted focus-timer-longest-row">${tr('longest_time')} <span id="focus-timer-longest">${formatHMS(focusData.longestSessionSeconds)}</span></p>
-            <div class="focus-timer-controls">
-                <button id="focus-timer-start-btn" class="action-btn small-btn" style="display:${focusTimerRunning ? 'none' : 'inline-block'};">${tr('start')}</button>
-                <button id="focus-timer-pause-btn" class="action-btn small-btn" style="display:${focusTimerRunning ? 'inline-block' : 'none'};">${tr('pause')}</button>
-                <button id="focus-timer-stop-btn" class="settings-cancel-btn">${tr('stop_and_log')}</button>
-            </div>
-        `;
-
-        document.getElementById('focus-timer-start-btn').addEventListener('click', startFocusTimer);
-        document.getElementById('focus-timer-pause-btn').addEventListener('click', pauseFocusTimer);
-        document.getElementById('focus-timer-stop-btn').addEventListener('click', stopFocusTimer);
+        if(!focusTimerController){focusTimerController=mountFocusTimer({getIdentity:()=>({ownerId:auth.currentUser?.uid||null,planId:currentPlanDocId}),persist:commitFocusTime,getLongestSeconds:()=>focusData.longestSessionSeconds,confirmDiscard:()=>confirmAction('Discard this unlogged focus session?')});window.__kairosFocusTimer=focusTimerController}
+        focusTimerController.sync();
     }
-
-    function updateFocusTimerDisplayTick() {
-        const el = document.getElementById('focus-timer-display');
-        if (el) el.textContent = formatHMS(getFocusTimerElapsedSeconds());
+    async function startTaskFocus(taskId){
+        const target=taskFocusTarget({boards:boardsData},taskId);if(!target||!auth.currentUser)return false;
+        renderFocusTimerWidget();const owner=auth.currentUser.uid,started=await focusTimerController.start(target);if(!started&&!focusTimerController.getState()&&auth.currentUser?.uid===owner)showNotice(focusTimerController.getMessage()||'Could not start the focus timer. Try again.');return started;
     }
-
-    function startFocusTimer() {
-        if (focusTimerRunning) return;
-        focusTimerRunning = true;
-        focusTimerStartTs = Date.now();
-        focusTimerIntervalId = setInterval(updateFocusTimerDisplayTick, 1000);
-        renderFocusTimerWidget();
-    }
-
-    function pauseFocusTimer() {
-        if (!focusTimerRunning) return;
-        focusTimerRunning = false;
-        focusTimerAccumulatedMs += Date.now() - focusTimerStartTs;
-        clearInterval(focusTimerIntervalId);
-        renderFocusTimerWidget();
-    }
-
-    function stopFocusTimer() {
-        const elapsedSeconds = getFocusTimerElapsedSeconds();
-        focusTimerRunning = false;
-        clearInterval(focusTimerIntervalId);
-        focusTimerAccumulatedMs = 0;
-        focusTimerStartTs = null;
-
-        if (elapsedSeconds >= 1) {
-            focusData.totalSeconds += elapsedSeconds;
-            if (elapsedSeconds > focusData.longestSessionSeconds) focusData.longestSessionSeconds = elapsedSeconds;
-
-            const todayKey = toDateKey(new Date());
-            focusData.dailyFocusLog[todayKey] = (focusData.dailyFocusLog[todayKey] || 0) + elapsedSeconds;
-
-            checkFocusAchievements();
-            saveFocusDataToFirestore();
-            renderStatisticsPage();
-        }
-
-        renderFocusTimerWidget();
-        renderMiniAchievementsWidget();
+    async function commitFocusTime(entry){
+        const uid=auth.currentUser?.uid;if(uid!==entry.ownerId||entry.planId&&entry.planId!==currentPlanDocId)throw Error('The signed-in account or planner changed.');
+        const work=planSaveQueue.catch(()=>{}).then(async()=>{
+            if(auth.currentUser?.uid!==uid||entry.planId&&entry.planId!==currentPlanDocId)throw Error('The signed-in account or planner changed.');
+            const before=planState({boards:boardsData,dayInsights,scheduleEvents:scheduleData}),result=await persistFocusLog(entry.planId,uid,entry);
+            if(auth.currentUser?.uid!==uid||entry.planId&&entry.planId!==currentPlanDocId)throw Error('The signed-in account or planner changed.');
+            if(entry.planId){const snapshot=await getDoc(doc(db,'study_plans',entry.planId));if(auth.currentUser?.uid!==uid||currentPlanDocId!==entry.planId)throw Error('The signed-in account or planner changed.');if(snapshot.exists()&&snapshot.data().userID===uid){const saved=planState(snapshot.data()),live=planState({boards:boardsData,dayInsights,scheduleEvents:scheduleData}),rebased=mergePlanEdits(before,live,saved);boardsData=rebased.boards;dayInsights=rebased.dayInsights;scheduleData=rebased.scheduleEvents;invalidateKairosContext({ownerId:uid,planId:entry.planId,before:planSnapshot,after:saved});planSnapshot=saved;}}
+            focusData=deepMerge(defaultFocusData(),result.focusData||{});if(result.completedTaskIds?.length)recordTaskListCompletion({type:'complete_task',value:true},result);
+            checkFocusAchievements();renderApp();renderStatisticsPage();void window.__kairosTaskReminders?.check();window.dispatchEvent(new CustomEvent('kairos-data-changed'));return result;
+        });planSaveQueue=work;return work;
     }
 
     function logTaskCompletionForStats(count=1) {

@@ -126,7 +126,12 @@
     "task-actions.js",
     "task-action-menu.js",
     "task-checklist-reorder.js",
-    "deadline-impact.js"
+    "deadline-impact.js",
+    "focus-model.js",
+    "focus-store.js",
+    "focus-timer.js",
+    "task-focus.js",
+    "task-focus.css"
   ],
   "directories": [
     "images",
