@@ -6,17 +6,31 @@ import {recurrenceFieldsMarkup,bindRecurrenceFields,readRecurrenceFields} from '
 import {t} from './i18n.js';
 import {assignmentProgressIndex,assignmentProgressMarkup,refreshAssignmentProgress} from './assignment-progress.js?v=4';
 import {planningClock} from './planning-model.js?v=1';
-import {mountTaskChecklistEditor} from './task-checklist-editor.js?v=5';
+import {mountTaskChecklistEditor} from './task-checklist-editor.js?v=6';
 import {matchesShortcut} from './shortcut-model.js?v=1';
 
 const esc=value=>String(value??'').replace(/[&<>'"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[ch]));
 export function mountTaskDetailPane({root,resolveTarget,commit,getShortcuts=()=>undefined,getOwnerId,getPlanId=()=>null,getState=()=>({boards:[]}),getToday=()=>planningClock(Date.now(),Intl.DateTimeFormat().resolvedOptions().timeZone).date,onClose=()=>{},openSchedule,onStartFocus,document=globalThis.document,window=globalThis.window}){
     let panel=null,form=null,target=null,baseline=null,displayBaseline=null,location=null,owner=null,planId=null,opener=null,pending=null,busy=false,dialog=null,choiceDialog=null,choiceFinish=null,revision=0,checklistEditor=null;
-    let pendingFocus=null,pointerFocus=null,deadlineImpactView=null,taskFocusView=null;
+    let pendingFocus=null,pointerFocus=null,deadlineImpactView=null,taskFocusView=null,statusError=false;
     const copy=key=>t('task_detail_'+key,document.documentElement.lang||'en');
     const field=name=>form?.querySelector('[name="'+name+'"]');
     const key=()=> 'kairos-task-detail-pending:'+owner+':'+planId;
-    function status(message,error=false){const el=panel?.querySelector('[role="status"]');if(el){el.textContent=message;el.classList.toggle('is-error',error)}}
+    function refreshSaveControls(){
+        if(!panel||!form)return;
+        const changed=dirty();
+        if(changed)window.addEventListener('beforeunload',beforeUnload);else window.removeEventListener('beforeunload',beforeUnload);
+        panel.dataset.saveState=busy?'saving':pending?'retry':statusError?'error':changed?'unsaved':'saved';
+        panel.setAttribute('aria-busy',String(busy));
+        const save=form.querySelector('[type="submit"]');
+        save.disabled=busy||(!pending&&!changed);save.textContent=copy(busy?'saving':pending?'retry':'save');
+    }
+    function status(message,error=false){
+        statusError=error;
+        if(!error&&!busy&&message.startsWith(copy('unsaved'))&&!dirty())message=copy('saved');
+        const el=panel?.querySelector('.task-detail-footer [role="status"]');if(el){el.textContent=message;el.classList.toggle('is-error',error)}
+        refreshSaveControls();
+    }
     function remember(){try{window.sessionStorage?.setItem(key(),JSON.stringify(pending))}catch{}}
     function forget(){try{window.sessionStorage?.removeItem(key())}catch{}}
     function read(){
@@ -45,7 +59,7 @@ export function mountTaskDetailPane({root,resolveTarget,commit,getShortcuts=()=>
         if(Array.isArray(view.groups))for(const group of form.querySelectorAll('[data-detail-group]'))group.open=view.groups.includes(group.dataset.detailGroup);
         if(focus&&activePage()){
             if(view.checklist)checklistEditor?.restoreFocus(view.checklist);
-            else {const el=view.group?[...form.querySelectorAll('[data-detail-group]')].find(el=>el.dataset.detailGroup===view.group)?.querySelector('summary'):view.name?field(view.name):view.control==='save'?form?.querySelector('[type="submit"]'):view.control==='maximise'?panel?.querySelector('[data-maximise]'):null;el?.focus?.({preventScroll:true});if(typeof view.start==='number')try{el?.setSelectionRange?.(view.start,view.end)}catch{}}
+            else {let el=view.group?[...form.querySelectorAll('[data-detail-group]')].find(el=>el.dataset.detailGroup===view.group)?.querySelector('summary'):view.name?field(view.name):view.control==='save'?form?.querySelector('[type="submit"]'):view.control==='maximise'?panel?.querySelector('[data-maximise]'):null;if(el?.disabled)el=form?.querySelector('.task-detail-footer [data-close]');el?.focus?.({preventScroll:true});if(typeof view.start==='number')try{el?.setSelectionRange?.(view.start,view.end)}catch{}}
         }
         if(panel)panel.scrollTop=view.scroll;if(dialog)dialog.scrollTop=view.dialogScroll;
     }
@@ -54,7 +68,7 @@ export function mountTaskDetailPane({root,resolveTarget,commit,getShortcuts=()=>
         panel?.querySelectorAll('input,select,textarea').forEach(el=>el.disabled=busy||!!pending);
         checklistEditor?.setDisabled(busy||!!pending);
         panel?.querySelectorAll('[data-series-scope],[data-open-occurrence]').forEach(el=>el.disabled=busy||!!pending);
-        if(form){const save=form.querySelector('[type="submit"]');save.disabled=busy;save.textContent=copy(pending?'retry':'save')}
+        refreshSaveControls();
     }
     function updatePropertySummaries(){
         const set=(name,value)=>{const el=form.querySelector('[data-detail-summary="'+name+'"]');if(el)el.textContent=value};
@@ -64,11 +78,16 @@ export function mountTaskDetailPane({root,resolveTarget,commit,getShortcuts=()=>
         set('planning',[preference?copy(preference):null,field('scheduleLocked').checked?copy('lock'):null,color?copy('color')+' '+color:null].filter(Boolean).join(' · ')||copy('none'));
     }
     function close(){
+        window.removeEventListener('beforeunload',beforeUnload);
         revision++;taskFocusView?.dispose();taskFocusView=null;deadlineImpactView?.dispose();deadlineImpactView=null;checklistEditor?.dispose();checklistEditor=null;pendingFocus=null;pointerFocus=null;
         const returnFocus=opener?.isConnected?opener:[...root.querySelectorAll('[data-task-detail]')].find(el=>el.dataset.taskDetail===target?.taskId);
         choiceFinish?.('stay');choiceDialog?.remove();choiceDialog=null;
-        dialog?.close?.();dialog?.remove();dialog=null;panel?.remove();panel=null;form=null;target=null;pending=null;busy=false;
+        dialog?.close?.();dialog?.remove();dialog=null;panel?.remove();panel=null;form=null;target=null;pending=null;busy=false;statusError=false;
         root.classList.remove('has-task-details');returnFocus?.focus?.();onClose();
+    }
+    function beforeUnload(event){
+        if(!panel||owner!==getOwnerId()||planId!==getPlanId()||!dirty())return;
+        event.preventDefault();event.returnValue='';
     }
     function chooseDraft(){
         if(choiceDialog)return Promise.resolve('stay');
@@ -178,7 +197,9 @@ export function mountTaskDetailPane({root,resolveTarget,commit,getShortcuts=()=>
         let found;try{found=resolveTarget(selected)}catch{return false}
         owner=getOwnerId();if(!owner)return false;planId=getPlanId();target={...selected};opener=source;baseline=taskDetailValues(found.task,target);location={boardId:found.board.id,sectionId:found.section.id};pending=null;
         try{const stored=JSON.parse(window.sessionStorage?.getItem(key())||'null');if(stored?.command?.target?.taskId===target.taskId&&(stored.command.target.occurrenceDate||null)===(target.occurrenceDate||null)&&stored.identity?.ownerId===owner&&stored.identity?.planId===planId&&stored.baseline){pending=stored;baseline=stored.baseline;location={boardId:stored.expected.boardId,sectionId:stored.expected.sectionId}}}catch{}
-        pendingFocus=null;pointerFocus=null;render(found);if(window.innerWidth<1100)maximise();return true;
+        pendingFocus=null;pointerFocus=null;render(found);
+        const entering=panel;entering.classList.add('task-detail-entering');entering.addEventListener('animationend',()=>entering.classList.remove('task-detail-entering'),{once:true});
+        if(window.innerWidth<1100)maximise();return true;
     }
     async function save(){
         if(!panel||busy)return false;

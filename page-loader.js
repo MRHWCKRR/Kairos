@@ -21,8 +21,8 @@ export function createPageLoader({importModule=url=>import(url),loadStyle=loadPa
     if(loaded.has(page))return loaded.get(page);
     const task=(async()=>{
       if(page==='tasks-page'&&taskDetailsEnabled){
-        await Promise.all([loadStyle('task-list.css?v=18'),loadStyle('assignment-progress.css?v=2'),loadStyle('schedule-inspector.css?v=10')]);
-        await setupTaskDetails(await importModule('./task-detail-pane.js?v=14'));
+        await Promise.all([loadStyle('task-list.css?v=19'),loadStyle('assignment-progress.css?v=2'),loadStyle('schedule-inspector.css?v=10')]);
+        await setupTaskDetails(await importModule('./task-detail-pane.js?v=15'));
         if(setupTaskWorkspace)await setupTaskWorkspace(await importModule('./task-list-workspace.js?v=14'));
         if(setupTaskInteractions)await setupTaskInteractions(await importModule('./task-list-interactions.js?v=11'));
         if(setupTaskSelection)await setupTaskSelection(await importModule('./task-selection.js?v=4'));
