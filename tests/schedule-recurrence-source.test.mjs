@@ -58,9 +58,9 @@ test('Schedule occurrence selection preserves series and logical occurrence iden
 });
 
 test('dragging or resizing one recurring occurrence writes an occurrence override',()=>{
-  assert.match(interactions,/applyOccurrenceOverride/);
+  assert.match(interactions,/createScheduleChangeController/);
   assert.match(interactions,/data-occurrence-id/);
   assert.match(interactions,/occurrenceDate/);
-  assert.match(interactions,/persistOccurrenceMutation/);
+  assert.match(interactions,/changes\(\)\.save\(target,next\)/);
   assert.doesNotMatch(interactions,/Object\.assign\(task,next\).*occurrence/);
 });

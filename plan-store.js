@@ -5,12 +5,22 @@ import { db } from './firebase.js';
 import { doc, getDoc, runTransaction, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { mergePlanEdits, planState, stableStringify } from './plan-merge.js';
 import {validateAssignmentOrderChanges} from './assignment-order.js?v=1';
-import { applyTaskListCommand, taskListFingerprint } from './task-list-model.js?v=12';
+import { applyTaskListCommand, taskListFingerprint } from './task-list-model.js?v=13';
+import {applyScheduleUndo} from './schedule-change-model.js?v=1';
 
 export async function persistTaskListCommand(planId, uid, command, expected, operationId, createdAt) {
     if(typeof operationId!=='string'||!operationId||operationId.length>160||!Number.isFinite(createdAt)||createdAt<=0)throw new Error('Invalid operation identity.');
     const commandHash=await taskListFingerprint(command,expected);
     return persistAiPlanAction(planId,uid,{type:'task_list',commandHash},operationId,createdAt,plan=>{
+        if(command.type==='schedule_undo'){
+            const source=plan.receipts.find(receipt=>receipt.id===command.sourceOperationId);
+            if(!source?.result?.scheduleUndo||source.scheduleUndoUsedBy||expected?.sourceOperationId!==command.sourceOperationId)throw Error('This schedule Undo is unavailable or already used.');
+            // Bound the initiation window, rather than time spent awaiting the
+            // shared save queue. A clicked-in-time Undo may finish later.
+            if(!Number.isFinite(command.expiresAt)||command.expiresAt<=createdAt||command.expiresAt>createdAt+10000)throw Error('Schedule Undo expired.');
+            const applied=applyScheduleUndo(plan.data,source.result.scheduleUndo);Object.assign(plan.data,applied.next);
+            return {...applied.result,undoneOperationId:source.id};
+        }
         if(command.type==='planning_undo')return applyStoredPlanningUndo(plan,command,expected);
         if(command.type==='undo_create_task'){
             const source=plan.receipts.find(receipt=>receipt.id===command.sourceOperationId);
@@ -58,8 +68,9 @@ function receiptResult(result) {
     const compact = { type: result.type };
     if(result.type==='create_task')compact.createdTask=structuredClone(result.task);
     if(result.planningUndo)compact.planningUndo=structuredClone(result.planningUndo);
+    if(result.scheduleUndo)compact.scheduleUndo=structuredClone(result.scheduleUndo);
     if(result.planningUndoUnavailable)compact.planningUndoUnavailable=true;
-    if(['planning_undo','undo_create_task'].includes(result.type))compact.undoneOperationId=result.undoneOperationId;
+    if(['planning_undo','undo_create_task','schedule_undo'].includes(result.type))compact.undoneOperationId=result.undoneOperationId;
     if(Array.isArray(result.taskIds)){compact.taskIds=structuredClone(result.taskIds);compact.completedTaskIds=structuredClone(result.completedTaskIds||[]);if(result.action!==undefined)compact.action=result.action;}
     for (const field of ['task', 'event', 'movedTask']) {
         const item = result[field];
@@ -106,7 +117,7 @@ export async function persistAiPlanAction(planId, uid, action, operationId, crea
         const result = receiptResult(apply({ data: next,receipts }));
         if(result.type==='planning_undo'&&result.undoneOperationId!==options.undoSourceOperationId)throw Error('A saved planning receipt is required for Undo.');
         validateAssignmentOrderChanges(planState(data),next);
-        const history=['planning_undo','undo_create_task'].includes(result.type)?receipts.map(receipt=>receipt.id===result.undoneOperationId?{...receipt,[result.type==='planning_undo'?'planningUndoUsedBy':'creationUndoUsedBy']:operationId}:receipt):receipts;
+        const history=['planning_undo','undo_create_task','schedule_undo'].includes(result.type)?receipts.map(receipt=>receipt.id===result.undoneOperationId?{...receipt,[result.type==='planning_undo'?'planningUndoUsedBy':result.type==='schedule_undo'?'scheduleUndoUsedBy':'creationUndoUsedBy']:operationId}:receipt):receipts;
         const updated = [...history, { id: operationId, createdAt, fingerprint, result }];
         const removed = updated.slice(0, Math.max(0, updated.length - 100));
         const retained=updated.slice(-100);
