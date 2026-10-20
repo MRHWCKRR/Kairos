@@ -23,11 +23,11 @@ export function buildSearchIndex(state={}, {today}={}){
   const title=String(task.title||'Task'),path=String(board.title||'Board')+' / '+String(section.title||'Section'),assignmentTitle=parents.has(task.assignmentId)?active.get(task.assignmentId)?.task.title||'':'';
   const series=task.recurrence?.enabled===true,date=validFocusDate(task.dueDate)?task.dueDate:validFocusDate(task.date)?task.date:null;
   const completed=!series&&task.completed===true;
-  const base={key:'task-'+rows.length,kind:series?'series':'task',title,path,assignmentTitle,label:series?'Recurring series':parents.has(task.id)?'Assignment':parents.has(task.assignmentId)?'Assignment session':'Task',target:{kind:'task',taskId:task.id},date:series?null:date,completed,overdue:!series&&!completed&&!!date&&date<today};
+  const base={key:'task-'+rows.length,kind:series?'series':'task',title,path,assignmentTitle,label:series?'Recurring series':parents.has(task.id)?'Assignment':parents.has(task.assignmentId)?'Assignment session':'Task',target:{kind:'task',taskId:task.id},date:series?null:date,dateKind:validFocusDate(task.dueDate)?'Due':'Scheduled',completed,overdue:!series&&!completed&&!!date&&date<today};
   rows.push(indexRow(base,task.notes));
   if(series)for(const occurrence of generateTaskOccurrences(task,from,to,{today})){
    if(['skipped','deleted'].includes(occurrence.status))continue;
-   rows.push(indexRow({...base,key:base.key+'::'+occurrence.occurrenceDate,kind:'occurrence',title:String(occurrence.task.title||title),label:'Recurring occurrence',target:{kind:'task',taskId:task.id,occurrenceDate:occurrence.occurrenceDate},date:occurrence.displayDate,occurrenceDate:occurrence.occurrenceDate,completed:occurrence.status==='completed',overdue:occurrence.status==='pending'&&occurrence.displayDate<today},occurrence.task.notes));
+   rows.push(indexRow({...base,key:base.key+'::'+occurrence.occurrenceDate,kind:'occurrence',title:String(occurrence.task.title||title),label:'Recurring occurrence',target:{kind:'task',taskId:task.id,occurrenceDate:occurrence.occurrenceDate},date:occurrence.displayDate,dateKind:'Scheduled',occurrenceDate:occurrence.occurrenceDate,completed:occurrence.status==='completed',overdue:occurrence.status==='pending'&&occurrence.displayDate<today},occurrence.task.notes));
   }
  }
  return {rows,from,to,today};
