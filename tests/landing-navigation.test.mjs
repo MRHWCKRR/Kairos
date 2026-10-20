@@ -6,7 +6,7 @@ import {parseHTML} from 'linkedom';
 
 const source=await readFile(new URL('../landing.js',import.meta.url),'utf8');
 function fixture(){
- const {document,window}=parseHTML('<html><body><nav class="navbar" id="navbar"><a class="logo" href="index.html">Kairos</a><button class="menu-toggle" aria-expanded="false">Menu</button><div class="nav-links" id="public-navigation"><a href="#features">Features</a></div></nav><section id="testimonials"><article>Original feedback</article></section></body></html>');
+ const {document,window}=parseHTML('<html><body><nav class="navbar" id="navbar"><a class="logo" href="index.html">Kairos</a><div class="nav-links" id="public-navigation"><a href="#features">Features</a></div><button class="menu-toggle" aria-expanded="false">Menu</button></nav><section id="testimonials"><article>Original feedback</article></section></body></html>');
  vm.runInNewContext(source,{document,window,console});document.dispatchEvent(new window.Event('DOMContentLoaded'));
  return {document,window,button:document.querySelector('button'),links:document.querySelector('.nav-links')};
 }

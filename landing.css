@@ -129,7 +129,7 @@ h2 { font: 600 clamp(28px, 3.4vw, 44px)/1.18 'Manrope', sans-serif; letter-spaci
     .section-shell, .navbar { width: calc(100% - 40px); }
     .navbar { min-height: 76px; }
     .menu-toggle { display: inline-flex; align-items: center; justify-content: center; }
-    .nav-links:has(+ .menu-toggle) { display: none; position: absolute; top: 76px; left: 0; right: 0; flex-direction: column; align-items: stretch; gap: 4px; padding: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
+    .nav-links:where(:has(+ .menu-toggle)) { display: none; position: absolute; top: 76px; left: 0; right: 0; flex-direction: column; align-items: stretch; gap: 4px; padding: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
     .nav-links.open { display: flex; }
     .nav-links a { padding: 12px; }
     .hero { padding-block: 54px; }
