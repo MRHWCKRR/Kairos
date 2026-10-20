@@ -26,7 +26,4 @@
 @media (prefers-reduced-motion: no-preference) {
     body:not(.reduce-motion) #focus-timer-container button,
     body:not(.reduce-motion) .task-focus-bar button { transition: background-color .15s, border-color .15s; }
-    body:not(.reduce-motion) .focus-timer-running .task-focus-heading strong::before { animation: focus-running-pulse 2.4s ease-in-out infinite; }
 }
-.focus-timer-running .task-focus-heading strong::before { content:'';display:inline-block;width:6px;height:6px;margin-right:8px;border-radius:50%;background:var(--accent-glow);vertical-align:middle; }
-@keyframes focus-running-pulse { 0%,100% { opacity:1; } 50% { opacity:.4; } }
