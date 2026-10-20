@@ -46,6 +46,7 @@ import { mergePlanEdits, planState } from './plan-merge.js';
 import {createSettingsRecovery,overlaySettingsEdits} from './settings-recovery.js?v=1';
 import {mountGettingStarted,openGettingStartedDestination} from './getting-started.js?v=1';
 import {mountFocusBreakdown} from './focus-breakdown.js?v=1';
+import {mountGlobalSearch} from './global-search.js?v=1';
 console.log("APP.js is loaded and running");
 
 // ===========================================================
@@ -253,6 +254,7 @@ function bootApp() {
 
     let checklistRenderTimeout;
     let currentPlanDocId = null;
+    let searchPlannerOwnerId = null;
 
     // --- Data Engine ---
     let boardsData = [
@@ -488,6 +490,8 @@ function bootApp() {
     },{once:true});
 
     onAuthStateChanged(auth, async (user) => {
+        searchPlannerOwnerId = null;
+        globalSearchController?.sync();
         focusTimerController?.sync();
         focusHistoryController?.sync();
         gettingStarted?.sync();
@@ -568,7 +572,7 @@ function bootApp() {
 
     let aiPageAutoCollapsed = false;
     let sidebarManuallyToggledOnAI = false;
-    let taskDetails=null,taskWorkspace=null,taskInteractions=null,taskMenus=null,taskSelection=null,taskShortcuts=null,focusBreakdownView=null;
+    let taskDetails=null,taskWorkspace=null,taskInteractions=null,taskMenus=null,taskSelection=null,taskShortcuts=null,focusBreakdownView=null,globalSearchController=null;
     async function commitTaskDetails(command,expected,identity){
         const user=auth.currentUser;
         if(!user||identity.ownerId!==user.uid||identity.planId!==currentPlanDocId)throw new Error('The signed-in account or planner changed.');
@@ -750,6 +754,7 @@ function bootApp() {
         renderMiniAchievementsWidget();
         renderArchivePanel();
         renderFocusBreakdown();
+        globalSearchController?.sync();
     }
 
     function findFirstIncompleteSection() {
@@ -1299,6 +1304,8 @@ function bootApp() {
             invalidateKairosContext({ownerId:user.uid,planId,before:planSnapshot,after:saved});
             planSnapshot = saved;
             currentPlanDocId = planId;
+            searchPlannerOwnerId = user.uid;
+            globalSearchController?.sync();
             window.__kairosScheduleWorkspace?.invalidate();
             if (remoteChanges) renderApp();
             void window.__kairosTaskReminders?.check();
@@ -1340,6 +1347,7 @@ function bootApp() {
                 currentPlanDocId = latestPlan.docId;
                 const migrated = migrateToBoards(latestPlan);
                 boardsData = normalizeArchiveFields(migrated || boardsData);
+                searchPlannerOwnerId = Array.isArray(migrated) ? user.uid : null;
                 dayInsights = latestPlan.dayInsights || {};
                 scheduleData = Array.isArray(latestPlan.scheduleEvents) ? latestPlan.scheduleEvents : [];
                 planSnapshot = planState({ boards: boardsData, dayInsights, scheduleEvents: scheduleData });
@@ -1351,6 +1359,7 @@ function bootApp() {
             } else {
                 console.log("No saved study plans found in Firestore. Using default placeholder routines.");
                 currentPlanDocId = null;
+                searchPlannerOwnerId = null;
                 planSnapshot = null;
                 renderApp();
             }
@@ -3781,15 +3790,16 @@ function bootApp() {
         `;
     }
 
-    async function openFocusBreakdownTask(target) {
-        const owner=auth.currentUser?.uid,plan=currentPlanDocId;if(!owner||!plan)return false;
+    async function openFocusBreakdownTask(target,options={}) {
+        const isCurrent=typeof options?.isCurrent==='function'?options.isCurrent:()=>true;
+        const owner=auth.currentUser?.uid,plan=currentPlanDocId;if(!owner||!plan||!isCurrent())return false;
         resolveTaskDetail({boards:boardsData},target);
-        if(!await (taskDetails?.requestClose?.()??true)||auth.currentUser?.uid!==owner||currentPlanDocId!==plan)return false;
+        if(!await (taskDetails?.requestClose?.()??true)||auth.currentUser?.uid!==owner||currentPlanDocId!==plan||!isCurrent())return false;
         await pageLoader.prepare('tasks-page');
-        if(auth.currentUser?.uid!==owner||currentPlanDocId!==plan)return false;
+        if(auth.currentUser?.uid!==owner||currentPlanDocId!==plan||!isCurrent())return false;
         resolveTaskDetail({boards:boardsData},target);
         await pageRouter.navigate('tasks-page');
-        if(auth.currentUser?.uid!==owner||currentPlanDocId!==plan)return false;
+        if(auth.currentUser?.uid!==owner||currentPlanDocId!==plan||!isCurrent())return false;
         return taskDetails?.open(target,document.querySelector('.nav-item[data-target="tasks-page"]'))??false;
     }
     function renderFocusBreakdown() {
@@ -3797,6 +3807,25 @@ function bootApp() {
         const root=document.getElementById('focus-breakdown');if(!root)return;
         if(!focusBreakdownView)focusBreakdownView=mountFocusBreakdown({root,getIdentity:()=>({ownerId:auth.currentUser?.uid||null,planId:currentPlanDocId}),getState:()=>({boards:boardsData}),onOpen:openFocusBreakdownTask});
         else focusBreakdownView.refresh();
+    }
+    function globalSearchIdentity() {
+        const user=auth.currentUser,ownerId=user?.emailVerified?user.uid:null;
+        return {ownerId,planId:ownerId&&searchPlannerOwnerId===ownerId?currentPlanDocId:null};
+    }
+    async function openGlobalSearchResult(target,{isCurrent=()=>true}={}) {
+        if(!isCurrent()||!globalSearchIdentity().planId)return false;
+        if(target.kind==='task')return openFocusBreakdownTask({taskId:target.taskId,...(target.occurrenceDate?{occurrenceDate:target.occurrenceDate}:{})},{isCurrent});
+        if(target.kind!=='board')return false;
+        const owner=auth.currentUser?.uid,plan=currentPlanDocId;if(!owner||!plan)return false;
+        const valid=()=>isCurrent()&&auth.currentUser?.uid===owner&&currentPlanDocId===plan;
+        const resolve=()=>{const found=boardsData.filter(board=>board.id===target.boardId);return found.length===1&&!found[0].archived};
+        if(!resolve()||!await (taskDetails?.requestClose?.()??true)||!valid())return false;
+        await pageLoader.prepare('tasks-page');if(!valid()||!resolve())return false;
+        if(!await (taskWorkspace?.back?.()??true)||!valid()||!resolve())return false;
+        await pageRouter.navigate('tasks-page');if(!valid()||!resolve())return false;
+        renderBoardsGrid();
+        const card=[...document.querySelectorAll('#tasks-page .board-card')].find(element=>element.dataset.boardId===target.boardId);
+        if(!card)return false;card.tabIndex=-1;card.scrollIntoView?.({block:'nearest',behavior:'instant'});card.focus?.({preventScroll:true});return true;
     }
     function renderStatisticsPage() {
         const chartsContainer = document.getElementById('stats-charts-container');
@@ -3842,6 +3871,7 @@ function bootApp() {
         document.dispatchEvent(new Event('kairos-controls-refresh'));
 
     appReady = true;
+    globalSearchController=mountGlobalSearch({getIdentity:globalSearchIdentity,getState:()=>({boards:boardsData}),getToday:()=>planningClock(Date.now(),userSettings.profile.timezone).date,onNavigate:openGlobalSearchResult});
     renderApp();
     renderAchievementsPage();
     renderGoalSelects();

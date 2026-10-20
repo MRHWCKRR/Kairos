@@ -141,7 +141,10 @@
     "manual-focus-form.js",
     "focus-breakdown-model.js",
     "focus-breakdown.js",
-    "focus-breakdown.css"
+    "focus-breakdown.css",
+    "global-search-model.js",
+    "global-search.js",
+    "global-search.css"
   ],
   "directories": [
     "images",
