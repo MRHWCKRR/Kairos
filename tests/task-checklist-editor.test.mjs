@@ -3,6 +3,13 @@ import assert from 'node:assert/strict';
 import {parseHTML} from 'linkedom';
 
 const initial=()=>[{id:'a',title:'Read',completed:false},{id:'b',title:'Write notes',completed:false}];
+
+test('empty checklist and hidden completed steps explain what to do next',async()=>{
+ const f=await fixture({items:[]}),empty=f.root.querySelector('[data-checklist-empty]');assert.ok(empty);assert.equal(empty.hidden,false);assert.match(empty.textContent,/Add/);
+ f.add('Read');assert.equal(empty.hidden,true);const check=f.row('step-1').querySelector('[data-step-check]');check.checked=true;f.event(check,'change');
+ assert.equal(f.row('step-1').dataset.completed,'true');f.root.querySelector('[data-checklist-completed-toggle]').click();assert.equal(empty.hidden,false);assert.match(empty.textContent,/completed/);
+ f.add('Write');assert.equal(empty.hidden,true);assert.deepEqual(f.editor.read().map(step=>step.title),['Read','Write']);f.editor.dispose();
+});
 async function fixture(options={}){
  const module=await import('../task-checklist-editor.js').catch(()=>({}));assert.equal(typeof module.mountTaskChecklistEditor,'function');
  const {document,window}=parseHTML('<html><body><form><section class="task-checklist"></section></form></body></html>');let active=document.body,uuidCalls=0;const changes=[],statuses=[];

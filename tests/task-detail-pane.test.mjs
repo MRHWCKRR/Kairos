@@ -3,6 +3,34 @@ import assert from 'node:assert/strict';
 import {parseHTML} from 'linkedom';
 import {applyTaskListCommand,resolveTaskDetail} from '../task-list-model.js';
 
+test('save feedback follows actual changes including reverting edits and pending step entry',async()=>{
+ const f=await fixture();await f.open();const panel=()=>f.root.querySelector('[data-task-detail-pane]'),save=()=>f.root.querySelector('[type="submit"]');
+ assert.equal(panel().dataset.saveState,'saved');assert.equal(save().disabled,true);
+ f.input('notes','Draft');assert.equal(panel().dataset.saveState,'unsaved');assert.equal(save().disabled,false);
+ f.input('notes','Old');assert.equal(panel().dataset.saveState,'saved');assert.match(f.root.querySelector('[role="status"]').textContent,/Saved/);assert.equal(save().disabled,true);
+ const entry=f.root.querySelector('[data-checklist-new]');entry.value='Read chapter';entry.dispatchEvent(new f.window.Event('input',{bubbles:true}));assert.equal(panel().dataset.saveState,'unsaved');assert.equal(save().disabled,false);
+ await f.pane.save();assert.equal(panel().dataset.saveState,'saved');assert.equal(f.data().boards[0].sections[0].tasks[0].checklist[0].title,'Read chapter');f.pane.dispose();
+});
+
+test('saving and retry expose clear states while keeping the exact operation',async()=>{
+ const f=await fixture();await f.open();f.input('notes','Draft');let finish;f.setGate(new Promise(resolve=>finish=resolve));f.setFail(true);const saving=f.pane.save();
+ const panel=f.root.querySelector('[data-task-detail-pane]');assert.equal(panel.dataset.saveState,'saving');assert.equal(panel.getAttribute('aria-busy'),'true');assert.match(panel.querySelector('[type="submit"]').textContent,/Saving/);assert.equal(panel.querySelector('[type="submit"]').disabled,true);
+ finish();assert.equal(await saving,false);assert.equal(panel.dataset.saveState,'retry');assert.equal(panel.getAttribute('aria-busy'),'false');assert.equal(panel.querySelector('[type="submit"]').disabled,false);assert.match(panel.querySelector('[type="submit"]').textContent,/Retry/);
+ f.setGate(null);f.setFail(false);assert.equal(await f.pane.save(),true);assert.deepEqual(f.calls[1],f.calls[0]);f.pane.dispose();
+});
+
+test('leaving the browser warns only for the current unsaved task and removes the guard on close',async()=>{
+ const f=await fixture();await f.open();const leave=()=>{const event=new f.window.Event('beforeunload',{cancelable:true});f.window.dispatchEvent(event);return event.defaultPrevented};
+ assert.equal(leave(),false);f.input('notes','Draft');assert.equal(leave(),true);f.input('notes','Old');assert.equal(leave(),false);
+ const entry=f.root.querySelector('[data-checklist-new]');entry.value='Pending step';entry.dispatchEvent(new f.window.Event('input',{bubbles:true}));assert.equal(leave(),true);
+ f.pane.dispose();assert.equal(leave(),false);
+});
+
+test('saving from the footer retains keyboard focus on an enabled footer action',async()=>{
+ const f=await fixture();await f.open();f.input('notes','Draft');f.root.querySelector('[type="submit"]').focus();assert.equal(await f.pane.save(),true);
+ assert.equal(f.document.activeElement.disabled,false);assert.equal(f.root.querySelector('.task-detail-footer').contains(f.document.activeElement),true);f.pane.dispose();
+});
+
 test('Rename opening focuses title without changing normal detail opening',async()=>{
  const f=await fixture();let focused=null;f.window.HTMLElement.prototype.focus=function(){focused=this};await f.open();focused=null;
  await f.pane.open({taskId:'t'},f.document.getElementById('opener'),{focusField:'title'});assert.equal(focused?.name,'title');assert.equal(f.calls.length,0);

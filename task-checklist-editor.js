@@ -5,7 +5,8 @@ const labels={step_hide_completed:'Hide completed',step_show_completed:'Show com
 
 export function mountTaskChecklistEditor({root,items=[],canToggle=true,disabled=false,isActive=()=>true,hint='',onChange=()=>{},onStatus=()=>{},copy,uuid,document=root.ownerDocument,window=document.defaultView}) {
   let draft=structuredClone(items),disposed=false,showCompleted=true;
-  const rows=new Map(),text=key=>{const value=copy?.(key);return value&&value!==key&&value!=='task_detail_'+key?value:labels[key]||key};
+  const emptyLabels={step_empty:'No steps yet. Add the first one below.',step_all_completed:'All steps completed. Show completed to review them.'};
+  const rows=new Map(),text=key=>{const value=copy?.(key);return value&&value!==key&&value!=='task_detail_'+key?value:labels[key]||emptyLabels[key]||key};
   uuid??=()=>window.crypto?.randomUUID?.()||Date.now().toString(36)+'-'+Math.random().toString(36).slice(2);
   const element=(tag,attribute)=>{const el=document.createElement(tag);if(attribute)el.setAttribute(attribute,'');return el};
   const heading=element('header'),title=element('h3'),progress=element('span','data-checklist-progress'),viewTools=element('div'),visibility=element('button','data-checklist-completed-toggle');visibility.type='button';viewTools.className='task-checklist-view-tools';title.textContent=text('checklist');progress.setAttribute('aria-live','polite');viewTools.append(progress,visibility);heading.append(title,viewTools);
@@ -13,7 +14,8 @@ export function mountTaskChecklistEditor({root,items=[],canToggle=true,disabled=
   const list=element('ul','data-checklist-list'),entry=element('div');entry.className='task-checklist-add';
   const composer=element('input','data-checklist-new');composer.type='text';composer.maxLength=180;composer.placeholder=text('step_add');composer.setAttribute('aria-label',text('step_add'));
   const add=element('button','data-checklist-add');add.type='button';add.textContent=text('step_add');entry.append(composer,add);
-  const entryHint=element('p');entryHint.className='task-detail-hint';entryHint.textContent=text('step_entry_hint');root.replaceChildren(heading,description,list,entry,entryHint);
+  const entryHint=element('p');entryHint.className='task-detail-hint';entryHint.textContent=text('step_entry_hint');
+  const empty=element('p','data-checklist-empty');empty.className='task-checklist-empty';root.replaceChildren(heading,description,list,empty,entry,entryHint);
   const read=()=>structuredClone(draft);
   const visibleItems=()=>draft.filter(item=>showCompleted||!item.completed);
   const reorder=mountChecklistReorder({root,list,getItems:()=>draft,isEnabled:()=>!disposed&&!disabled&&isActive(),onReorder:({stepId,anchorId,after})=>{const rest=draft.filter(item=>item.id!==stepId),index=rest.findIndex(item=>item.id===anchorId);if(index>=0)moveStep(stepId,index+(after?1:0),{stepId,control:'grip'})},document,window});
@@ -58,6 +60,7 @@ export function mountTaskChecklistEditor({root,items=[],canToggle=true,disabled=
       let row=rows.get(item.id);if(!row){row=createRow(item);rows.set(item.id,row)}
       if(list.children[index]!==row)list.insertBefore(row,list.children[index]||null);
       row.hidden=!showCompleted&&item.completed;
+      row.dataset.completed=String(item.completed===true);
       const input=row.querySelector('[data-step-title]'),check=row.querySelector('[data-step-check]');if(input.value!==item.title)input.value=item.title;input.disabled=disabled;
       check.checked=item.completed;check.disabled=disabled||!canToggle;check.setAttribute('aria-label',text('step_complete')+' '+item.title);
       row.querySelector('[data-step-grip]').disabled=disabled;
@@ -65,6 +68,7 @@ export function mountTaskChecklistEditor({root,items=[],canToggle=true,disabled=
       for(const button of row.querySelectorAll('[data-step-action]'))button.disabled=disabled||(button.dataset.stepAction==='up'&&position<=0)||(button.dataset.stepAction==='down'&&position===visible.length-1);
     });
     composer.disabled=disabled;add.disabled=disabled;visibility.disabled=disabled;visibility.textContent=text(showCompleted?'step_hide_completed':'step_show_completed');progress.textContent=draft.filter(item=>item.completed).length+' / '+draft.length+' '+text('steps');
+    empty.hidden=visible.length>0;empty.textContent=text(draft.length?'step_all_completed':'step_empty');
     if(focusedId&&rows.get(focusedId)?.hidden&&!disabled)focusNearest(focusedId);
   }
   function changed() {render();onChange(read());onStatus(text('unsaved'))}
