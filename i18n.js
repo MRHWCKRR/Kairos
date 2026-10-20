@@ -72,7 +72,7 @@ export const TRANSLATIONS = {
         nav_dashboard: 'Dashboard', nav_ai: 'AI Helper', nav_tasks: 'Routines & Tasks', nav_calendar: 'Calendar', nav_settings: 'Settings',
         whats_next: "What's Next", loading_next_task: 'Loading your next task...', sign_in: 'Sign In', routine_stats: 'Routine Stats',
         ai_helper_title: 'AI Helper', ai_helper_desc: 'Paste your syllabus or assignment guidelines below.', ai_input_placeholder: 'Paste assignment details here...', create_plan: 'Create Plan',
-        tasks_title: 'Routines & Tasks', tasks_desc: 'Manage your master list. AI plans will populate here.', no_routines: 'No routines created yet.',
+        tasks_title: 'Routines & Tasks', tasks_desc: 'Organise tasks, routines and assignments across your boards.', no_routines: 'No routines created yet.',
         settings_personal: 'Personal', settings_accessibility: 'Accessibility', settings_security: 'Security', settings_appearance: 'Appearance', settings_ai: 'AI Engine', settings_privacy: 'Privacy & Data',
         github_repo: '⭐ GitHub Repo', log_out: 'Log Out',
         personal_title: 'Personal', personal_desc: 'Manage your account and profile details.',
