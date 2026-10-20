@@ -7,9 +7,10 @@ import {t} from './i18n.js';
 import {assignmentProgressIndex,assignmentProgressMarkup,refreshAssignmentProgress} from './assignment-progress.js?v=4';
 import {planningClock} from './planning-model.js?v=1';
 import {mountTaskChecklistEditor} from './task-checklist-editor.js?v=5';
+import {matchesShortcut} from './shortcut-model.js?v=1';
 
 const esc=value=>String(value??'').replace(/[&<>'"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[ch]));
-export function mountTaskDetailPane({root,resolveTarget,commit,getOwnerId,getPlanId=()=>null,getState=()=>({boards:[]}),getToday=()=>planningClock(Date.now(),Intl.DateTimeFormat().resolvedOptions().timeZone).date,onClose=()=>{},openSchedule,onStartFocus,document=globalThis.document,window=globalThis.window}){
+export function mountTaskDetailPane({root,resolveTarget,commit,getShortcuts=()=>undefined,getOwnerId,getPlanId=()=>null,getState=()=>({boards:[]}),getToday=()=>planningClock(Date.now(),Intl.DateTimeFormat().resolvedOptions().timeZone).date,onClose=()=>{},openSchedule,onStartFocus,document=globalThis.document,window=globalThis.window}){
     let panel=null,form=null,target=null,baseline=null,displayBaseline=null,location=null,owner=null,planId=null,opener=null,pending=null,busy=false,dialog=null,choiceDialog=null,choiceFinish=null,revision=0,checklistEditor=null;
     let pendingFocus=null,pointerFocus=null,deadlineImpactView=null,taskFocusView=null;
     const copy=key=>t('task_detail_'+key,document.documentElement.lang||'en');
@@ -164,7 +165,7 @@ export function mountTaskDetailPane({root,resolveTarget,commit,getOwnerId,getPla
         panel.addEventListener('keydown',event=>{
             pointerFocus=null;if(event.isComposing||event.keyCode===229)return;
             if(event.key==='Escape'){event.preventDefault();event.stopPropagation();void requestClose()}
-            else if(event.key==='Enter'&&(event.ctrlKey||event.metaKey)){event.preventDefault();event.stopPropagation();void save()}
+            else if(matchesShortcut(event,'saveTaskDetails',getShortcuts(),{allowInEditor:true,activeElement:document.activeElement})){event.preventDefault();event.stopPropagation();void save()}
             else if(dialog)trap(event,panel);
         });
         updateControls();if(focus){if(target.occurrenceDate)checklistEditor.restoreFocus({stepId:checklistEditor.read()[0]?.id,control:'title'});else field('title').focus?.();}

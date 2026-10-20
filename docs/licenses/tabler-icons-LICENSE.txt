@@ -1,0 +1,36 @@
+MIT License
+
+Copyright (c) 2020-2026 Paweł Kuna
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+Vendored subset for Kairos sidebar navigation, retrieved 2026-10-20.
+Source repository: https://github.com/tabler/tabler-icons
+Original license: https://github.com/tabler/tabler-icons/blob/main/LICENSE
+
+Original files and Git blob SHA (path data retained without modification):
+icons/outline/layout-dashboard.svg 1eee3282da7c305be552be1ff74a1ed72b6ded78
+icons/outline/sparkles.svg 80a2bcec63fb71d8b06f40703b6ac02ea7ee4c74
+icons/outline/list-check.svg 1d839dacae486cba07740646393626d73a282a4e
+icons/outline/calendar-time.svg 871b9af6a43d3a60396a3c375dd8e0454aee8181
+icons/outline/calendar.svg 84acf27c2bb01a7a1ab3b85be710ead9054876cb
+icons/outline/trophy.svg f0d57bb47194fd0c2349f0f38193444ff5133e1a
+icons/outline/chart-bar.svg df44d129eb6dd8cad94103cc701f7a924dc8a367
+icons/outline/settings.svg c94891403e451a07bf69053e98d1a57e424759fc

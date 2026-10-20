@@ -30,8 +30,10 @@ export function mountFocusTimer({document=globalThis.document,window=globalThis.
   return (state.startedAt!=null?button('pause','Pause',unavailable):button('resume','Resume',busy||!samePlan()))+button('log','Log time',busy||!samePlan())+(state.target?button('complete','Log and complete',busy||!samePlan()):'')+button('discard','Discard',busy||!control)+(!control?button('take','Use timer in this tab',busy):'');
  }
  function render(){if(disposed)return;const home=document.getElementById('focus-timer-container'),active=document.activeElement,action=active?.dataset?.focusAction,inBar=bar.contains(active),name=state?.target?.title||'General focus';
-  const html='<div class="task-focus-heading"><strong>'+esc(name)+'</strong><span data-focus-elapsed>'+format(focusElapsedMs(state,now()))+'</span></div><div class="focus-timer-controls">'+controls()+'</div><p data-focus-status role="status" aria-live="polite">'+esc(!samePlan()?'Switch back to this timer’s planner before logging.':message)+'</p>';
-  if(home)home.innerHTML='<h3>Focus timer</h3>'+html+'<p class="text-muted focus-timer-longest-row">Longest session '+format((getLongestSeconds()||0)*1000)+'</p><button type="button" data-focus-history-open>Focus history</button> <button type="button" data-focus-manual-open>Add focus time</button>';
+  const running=!!state&&state.startedAt!=null&&!state.pending;
+  home?.classList.toggle('focus-timer-running',running);bar.classList.toggle('focus-timer-running',running);
+  const html='<div class="task-focus-heading"><strong>'+esc(name)+'</strong><span class="focus-timer-display" data-focus-elapsed>'+format(focusElapsedMs(state,now()))+'</span></div><div class="focus-timer-controls">'+controls()+'</div><p data-focus-status role="status" aria-live="polite">'+esc(!samePlan()?'Switch back to this timer’s planner before logging.':message)+'</p>';
+  if(home)home.innerHTML='<h3>Focus timer</h3>'+html+'<p class="text-muted focus-timer-longest-row">Longest session '+format((getLongestSeconds()||0)*1000)+'</p><button type="button" class="focus-timer-secondary" data-focus-history-open>Focus history</button> <button type="button" class="focus-timer-secondary" data-focus-manual-open>Add focus time</button>';
   bar.hidden=!owner||!state;bar.innerHTML=html;
   if(action)(inBar?bar:home)?.querySelector('[data-focus-action="'+action+'"]')?.focus?.({preventScroll:true});
  }

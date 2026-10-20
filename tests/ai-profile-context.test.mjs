@@ -1,6 +1,7 @@
 import {savedPlanningPreferences,planningPreferencesText} from '../planning-preferences.js';
 import {savedWeeklyAvailability} from '../weekly-availability.js';
 import test from 'node:test';
+import {normaliseShortcuts} from '../shortcut-model.js';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import vm from 'node:vm';
@@ -83,7 +84,7 @@ test('settings loading binds its cache to the account and invalidates AI context
   for (const owner of ['one', 'other']) for(const offline of [false,true]) {
     const storage = new Map([['kairos_settings_cache_uid', owner], ['kairos_settings_cache', JSON.stringify({ profile: { displayName: 'Saved name' } })]]);
     let invalidated = 0;
-    const context = vm.createContext({savedPlanningPreferences,planningPreferencesText, db: {}, console: {error(){}}, document: { dispatchEvent() {} }, Event, structuredClone,createSettingsRecovery,
+    const context = vm.createContext({normaliseShortcuts,savedPlanningPreferences,planningPreferencesText, db: {}, console: {error(){}}, document: { dispatchEvent() {} }, Event, structuredClone,createSettingsRecovery,
       auth:{currentUser:{uid:'one'}},updateSaveBarVisibility(){},
       localStorage: { getItem: key => storage.get(key), setItem: (key, value) => storage.set(key, value) },
       doc: (...args) => args, getDoc: async () => {if(offline)throw Error('Offline');return { exists: () => false };},

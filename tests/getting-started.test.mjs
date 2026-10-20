@@ -4,48 +4,49 @@ import {parseHTML} from 'linkedom';
 import {readFile} from 'node:fs/promises';
 import vm from 'node:vm';
 
-async function fixture({store=new Map(),owner='one',navigate=async()=>true}={}){
+async function fixture({store=new Map(),owner='one',navigate=async()=>true,save=async(_owner,action)=>({state:{version:2,status:action.type,step:0}}),getShortcuts}={}){
  const {document,window}=parseHTML('<html><body><button id="getting-started-open">Getting started</button><input id="work"></body></html>');
  let module={};try{module=await import('../getting-started.js')}catch(error){if(error.code!=='ERR_MODULE_NOT_FOUND')throw error}
  assert.equal(typeof module.mountGettingStarted,'function','the practical guide can be mounted');
- const guide=module.mountGettingStarted({document,window,getOwner:()=>owner,navigate,storage:{getItem:key=>store.get(key)||null,setItem:(key,value)=>store.set(key,value)}});
+ const guide=module.mountGettingStarted({document,window,getOwner:()=>owner,navigate,save,getShortcuts,storage:{getItem:key=>store.get(key)||null,setItem:(key,value)=>store.set(key,value)}});
  return {document,window,guide,store,setOwner:value=>{owner=value;guide.sync()},click:action=>document.querySelector('[data-guide="'+action+'"]').click(),text:()=>document.body.textContent};
 }
 
-test('existing users see no automatic guide; Help opens it and Escape collapses it',async()=>{
- const f=await fixture();assert.equal(f.document.querySelector('[data-getting-started]'),null);
- f.document.getElementById('getting-started-open').click();assert.match(f.text(),/Create a board and task/);
+test('existing users have no guide launcher; an active account guide can collapse',async()=>{
+ const f=await fixture();assert.equal(!!f.document.querySelector('[data-getting-started]'),false);
+ assert.equal(f.document.getElementById('getting-started-open').hidden,true);f.guide.open();assert.equal(!!f.document.querySelector('[data-getting-started]'),false);
+ f.guide.hydrate({onboardingCompleted:true,gettingStarted:{version:2,status:'active',step:0}});f.document.getElementById('getting-started-open').click();assert.match(f.text(),/Create a board and task/);
  const event=new f.window.Event('keydown',{bubbles:true});event.key='Escape';f.document.querySelector('[data-guide-panel] h2').dispatchEvent(event);
  assert.equal(f.document.querySelector('[data-guide-panel]'),null);assert.ok(f.document.querySelector('[data-guide="expand"]'));
 });
 
 test('only fresh onboarding for this account opens a guide and skip survives reload',async()=>{
- const f=await fixture();f.window.dispatchEvent(new f.window.CustomEvent('kairos:onboarding-complete',{detail:{ownerId:'two',guide:true}}));assert.equal(f.document.querySelector('[data-getting-started]'),null);
+ const f=await fixture();f.window.dispatchEvent(new f.window.CustomEvent('kairos:onboarding-complete',{detail:{ownerId:'two',guide:true}}));assert.equal(!!f.document.querySelector('[data-getting-started]'),false);
  f.window.dispatchEvent(new f.window.CustomEvent('kairos:onboarding-complete',{detail:{ownerId:'one',guide:true}}));assert.match(f.text(),/Create a board and task/);
- f.click('skip');assert.equal(f.document.querySelector('[data-getting-started]'),null);
- const next=await fixture({store:f.store});assert.equal(next.document.querySelector('[data-getting-started]'),null);next.document.getElementById('getting-started-open').click();assert.match(next.text(),/Create a board and task/);
+ f.click('skip');await new Promise(setImmediate);assert.equal(!!f.document.querySelector('[data-getting-started]'),false);assert.equal(f.document.getElementById('getting-started-open').hidden,true);
+ const next=await fixture({store:f.store});assert.equal(next.document.querySelector('[data-getting-started]'),null);next.document.getElementById('getting-started-open').click();assert.equal(next.document.querySelector('[data-getting-started]'),null);
 });
 
 test('steps open existing pages and the AI example is a separate explicit action',async()=>{
- const calls=[],f=await fixture({navigate:async request=>{calls.push(request);return true}});f.guide.open();
- f.click('action');await Promise.resolve();assert.equal(calls[0].page,'tasks-page');assert.equal(calls[0].prompt,undefined);
- f.click('expand');f.click('next');assert.match(f.text(),/Schedule your task/);f.click('next');assert.match(f.text(),/Try AI Helper/);
- assert.equal(calls.length,1);f.click('example');await Promise.resolve();assert.match(calls[1].prompt,/tomorrow/i);assert.equal(calls[1].page,'ai-page');
+ const calls=[],f=await fixture({navigate:async request=>{calls.push(request);return true}});f.window.dispatchEvent(new f.window.CustomEvent('kairos:onboarding-complete',{detail:{ownerId:'one',guide:true}}));
+ f.click('action');await new Promise(setImmediate);assert.equal(calls[0].page,'tasks-page');assert.equal(calls[0].prompt,undefined);
+ f.click('next');assert.match(f.text(),/Schedule your task/);f.click('next');assert.match(f.text(),/Try AI Helper/);
+ assert.equal(calls.length,1);f.click('example');await new Promise(setImmediate);assert.match(calls[1].prompt,/tomorrow/i);assert.equal(calls[1].page,'ai-page');
 });
 
 test('guide progress is account scoped and an old navigation result cannot reopen it',async()=>{
- let release;const gate=new Promise(resolve=>release=resolve),f=await fixture({navigate:()=>gate});f.guide.open();f.click('next');f.click('action');f.setOwner('two');assert.equal(f.document.querySelector('[data-getting-started]'),null);release(false);await gate;await Promise.resolve();assert.equal(f.document.querySelector('[data-getting-started]'),null);
+ let release;const gate=new Promise(resolve=>release=resolve),f=await fixture({navigate:()=>gate});f.window.dispatchEvent(new f.window.CustomEvent('kairos:onboarding-complete',{detail:{ownerId:'one',guide:true}}));f.click('next');f.click('action');f.setOwner('two');assert.equal(!!f.document.querySelector('[data-getting-started]'),false);release(false);await gate;await new Promise(setImmediate);assert.equal(!!f.document.querySelector('[data-getting-started]'),false);
  f.setOwner('one');assert.match(f.text(),/Schedule your task/);
 });
 
 test('last step explains reminder limits and Finish does not request permission',async()=>{
- const f=await fixture();f.guide.open();f.click('next');f.click('next');f.click('next');assert.match(f.text(),/Kairos must remain open/);assert.match(f.text(),/Save changes/);f.click('next');assert.equal(f.document.querySelector('[data-getting-started]'),null);
+ const f=await fixture();f.window.dispatchEvent(new f.window.CustomEvent('kairos:onboarding-complete',{detail:{ownerId:'one',guide:true}}));f.click('next');f.click('next');f.click('next');assert.match(f.text(),/Kairos must remain open/);assert.match(f.text(),/Save changes/);f.click('next');assert.match(f.text(),/Commands and keyboard shortcuts/);f.click('next');await new Promise(setImmediate);assert.equal(!!f.document.querySelector('[data-getting-started]'),false);
  const reload=await fixture({store:f.store});assert.equal(reload.document.querySelector('[data-getting-started]'),null);
 });
 
 test('navigation failures stay visible and blocked storage never prevents Skip',async()=>{
- const f=await fixture({navigate:async()=>false});f.guide.open();f.click('action');await Promise.resolve();assert.match(f.text(),/could not open/i);assert.ok(f.document.querySelector('[data-guide-panel]'));f.click('skip');assert.equal(f.document.querySelector('[data-getting-started]'),null);
- const blocked=await fixture({store:{get(){throw Error('blocked')},set(){throw Error('blocked')}}});blocked.guide.open();blocked.click('skip');assert.equal(blocked.document.querySelector('[data-getting-started]'),null);
+ const f=await fixture({navigate:async()=>false});f.window.dispatchEvent(new f.window.CustomEvent('kairos:onboarding-complete',{detail:{ownerId:'one',guide:true}}));f.click('action');await new Promise(setImmediate);assert.match(f.text(),/could not open/i);assert.ok(f.document.querySelector('[data-guide-panel]'));f.click('skip');await new Promise(setImmediate);assert.equal(!!f.document.querySelector('[data-getting-started]'),false);
+ const blocked=await fixture({store:{get(){throw Error('blocked')},set(){throw Error('blocked')}}});blocked.window.dispatchEvent(new blocked.window.CustomEvent('kairos:onboarding-complete',{detail:{ownerId:'one',guide:true}}));blocked.click('skip');await new Promise(setImmediate);assert.equal(blocked.document.querySelector('[data-getting-started]'),null);
 });
 
 test('AI example fills the real composer without submitting or replacing a draft',async()=>{
@@ -87,4 +88,31 @@ test('profile setup hands the real guide off only after a successful account-sco
  await context.save();assert.ok(root.isConnected);assert.equal(events.length,0);
  offline=false;await context.save();assert.equal(events[0]?.guide,true);assert.equal(events[0]?.ownerId,'one');assert.equal(root.isConnected,false);
  assert.equal(writes[0].data.settings?.profile?.timezone,'Australia/Brisbane');assert.equal(writes[0].data['settings.profile.timezone'],undefined);
+ assert.equal(writes[0].data.gettingStarted.status,'active');assert.equal(writes[0].data.achievements,undefined);
+});
+
+test('completion waits for storage and a failed skip remains retryable',async()=>{
+ let reject=true,release;const f=await fixture({save:async()=>{if(reject)throw Error('Offline');return new Promise(resolve=>release=resolve)}});
+ f.guide.hydrate({onboardingCompleted:true,gettingStarted:{version:2,status:'active',step:4}});
+ f.click('skip');await new Promise(setImmediate);assert.match(f.text(),/Could not save/);assert.equal(f.document.getElementById('getting-started-open').hidden,false);
+ reject=false;f.click('skip');await new Promise(setImmediate);assert.match(f.text(),/Saving/);release({state:{version:2,status:'skipped',step:4}});await new Promise(setImmediate);assert.equal(!!f.document.querySelector('[data-getting-started]'),false);assert.equal(f.document.getElementById('getting-started-open').hidden,true);
+});
+
+test('account completion sync cannot be undone by late active snapshots or onboarding events',async()=>{
+ const f=await fixture();f.guide.hydrate({onboardingCompleted:true,gettingStarted:{version:2,status:'completed',step:4}});
+ f.guide.hydrate({onboardingCompleted:true,gettingStarted:{version:2,status:'active',step:0}});
+ f.window.dispatchEvent(new f.window.CustomEvent('kairos:onboarding-complete',{detail:{ownerId:'one',guide:true}}));
+ assert.equal(!!f.document.querySelector('[data-getting-started]'),false);assert.equal(f.document.getElementById('getting-started-open').hidden,true);
+ f.setOwner('two');f.guide.hydrate({onboardingCompleted:true,gettingStarted:{version:2,status:'active',step:0}});assert.match(f.text(),/Create a board and task/);
+});
+
+test('malformed cached steps cannot crash hydration and tutorial describes configured keybinds',async()=>{
+ const store=new Map([['kairos-getting-started:one',JSON.stringify({version:2,status:'active',step:999})]]),f=await fixture({store,getShortcuts:()=>({search:'Mod+G'})});
+ f.guide.hydrate({onboardingCompleted:true,gettingStarted:{version:2,status:'active',step:4}});assert.match(f.text(),/Mod\+G/);assert.match(f.text(),/Commands and keyboard shortcuts/);
+});
+
+test('late forward snapshots cannot undo Back and progress writes keep click order',async()=>{
+ const calls=[],releases=[],f=await fixture({save:(_owner,action)=>{calls.push(action.step);return new Promise(resolve=>releases.push(resolve))}});
+ f.guide.hydrate({onboardingCompleted:true,gettingStarted:{version:2,status:'active',step:0}});f.click('next');f.click('back');await new Promise(setImmediate);assert.deepEqual(calls,[1]);
+ f.guide.hydrate({onboardingCompleted:true,gettingStarted:{version:2,status:'active',step:1}});assert.match(f.text(),/Create a board and task/);releases[0]({});await new Promise(setImmediate);assert.deepEqual(calls,[1,0]);releases[1]({});await new Promise(setImmediate);
 });

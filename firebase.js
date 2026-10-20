@@ -105,7 +105,7 @@ if (typeof window !== "undefined") {
 
         // Load onboarding only after this module has finished exporting the
         // primary Firebase app. This prevents onboarding from blocking app.js.
-        import("./onboarding-force.js?v=6").catch(error => {
+        import("./onboarding-force.js?v=7").catch(error => {
             console.error("Kairos onboarding module failed to load:", error);
             releaseLoadingGate();
         });

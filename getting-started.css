@@ -19,3 +19,7 @@
 #getting-started-open[hidden]{display:none}
 .sidebar.collapsed #getting-started-open{font-size:0;min-width:36px;margin:8px auto}
 .sidebar.collapsed #getting-started-open::before{content:'?';font-size:16px}
+.gs-spotlight{position:fixed;z-index:899;pointer-events:none;border:2px solid var(--accent-glow,#a855f7);border-radius:6px;box-shadow:0 0 0 4px var(--bg-main,#151515),0 0 0 6px var(--accent-glow,#a855f7);box-sizing:border-box;animation:gs-highlight-in .2s ease-out}
+@keyframes gs-highlight-in{from{opacity:0}to{opacity:1}}
+@media(prefers-reduced-motion:reduce){.gs-spotlight{animation:none}}
+body.reduce-motion .gs-spotlight{animation:none}

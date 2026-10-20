@@ -1,6 +1,7 @@
 import {buildSearchIndex,searchPlanner} from './global-search-model.js?v=1';
+import {matchesShortcut} from './shortcut-model.js?v=1';
 const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-export function mountGlobalSearch({document=globalThis.document,window=globalThis.window,getIdentity,getState,getToday,onNavigate}={}){
+export function mountGlobalSearch({document=globalThis.document,window=globalThis.window,getIdentity,getState,getToday,onNavigate,getShortcuts=()=>undefined}={}){
  const dialog=document.createElement('dialog');dialog.className='global-search-dialog';dialog.setAttribute('aria-labelledby','global-search-title');
  dialog.innerHTML='<header><h2 id="global-search-title">Search planner</h2><button type="button" data-search-close aria-label="Close search">Close</button></header><label class="global-search-label" for="global-search-query">Find tasks, assignments or boards</label><input id="global-search-query" data-search-query type="search" maxlength="500" autocomplete="off" placeholder="Search titles, locations or notes" aria-controls="global-search-results"><div class="global-search-filters" role="group" aria-label="Filter work">'+['all','unfinished','overdue','completed'].map(value=>'<button type="button" data-search-filter="'+value+'" aria-pressed="'+(value==='all')+'">'+value[0].toUpperCase()+value.slice(1)+'</button>').join('')+'</div><p data-search-status role="status" aria-live="polite"></p><ul id="global-search-results" data-search-results aria-label="Search results"></ul><footer><p data-search-range></p><span>↑ ↓ Navigate · Enter Open · Esc Close</span></footer>';
  document.body.appendChild(dialog);
@@ -44,7 +45,7 @@ export function mountGlobalSearch({document=globalThis.document,window=globalThi
  }
  function keydown(event){
   if(event.defaultPrevented||event.isComposing||event.keyCode===229)return;
-  if((event.ctrlKey||event.metaKey)&&!event.altKey&&!event.shiftKey&&!event.repeat&&event.key?.toLowerCase()==='k'){if(open()){event.preventDefault();event.stopPropagation()}return}
+  if(matchesShortcut(event,'search',getShortcuts(),{allowInEditor:true,activeElement:document.activeElement})){if(open()){event.preventDefault();event.stopPropagation()}return}
   if(!visible()||!dialog.contains(event.target))return;
   if(event.key==='Escape'){event.preventDefault();event.stopPropagation();close();return}
   const buttons=[...dialog.querySelectorAll('[data-search-result]')];

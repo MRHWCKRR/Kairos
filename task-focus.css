@@ -4,3 +4,29 @@
 .focus-checkin-dialog{box-sizing:border-box;width:min(540px,calc(100vw - 64px));max-height:85vh;overflow:auto;padding:24px;border:1px solid var(--border-subtle,#555);border-radius:10px;background:var(--bg-card,#252731);color:var(--text-primary,#eee);font-size:14px;line-height:1.5}.focus-checkin-dialog::backdrop{background:#0008}.focus-checkin-dialog h2{font-size:22px;margin:0 0 12px}.focus-checkin-dialog strong{overflow-wrap:anywhere}.focus-checkin-actions{display:flex;flex-direction:column;align-items:flex-start;gap:12px}.focus-checkin-actions label{display:flex;gap:12px;align-items:center;margin-top:8px}.focus-checkin-dialog input{box-sizing:border-box;width:90px;padding:8px;font:inherit;background:var(--bg-main,#161616);color:inherit;border:1px solid var(--border-subtle,#777);border-radius:4px}.focus-checkin-dialog button{padding:8px 12px;font:inherit;color:inherit;background:var(--bg-main,#161616);border:1px solid var(--border-subtle,#777);border-radius:6px;cursor:pointer}.focus-checkin-dialog :focus-visible{outline:2px solid var(--accent-glow,#a855f7);outline-offset:3px}.focus-checkin-dialog [role=status]:empty{display:none}
 
 .focus-manual-editor:empty{display:none}.focus-manual-editor{border-top:1px solid var(--border-subtle,#555);border-bottom:1px solid var(--border-subtle,#555);padding:12px 0;margin:16px 0}.focus-manual-editor h3{margin:0 0 8px;font-size:18px}.focus-manual-editor label{display:flex;flex-direction:column;gap:5px;margin-bottom:12px}.focus-manual-grid{display:grid;grid-template-columns:2fr 1fr 1fr;gap:12px}.focus-manual-grid input,.focus-manual-editor select{min-width:0;width:100%}.focus-manual-editor select{box-sizing:border-box;padding:8px;font:inherit;border:1px solid var(--border-subtle,#777);border-radius:4px;background:var(--bg-main,#161616);color:inherit}.focus-history-toolbar{flex-wrap:wrap}.focus-history-toolbar label{min-width:240px}
+
+/* The dashboard timer shares behavior with the compact bar, with its own reading hierarchy. */
+#focus-timer-container .task-focus-heading { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; margin: 20px 0; }
+#focus-timer-container .task-focus-heading strong { color: var(--text-muted); font-size: 13px; font-weight: 500; line-height: 1.5; }
+#focus-timer-container .focus-timer-display { margin: 0; font-size: clamp(28px,2.5vw,40px); font-weight: 600; letter-spacing: -.035em; line-height: 1.2; }
+#focus-timer-container .focus-timer-controls { gap: 8px; }
+#focus-timer-container button, .task-focus-bar button { min-height: 36px; line-height: 1.4; }
+#focus-timer-container [data-focus-action] { padding: 8px 12px; }
+#focus-timer-container [data-focus-action="start"],
+#focus-timer-container [data-focus-action="resume"],
+.task-focus-bar [data-focus-action="resume"] { color: var(--accent-glow); border-color: var(--accent-glow); background: var(--accent-glow-soft); font-weight: 600; }
+#focus-timer-container button:disabled { opacity: .55; cursor: default; }
+#focus-timer-container button:focus-visible { outline: 2px solid var(--accent-glow); outline-offset: 3px; }
+#focus-timer-container [data-focus-status] { margin: 12px 0 0; color: var(--text-muted); font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+#focus-timer-container [data-focus-status]:empty { display: none; }
+#focus-timer-container .focus-timer-longest-row { margin: 20px 0 12px; padding-top: 16px; border-top: 1px solid var(--border-subtle); font-size: 12px; line-height: 1.5; }
+#focus-timer-container .focus-timer-secondary { padding: 6px 8px; margin: 0 4px 4px 0; font: inherit; font-size: 12px; color: var(--text-muted); background: transparent; border: 1px solid var(--border-subtle); border-radius: 6px; cursor: pointer; }
+#focus-timer-container button:hover:not(:disabled), .task-focus-bar button:hover:not(:disabled) { background: var(--accent-glow-soft); border-color: var(--accent-glow); }
+.task-focus-bar .focus-timer-display { margin: 0; font-size: 22px; line-height: 1.3; }
+@media (prefers-reduced-motion: no-preference) {
+    body:not(.reduce-motion) #focus-timer-container button,
+    body:not(.reduce-motion) .task-focus-bar button { transition: background-color .15s, border-color .15s; }
+    body:not(.reduce-motion) .focus-timer-running .task-focus-heading strong::before { animation: focus-running-pulse 2.4s ease-in-out infinite; }
+}
+.focus-timer-running .task-focus-heading strong::before { content:'';display:inline-block;width:6px;height:6px;margin-right:8px;border-radius:50%;background:var(--accent-glow);vertical-align:middle; }
+@keyframes focus-running-pulse { 0%,100% { opacity:1; } 50% { opacity:.4; } }

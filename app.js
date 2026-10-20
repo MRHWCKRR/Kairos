@@ -1,6 +1,6 @@
 import {taskWorkCheckin} from './remaining-work.js?v=2';
 import {promptFocusCheckin} from './focus-checkin.js?v=1';
-import {mountFocusTimer} from './focus-timer.js?v=5';
+import {mountFocusTimer} from './focus-timer.js?v=6';
 import {persistFocusLog,persistFocusCorrection,loadFocusHistory} from './focus-store.js?v=5';
 import {mountFocusHistory} from './focus-history.js?v=3';
 import {taskFocusTarget} from './task-focus.js?v=3';
@@ -14,7 +14,7 @@ import { requestBilling } from './billing-client.js';
 import { mountPlanUsage } from './plan-usage.js?v=3';
 import {assignmentProgressIndex,assignmentProgressMarkup} from './assignment-progress.js?v=4';
 import {planningClock} from './planning-model.js?v=1';
-import { createPageLoader } from './page-loader.js?v=56';
+import { createPageLoader } from './page-loader.js?v=57';
 import { mountPageRouter } from './page-router.js?v=2';
 import { createPageRenderCache } from './page-render-cache.js?v=1';
 import './boards-recurrence.js?v=11';
@@ -44,9 +44,13 @@ import { savePlannerEdits, persistTaskListCommand,loadPlanningUndoPreview } from
 import { resolveTaskDetail, taskListSection } from './task-list-model.js?v=10';
 import { mergePlanEdits, planState } from './plan-merge.js';
 import {createSettingsRecovery,overlaySettingsEdits} from './settings-recovery.js?v=1';
-import {mountGettingStarted,openGettingStartedDestination} from './getting-started.js?v=1';
+import {mountGettingStarted,openGettingStartedDestination} from './getting-started.js?v=2';
+import {createGettingStartedStore} from './getting-started-store.js?v=1';
 import {mountFocusBreakdown} from './focus-breakdown.js?v=1';
-import {mountGlobalSearch} from './global-search.js?v=1';
+import {mountGlobalSearch} from './global-search.js?v=2';
+import {normaliseShortcuts,describeShortcut} from './shortcut-model.js?v=1';
+import {mountShortcutSettings} from './shortcut-settings.js?v=1';
+import {mountSidebarIcons} from './sidebar-icons.js?v=1';
 console.log("APP.js is loaded and running");
 
 // ===========================================================
@@ -166,7 +170,7 @@ function defaultSettings() {
     try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'; } catch (e) {}
     return {
         profile: { displayName: '', avatarURL: '', birthday: '', timezone: tz },
-        accessibility: { density: 'default', timeFormat: '12', reduceMotion: false, language: 'en' },
+        accessibility: { density: 'default', timeFormat: '12', reduceMotion: false, language: 'en', shortcuts: normaliseShortcuts() },
         appearance: {
             mode: 'dark',
             theme: 'default',
@@ -193,6 +197,7 @@ function defaultFocusData() {
 }
 
 function bootApp() {
+    mountSidebarIcons(document);
     async function confirmAction(message) {
         const owner = auth.currentUser?.uid, plan = currentPlanDocId;
         const accepted = await confirmDialog(message, { destructive: /delete/i.test(message), confirmText: /delete/i.test(message) ? 'Delete' : 'Archive' });
@@ -610,7 +615,7 @@ function bootApp() {
         achievementsData.countedTaskIds.push(...ids);achievementsData.lifetimeTasksCompleted+=ids.length;logTaskCompletionForStats(ids.length);checkTaskAchievements();saveAchievementsToFirestore();renderMiniAchievementsWidget();
     }
     const pageLoader = createPageLoader({scheduleEnabled:!!document.getElementById('schedule-calendar'),taskDetailsEnabled:true,setupTaskDetails:module=>{
-        taskDetails=module.mountTaskDetailPane({root:document.getElementById('tasks-page'),getOwnerId:()=>auth.currentUser?.uid||null,getPlanId:()=>currentPlanDocId,
+        taskDetails=module.mountTaskDetailPane({root:document.getElementById('tasks-page'),getShortcuts:()=>userSettings.accessibility.shortcuts,getOwnerId:()=>auth.currentUser?.uid||null,getPlanId:()=>currentPlanDocId,
             getState:()=>({boards:boardsData}),getToday:()=>planningClock(Date.now(),userSettings.profile.timezone).date,resolveTarget:target=>resolveTaskDetail({boards:boardsData},target),commit:commitTaskDetails,onStartFocus:startTaskFocus,openSchedule:openTaskDetailsInSchedule});
     },setupTaskWorkspace:module=>{
         taskWorkspace=module.mountTaskListWorkspace({root:document.getElementById('tasks-page'),overview:document.getElementById('tasks-manager-container'),
@@ -640,7 +645,7 @@ function bootApp() {
             resolveRow:element=>{const row=element?.closest?.('[data-detail-row]');return row&&root.contains(row)?{taskId:row.dataset.detailRow,row}:null},onError:text=>taskInteractions.reportError(text)});
         taskSelection.setActions(registry,taskMenus.open);
     },setupTaskShortcuts:module=>{
-        taskShortcuts=module.mountTaskKeyboardShortcuts({root:document.getElementById('tasks-page'),workspace:taskWorkspace,
+        taskShortcuts=module.mountTaskKeyboardShortcuts({root:document.getElementById('tasks-page'),workspace:taskWorkspace,getShortcuts:()=>userSettings.accessibility.shortcuts,
             getIdentity:()=>({ownerId:auth.currentUser?.uid||null,planId:currentPlanDocId}),getViewKey:()=>taskWorkspace.getViewKey(),
             isBusy:()=>{const state=taskInteractions.getActionState({taskId:''});return !!(state.busy||state.pending)},
             isBlocked:()=>taskMenus?.isOpen()||taskInteractions?.isDragging()});
@@ -709,9 +714,19 @@ function bootApp() {
     setInterval(updateClock, 60000);
 
     const guideOwner=()=>auth.currentUser?.emailVerified?auth.currentUser.uid:null;
-    gettingStarted=mountGettingStarted({getOwner:guideOwner,navigate:(request,owner)=>openGettingStartedDestination({request,owner,getOwner:guideOwner,navigate:page=>pageRouter.navigate(page)})});
+    const guideStore=createGettingStartedStore({db,doc,runTransaction,getOwner:guideOwner,includeOg:OG_ACHIEVEMENT_AVAILABLE});
+    function acceptGuideCompletion(result,owner){
+        if(!result||guideOwner()!==owner)return;
+        achievementsData=deepMerge(defaultAchievementsData(),result.achievements||{});
+        for(const id of result.awardedIds||[]){const definition=ACHIEVEMENTS.find(item=>item.id===id);if(definition)showAchievementToast(definition)}
+        renderAchievementsPage();renderMiniAchievementsWidget();
+    }
+    gettingStarted=mountGettingStarted({getOwner:guideOwner,getShortcuts:()=>userSettings.accessibility.shortcuts,save:(owner,action)=>guideStore.update(owner,action),onComplete:acceptGuideCompletion,navigate:(request,owner)=>openGettingStartedDestination({request,owner,getOwner:guideOwner,navigate:page=>pageRouter.navigate(page)})});
     window.addEventListener('kairos:onboarding-complete',event=>{
-        if(event.detail?.ownerId===guideOwner())void loadUserSettingsFromFirestore(auth.currentUser);
+        if(event.detail?.ownerId===guideOwner()){
+            void loadUserSettingsFromFirestore(auth.currentUser);
+            if(!event.detail.guide)void guideStore.update(guideOwner(),{type:'reconcile'}).then(result=>acceptGuideCompletion(result,event.detail.ownerId)).catch(error=>console.error('Welcome achievement could not sync:',error));
+        }
     });
 
     // --- 2 Rendering Engine ---
@@ -1889,6 +1904,13 @@ function bootApp() {
 
     function applyAllSettings() {
         const s = userSettings;
+        s.accessibility.shortcuts=normaliseShortcuts(s.accessibility.shortcuts);
+        const searchBinding=describeShortcut('search',s.accessibility.shortcuts);
+        for(const trigger of document.querySelectorAll('[data-global-search-open]')){
+            trigger.title='Search planner ('+searchBinding+')';
+            trigger.setAttribute('aria-keyshortcuts',searchBinding.replace('Mod','Control')+' '+searchBinding.replace('Mod','Meta'));
+            const hint=trigger.querySelector('kbd');if(hint)hint.textContent=searchBinding;
+        }
         [...document.body.classList].forEach(cls => {
             if (cls.startsWith('theme-') || cls.startsWith('textcolor-') || cls.startsWith('font-') || cls.startsWith('density-') || cls.startsWith('cursor-')) {
                 document.body.classList.remove(cls);
@@ -1910,6 +1932,7 @@ function bootApp() {
         updateClock();
 
         if (appReady) {
+            taskShortcuts?.sync();
             renderApp();
             refreshDynamicUI();
         }
@@ -2079,7 +2102,7 @@ function bootApp() {
             const defaults=defaultSettings(),ref=doc(db,'users',owner);
             const saved=await runTransaction(db,async transaction=>{
                 const snapshot=await transaction.get(ref),remote=deepMerge(defaults,snapshot.exists()?snapshot.data().settings||{}:{});
-                const next=overlaySettingsEdits(base,settings,remote);if(next.planning){next.planning.weeklyAvailability=normaliseWeeklyAvailability(next.planning.weeklyAvailability);Object.assign(next.planning,normalisePlanningPreferences(next.planning));}transaction.set(ref,{settings:next},{merge:true});return next;
+                const next=overlaySettingsEdits(base,settings,remote);next.accessibility.shortcuts=normaliseShortcuts(next.accessibility.shortcuts);if(next.planning){next.planning.weeklyAvailability=normaliseWeeklyAvailability(next.planning.weeklyAvailability);Object.assign(next.planning,normalisePlanningPreferences(next.planning));}transaction.set(ref,{settings:next},{merge:true});return next;
             });
             return auth.currentUser?.uid===owner?saved:false;
         } catch(error) {
@@ -2193,8 +2216,10 @@ function bootApp() {
         select.value = pendingSettings.profile.timezone;
     }
 
-    let weeklyAvailabilityEditor=null,planningPreferencesEditor=null;
+    let weeklyAvailabilityEditor=null,planningPreferencesEditor=null,shortcutSettingsEditor=null;
     function populateSettingsForm() {
+        shortcutSettingsEditor ||= mountShortcutSettings({root:document.getElementById('shortcut-settings-editor'),getValue:()=>pendingSettings.accessibility.shortcuts,onChange:value=>{pendingSettings.accessibility.shortcuts=value;checkDirty()}});
+        shortcutSettingsEditor.refresh();
         planningPreferencesEditor ||= mountPlanningPreferencesEditor({root:document.getElementById('planning-preferences-editor'),getValue:()=>pendingSettings.planning||{},onChange:value=>{pendingSettings.planning={...(pendingSettings.planning||{}),...value};checkDirty()}});
         planningPreferencesEditor?.refresh();
         weeklyAvailabilityEditor ||= mountWeeklyAvailabilityEditor({root:document.getElementById('weekly-availability-editor'),getValue:()=>pendingSettings.planning?.weeklyAvailability??null,onChange:value=>{pendingSettings.planning={...(pendingSettings.planning||{}),weeklyAvailability:value};checkDirty()}});
@@ -2596,6 +2621,7 @@ function bootApp() {
     if(settingsSaveBtn)settingsSaveBtn.addEventListener('click',async()=>{
         const owner=auth.currentUser?.uid;if(!owner||settingsSaveTicket?.ownerId===owner)return;
         const submitted=cloneDeep(pendingSettings),base=cloneDeep(settingsCloudSnapshot),ticket={ownerId:owner};
+        submitted.accessibility.shortcuts=normaliseShortcuts(submitted.accessibility.shortcuts);
         try{if(submitted.planning){submitted.planning.weeklyAvailability=normaliseWeeklyAvailability(submitted.planning.weeklyAvailability);Object.assign(submitted.planning,normalisePlanningPreferences(submitted.planning));}}catch(error){showNotice(error.message);return;}
         pendingSettings=cloneDeep(submitted);
         settingsSaveTicket=ticket;settingsLoadRevision++;
@@ -2879,6 +2905,8 @@ function bootApp() {
         unsubscribeNotifications = onSnapshot(ref, (snap) => {
             if (auth.currentUser?.uid !== user.uid) return;
             const data = snap.exists() ? snap.data() : null;
+
+            gettingStarted?.hydrate(data);
 
             if (data && Array.isArray(data.notifications)) {
                 notificationsData = data.notifications;
@@ -3484,19 +3512,21 @@ function bootApp() {
         try {
             const ref = doc(db, 'users', user.uid);
             const snap = await getDoc(ref);
+            if(auth.currentUser?.uid!==user.uid)return;
             const data = snap.exists() ? snap.data() : null;
-            const isNewDoc = !data || (!data.achievements && !data.focusData);
 
             achievementsData = deepMerge(defaultAchievementsData(), data?.achievements || {});
             focusData = deepMerge(defaultFocusData(), data?.focusData || {});
-
-            if (isNewDoc) {
-                triggerMiscAchievement('signup');
-                if (OG_ACHIEVEMENT_AVAILABLE) triggerMiscAchievement('og');
+            gettingStarted?.hydrate(data);
+            if(data?.onboardingCompleted===true&&data?.gettingStarted?.status!=='active'){
+                const result=await guideStore.update(user.uid,{type:'reconcile'});
+                if(auth.currentUser?.uid!==user.uid)return;
+                acceptGuideCompletion(result,user.uid);
             }
         } catch (error) {
             console.error('Error loading achievements/focus data:', error);
         }
+        if(auth.currentUser?.uid!==user.uid)return;
         renderAchievementsPage();
         renderGoalSelects();
         renderMiniAchievementsWidget();
@@ -3871,7 +3901,7 @@ function bootApp() {
         document.dispatchEvent(new Event('kairos-controls-refresh'));
 
     appReady = true;
-    globalSearchController=mountGlobalSearch({getIdentity:globalSearchIdentity,getState:()=>({boards:boardsData}),getToday:()=>planningClock(Date.now(),userSettings.profile.timezone).date,onNavigate:openGlobalSearchResult});
+    globalSearchController=mountGlobalSearch({getShortcuts:()=>userSettings.accessibility.shortcuts,getIdentity:globalSearchIdentity,getState:()=>({boards:boardsData}),getToday:()=>planningClock(Date.now(),userSettings.profile.timezone).date,onNavigate:openGlobalSearchResult});
     renderApp();
     renderAchievementsPage();
     renderGoalSelects();

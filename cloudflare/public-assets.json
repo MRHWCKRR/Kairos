@@ -144,7 +144,13 @@
     "focus-breakdown.css",
     "global-search-model.js",
     "global-search.js",
-    "global-search.css"
+    "global-search.css",
+    "getting-started-model.js",
+    "getting-started-store.js",
+    "shortcut-model.js",
+    "shortcut-settings.js",
+    "shortcut-settings.css",
+    "sidebar-icons.js"
   ],
   "directories": [
     "images",
