@@ -4,6 +4,27 @@
 .dialog-window-handle:focus-visible { outline: 2px solid var(--accent-glow); outline-offset: 5px; border-radius: 3px; }
 .dialog-window.dialog-window-dragging { box-shadow: 0 24px 65px #0005; }
 .dialog-window-dragging .dialog-window-handle { cursor: grabbing; }
+/* Match both the window and nested result-list scrollbars to the active theme. */
+.dialog-window, .dialog-window * {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--text-muted) 80%, transparent) transparent;
+}
+.dialog-window::-webkit-scrollbar, .dialog-window *::-webkit-scrollbar { width: 8px; height: 8px; }
+.dialog-window::-webkit-scrollbar-track, .dialog-window *::-webkit-scrollbar-track { background: transparent; }
+.dialog-window::-webkit-scrollbar-thumb, .dialog-window *::-webkit-scrollbar-thumb {
+    background-color: color-mix(in srgb, var(--text-muted) 80%, transparent);
+    border: 2px solid transparent;
+    border-radius: 8px;
+    background-clip: padding-box;
+    min-height: 32px;
+}
+.dialog-window::-webkit-scrollbar-thumb:hover, .dialog-window *::-webkit-scrollbar-thumb:hover { background-color: var(--text-muted); }
+.dialog-window::-webkit-scrollbar-button, .dialog-window *::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
+.dialog-window::-webkit-scrollbar-corner, .dialog-window *::-webkit-scrollbar-corner { background: transparent; }
+@media (forced-colors: active) {
+    .dialog-window, .dialog-window * { scrollbar-width: auto; scrollbar-color: auto; }
+    .dialog-window::-webkit-scrollbar-thumb, .dialog-window *::-webkit-scrollbar-thumb { background-color: CanvasText; }
+}
 @media (prefers-reduced-motion: no-preference) {
     body:not(.reduce-motion) .dialog-window { transition: box-shadow .16s ease-out; }
 }
