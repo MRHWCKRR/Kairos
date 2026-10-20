@@ -47,8 +47,8 @@ import {createSettingsRecovery,overlaySettingsEdits} from './settings-recovery.j
 import {mountGettingStarted,openGettingStartedDestination} from './getting-started.js?v=2';
 import {createGettingStartedStore} from './getting-started-store.js?v=1';
 import {mountFocusBreakdown} from './focus-breakdown.js?v=1';
-import {mountGlobalSearch} from './global-search.js?v=2';
-import {mountTaskCapture} from './task-capture.js?v=1';
+import {mountGlobalSearch} from './global-search.js?v=3';
+import {mountTaskCapture} from './task-capture.js?v=2';
 import {normaliseShortcuts,describeShortcut} from './shortcut-model.js?v=1';
 import {mountShortcutSettings} from './shortcut-settings.js?v=1';
 import {mountSidebarIcons} from './sidebar-icons.js?v=1';

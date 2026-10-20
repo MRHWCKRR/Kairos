@@ -76,4 +76,4 @@
     body:not(.reduce-motion) .global-search-dialog[open] { animation: search-dialog-enter .16s ease-out; }
     body:not(.reduce-motion) .global-search-trigger, body:not(.reduce-motion) .global-search-dialog button { transition: background-color .15s, border-color .15s, color .15s; }
 }
-@keyframes search-dialog-enter { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes search-dialog-enter { from { opacity: 0; } to { opacity: 1; } }

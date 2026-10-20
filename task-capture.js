@@ -1,3 +1,4 @@
+import {mountDialogWindow} from './dialog-window.js?v=1';
 import {applyTaskListCommand} from './task-list-model.js?v=11';
 
 export function mountTaskCapture({document=globalThis.document,window=globalThis.window,getIdentity,getState,commit,confirmClear=async()=>false,storage,uuid=()=>window.crypto.randomUUID(),now=Date.now}={}) {
@@ -10,6 +11,7 @@ export function mountTaskCapture({document=globalThis.document,window=globalThis
         <details><summary>Date, deadline &amp; estimate</summary><div class="task-capture-options"><label>Date<input name="date" type="date"></label><label>Deadline<input name="dueDate" type="date"></label><label>Estimate (minutes)<input name="estimatedMinutes" type="number" min="1" max="1440" step="1" placeholder="Optional"></label></div><p class="task-capture-hint">A date adds the task to that day without setting a start time.</p></details>
         <p data-capture-status role="status" aria-live="polite"></p><footer><button type="button" data-capture-clear hidden>Clear recovery</button><button type="submit" data-capture-save>Create task</button></footer></form>`;
     document.body.appendChild(dialog);
+    const dialogWindow=mountDialogWindow({dialog,window});
     const find=selector=>dialog.querySelector(selector),field=name=>find('[name="'+name+'"]');
     let identity=null,generation=0,busy=false,pending=null,opener=null,disposed=false,message='',draft={};
     const scope=()=>{const id=getIdentity();return id?.ownerId&&id.planId?JSON.stringify([id.ownerId,id.planId]):null};
@@ -27,7 +29,7 @@ export function mountTaskCapture({document=globalThis.document,window=globalThis
     function restore(record){pending=record;draft={...empty(),...record.command.target,...record.command.task,estimatedMinutes:record.command.task.estimatedMinutes??''};message='A previous save is unconfirmed. Retry uses the same task.'}
     function close(restoreFocus=true){
         if(busy)return false;
-        if(dialog.close)dialog.close();else dialog.removeAttribute('open');
+        dialogWindow.stop();if(dialog.close)dialog.close();else dialog.removeAttribute('open');
         if(restoreFocus&&opener?.isConnected)opener.focus?.();return true;
     }
     function sync(){
@@ -65,7 +67,7 @@ export function mountTaskCapture({document=globalThis.document,window=globalThis
         if(disposed||[...document.querySelectorAll('dialog[open]')].some(item=>item!==dialog))return false;
         sync();if(!getIdentity()?.ownerId)return false;
         const saved=identity?read():null;if(valid(saved)&&saved.identity.operationId!==pending?.identity.operationId)restore(saved);
-        opener=document.activeElement;render();if(!visible()){if(dialog.showModal)dialog.showModal();else dialog.setAttribute('open','')}
+        opener=document.activeElement;render();if(!visible()){if(dialog.showModal)dialog.showModal();else dialog.setAttribute('open','');dialogWindow.reset()}
         (pending?find('[data-capture-save]'):field('title')).focus?.();return true;
     }
     async function submit(){
@@ -111,5 +113,5 @@ export function mountTaskCapture({document=globalThis.document,window=globalThis
     find('form').addEventListener('submit',onSubmit);dialog.addEventListener('input',onInput);dialog.addEventListener('change',onChange);dialog.addEventListener('cancel',onCancel);
     find('[data-capture-close]').addEventListener('click',()=>close());find('[data-capture-clear]').addEventListener('click',()=>void clearRecovery());document.addEventListener('click',onClick);
     sync();
-    return {open,close,sync,submit,dispose(){disposed=true;generation++;busy=false;dialog.remove();document.removeEventListener('click',onClick)}};
+    return {open,close,sync,submit,dispose(){disposed=true;generation++;busy=false;dialogWindow.dispose();dialog.remove();document.removeEventListener('click',onClick)}};
 }

@@ -152,7 +152,9 @@
     "shortcut-settings.css",
     "sidebar-icons.js",
     "task-capture.js",
-    "task-capture.css"
+    "task-capture.css",
+    "dialog-window.js",
+    "dialog-window.css"
   ],
   "directories": [
     "images",

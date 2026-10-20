@@ -37,3 +37,7 @@ test('shared select controls follow board changes and lock the failed-save desti
  for(const option of board.querySelectorAll('option'))option.selected=option.value==='other';board.dispatchEvent(new f.window.Event('change',{bubbles:true}));controls.refresh();
  assert.equal(f.document.querySelector('[name="sectionId"]').value,'next');f.input('title','Read');await f.controller.submit();controls.refresh();assert.equal(controls.controls.get(board).trigger.disabled,true);controls.destroy();f.controller.dispose();
 });
+test('New task opens centred rather than inheriting the global zero margin reset',()=>{
+ const f=fixture(),dialog=f.document.querySelector('dialog');f.window.innerWidth=1200;f.window.innerHeight=800;dialog.getBoundingClientRect=()=>({width:580,height:400,left:0,top:0});
+ f.controller.open();assert.equal(dialog.style.left,'310px');assert.equal(dialog.style.top,'200px');assert.equal(dialog.style.margin,'0');f.controller.dispose();
+});

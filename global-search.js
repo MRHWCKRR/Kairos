@@ -1,3 +1,4 @@
+import {mountDialogWindow} from './dialog-window.js?v=1';
 import {buildSearchIndex,searchPlanner} from './global-search-model.js?v=1';
 import {matchesShortcut} from './shortcut-model.js?v=1';
 const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -5,13 +6,14 @@ export function mountGlobalSearch({document=globalThis.document,window=globalThi
  const dialog=document.createElement('dialog');dialog.className='global-search-dialog';dialog.setAttribute('aria-labelledby','global-search-title');
  dialog.innerHTML='<header><h2 id="global-search-title">Search planner</h2><button type="button" data-search-close aria-label="Close search">Close</button></header><label class="global-search-label" for="global-search-query">Find tasks, assignments or boards</label><input id="global-search-query" data-search-query type="search" maxlength="500" autocomplete="off" placeholder="Search titles, locations or notes" aria-controls="global-search-results"><div class="global-search-filters" role="group" aria-label="Filter work">'+['all','unfinished','overdue','completed'].map(value=>'<button type="button" data-search-filter="'+value+'" aria-pressed="'+(value==='all')+'">'+value[0].toUpperCase()+value.slice(1)+'</button>').join('')+'</div><p data-search-status role="status" aria-live="polite"></p><ul id="global-search-results" data-search-results aria-label="Search results"></ul><footer><p data-search-range></p><span>↑ ↓ Navigate · Enter Open · Esc Close</span></footer>';
  document.body.appendChild(dialog);
+ const dialogWindow=mountDialogWindow({dialog,window});
  const find=selector=>dialog.querySelector(selector),input=find('[data-search-query]'),results=find('[data-search-results]');
  let identity=null,generation=0,opener=null,index=null,rows=[],filter='all',busy=false,disposed=false;
  const identityKey=()=>{const value=getIdentity();return JSON.stringify([value?.ownerId||null,value?.planId||null])};
  const visible=()=>dialog.hasAttribute('open');
  const otherModal=()=>[...document.querySelectorAll('dialog[open]')].some(element=>element!==dialog);
  function status(text){find('[data-search-status]').textContent=text}
- function close(restore=true){if(visible()){if(dialog.close)dialog.close();else dialog.removeAttribute('open');if(restore&&opener?.isConnected)opener.focus?.()}}
+ function close(restore=true){if(visible()){dialogWindow.stop();if(dialog.close)dialog.close();else dialog.removeAttribute('open');if(restore&&opener?.isConnected)opener.focus?.()}}
  function clear(){index=null;rows=[];filter='all';input.value='';results.replaceChildren();find('[data-search-range]').textContent='';status('')}
  function render(){
   for(const button of dialog.querySelectorAll('[data-search-filter]'))button.setAttribute('aria-pressed',String(button.dataset.searchFilter===filter));
@@ -29,8 +31,9 @@ export function mountGlobalSearch({document=globalThis.document,window=globalThi
  function sync(){if(disposed)return;const next=identityKey();if(next!==identity){generation++;identity=next;busy=false;close(false);clear()}if(visible())rebuild()}
  function open(){
   if(disposed||busy||otherModal())return false;sync();if(!getIdentity()?.ownerId)return false;
-  if(!visible()){opener=document.activeElement;if(dialog.showModal)dialog.showModal();else dialog.setAttribute('open','')}
-  rebuild();input.focus?.();input.select?.();return true;
+  const opening=!visible();
+  if(opening){opener=document.activeElement;if(dialog.showModal)dialog.showModal();else dialog.setAttribute('open','')}
+  rebuild();if(opening)dialogWindow.reset();input.focus?.();input.select?.();return true;
  }
  async function select(position){
   if(busy||!visible())return false;const row=rows[position];if(!row)return false;
@@ -51,11 +54,11 @@ export function mountGlobalSearch({document=globalThis.document,window=globalThi
   const buttons=[...dialog.querySelectorAll('[data-search-result]')];
   if(['ArrowDown','ArrowUp'].includes(event.key)&&buttons.length&&(event.target===input||event.target.closest('[data-search-result]'))){event.preventDefault();const current=buttons.indexOf(event.target.closest('[data-search-result]')),n=current<0?(event.key==='ArrowDown'?0:buttons.length-1):(current+(event.key==='ArrowDown'?1:-1)+buttons.length)%buttons.length;buttons[n].focus?.();buttons[n].scrollIntoView?.({block:'nearest'});return}
   if(event.key==='Enter'&&event.target===input){event.preventDefault();void select(0)}
-  if(event.key==='Tab'){const controls=[...dialog.querySelectorAll('input,button')].filter(el=>!el.disabled),first=controls[0],last=controls.at(-1);if(event.shiftKey&&document.activeElement===first||!event.shiftKey&&document.activeElement===last){event.preventDefault();(event.shiftKey?last:first)?.focus?.()}}
+  if(event.key==='Tab'){const controls=[...dialog.querySelectorAll('input,button,[tabindex="0"]')].filter(el=>!el.disabled),first=controls[0],last=controls.at(-1);if(event.shiftKey&&document.activeElement===first||!event.shiftKey&&document.activeElement===last){event.preventDefault();(event.shiftKey?last:first)?.focus?.()}}
  }
  function click(event){if(event.target.closest('[data-global-search-open]')){event.preventDefault();open();return}if(!dialog.contains(event.target))return;const button=event.target.closest('button');if(!button)return;if(button.hasAttribute('data-search-close'))close();if(button.hasAttribute('data-search-filter')){filter=button.dataset.searchFilter;render()}if(button.hasAttribute('data-search-result'))void select(Number(button.dataset.searchResult))}
  function onInput(event){if(event.target===input)render()}
  function cancel(event){event.preventDefault();close()}
  document.addEventListener('keydown',keydown);document.addEventListener('click',click);dialog.addEventListener('input',onInput);dialog.addEventListener('cancel',cancel);window.addEventListener('kairos-data-changed',sync);sync();
- return {open,close,sync,dispose(){disposed=true;generation++;close();document.removeEventListener('keydown',keydown);document.removeEventListener('click',click);dialog.removeEventListener('input',onInput);dialog.removeEventListener('cancel',cancel);window.removeEventListener('kairos-data-changed',sync);clear();dialog.remove()}};
+ return {open,close,sync,dispose(){disposed=true;generation++;close();dialogWindow.dispose();document.removeEventListener('keydown',keydown);document.removeEventListener('click',click);dialog.removeEventListener('input',onInput);dialog.removeEventListener('cancel',cancel);window.removeEventListener('kairos-data-changed',sync);clear();dialog.remove()}};
 }

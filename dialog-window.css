@@ -1,0 +1,9 @@
+.dialog-window { position: fixed; inset: auto; margin: 0; }
+.dialog-window-handle { cursor: grab; touch-action: none; user-select: none; }
+.dialog-window-handle button, .dialog-window-handle a { cursor: pointer; touch-action: manipulation; }
+.dialog-window-handle:focus-visible { outline: 2px solid var(--accent-glow); outline-offset: 5px; border-radius: 3px; }
+.dialog-window.dialog-window-dragging { box-shadow: 0 24px 65px #0005; }
+.dialog-window-dragging .dialog-window-handle { cursor: grabbing; }
+@media (prefers-reduced-motion: no-preference) {
+    body:not(.reduce-motion) .dialog-window { transition: box-shadow .16s ease-out; }
+}
