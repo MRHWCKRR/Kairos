@@ -7,7 +7,7 @@
 .task-capture-trigger:disabled { opacity: .55; cursor: default; }
 .sidebar.collapsed .sidebar-utilities { flex-direction: column; }
 .sidebar.collapsed .task-capture-trigger span { display: none; }
-.task-capture-dialog { box-sizing: border-box; width: min(580px, calc(100vw - 64px)); max-height: 85vh; overflow: auto; padding: 24px; border: 1px solid var(--border-subtle); border-radius: 10px; color: var(--text-primary); background: var(--bg-card); font: inherit; font-size: 14px; }
+.task-capture-dialog { margin: auto; box-sizing: border-box; width: min(580px, calc(100vw - 64px)); max-height: 85vh; overflow: auto; padding: 24px; border: 1px solid var(--border-subtle); border-radius: 10px; color: var(--text-primary); background: var(--bg-card); font: inherit; font-size: 14px; }
 .task-capture-dialog::backdrop { background: #0008; }
 .task-capture-dialog header, .task-capture-dialog footer { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .task-capture-dialog header { margin-bottom: 24px; }
