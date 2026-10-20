@@ -40,15 +40,15 @@ import { LANGUAGES, applyTranslations, getLocale, getLanguageName, t, ACHIEVEMEN
 import { invalidateKairosContext } from './ai-context.js?v=16';
 import { dueTaskReminders, dueBedtimeReminders, reminderDeliveryStatus } from './task-reminders.js?v=3';
 import { deliverTaskReminder, deliverBedtimeReminder, saveNotificationEdits, escapeNotificationText } from './reminder-notifications.js?v=3';
-import { savePlannerEdits, persistTaskListCommand,loadPlanningUndoPreview } from './plan-store.js?v=13';
-import { resolveTaskDetail, taskListSection } from './task-list-model.js?v=11';
+import { savePlannerEdits, persistTaskListCommand,loadPlanningUndoPreview } from './plan-store.js?v=14';
+import { resolveTaskDetail, taskListSection } from './task-list-model.js?v=12';
 import { mergePlanEdits, planState } from './plan-merge.js';
 import {createSettingsRecovery,overlaySettingsEdits} from './settings-recovery.js?v=1';
 import {mountGettingStarted,openGettingStartedDestination} from './getting-started.js?v=2';
 import {createGettingStartedStore} from './getting-started-store.js?v=1';
 import {mountFocusBreakdown} from './focus-breakdown.js?v=1';
 import {mountGlobalSearch} from './global-search.js?v=3';
-import {mountTaskCapture} from './task-capture.js?v=2';
+import {mountTaskCapture} from './task-capture.js?v=3';
 import {normaliseShortcuts,describeShortcut} from './shortcut-model.js?v=1';
 import {mountShortcutSettings} from './shortcut-settings.js?v=1';
 import {mountSidebarIcons} from './sidebar-icons.js?v=1';

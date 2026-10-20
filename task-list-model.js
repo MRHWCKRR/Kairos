@@ -184,6 +184,13 @@ export function applyTaskListCommand(state,command,expected,{now=Date.now()}={})
         found.task[key]=command.value;
         return {next,result:{type:command.type,task:found.task,inverse:{command:{type:command.type,target:command.target,value:before},expected:{boardId:found.board.id,sectionId:found.section.id,value:command.value}}}};
     }
+    if(command?.type==='undo_create_task'){
+        if(typeof command.sourceOperationId!=='string'||!command.sourceOperationId||!expected?.task)throw new Error('A creation receipt is required for Undo.');
+        const next=structuredClone(state),found=resolveTaskDetail(next,command.target);
+        if(found.board.id!==expected.boardId||found.section.id!==expected.sectionId||stableStringify(found.task)!==stableStringify(expected.task)||found.task.completed)throw new Error('This task changed after it was created. Open its details to review it.');
+        found.task.archived=true;
+        return {next,result:{type:'undo_create_task',task:found.task,undoneOperationId:command.sourceOperationId}};
+    }
     if(command?.type==='create_task'){
         const item=command.task;
         if(!item||typeof item!=='object'||Array.isArray(item)||Object.keys(item).some(key=>!['id','title','date','dueDate','estimatedMinutes'].includes(key))||typeof item.id!=='string'||!item.id.trim()||item.id.length>160||typeof item.title!=='string'||!item.title.trim()||item.title.length>180)throw new Error('Enter a task title up to 180 characters and a valid ID.');

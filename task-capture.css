@@ -20,6 +20,9 @@
 .task-capture-options { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; margin-top: 16px; }
 .task-capture-hint { margin: 12px 0 0; color: var(--text-muted); font-size: 12px; line-height: 1.6; }
 .task-capture-dialog [role=status] { min-height: 20px; margin: 20px 0; color: var(--text-muted); font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; }
+.task-capture-feedback { display: flex; align-items: center; gap: 12px; }
+.task-capture-feedback [role=status] { flex: 1; min-width: 0; }
+.task-capture-dialog [data-capture-undo] { flex-shrink: 0; color: var(--accent-glow); }
 .task-capture-dialog footer { justify-content: flex-end; }
 .task-capture-dialog button { padding: 8px 12px; font: inherit; font-size: 13px; line-height: 1.5; color: var(--text-primary); background: var(--bg-main); border: 1px solid var(--border-subtle); border-radius: 6px; cursor: pointer; }
 .task-capture-dialog [data-capture-save] { border-color: var(--accent-glow); background: var(--accent-glow-soft); font-weight: 600; }

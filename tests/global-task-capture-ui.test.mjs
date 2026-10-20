@@ -1,6 +1,7 @@
 import test from 'node:test';import assert from 'node:assert/strict';import {parseHTML} from 'linkedom';
 import {mountTaskCapture} from '../task-capture.js';
 import {enhanceSelects} from '../ui-selects.js';
+import {applyTaskListCommand} from '../task-list-model.js';
 const tick=()=>new Promise(setImmediate);
 function fixture({memory=new Map(),commit=async()=>({}),failStorage=false}={}){
  const {document,window}=parseHTML('<html><body><button data-task-capture-open>New task</button><textarea id="other-draft">Keep my notes</textarea></body></html>');
@@ -40,4 +41,24 @@ test('shared select controls follow board changes and lock the failed-save desti
 test('New task opens centred rather than inheriting the global zero margin reset',()=>{
  const f=fixture(),dialog=f.document.querySelector('dialog');f.window.innerWidth=1200;f.window.innerHeight=800;dialog.getBoundingClientRect=()=>({width:580,height:400,left:0,top:0});
  f.controller.open();assert.equal(dialog.style.left,'310px');assert.equal(dialog.style.top,'200px');assert.equal(dialog.style.margin,'0');f.controller.dispose();
+});
+test('success offers Undo, archives the task and preserves the next draft',async()=>{
+ const f=fixture({commit:async(command,expected)=>{const result=applyTaskListCommand(f.data,command,expected);Object.assign(f.data,result.next);return {createdTask:command.type==='create_task'?structuredClone(result.result.task):undefined}}});
+ f.controller.open();f.input('title','First');await f.controller.submit();assert.equal(f.document.querySelector('[data-capture-undo]').hidden,false);
+ f.input('title','Next draft');await f.controller.undo();assert.equal(f.data.boards[0].sections[0].tasks[0].archived,true);assert.equal(f.document.querySelector('[name="title"]').value,'Next draft');assert.equal(f.document.querySelector('[data-capture-undo]').hidden,true);
+});
+test('Undo refuses edited work and account switches remove the opportunity',async()=>{
+ const f=fixture({commit:async(command,expected)=>{const result=applyTaskListCommand(f.data,command,expected);Object.assign(f.data,result.next);return {createdTask:structuredClone(result.result.task)}}});
+ f.controller.open();f.input('title','Read');await f.controller.submit();f.data.boards[0].sections[0].tasks[0].notes='Keep';assert.equal(await f.controller.undo(),false);assert.equal(f.calls.length,1);assert.equal(f.data.boards[0].sections[0].tasks[0].archived,false);
+ f.setIdentity({ownerId:'two',planId:'other'});f.controller.open();assert.equal(f.document.querySelector('[data-capture-undo]').hidden,true);assert.equal(await f.controller.undo(),false);
+});
+test('a lost Undo response recovers after reload with the exact original operation',async()=>{
+ const f=fixture({commit:async(command,expected)=>{const result=applyTaskListCommand(f.data,command,expected);Object.assign(f.data,result.next);if(command.type==='undo_create_task')throw Error('Lost response');return {createdTask:structuredClone(result.result.task)}}});
+ f.controller.open();f.input('title','Read');await f.controller.submit();f.input('title','Keep this draft');await f.controller.undo();const original=f.calls[1];f.controller.dispose();
+ const next=fixture({memory:f.memory});next.controller.open();assert.equal(next.document.querySelector('[data-capture-save]').textContent,'Retry Undo');await next.controller.submit();assert.deepEqual(next.calls[0],original);assert.equal(next.document.querySelector('[name="title"]').value,'Keep this draft');assert.equal(next.memory.size,0);
+});
+test('clearing a rejected Undo recovery preserves the next unsaved task draft',async()=>{
+ const f=fixture({commit:async(command,expected)=>{if(command.type==='undo_create_task')throw Error('Task changed remotely');const result=applyTaskListCommand(f.data,command,expected);Object.assign(f.data,result.next);return {createdTask:structuredClone(result.result.task)}}});
+ f.controller.open();f.input('title','Read');await f.controller.submit();f.input('title','Next draft');await f.controller.undo();f.document.querySelector('[data-capture-clear]').click();await tick();
+ assert.equal(f.document.querySelector('[name="title"]').value,'Next draft');assert.equal(f.memory.size,0);assert.equal(f.data.boards[0].sections[0].tasks[0].archived,false);
 });
