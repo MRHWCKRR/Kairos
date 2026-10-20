@@ -1298,7 +1298,7 @@ body.cursor-spaceship, body.cursor-spaceship * { cursor: url('cursors/spaceship.
     transition: transform 0.2s ease, border-color 0.2s ease;
 }
 .badge-card.unlocked { border-color: var(--accent-glow); }
-.badge-card.unlocked:hover { background-color: var(--accent-glow-soft); }
+.badge-card.unlocked:hover { transform: translateY(-3px); }
 
 .badge-icon-circle {
     width: 64px;
@@ -1309,8 +1309,8 @@ body.cursor-spaceship, body.cursor-spaceship * { cursor: url('cursors/spaceship.
     align-items: center;
     justify-content: center;
     font-size: 1.8rem;
-    background: var(--accent-glow-soft);
-    box-shadow: none;
+    background: linear-gradient(135deg, var(--accent-glow), color-mix(in srgb, var(--accent-glow) 40%, #fbbf24));
+    box-shadow: 0 4px 14px color-mix(in srgb, var(--accent-glow) 35%, transparent);
 }
 .badge-card.locked .badge-icon-circle {
     background: var(--border-subtle);
@@ -1383,13 +1383,15 @@ body.cursor-spaceship, body.cursor-spaceship * { cursor: url('cursors/spaceship.
     width: 44px;
     height: 44px;
     border-radius: 50%;
-    background: var(--accent-glow-soft);
+    background: linear-gradient(135deg, var(--accent-glow), #fbbf24);
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 1.4rem;
     flex-shrink: 0;
+    animation: badgePop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
+@keyframes badgePop { 0% { transform: scale(0) rotate(-20deg); } 100% { transform: scale(1) rotate(0); } }
 .achievement-toast-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin-bottom: 2px; }
 .achievement-toast-name { font-weight: 800; font-size: 0.95rem; }
 
@@ -2060,7 +2062,8 @@ html.kairos-mobile-device body > #ambient-audio {
     justify-content: center;
     padding: 24px;
     background:
-        var(--bg-main);
+        radial-gradient(circle at 50% 0%, rgba(168, 85, 247, 0.16), transparent 42%),
+        var(--bg-primary, #0b0810);
     color: var(--text-primary, #f5f1f8);
 }
 .mobile-access-screen.is-visible {
@@ -2187,6 +2190,7 @@ html.kairos-mobile-device body > #ambient-audio {
     padding: 32px;
     box-sizing: border-box;
     background:
+        radial-gradient(circle at 50% 15%, rgba(168, 85, 247, 0.12), transparent 38%),
         var(--bg-main);
     opacity: 0;
     visibility: hidden;
@@ -2376,18 +2380,3 @@ html.kairos-mobile-device body > #ambient-audio {
 .schedule-v2-focus-task small{color:var(--text-muted)}.schedule-v2-focus-task .done{text-decoration:line-through;opacity:.5}
 @media(max-width:1200px){.schedule-v2-layout{grid-template-columns:minmax(0,1fr) 190px}.schedule-v2-main .schedule-day-col{min-width:95px}}
 @media(max-width:850px){.schedule-v2-layout,.schedule-v2-today-columns{grid-template-columns:1fr}.schedule-v2-sidebar{position:static}.schedule-v2-main .schedule-week-grid{overflow:auto}}
-
-/* Quiet support surfaces keep the dashboard's task list primary in every theme. */
-#home-page .dashboard-support { gap: 0; border-top: 1px solid var(--border-subtle); }
-#home-page .dashboard-support > .dash-card { border: 0; border-bottom: 1px solid var(--border-subtle); border-radius: 0; background: transparent; padding: var(--card-padding) 0; box-shadow: none; }
-#home-page .hero-header #live-time { font-weight: 600; letter-spacing: -.035em; }
-#home-page .stats-percentage { font-size: 1.15rem; font-weight: 600; color: var(--text-primary); }
-#home-page .dashboard-support .progress-bar-container { height: 6px; border: 0; border-radius: 3px; }
-.badge-card .badge-icon-circle { color: var(--accent-glow); }
-.mobile-access-screen { background: var(--bg-main); }
-.mobile-access-card { padding: 32px 0; background: transparent; border: 0; border-top: 1px solid var(--border-subtle); border-bottom: 1px solid var(--border-subtle); border-radius: 0; box-shadow: none; backdrop-filter: none; text-align: left; }
-.mobile-access-logo { margin: 0 0 24px; }
-.mobile-access-actions a { border-radius: 6px; }
-.mobile-access-actions a:hover { transform: none; }
-.mobile-access-primary { background: var(--accent-glow); box-shadow: none; }
-.mobile-access-platform { padding: 0; background: transparent; border: 0; border-radius: 0; color: var(--text-muted); }
