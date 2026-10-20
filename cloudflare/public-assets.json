@@ -150,7 +150,9 @@
     "shortcut-model.js",
     "shortcut-settings.js",
     "shortcut-settings.css",
-    "sidebar-icons.js"
+    "sidebar-icons.js",
+    "task-capture.js",
+    "task-capture.css"
   ],
   "directories": [
     "images",

@@ -5,7 +5,7 @@ import { db } from './firebase.js';
 import { doc, getDoc, runTransaction, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { mergePlanEdits, planState, stableStringify } from './plan-merge.js';
 import {validateAssignmentOrderChanges} from './assignment-order.js?v=1';
-import { applyTaskListCommand, taskListFingerprint } from './task-list-model.js?v=10';
+import { applyTaskListCommand, taskListFingerprint } from './task-list-model.js?v=11';
 
 export async function persistTaskListCommand(planId, uid, command, expected, operationId, createdAt) {
     if(typeof operationId!=='string'||!operationId||operationId.length>160||!Number.isFinite(createdAt)||createdAt<=0)throw new Error('Invalid operation identity.');

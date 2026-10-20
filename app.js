@@ -40,14 +40,15 @@ import { LANGUAGES, applyTranslations, getLocale, getLanguageName, t, ACHIEVEMEN
 import { invalidateKairosContext } from './ai-context.js?v=16';
 import { dueTaskReminders, dueBedtimeReminders, reminderDeliveryStatus } from './task-reminders.js?v=3';
 import { deliverTaskReminder, deliverBedtimeReminder, saveNotificationEdits, escapeNotificationText } from './reminder-notifications.js?v=3';
-import { savePlannerEdits, persistTaskListCommand,loadPlanningUndoPreview } from './plan-store.js?v=12';
-import { resolveTaskDetail, taskListSection } from './task-list-model.js?v=10';
+import { savePlannerEdits, persistTaskListCommand,loadPlanningUndoPreview } from './plan-store.js?v=13';
+import { resolveTaskDetail, taskListSection } from './task-list-model.js?v=11';
 import { mergePlanEdits, planState } from './plan-merge.js';
 import {createSettingsRecovery,overlaySettingsEdits} from './settings-recovery.js?v=1';
 import {mountGettingStarted,openGettingStartedDestination} from './getting-started.js?v=2';
 import {createGettingStartedStore} from './getting-started-store.js?v=1';
 import {mountFocusBreakdown} from './focus-breakdown.js?v=1';
 import {mountGlobalSearch} from './global-search.js?v=2';
+import {mountTaskCapture} from './task-capture.js?v=1';
 import {normaliseShortcuts,describeShortcut} from './shortcut-model.js?v=1';
 import {mountShortcutSettings} from './shortcut-settings.js?v=1';
 import {mountSidebarIcons} from './sidebar-icons.js?v=1';
@@ -496,7 +497,7 @@ function bootApp() {
 
     onAuthStateChanged(auth, async (user) => {
         searchPlannerOwnerId = null;
-        globalSearchController?.sync();
+        globalSearchController?.sync();taskCaptureController?.sync();
         focusTimerController?.sync();
         focusHistoryController?.sync();
         gettingStarted?.sync();
@@ -577,7 +578,7 @@ function bootApp() {
 
     let aiPageAutoCollapsed = false;
     let sidebarManuallyToggledOnAI = false;
-    let taskDetails=null,taskWorkspace=null,taskInteractions=null,taskMenus=null,taskSelection=null,taskShortcuts=null,focusBreakdownView=null,globalSearchController=null;
+    let taskDetails=null,taskWorkspace=null,taskInteractions=null,taskMenus=null,taskSelection=null,taskShortcuts=null,focusBreakdownView=null,globalSearchController=null,taskCaptureController=null;
     async function commitTaskDetails(command,expected,identity){
         const user=auth.currentUser;
         if(!user||identity.ownerId!==user.uid||identity.planId!==currentPlanDocId)throw new Error('The signed-in account or planner changed.');
@@ -769,7 +770,7 @@ function bootApp() {
         renderMiniAchievementsWidget();
         renderArchivePanel();
         renderFocusBreakdown();
-        globalSearchController?.sync();
+        globalSearchController?.sync();taskCaptureController?.sync();
     }
 
     function findFirstIncompleteSection() {
@@ -1320,7 +1321,7 @@ function bootApp() {
             planSnapshot = saved;
             currentPlanDocId = planId;
             searchPlannerOwnerId = user.uid;
-            globalSearchController?.sync();
+            globalSearchController?.sync();taskCaptureController?.sync();
             window.__kairosScheduleWorkspace?.invalidate();
             if (remoteChanges) renderApp();
             void window.__kairosTaskReminders?.check();
@@ -3902,6 +3903,7 @@ function bootApp() {
 
     appReady = true;
     globalSearchController=mountGlobalSearch({getShortcuts:()=>userSettings.accessibility.shortcuts,getIdentity:globalSearchIdentity,getState:()=>({boards:boardsData}),getToday:()=>planningClock(Date.now(),userSettings.profile.timezone).date,onNavigate:openGlobalSearchResult});
+    taskCaptureController=mountTaskCapture({getIdentity:globalSearchIdentity,getState:()=>({boards:boardsData}),commit:commitTaskDetails,confirmClear:message=>confirmDialog(message,{confirmText:'Clear recovery'})});
     renderApp();
     renderAchievementsPage();
     renderGoalSelects();
