@@ -32,8 +32,8 @@ test('Schedule responsive code never controls the global sidebar',()=>{
   assert.doesNotMatch(responsive,/sidebar-collapsed/);
 });
 
-test('manual drag and resize use one-minute precision with a visible placement preview',()=>{
-  assert.match(interactions,/const SNAP_MINUTES=1/);
+test('manual drag and resize use five-minute precision with a visible placement preview',()=>{
+  assert.match(interactions,/const SNAP_MINUTES=5/);
   assert.match(interactions,/ks-drag-preview/);
   assert.match(interactions,/function placePreview/);
   assert.match(interactions,/querySelector\('span'\)\.textContent/);

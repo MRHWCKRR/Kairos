@@ -42,11 +42,11 @@ export function createPageLoader({importModule=url=>import(url),loadStyle=loadPa
         await importModule('./statistics-ai.js?v=1');
       }
       if(page==='schedule-page'&&scheduleEnabled) {
-        await Promise.all(scheduleStyles.map(name=>loadStyle(name+(name==='schedule-ai.css'?'?v=11':name==='planning-hub.css'?'?v=3':name==='assignment-progress.css'?'?v=2':name==='schedule-day-change.css'?'?v=1':name==='schedule-interactions.css'?'?v=11':'?v=10'))));
+        await Promise.all(scheduleStyles.map(name=>loadStyle(name+(name==='schedule-ai.css'?'?v=11':name==='planning-hub.css'?'?v=3':name==='assignment-progress.css'?'?v=2':name==='schedule-day-change.css'?'?v=1':name==='schedule-interactions.css'?'?v=12':'?v=10'))));
         await importModule('./schedule-workspace.js?v=13');
         // These modules inspect the workspace during boot. Preserve that order
         // even when network responses arrive out of order.
-        for(const name of scheduleModules)await importModule('./'+name+(name==='planning-hub.js'?'?v=14':name==='schedule-interactions.js'?'?v=15':name==='schedule-inspector.js'?'?v=19':name==='schedule-ai.js'?'?v=14':name==='schedule-task-create.js'?'?v=12':'?v=11'));
+        for(const name of scheduleModules)await importModule('./'+name+(name==='planning-hub.js'?'?v=14':name==='schedule-interactions.js'?'?v=16':name==='schedule-inspector.js'?'?v=19':name==='schedule-ai.js'?'?v=14':name==='schedule-task-create.js'?'?v=12':'?v=11'));
       }
     })();
     loaded.set(page,task);

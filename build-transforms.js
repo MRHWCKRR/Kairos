@@ -17,6 +17,14 @@ const BRIDGE=`
         getBoards: () => boardsData,
         getOwnerId: () => auth.currentUser?.uid || null,
         getPlanId: () => currentPlanDocId || null,
+        commitScheduleCommand: (command, expected, identity) => commitTaskDetails(command, expected, identity),
+        ensureSchedulePlan: async () => {
+            const owner = auth.currentUser?.uid, expectedPlan = currentPlanDocId || 'plan-' + owner;
+            if (!owner) throw new Error('You must be signed in.');
+            if (!currentPlanDocId && !await updatePlanInFirestore()) throw new Error('Could not initialize your planner.');
+            if (auth.currentUser?.uid !== owner || currentPlanDocId !== expectedPlan) throw new Error('The account or planner changed.');
+            return currentPlanDocId;
+        },
         startTaskFocus: (taskId,occurrenceDate) => startTaskFocus(taskId,occurrenceDate),
         getPlanningPreferences: () => ({dailyLimitMinutes:settingsCloudSnapshot.planning?.dailyLimitMinutes??0,gapMinutes:settingsCloudSnapshot.planning?.gapMinutes??0}),
         getWeeklyAvailability: () => settingsCloudSnapshot.planning?.weeklyAvailability ?? null,
