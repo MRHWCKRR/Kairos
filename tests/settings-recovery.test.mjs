@@ -1,4 +1,5 @@
 import {normalisePlanningPreferences} from '../planning-preferences.js';
+import {normaliseShortcuts} from '../shortcut-model.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -13,8 +14,8 @@ async function fixture({cache=new Map(),cloud={appearance:{mode:'dark'},profile:
  const storage={getItem:key=>cache.get(key)||null,setItem:(key,value)=>{if(blockedStorage)throw Error('Quota exceeded');cache.set(key,value)},removeItem:key=>cache.delete(key)};
  let stored=structuredClone(cloud),offline=fail,gate=null,writes=0,owner='one',saveClick,cancelClick;
  const save=document.getElementById('settings-save-btn'),cancel=document.getElementById('settings-cancel-btn');save.addEventListener=(_event,fn)=>saveClick=fn;cancel.addEventListener=(_event,fn)=>cancelClick=fn;
- const defaults=()=>({appearance:{mode:'dark'},profile:{displayName:'Original'}});
- const context=vm.createContext({...helper,normalisePlanningPreferences,normaliseWeeklyAvailability,document,window,Event:window.Event,localStorage:storage,auth:{get currentUser(){return owner?{uid:owner}:null}},db:{},doc:(_db,_collection,id)=>id,
+ const defaults=()=>({appearance:{mode:'dark'},profile:{displayName:'Original'},accessibility:{shortcuts:normaliseShortcuts()}});
+ const context=vm.createContext({...helper,normaliseShortcuts,normalisePlanningPreferences,normaliseWeeklyAvailability,document,window,Event:window.Event,localStorage:storage,auth:{get currentUser(){return owner?{uid:owner}:null}},db:{},doc:(_db,_collection,id)=>id,
   userSettings:defaults(),pendingSettings:defaults(),settingsCloudSnapshot:defaults(),settingsPendingRecord:null,settingsSaveTicket:null,settingsLoadRevision:0,
   settingsRecovery:helper.createSettingsRecovery?.(storage),defaultSettings:defaults,cloneDeep:structuredClone,deepMerge:(base,value)=>({...base,...value}),console:{error(){}},tr:key=>key,
   triggerMiscAchievement(){},applyAllSettings(){},previewLive(){},invalidateKairosContext(){},renderUserProfileMenu(){},populateSettingsForm(){},setupNotificationBell(){},markInitialLoadComplete(){},showNotice(){},
@@ -34,6 +35,16 @@ async function fixture({cache=new Map(),cloud={appearance:{mode:'dark'},profile:
 test('failed settings save remains retryable and recovers over stale cloud values after reload',async()=>{
  const f=await fixture({fail:true});f.context.pendingSettings.appearance.mode='light';await f.clickSave();assert.equal(f.document.getElementById('settings-save-bar').classList.contains('active'),true);assert.match(f.save.textContent,/Retry/i);
  const reloaded=await fixture({cache:f.cache});assert.equal(reloaded.context.pendingSettings.appearance.mode,'light');assert.equal(reloaded.writes(),0);assert.match(reloaded.save.textContent,/Retry/i);await reloaded.clickSave();assert.equal(reloaded.stored().appearance.mode,'light');assert.equal(reloaded.document.getElementById('settings-save-bar').classList.contains('active'),false);
+});
+
+test('custom shortcuts recover from a failed settings save and persist on Retry',async()=>{
+ const cache=new Map(),f=await fixture({cache,fail:true});
+ f.context.pendingSettings.accessibility.shortcuts.search='Alt+G';
+ await f.clickSave();assert.equal(f.context.userSettings.accessibility.shortcuts.search,'Alt+G');
+ const reload=await fixture({cache,fail:true});assert.equal(reload.context.pendingSettings.accessibility.shortcuts.search,'Alt+G');
+ reload.setOffline(false);await reload.clickSave();assert.equal(reload.stored().accessibility.shortcuts.search,'Alt+G');
+ assert.equal(reload.context.settingsPendingRecord,null);
+ const confirmed=await fixture({cloud:reload.stored()});assert.equal(confirmed.context.userSettings.accessibility.shortcuts.search,'Alt+G');
 });
 
 test('weekly-hour settings recover after a failed save, merge unrelated cloud edits and persist on Retry',async()=>{

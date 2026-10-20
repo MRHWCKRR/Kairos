@@ -1,0 +1,16 @@
+[data-shortcut-editor]{container-type:inline-size;min-width:0}
+.shortcut-settings-intro,.shortcut-settings-help{font-size:.88rem;line-height:1.5;color:var(--text-muted);margin:0 0 14px;overflow-wrap:anywhere}
+.shortcut-settings-list{border-top:1px solid var(--border-subtle)}
+.shortcut-settings-row{display:grid;grid-template-columns:minmax(160px,1fr) 132px auto auto;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid var(--border-subtle)}
+.shortcut-settings-row label{font-size:.92rem;min-width:0;overflow-wrap:anywhere}
+.shortcut-settings-value{width:100%;min-width:0;box-sizing:border-box;text-align:center;font-family:inherit;background:var(--bg-card);color:var(--text-primary);border:1px solid var(--border-subtle);border-radius:5px;padding:8px}
+.shortcut-settings-row button,.shortcut-settings-reset{font:inherit;font-size:.86rem;padding:7px 10px;border:1px solid var(--border-subtle);border-radius:5px;background:var(--bg-card);color:var(--text-primary);cursor:pointer}
+.shortcut-settings-row button:disabled{opacity:.5;cursor:default}
+.shortcut-settings-value:focus-visible,.shortcut-settings-row button:focus-visible,.shortcut-settings-reset:focus-visible,.shortcut-settings-value.is-recording{outline:2px solid var(--accent-glow,#a855f7);outline-offset:2px}
+.shortcut-settings-status{font-size:.86rem;min-height:1.4em;margin:10px 0;color:var(--text-primary)}
+.shortcut-settings-help{margin:12px 0}
+@container (max-width:480px){
+ .shortcut-settings-row{grid-template-columns:minmax(0,1fr) auto auto;gap:8px}
+ .shortcut-settings-row label{grid-column:1/-1}
+ .shortcut-settings-row button{min-width:0;white-space:normal;overflow-wrap:anywhere}
+}

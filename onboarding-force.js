@@ -56,7 +56,7 @@ const pages=[
 {icon:'👋',title:'What should we call you?',desc:'This helps us personalize your greetings and notifications.',html:`<div class="ko-card"><div class="ko-field"><label>Display Name</label><input id="ko-name" autocomplete="name" placeholder="What should we call you?" value="${esc(state.name)}" required></div></div>`},
 {icon:'🎂',title:'When is your birthday?',desc:'We use your birth date to calculate age-based productivity benchmarks and milestone celebrations!',html:`<div class="ko-card"><div id="ko-calendar-host"></div></div>`},
 {icon:'🌎',title:'Localization',desc:'Tell us where you are to localize your experience.',html:`<div class="ko-card"><div class="ko-field"><label>Region</label><select id="ko-country">${countryOptions()}</select></div><div class="ko-field"><label>Language</label><select id="ko-language"><option value="">Select Language</option>${languages.map(l=>`<option value="${esc(l.id)}">${esc(l.flag||'')} ${esc(l.name)}</option>`).join('')}</select></div><div class="ko-field"><label>City / Timezone</label><select id="ko-timezone">${timezoneOptions()}</select></div></div>`},
-{icon:'✓',title:'Your workspace is ready',desc:'Plan something real with a short guide. Skip it now, or reopen Getting started from the sidebar whenever you need it.',html:'<div class="ko-card"><ol class="ko-guide-outline"><li><b>Create a board and task</b><span>Organise something you want to do.</span></li><li><b>Schedule your task</b><span>Choose a time that fits your day.</span></li><li><b>Try AI Helper</b><span>Review an example before sending it.</span></li><li><b>Set up reminders</b><span>Choose how Kairos should notify you.</span></li></ol></div>'}
+{icon:'✓',title:'Your workspace is ready',desc:'Plan something real with a short guide. Start the one-time tour, or skip it and explore at your own pace.',html:'<div class="ko-card"><ol class="ko-guide-outline"><li><b>Create a board and task</b><span>Organise something you want to do.</span></li><li><b>Schedule your task</b><span>Choose a time that fits your day.</span></li><li><b>Try AI Helper</b><span>Review an example before sending it.</span></li><li><b>Set up reminders</b><span>Choose how Kairos should notify you.</span></li><li><b>Commands and shortcuts</b><span>Find work faster and customise your keybinds.</span></li></ol></div>'}
 ];
 
 function hydrateFromProfile(data){
@@ -67,7 +67,7 @@ function hydrateFromProfile(data){
 
 async function save(showGuide=true){
  const user=auth.currentUser,view=root,button=view?.querySelector('#ko-start');if(!user||!button||button.disabled)return;
- captureInputs();const payload={settings:{profile:{displayName:state.name,birthday:state.birthDate?state.birthDate.split('-').reverse().join('/'):'',country:state.country,timezone:state.timezone},accessibility:{language:state.language||'en'}},onboardingCompleted:true};
+ captureInputs();const payload={settings:{profile:{displayName:state.name,birthday:state.birthDate?state.birthDate.split('-').reverse().join('/'):'',country:state.country,timezone:state.timezone},accessibility:{language:state.language||'en'}},onboardingCompleted:true,gettingStarted:{version:2,status:showGuide?'active':'skipped',step:0,updatedAt:Date.now()}};
  const controls=[...view.querySelectorAll('button,input,select')];controls.forEach(control=>control.disabled=true);button.textContent='Saving…';
  try{
   await setDoc(doc(db,'users',user.uid),payload,{merge:true});
