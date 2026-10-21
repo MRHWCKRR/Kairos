@@ -6,7 +6,7 @@ import {persistFocusLog,persistFocusCorrection,loadFocusHistory} from './focus-s
 import {mountFocusHistory} from './focus-history.js?v=3';
 import {taskFocusTarget} from './task-focus.js?v=3';
 import {normalisePlanningPreferences} from './planning-preferences.js?v=3';
-import {mountPlanningPreferencesEditor} from './planning-preferences-editor.js?v=2';
+import {mountPlanningPreferencesEditor} from './planning-preferences-editor.js?v=3';
 import {normaliseWeeklyAvailability} from './weekly-availability.js';
 import {mountWeeklyAvailabilityEditor} from './weekly-availability-editor.js';
 import { showNotice, confirmDialog, promptDialog } from './ui-dialogs.js?v=1';
@@ -15,7 +15,7 @@ import { requestBilling } from './billing-client.js';
 import { mountPlanUsage } from './plan-usage.js?v=3';
 import {assignmentProgressIndex,assignmentProgressMarkup} from './assignment-progress.js?v=4';
 import {planningClock} from './planning-model.js?v=1';
-import { createPageLoader } from './page-loader.js?v=63';
+import { createPageLoader } from './page-loader.js?v=64';
 import { mountPageRouter } from './page-router.js?v=3';
 import { createPageRenderCache } from './page-render-cache.js?v=1';
 import './boards-recurrence.js?v=11';

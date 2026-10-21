@@ -46,7 +46,7 @@ export function createPageLoader({importModule=url=>import(url),loadStyle=loadPa
         await importModule('./schedule-workspace.js?v=16');
         // These modules inspect the workspace during boot. Preserve that order
         // even when network responses arrive out of order.
-        for(const name of scheduleModules)await importModule('./'+name+(name==='schedule-find-time.js'?'?v=1':name==='planning-hub.js'?'?v=15':name==='schedule-interactions.js'?'?v=19':name==='schedule-inspector.js'?'?v=21':name==='schedule-ai.js'?'?v=14':name==='schedule-task-create.js'?'?v=13':'?v=11'));
+        for(const name of scheduleModules)await importModule('./'+name+(name==='schedule-find-time.js'?'?v=1':name==='planning-hub.js'?'?v=16':name==='schedule-interactions.js'?'?v=19':name==='schedule-inspector.js'?'?v=21':name==='schedule-ai.js'?'?v=14':name==='schedule-task-create.js'?'?v=13':'?v=11'));
       }
     })();
     loaded.set(page,task);
