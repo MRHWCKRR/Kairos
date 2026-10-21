@@ -1,5 +1,5 @@
 import {validFocusDate} from './occurrence-focus.js?v=1';
-import {generateTaskOccurrences} from './recurrence-utils.js?v=12';
+import {generateTaskOccurrences} from './recurrence-utils.js?v=14';
 import {parseTime,taskDurationMinutes} from './schedule-utils.js';
 const seconds=task=>Number.isSafeInteger(task?.focusLoggedSeconds)&&task.focusLoggedSeconds>0?task.focusLoggedSeconds:0;
 const sum=rows=>rows.reduce((total,row)=>total+row.loggedSeconds,0);

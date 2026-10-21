@@ -96,6 +96,7 @@
     "schedule-change-controller.js",
     "schedule-policy.js",
     "schedule-month.js",
+    "recurrence-edit.js",
     "schedule-calendar.css",
     "schedule-recurrence-ui.js",
     "schedule-responsive.js",

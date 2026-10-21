@@ -1,4 +1,4 @@
-import { normalizeRecurrence, formatRecurrenceSummary } from './recurrence-utils.js?v=12';
+import { normalizeRecurrence, formatRecurrenceSummary } from './recurrence-utils.js?v=14';
 
 const esc=value=>String(value??'').replace(/[&<>'"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[ch]));
 const DAY_SHORT=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
@@ -84,11 +84,18 @@ export function readRecurrenceFields(form,fallbackDate=null){
   return normalizeRecurrence(rule,startDate);
 }
 
-export function showRecurrenceScopeDialog({title='Apply changes to',actionLabel='Apply',allowEntireSeries=true}={}){
+let activeScopeDialog=null;
+export function showRecurrenceScopeDialog({title='Apply changes to',actionLabel='Apply',allowEntireSeries=true,allowFuture=true,getPreview=null}={}){
+  activeScopeDialog?.('cancel');
   return new Promise(resolve=>{
-    const existing=document.querySelector('.ks-recurrence-scope-dialog');existing?.remove();
-    const overlay=document.createElement('div');overlay.className='ks-recurrence-scope-dialog';overlay.innerHTML=`<div class="ks-recurrence-scope-card" role="dialog" aria-modal="true"><h3>${esc(title)}</h3><p>Choose which recurring tasks this should affect.</p><button type="button" data-scope="occurrence">This occurrence</button><button type="button" data-scope="future">This and future</button>${allowEntireSeries?'<button type="button" data-scope="series">Entire series</button>':''}<button type="button" data-scope="cancel">Cancel</button></div>`;
-    const done=value=>{overlay.remove();resolve(value)};overlay.addEventListener('click',event=>{const value=event.target.closest?.('[data-scope]')?.dataset.scope;if(value)done(value);else if(event.target===overlay)done('cancel')});
-    overlay.addEventListener('keydown',event=>{if(event.key==='Escape')done('cancel')});document.body.appendChild(overlay);overlay.querySelector('[data-scope="occurrence"]')?.focus();
+    const opener=document.activeElement,overlay=document.createElement('div');let scope='occurrence',settled=false;
+    const choices=[['occurrence','This occurrence','Only the selected date.'],...(allowFuture?[['future','This and future','The selected logical date and later dates.']]:[]),...(allowEntireSeries?[['series','Entire series','Every date in this recurring series.']]:[])];
+    overlay.className='ks-recurrence-scope-dialog';overlay.innerHTML='<div class="ks-recurrence-scope-card" role="dialog" aria-modal="true" aria-labelledby="recurrence-scope-title"><h3 id="recurrence-scope-title">'+esc(title)+'</h3><p>Choose a scope, review the dates, then confirm.</p><div role="group" aria-label="Edit scope">'+choices.map(([key,label,help])=>'<button type="button" data-scope="'+key+'" aria-pressed="'+(key===scope)+'"><strong>'+label+'</strong><small>'+help+'</small></button>').join('')+'</div><div data-scope-preview aria-live="polite"></div><div class="ks-scope-actions"><button type="button" data-scope="cancel">Cancel</button><button type="button" data-recurrence-apply>'+esc(actionLabel)+'</button></div></div>';
+    const apply=overlay.querySelector('[data-recurrence-apply]'),preview=overlay.querySelector('[data-scope-preview]');
+    function refresh(){overlay.querySelectorAll('[data-scope]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.scope===scope)));let value;try{value=getPreview?.(scope)}catch(error){value={error:error.message||'Unable to preview this change.'}}apply.disabled=!!value?.error;if(!value){preview.textContent=choices.find(choice=>choice[0]===scope)?.[2]||'';return}const dates=items=>(items||[]).map(item=>esc(item.date+(item.startTime?' '+item.startTime+(item.endTime?'–'+item.endTime:''):''))).join(', ')||'None';preview.innerHTML='<p>'+esc(value.description)+'</p>'+(value.caption?'<small>'+esc(value.caption)+'</small><dl><dt>Before</dt><dd>'+dates(value.before)+'</dd><dt>After</dt><dd>'+dates(value.after)+'</dd></dl>':'')+(value.preserved?'<p>'+esc(value.preserved)+' individually adjusted or resolved occurrence(s) keep their dates, times and status.</p>':'')+(value.error?'<p class="ks-scope-error" role="alert">'+esc(value.error)+'</p>':'')}
+    const done=value=>{if(settled)return;settled=true;overlay.remove();if(activeScopeDialog===done)activeScopeDialog=null;opener?.isConnected&&opener.focus?.();resolve(value)};activeScopeDialog=done;
+    overlay.addEventListener('click',event=>{if(event.target.closest?.('[data-recurrence-apply]')){refresh();if(!apply.disabled)done(scope);return}const value=event.target.closest?.('[data-scope]')?.dataset.scope;if(value==='cancel'||event.target===overlay)done('cancel');else if(choices.some(choice=>choice[0]===value)){scope=value;refresh()}});
+    overlay.addEventListener('keydown',event=>{if(event.key==='Escape'){event.preventDefault();event.stopPropagation();done('cancel')}if(event.key==='Tab'){const buttons=[...overlay.querySelectorAll('button')].filter(button=>!button.disabled),first=buttons[0],last=buttons.at(-1);if(event.shiftKey&&document.activeElement===first){event.preventDefault();last?.focus()}else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first?.focus()}}});
+    document.body.appendChild(overlay);refresh();overlay.querySelector('[data-scope="occurrence"]')?.focus();
   });
 }

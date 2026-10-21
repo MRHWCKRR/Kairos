@@ -2,7 +2,7 @@ import {
   getVisibleDates, shiftAnchor, toDateKey, parseTime, formatTime, addDays,
   taskDurationMinutes, layoutOverlaps, findConflicts, splitOvernightInterval, blockGeometry
 } from './schedule-utils.js';
-import { projectStoredOccurrence, generateTaskOccurrences, generateTaskOccurrencesThrough } from './recurrence-utils.js?v=13';
+import { projectStoredOccurrence, generateTaskOccurrences, generateTaskOccurrencesThrough } from './recurrence-utils.js?v=14';
 
 const HOUR_HEIGHT = 56;
 const DAY_MINUTES = 1440;

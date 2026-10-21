@@ -40,7 +40,7 @@ test('Cloudflare build preserves source, transforms app assets, and excludes bac
   assert.equal((app.match(/analytics-tracker\.js/g) || []).length, 1);
   assert.doesNotMatch(await fs.readFile(path.join(fixture.outputDir, 'analytics.html'), 'utf8'), /analytics-tracker/);
   const js = await fs.readFile(path.join(fixture.outputDir, 'app.js'), 'utf8'); assert.match(js, /__kairosScheduleBridge/); assert.match(js, /fetch\('\/api\/ai'/); assert.doesNotMatch(js, /kirosapp\.workers\.dev/);
-  assert.match(await fs.readFile(path.join(fixture.outputDir, 'schedule-ai.js'), 'utf8'), /recurrence-utils\.js\?v=11/);
+  assert.match(await fs.readFile(path.join(fixture.outputDir, 'schedule-ai.js'), 'utf8'), /recurrence-utils\.js\?v=14/);
   const output = await tree(fixture.outputDir); assert.equal(output[path.join('images', 'fixture.png')], Buffer.from('media fixture').toString('base64'));
   for (const [name, contents] of Object.entries(before)) assert.equal(await fs.readFile(path.join(fixture.rootDir, name), 'base64'), contents);
   assert.ok(!Object.keys(output).some(name => /api|server-tooling|\.env|\.dev.vars/.test(name)));

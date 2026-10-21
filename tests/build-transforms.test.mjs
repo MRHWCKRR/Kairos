@@ -50,8 +50,8 @@ test('injectScheduleAssets normalizes stale Schedule query versions on repeated 
 test('recurrence module imports are cache-busted with the Schedule v10 graph',()=>{
   const source="import { x } from './recurrence-utils.js';\nimport { y } from './schedule-recurrence-ui.js';";
   const out=rewriteScheduleRecurrenceImports(source);
-  assert.match(out,/recurrence-utils\.js\?v=11/);
-  assert.match(out,/schedule-recurrence-ui\.js\?v=10/);
+  assert.match(out,/recurrence-utils\.js\?v=14/);
+  assert.match(out,/schedule-recurrence-ui\.js\?v=12/);
   assert.equal(rewriteScheduleRecurrenceImports(out),out);
 });
 
