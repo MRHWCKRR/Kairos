@@ -1,3 +1,4 @@
+import {assertFindTimePlacement} from './schedule-find-time-model.js?v=1';
 import {stableStringify} from './plan-merge.js';
 import {parseTime,taskDurationMinutes} from './schedule-utils.js';
 import {normalizeRecurrence,projectStoredOccurrence,generateTaskOccurrences} from './recurrence-utils.js?v=14';
@@ -60,6 +61,7 @@ function writeFields(entry,saved){
 }
 export function applyScheduleChange(state,command,expected,options={}){
  const entry=locate(state,command.target,options);check(entry,expected);validateChanges(command.changes,!!entry.occurrence);
+ if(command.placement)assertFindTimePlacement(state,command.target,command.changes,command.placement);
  const before=fields(entry),next=structuredClone(state),destination=locate(next,command.target,options);
  writeFields(destination,{...before,values:{...before.values,...command.changes}});
  const after=locate(next,command.target,options);

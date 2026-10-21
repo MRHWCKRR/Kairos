@@ -1,0 +1,15 @@
+.ks-find-time-panel{flex:0 0 auto;margin:0 12px 12px;padding:12px 16px;border:1px solid var(--border-subtle);border-radius:8px;background:var(--bg-card);color:var(--text-primary);font-size:.8rem;line-height:1.5;max-height:220px;overflow:auto}
+.ks-find-time-heading,.ks-find-time-actions{display:flex;align-items:center;flex-wrap:wrap;gap:12px}
+.ks-find-time-heading{justify-content:space-between}
+.ks-find-time-heading span{font-weight:600;overflow-wrap:anywhere;min-width:0}
+.ks-find-time-panel button{font:inherit;line-height:1.4;min-height:34px;border:1px solid var(--border-subtle);border-radius:5px;background:var(--bg-main);color:var(--text-primary);padding:6px 10px;cursor:pointer}
+.ks-find-time-panel button:disabled{opacity:.5;cursor:not-allowed}
+.ks-find-time-panel button:focus-visible,.ks-find-time-slot:focus-visible{outline:2px solid var(--accent-glow);outline-offset:2px}
+.ks-find-time-options{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+.ks-find-time-options [aria-pressed=true]{border-color:var(--accent-glow);background:var(--accent-glow-soft)}
+.ks-find-time-panel [data-find-status]{color:var(--text-muted);margin:6px 0 0}
+.ks-find-time-panel [data-find-status]:empty{display:none}
+.ks-find-time-panel [data-find-preview]{margin:8px 0}
+.ks-find-time-actions [data-find-confirm]{background:var(--accent-glow);border-color:var(--accent-glow);color:#fff}
+.ks-block.ks-find-time-slot{position:absolute;left:3px;width:calc(100% - 6px);z-index:5;border:1px dashed var(--accent-glow);border-radius:5px;background:var(--bg-card);color:var(--text-primary);padding:3px 8px;text-align:left;overflow:hidden;font:inherit;font-size:.7rem;cursor:pointer;box-sizing:border-box}
+.ks-find-time-slot[aria-pressed=true]{border-style:solid;box-shadow:inset 3px 0 var(--accent-glow)}
