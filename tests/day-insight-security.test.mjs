@@ -12,7 +12,7 @@ function setup(text) {
     const content=document.querySelector('#insight');
     let saves=0;
     const context=vm.createContext({document,console,selectedCalendarDate:'2026-10-19',dayDetailOverlay:{},dayDetailDateTitle:null,dayDetailTaskList:null,
-        dayDetailAiContent:content,dayDetailAiBtn:{disabled:false},dayInsights:{'2026-10-19':text},userSettings:{accessibility:{}},
+        dayDetailTotal:null,dayDetailCompleted:null,dayDetailAiContent:content,dayDetailAiBtn:{disabled:false},dayInsights:{'2026-10-19':text},userSettings:{accessibility:{}},
         getTasksForDate:()=>[{title:'Revision',completed:false}],getLanguageName:()=> 'English',buildScheduleSummaryForAI:()=>'',buildUserContextForAI:()=>'',
         aiFetch:async()=>({ok:true,json:async()=>({choices:[{message:{content:text}}]})}),updatePlanInFirestore:async()=>{saves++;},tr:key=>key});
     vm.runInContext(renderSource+'\n'+generateSource,context);

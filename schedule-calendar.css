@@ -5,6 +5,21 @@
 .schedule-month-view{flex:1;min-height:0;overflow:auto;box-sizing:border-box;padding:20px 24px 28px}
 .schedule-month-view .calendar-header-bar{margin-bottom:18px}
 .schedule-month-view .calendar-grid{min-width:650px}
+.schedule-month-view .calendar-day{min-width:0;min-height:132px}
+.calendar-day-open{display:block;width:calc(100% - 26px);min-height:26px;padding:0 4px;text-align:left;color:inherit;background:transparent;border:0;border-radius:4px;font:inherit;font-weight:600;cursor:pointer}
+.calendar-day.is-selected .calendar-day-open{color:var(--accent-glow);background:color-mix(in srgb,var(--accent-glow) 10%,transparent)}
+.calendar-task-previews{display:grid;gap:4px;margin-top:6px;min-width:0}
+.calendar-task-preview{display:flex;align-items:center;gap:5px;width:100%;min-width:0;min-height:24px;padding:3px 5px;border:0;border-radius:4px;background:var(--bg-main);color:var(--text-primary);text-align:left;font:inherit;font-size:.75rem;line-height:1.35;cursor:pointer}
+.calendar-task-preview:hover,.calendar-day-more:hover{color:var(--accent-glow);background:color-mix(in srgb,var(--accent-glow) 10%,var(--bg-card))}
+.calendar-task-time{flex:none;font-size:.68rem;color:var(--text-muted)}
+.calendar-task-title{min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.calendar-task-preview.is-completed .calendar-task-title{text-decoration:line-through;color:var(--text-muted)}
+.calendar-day-more{display:block;padding:2px 5px;min-height:24px;border:0;border-radius:4px;background:transparent;color:var(--text-muted);font:inherit;font-size:.75rem;text-align:left;cursor:pointer}
+.calendar-day-open:focus-visible,.calendar-task-preview:focus-visible,.calendar-day-more:focus-visible{outline:2px solid var(--accent-glow);outline-offset:2px}
+#calendar-today-btn{width:auto;padding:0 12px;font-size:.9rem}
+.calendar-detail-occurrence{min-height:44px;padding:10px 12px;margin-bottom:8px;border:1px solid var(--border-subtle);font-size:.9rem}
+.calendar-detail-occurrence .calendar-task-title{flex:1}
+.calendar-task-status{flex:none;color:var(--text-muted);font-size:.75rem}
 .schedule-page.is-month-view .ks-toolbar-nav,.schedule-page.is-month-view .ks-filter-wrap{display:none}
 .schedule-page.is-month-view .schedule-toolbar{justify-content:flex-end}
 .schedule-toolbar button:focus-visible{outline:2px solid var(--accent-glow);outline-offset:2px}
