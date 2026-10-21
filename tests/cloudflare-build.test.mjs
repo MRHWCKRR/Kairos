@@ -44,7 +44,15 @@ test('Cloudflare build preserves source, transforms app assets, and excludes bac
   const output = await tree(fixture.outputDir); assert.equal(output[path.join('images', 'fixture.png')], Buffer.from('media fixture').toString('base64'));
   for (const [name, contents] of Object.entries(before)) assert.equal(await fs.readFile(path.join(fixture.rootDir, name), 'base64'), contents);
   assert.ok(!Object.keys(output).some(name => /api|server-tooling|\.env|\.dev.vars/.test(name)));
-  assert.match(await fs.readFile(path.join(fixture.outputDir, '_headers'), 'utf8'), /\/analytics\.html\s+Cache-Control: no-store, max-age=0/);
+  const headers = await fs.readFile(path.join(fixture.outputDir, '_headers'), 'utf8');
+  assert.match(headers, /\/\*\s+Content-Security-Policy: frame-ancestors 'none'; base-uri 'self'; object-src 'none'/);
+  assert.match(headers, /\/\*[^]*Permissions-Policy: camera=\(\), microphone=\(\), geolocation=\(\)/);
+  assert.match(headers, /\/\*[^]*Referrer-Policy: strict-origin-when-cross-origin/);
+  assert.match(headers, /\/\*[^]*Strict-Transport-Security: max-age=31536000; includeSubDomains/);
+  assert.match(headers, /\/\*[^]*X-Content-Type-Options: nosniff/);
+  assert.match(headers, /\/\*[^]*X-Frame-Options: DENY/);
+  assert.match(headers, /\/analytics\.html\s+Cache-Control: no-store, max-age=0/);
+  assert.match(headers, /\/analytics-dashboard\.js\s+Cache-Control: no-store, max-age=0/);
 });
 
 test('Cloudflare build is repeatable and removes only stale output', async t => {
