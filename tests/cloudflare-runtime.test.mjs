@@ -10,6 +10,14 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { buildCloudflare } from '../cloudflare/build.js';
 
 const repository = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const assertSecurityHeaders = (response, asset) => {
+  assert.equal(response.headers.get('x-content-type-options'), 'nosniff', asset);
+  assert.equal(response.headers.get('x-frame-options'), 'DENY', asset);
+  assert.equal(response.headers.get('referrer-policy'), 'strict-origin-when-cross-origin', asset);
+  assert.equal(response.headers.get('permissions-policy'), 'camera=(), microphone=(), geolocation=()', asset);
+  assert.equal(response.headers.get('strict-transport-security'), 'max-age=31536000; includeSubDomains', asset);
+  assert.equal(response.headers.get('content-security-policy'), "frame-ancestors 'none'; base-uri 'self'; object-src 'none'", asset);
+};
 
 test('Kairos serves static assets and rejects unauthorised APIs in the real Workers runtime', { timeout: 60000 }, async t => {
   await buildCloudflare();
@@ -48,11 +56,16 @@ test('Kairos serves static assets and rejects unauthorised APIs in the real Work
   assert.ok(ready, 'Workers runtime did not start:\n' + output);
   for (const asset of ['/', '/app.html', '/login.html', '/signup.html', '/firebase.js', '/images/kairos-logo.png']) {
     const response = await fetch(origin + asset); assert.equal(response.status, 200, asset);
+    assertSecurityHeaders(response, asset);
   }
   for (const absent of ['/missing.html', '/api/_firebaseAdmin.js', '/server/ai.js', '/cloudflare/worker.js', '/package.json', '/.dev.vars', '/waitlist/Code.gs']) {
     assert.equal((await fetch(origin + absent)).status, 404, absent);
   }
-  for (const privateAsset of ['/analytics.html', '/analytics-dashboard.js']) assert.match((await fetch(origin + privateAsset)).headers.get('cache-control'), /no-store/);
+  for (const privateAsset of ['/analytics.html', '/analytics-dashboard.js']) {
+    const response = await fetch(origin + privateAsset);
+    assert.match(response.headers.get('cache-control'), /no-store/);
+    assertSecurityHeaders(response, privateAsset);
+  }
   const method = await fetch(origin + '/api/ai'); assert.equal(method.status, 405); assert.equal(method.headers.get('allow'), 'POST');
   assert.equal((await fetch(origin + '/api/ai', { method: 'POST', body: '{}' })).status, 401);
   assert.equal((await fetch(origin + '/api/analytics')).status, 401);
