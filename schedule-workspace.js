@@ -2,7 +2,7 @@ import {
   getVisibleDates, shiftAnchor, toDateKey, parseTime, formatTime, addDays,
   taskDurationMinutes, layoutOverlaps, findConflicts, splitOvernightInterval, blockGeometry
 } from './schedule-utils.js';
-import { generateTaskOccurrencesThrough } from './recurrence-utils.js?v=13';
+import { projectStoredOccurrence, generateTaskOccurrences, generateTaskOccurrencesThrough } from './recurrence-utils.js?v=13';
 
 const HOUR_HEIGHT = 56;
 const DAY_MINUTES = 1440;
@@ -22,6 +22,7 @@ export function initScheduleWorkspace(options){
   if(monthCalendar){monthCalendar.classList.remove('page-view','active');monthCalendar.classList.add('schedule-month-view');monthCalendar.hidden=true;root.appendChild(monthCalendar);}
   const initialView=options.getScheduleView?.();
   const state={monthView:initialView==='month',view:['day','week','three-day'].includes(initialView)?initialView:'three-day',anchor:new Date(),selected:{type:null,id:null},backlogCollapsed:false,inspectorOpen:false,proposals:[],interaction:null,scrollTop:null,filterOpen:false,filters:{tasks:true,events:true,completed:true}};
+  state.focusDate=options.getScheduleDate?.()||toDateKey(state.anchor);
   let clockTimer=null;
   let dirty=true;
   let renderedDate=null,occurrenceCache=null;
@@ -80,9 +81,9 @@ export function initScheduleWorkspace(options){
     const changedFilters=Number(!state.filters.tasks)+Number(!state.filters.events)+Number(!state.filters.completed);
     const filterMenu=state.filterOpen?`<div class="ks-filter-menu" role="group" aria-label="Schedule filters"><label><input type="checkbox" data-filter-key="tasks" ${state.filters.tasks?'checked':''}> Flexible tasks</label><label><input type="checkbox" data-filter-key="events" ${state.filters.events?'checked':''}> Fixed events</label><label><input type="checkbox" data-filter-key="completed" ${state.filters.completed?'checked':''}> Completed tasks</label></div>`:'';
     toolbar.innerHTML=`<div class="ks-toolbar-nav"><button type="button" data-nav="prev" aria-label="Previous period">‹</button><button type="button" data-nav="today">Today</button><button type="button" data-nav="next" aria-label="Next period">›</button><strong>${esc(rangeLabel())}</strong></div><div class="ks-toolbar-actions"><div class="ks-view-switch" role="group" aria-label="Schedule view"><button data-view="day" aria-pressed="${!state.monthView&&state.view==='day'}">Day</button><button data-view="three-day" aria-pressed="${!state.monthView&&state.view==='three-day'}">3 Day</button><button data-view="week" aria-pressed="${!state.monthView&&state.view==='week'}">Week</button><button type="button" data-view="month" aria-pressed="${state.monthView}">Month</button></div><div class="ks-filter-wrap"><button type="button" data-filter aria-expanded="${state.filterOpen}">Filter${changedFilters?` · ${changedFilters}`:''}</button>${filterMenu}</div><button type="button" data-plan class="ks-plan-btn">Plan</button><button type="button" data-event>+ Event</button><button type="button" data-schedule-settings>Settings</button></div>`;
-    toolbar.querySelector('[data-nav="prev"]').onclick=()=>{state.anchor=shiftAnchor(state.anchor,state.view,-1);render()};
-    toolbar.querySelector('[data-nav="today"]').onclick=()=>{state.anchor=new Date();render()};
-    toolbar.querySelector('[data-nav="next"]').onclick=()=>{state.anchor=shiftAnchor(state.anchor,state.view,1);render()};
+    toolbar.querySelector('[data-nav="prev"]').onclick=()=>void setDate(toDateKey(shiftAnchor(new Date(state.focusDate+'T12:00:00'),state.view,-1)));
+    toolbar.querySelector('[data-nav="today"]').onclick=()=>void goToday();
+    toolbar.querySelector('[data-nav="next"]').onclick=()=>void setDate(toDateKey(shiftAnchor(new Date(state.focusDate+'T12:00:00'),state.view,1)));
     toolbar.querySelectorAll('[data-view]').forEach(btn=>btn.onclick=()=>void setView(btn.dataset.view));
     toolbar.querySelector('[data-schedule-settings]')?.addEventListener('click',()=>void options.openScheduleSettings?.());
     toolbar.querySelector('[data-filter]')?.addEventListener('click',event=>{event.stopPropagation();state.filterOpen=!state.filterOpen;renderToolbar()});
@@ -184,11 +185,11 @@ export function initScheduleWorkspace(options){
   }
 
   function changeSelection(next){
-    const apply=()=>{occurrenceCache=null;state.selected=next;state.inspectorOpen=!!next.type;renderBacklog();renderCalendar();renderInspector();return true};
-    const ticket=++selectionRevision;
+    const apply=()=>{occurrenceCache=null;const entry=next.type==='task'?findTask(next.id):next.type==='occurrence'?findTask(next.seriesId):null;const effective=next.type==='occurrence'&&entry?projectStoredOccurrence(entry.task,next.occurrenceDate)?.task:entry?.task;if(parsedDate(effective?.date)){state.focusDate=effective.date;options.setScheduleDate?.(state.focusDate);}state.selected=next;state.inspectorOpen=!!next.type;renderBacklog();renderCalendar();renderInspector();return true};
+    const ticket=++selectionRevision,actor=JSON.stringify([options.getOwnerId?.(),options.getPlanId?.()]);
     if(!inspectorSession)return apply();
     if(state.selected.type===next.type&&String(state.selected.id)===String(next.id))return true;
-    return inspectorSession.requestLeave().then(allowed=>allowed&&ticket===selectionRevision?apply():false);
+    return inspectorSession.requestLeave().then(allowed=>allowed&&ticket===selectionRevision&&actor===JSON.stringify([options.getOwnerId?.(),options.getPlanId?.()])?apply():false);
   }
   function selectItem(type,id){return state.monthView?setView('day').then(allowed=>allowed?changeSelection({type,id}):false):changeSelection({type,id})}
   function selectOccurrence(data){
@@ -199,23 +200,40 @@ export function initScheduleWorkspace(options){
   }
   function clearSelection(){return changeSelection({type:null,id:null})}
   function focusDateTime(dateKey,timeValue){
-    if(state.monthView){state.monthView=false;options.setScheduleView?.(state.view);}
-    const parts=String(dateKey||'').split('-').map(Number);if(parts.length!==3||parts.some(x=>!Number.isFinite(x)))return;const target=new Date(parts[0],parts[1]-1,parts[2],12);if(target.getFullYear()!==parts[0]||target.getMonth()!==parts[1]-1||target.getDate()!==parts[2])return;state.anchor=state.view==='three-day'?addDays(target,-1):target;const minutes=typeof timeValue==='number'?timeValue:parseTime(timeValue),targetMinutes=minutes===null?8*60:Math.max(0,Math.min(1439,minutes));render();requestAnimationFrame(()=>{const scroller=calendar.querySelector('.ks-timeline-scroll'),column=calendar.querySelector(`.ks-day-column[data-date="${CSS.escape(String(dateKey))}"]`);if(!scroller||!column)return;const top=Math.max(0,targetMinutes/60*HOUR_HEIGHT-scroller.clientHeight*.35),left=Math.max(0,64+column.offsetLeft+column.offsetWidth/2-scroller.clientWidth/2),reduced=window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;state.scrollTop=top;scroller.scrollTo({top,left,behavior:reduced?'auto':'smooth'})});
+    const parts=String(dateKey||'').split('-').map(Number);if(parts.length!==3||parts.some(x=>!Number.isFinite(x)))return;const target=new Date(parts[0],parts[1]-1,parts[2],12);if(target.getFullYear()!==parts[0]||target.getMonth()!==parts[1]-1||target.getDate()!==parts[2])return;state.focusDate=String(dateKey);options.setScheduleDate?.(state.focusDate);if(state.monthView){state.monthView=false;options.setScheduleView?.(state.view);}state.anchor=state.view==='three-day'?addDays(target,-1):target;const minutes=typeof timeValue==='number'?timeValue:parseTime(timeValue),targetMinutes=minutes===null?8*60:Math.max(0,Math.min(1439,minutes));render();requestAnimationFrame(()=>{const scroller=calendar.querySelector('.ks-timeline-scroll'),column=calendar.querySelector(`.ks-day-column[data-date="${CSS.escape(String(dateKey))}"]`);if(!scroller||!column)return;const top=Math.max(0,targetMinutes/60*HOUR_HEIGHT-scroller.clientHeight*.35),left=Math.max(0,64+column.offsetLeft+column.offsetWidth/2-scroller.clientWidth/2),reduced=window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;state.scrollTop=top;scroller.scrollTo({top,left,behavior:reduced?'auto':'smooth'})});
   }
 
+  function parsedDate(key){const parts=String(key||'').split('-').map(Number);if(parts.length!==3)return null;const date=new Date(parts[0],parts[1]-1,parts[2],12);return toDateKey(date)===key?date:null}
+  async function setDate(key){
+    const date=parsedDate(key);if(!date)return false;
+    const ticket=++selectionRevision,actor=JSON.stringify([options.getOwnerId?.(),options.getPlanId?.()]);
+    if(inspectorSession&&!await inspectorSession.requestLeave())return false;
+    if(ticket!==selectionRevision||actor!==JSON.stringify([options.getOwnerId?.(),options.getPlanId?.()]))return false;
+    state.focusDate=key;options.setScheduleDate?.(key);state.anchor=state.view==='three-day'?addDays(date,-1):date;state.selected={type:null,id:null};state.inspectorOpen=false;render();revealMonthDate();return true;
+  }
+  function revealMonthDate(){if(state.monthView)requestAnimationFrame(()=>{if(state.monthView)monthCalendar?.querySelector('.calendar-day[data-date="'+CSS.escape(state.focusDate)+'"]')?.scrollIntoView?.({block:'nearest'})})}
+  function goToday(){return setDate(toDateKey(new Date()))}
+  async function openTaskAt(target){
+    const resolve=()=>{const found=findTask(target.taskId);if(!found)return null;if(target.occurrenceDate){const occurrence=found.task.recurrence?.exceptions?.[target.occurrenceDate]?.status==='completed'?projectStoredOccurrence(found.task,target.occurrenceDate):generateTaskOccurrences(found.task,target.occurrenceDate,target.occurrenceDate)[0];return occurrence?{task:occurrence.task,occurrence}:null}return found.task.recurrence?.enabled?null:found};
+    if(!resolve()||!await setView('day'))return false;
+    const actor=JSON.stringify([options.getOwnerId?.(),options.getPlanId?.()]),found=resolve();if(!found)return false;
+    const opened=target.occurrenceDate?await selectOccurrence({seriesId:target.taskId,occurrenceDate:target.occurrenceDate,occurrenceId:found.occurrence.occurrenceId}):await selectItem('task',target.taskId);
+    if(!opened||actor!==JSON.stringify([options.getOwnerId?.(),options.getPlanId?.()]))return false;
+    focusDateTime(found.task.date,found.task.startTime);return true;
+  }
   async function setView(view){
     if(!['day','three-day','week','month'].includes(view))return false;
     const ticket=++selectionRevision,actor=[options.getOwnerId?.(),options.getPlanId?.()];
     if(inspectorSession&&!await inspectorSession.requestLeave())return false;
     if(ticket!==selectionRevision||JSON.stringify(actor)!==JSON.stringify([options.getOwnerId?.(),options.getPlanId?.()]))return false;
     state.selected={type:null,id:null};state.monthView=view==='month';if(!state.monthView)state.view=view;
-    options.setScheduleView?.(view);render();return true;
+    const date=parsedDate(state.focusDate);if(date)state.anchor=state.view==='three-day'?addDays(date,-1):date;options.setScheduleView?.(view);render();revealMonthDate();return true;
   }
   function render(){
     occurrenceCache=null;
     root.classList.toggle('is-month-view',state.monthView);shell.hidden=state.monthView;
     if(monthCalendar)monthCalendar.hidden=!state.monthView;
-    if(state.monthView)options.renderMonthCalendar?.();
+    if(state.monthView)options.renderMonthCalendar?.(state.focusDate);
     renderToolbar();renderBacklog();if(!state.monthView)renderCalendar();renderInspector();review.hidden=!state.proposals.length;dirty=false;renderedDate=toDateKey(new Date()); }
   function activate(){ if(dirty||renderedDate!==toDateKey(new Date()))render();updateNowLine(); }
   function invalidate(){ dirty=true;if(root.classList.contains('active'))render(); }
@@ -224,8 +242,8 @@ export function initScheduleWorkspace(options){
   document.addEventListener('click',event=>{if(state.filterOpen&&!event.target.closest?.('.ks-filter-wrap')){state.filterOpen=false;renderToolbar()}},true);
   document.addEventListener('keydown',e=>{if(e.defaultPrevented||e.isComposing||e.key!=='Escape'||!root.classList.contains('active')||document.querySelector('dialog[open]'))return;if(state.filterOpen){state.filterOpen=false;renderToolbar();return}void clearSelection()});
   window.addEventListener('popstate',()=>{if(root.classList.contains('active'))void setView(options.getScheduleView?.()||'three-day')});
-  clockTimer=setInterval(()=>{if(root.classList.contains('active'))activate();},60000);render();
-  return {render,activate,invalidate,destroy,state,setView,selectItem,selectOccurrence,clearSelection,focusDateTime,setInspectorSession(session){inspectorSession=session},get inspectorSession(){return inspectorSession}};
+  clockTimer=setInterval(()=>{if(root.classList.contains('active'))activate();},60000);render();revealMonthDate();
+  return {render,activate,invalidate,destroy,state,setView,setDate,goToday,openTaskAt,selectItem,selectOccurrence,clearSelection,focusDateTime,setInspectorSession(session){inspectorSession=session},get inspectorSession(){return inspectorSession}};
 }
 
 function boot(){

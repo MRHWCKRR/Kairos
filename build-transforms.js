@@ -20,7 +20,9 @@ const BRIDGE=`
         getAllowCompletedReschedule: () => settingsCloudSnapshot.planning?.rescheduleCompleted === true,
         getScheduleView: () => new URL(window.location.href).searchParams.get('scheduleView'),
         setScheduleView: view => {const url=new URL(window.location.href);url.searchParams.set('scheduleView',view);window.history.replaceState(window.history.state,'',url.href);},
-        renderMonthCalendar: () => renderCalendar(),
+        getScheduleDate: () => calendarFocusDate,
+        setScheduleDate: date => syncCalendarDate(date),
+        renderMonthCalendar: date => {syncCalendarDate(date);renderCalendar();},
         openScheduleSettings: () => openPlanningSettings(),
         commitScheduleCommand: (command, expected, identity) => commitTaskDetails(command, expected, identity),
         ensureSchedulePlan: async () => {

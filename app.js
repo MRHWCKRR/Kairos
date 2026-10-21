@@ -1,3 +1,4 @@
+import {calendarDate,shiftCalendarMonth,monthTaskEntries,calendarMonthMarkup,calendarTaskMarkup} from './schedule-month.js?v=1';
 import {taskWorkCheckin} from './remaining-work.js?v=2';
 import {promptFocusCheckin} from './focus-checkin.js?v=1';
 import {mountFocusTimer} from './focus-timer.js?v=6';
@@ -14,7 +15,7 @@ import { requestBilling } from './billing-client.js';
 import { mountPlanUsage } from './plan-usage.js?v=3';
 import {assignmentProgressIndex,assignmentProgressMarkup} from './assignment-progress.js?v=4';
 import {planningClock} from './planning-model.js?v=1';
-import { createPageLoader } from './page-loader.js?v=60';
+import { createPageLoader } from './page-loader.js?v=61';
 import { mountPageRouter } from './page-router.js?v=3';
 import { createPageRenderCache } from './page-render-cache.js?v=1';
 import './boards-recurrence.js?v=11';
@@ -392,6 +393,7 @@ function bootApp() {
     let calendarViewDate = new Date();
     calendarViewDate.setDate(1);
     let selectedCalendarDate = null;
+    let calendarFocusDate = toDateKey(new Date());
 
     // --- Settings State ---
     let userSettings = defaultSettings();
@@ -1708,85 +1710,42 @@ function bootApp() {
     }
 
     function getTasksForDate(dateKey) {
-        const results = [];
-        boardsData.forEach(board => board.sections.forEach(section => {
-            section.tasks.forEach(task => {
-                if (task.date === dateKey) {
-                    results.push({ ...task, sectionId: section.id });
-                }
-            });
-        }));
-        return results;
+        return monthTaskEntries(boardsData,dateKey,dateKey);
+    }
+
+    function syncCalendarDate(dateKey){
+        const date=calendarDate(dateKey);if(!date)return;
+        calendarFocusDate=dateKey;calendarViewDate=new Date(date.getFullYear(),date.getMonth(),1,12);
+        if(selectedCalendarDate&&selectedCalendarDate!==dateKey)closeDayPanel();
     }
 
     function renderCalendar() {
         if (!calendarGrid || !calendarMonthYear) return;
         if (pageRenders.defer('schedule-page',renderCalendar)) return;
-
-        const year = calendarViewDate.getFullYear();
-        const month = calendarViewDate.getMonth();
-        const locale = getLocale(userSettings.accessibility.language || 'en');
-
-        const monthLabel = new Intl.DateTimeFormat(locale, { month: 'long' }).format(new Date(year, month, 1));
-        calendarMonthYear.textContent = `${monthLabel} ${year}`;
-
-        const firstDayIndex = new Date(year, month, 1).getDay();
-        const daysInMonth = new Date(year, month + 1, 0).getDate();
-        const daysInPrevMonth = new Date(year, month, 0).getDate();
-        const todayKey = toDateKey(new Date());
-
-        const weekdayFormatter = new Intl.DateTimeFormat(locale, { weekday: 'short' });
-        const weekdayLabels = [0, 1, 2, 3, 4, 5, 6].map(i => weekdayFormatter.format(new Date(2023, 0, 1 + i)));
-        let html = weekdayLabels.map(label => `<div class="calendar-weekday">${label}</div>`).join('');
-
-        for (let i = firstDayIndex - 1; i >= 0; i--) {
-            const dayNum = daysInPrevMonth - i;
-            html += `<div class="calendar-day outside-month"><span class="day-number">${dayNum}</span></div>`;
-        }
-
-        for (let day = 1; day <= daysInMonth; day++) {
-            const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-            const taskCount = getTasksForDate(dateKey).length;
-            const isToday = dateKey === todayKey;
-
-            html += `
-                <div class="calendar-day${isToday ? ' is-today' : ''}" data-date="${dateKey}">
-                    <span class="day-number">${day}</span>
-                    ${taskCount > 0 ? `<span class="day-task-badge">${taskCount}</span>` : ''}
-                </div>
-            `;
-        }
-
-        const filledCells = firstDayIndex + daysInMonth;
-        const trailingCells = (7 - (filledCells % 7)) % 7;
-        for (let day = 1; day <= trailingCells; day++) {
-            html += `<div class="calendar-day outside-month"><span class="day-number">${day}</span></div>`;
-        }
-
-        calendarGrid.innerHTML = html;
+        const year=calendarViewDate.getFullYear(),month=calendarViewDate.getMonth(),locale=getLocale(userSettings.accessibility.language||'en');
+        calendarMonthYear.textContent=new Intl.DateTimeFormat(locale,{month:'long',year:'numeric'}).format(calendarViewDate);
+        const start=toDateKey(new Date(year,month,1,12)),end=toDateKey(new Date(year,month+1,0,12)),focus=calendarFocusDate.slice(0,7)===start.slice(0,7)?calendarFocusDate:start;
+        calendarGrid.innerHTML=calendarMonthMarkup(focus,monthTaskEntries(boardsData,start,end),{locale,today:toDateKey(new Date()),hour12:userSettings.accessibility.timeFormat!=='24'});
     }
 
-    if (calendarPrevBtn) {
-        calendarPrevBtn.addEventListener('click', () => {
-            calendarViewDate.setMonth(calendarViewDate.getMonth() - 1);
-            renderCalendar();
-        });
+    calendarPrevBtn?.addEventListener('click',()=>void window.__kairosScheduleWorkspace?.setDate(shiftCalendarMonth(calendarFocusDate,-1)));
+    calendarNextBtn?.addEventListener('click',()=>void window.__kairosScheduleWorkspace?.setDate(shiftCalendarMonth(calendarFocusDate,1)));
+    document.getElementById('calendar-today-btn')?.addEventListener('click',()=>void window.__kairosScheduleWorkspace?.goToday());
+    async function openCalendarTask(button){
+        const actor=auth.currentUser?.uid,plan=currentPlanDocId;
+        const opened=await window.__kairosScheduleWorkspace?.openTaskAt({taskId:button.dataset.calendarTask,...(button.dataset.calendarOccurrence?{occurrenceDate:button.dataset.calendarOccurrence}:{})});
+        if(opened&&auth.currentUser?.uid===actor&&currentPlanDocId===plan)closeDayPanel();
     }
-    if (calendarNextBtn) {
-        calendarNextBtn.addEventListener('click', () => {
-            calendarViewDate.setMonth(calendarViewDate.getMonth() + 1);
-            renderCalendar();
-        });
-    }
-    if (calendarGrid) {
-        calendarGrid.addEventListener('click', (e) => {
-            const dayCell = e.target.closest('.calendar-day:not(.outside-month)');
-            if (!dayCell) return;
-            openDayPanel(dayCell.getAttribute('data-date'));
-        });
-    }
+    calendarGrid?.addEventListener('click',async event=>{
+        const task=event.target.closest('[data-calendar-task]');if(task){await openCalendarTask(task);return;}
+        const cell=event.target.closest('.calendar-day:not(.outside-month)');if(!cell)return;
+        const date=cell.dataset.date,actor=auth.currentUser?.uid,plan=currentPlanDocId;
+        if(await window.__kairosScheduleWorkspace?.setDate(date)&&auth.currentUser?.uid===actor&&currentPlanDocId===plan)openDayPanel(date);
+    });
+    dayDetailTaskList?.addEventListener('click',event=>{const task=event.target.closest('[data-calendar-task]');if(task)void openCalendarTask(task)});
 
     function openDayPanel(dateKey) {
+        syncCalendarDate(dateKey);
         selectedCalendarDate = dateKey;
         renderDayPanel();
         if (dayDetailOverlay) dayDetailOverlay.classList.add('active');
@@ -1808,10 +1767,12 @@ function bootApp() {
 
         const tasksForDay = getTasksForDate(selectedCalendarDate);
         const completedCount = tasksForDay.filter(t => t.completed).length;
+        if(dayDetailTotal)dayDetailTotal.textContent=trFmt('day_detail_tasks',{n:tasksForDay.length});
+        if(dayDetailCompleted)dayDetailCompleted.textContent=trFmt('day_detail_finished',{n:completedCount});
 
         if (dayDetailTaskList) {
             dayDetailTaskList.innerHTML = tasksForDay.length
-                ? tasksForDay.map(task => createTaskHTML(task, task.sectionId)).join('')
+                ? tasksForDay.map(task => task.occurrenceDate?calendarTaskMarkup(task,{hour12:userSettings.accessibility.timeFormat!=='24',detail:true}):createTaskHTML(task, task.sectionId)).join('')
                 : `<p class="text-muted">${tr('no_tasks_for_day')}</p>`;
         }
 
