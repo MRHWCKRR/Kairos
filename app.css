@@ -768,10 +768,13 @@ body.theme-peacefulplains .logo-stop-right-b { stop-color: #15803d; }
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 16px;
+    line-height: 1.5;
     font-size: 0.9rem;
     cursor: pointer;
 }
-.settings-toggle-row input[type="checkbox"] { width: 20px; height: 20px; accent-color: var(--accent-glow); cursor: pointer; }
+.settings-toggle-row input[type="checkbox"] { flex-shrink: 0; width: 20px; height: 20px; accent-color: var(--accent-glow); cursor: pointer; }
+.settings-toggle-row + .settings-hint { margin-top: 8px; }
 
 /* Avatar upload */
 .avatar-upload-row {
