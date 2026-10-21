@@ -16,7 +16,7 @@ async function fixture({cache=new Map(),cloud={appearance:{mode:'dark'},profile:
  const save=document.getElementById('settings-save-btn'),cancel=document.getElementById('settings-cancel-btn');save.addEventListener=(_event,fn)=>saveClick=fn;cancel.addEventListener=(_event,fn)=>cancelClick=fn;
  const defaults=()=>({appearance:{mode:'dark'},profile:{displayName:'Original'},accessibility:{shortcuts:normaliseShortcuts()}});
  const context=vm.createContext({...helper,normaliseShortcuts,normalisePlanningPreferences,normaliseWeeklyAvailability,document,window,Event:window.Event,localStorage:storage,auth:{get currentUser(){return owner?{uid:owner}:null}},db:{},doc:(_db,_collection,id)=>id,
-  userSettings:defaults(),pendingSettings:defaults(),settingsCloudSnapshot:defaults(),settingsPendingRecord:null,settingsSaveTicket:null,settingsLoadRevision:0,
+  taskDetails:null,userSettings:defaults(),pendingSettings:defaults(),settingsCloudSnapshot:defaults(),settingsPendingRecord:null,settingsSaveTicket:null,settingsLoadRevision:0,
   settingsRecovery:helper.createSettingsRecovery?.(storage),defaultSettings:defaults,cloneDeep:structuredClone,deepMerge:(base,value)=>({...base,...value}),console:{error(){}},tr:key=>key,
   triggerMiscAchievement(){},applyAllSettings(){},previewLive(){},invalidateKairosContext(){},renderUserProfileMenu(){},populateSettingsForm(){},setupNotificationBell(){},markInitialLoadComplete(){},showNotice(){},
   getDoc:async()=>{if(loadFail)throw Error('Offline read');return {exists:()=>true,data:()=>({settings:structuredClone(stored)})}},
@@ -99,4 +99,8 @@ test('planning defaults save, recover from failed sync and preserve newer unrela
 });
 test('invalid planning-default drafts never write or stage a save',async()=>{
  for(const planning of [{dailyLimitMinutes:14,gapMinutes:0},{dailyLimitMinutes:60,gapMinutes:2},{dailyLimitMinutes:NaN,gapMinutes:0}]){const f=await fixture();f.context.pendingSettings.planning=planning;await f.clickSave();assert.equal(f.writes(),0);assert.equal(f.context.settingsSaveTicket,null);assert.equal(f.context.settingsPendingRecord,null)}
+});
+
+test('completed scheduling opt-in becomes effective only after saved settings are confirmed and reloads',async()=>{
+ const f=await fixture({fail:true});f.context.pendingSettings.planning={dailyLimitMinutes:480,gapMinutes:0,rescheduleCompleted:true};await f.clickSave();assert.notEqual(f.context.settingsCloudSnapshot.planning?.rescheduleCompleted,true);f.setOffline(false);await f.clickSave();assert.equal(f.context.settingsCloudSnapshot.planning.rescheduleCompleted,true);const reload=await fixture({cloud:f.stored()});assert.equal(reload.context.settingsCloudSnapshot.planning.rescheduleCompleted,true);reload.context.pendingSettings.planning.rescheduleCompleted=false;await reload.clickSave();assert.equal(reload.stored().planning.rescheduleCompleted,false);
 });

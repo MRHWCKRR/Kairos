@@ -1,5 +1,5 @@
 import {planningAlternatives,choosePlanningAlternative,planningAlternativesText,planningHoursText,planningReportText} from './planning-alternatives.js?v=4';
-import {resolvePlanningPreferences} from './planning-preferences.js?v=2';
+import {resolvePlanningPreferences} from './planning-preferences.js?v=3';
 import {planningDefaults,weeklyAvailabilityText} from './weekly-availability.js';
 import {combinedPlanning} from './combined-planning.js?v=5';
 import {assignmentFeasibility,feasibilityAssignments,FEASIBILITY_LIMIT} from './deadline-feasibility.js?v=7';

@@ -17,6 +17,11 @@ const BRIDGE=`
         getBoards: () => boardsData,
         getOwnerId: () => auth.currentUser?.uid || null,
         getPlanId: () => currentPlanDocId || null,
+        getAllowCompletedReschedule: () => settingsCloudSnapshot.planning?.rescheduleCompleted === true,
+        getScheduleView: () => new URL(window.location.href).searchParams.get('scheduleView'),
+        setScheduleView: view => {const url=new URL(window.location.href);url.searchParams.set('scheduleView',view);window.history.replaceState(window.history.state,'',url.href);},
+        renderMonthCalendar: () => renderCalendar(),
+        openScheduleSettings: () => openPlanningSettings(),
         commitScheduleCommand: (command, expected, identity) => commitTaskDetails(command, expected, identity),
         ensureSchedulePlan: async () => {
             const owner = auth.currentUser?.uid, expectedPlan = currentPlanDocId || 'plan-' + owner;

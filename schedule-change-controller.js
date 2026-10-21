@@ -1,7 +1,7 @@
-import {buildScheduleChange} from './schedule-change-model.js?v=1';
+import {buildScheduleChange} from './schedule-change-model.js?v=2';
 
 // Owns only feedback and operation identities; the shared command store owns data.
-export function createScheduleChangeController({document=globalThis.document,getScope,getState,ensurePlan,commit,isEditorBlocked=()=>false,now=Date.now,idFactory=()=>globalThis.crypto.randomUUID()}){
+export function createScheduleChangeController({document=globalThis.document,getScope,getState,ensurePlan,commit,getAllowCompleted=()=>false,isEditorBlocked=()=>false,now=Date.now,idFactory=()=>globalThis.crypto.randomUUID()}){
  let pending=null,undoSource=null,feedback=null,feedbackScope=null,timer=null;
  const same=(a,b)=>a?.ownerId===b?.ownerId&&a?.planId===b?.planId;
  function clearFeedback(){clearTimeout(timer);timer=null;feedback?.remove();feedback=null;feedbackScope=null}
@@ -35,7 +35,7 @@ export function createScheduleChangeController({document=globalThis.document,get
      work.scope={...getScope()};work.initializing=false;
      // Initialization can await a cloud read. Never adopt a newer task as the
      // baseline for an older gesture while the first planner is being created.
-     let latest;try{latest=buildScheduleChange(getState(),work.command.target,work.command.changes)}catch{pending=null;render('The task changed while the planner opened. Review its current time.');return false}
+     let latest;try{latest=buildScheduleChange(getState(),work.command.target,work.command.changes,{allowCompleted:getAllowCompleted()})}catch{pending=null;render('The task changed while the planner opened. Review its current time.');return false}
      if(JSON.stringify(latest.expected)!==JSON.stringify(work.expected)){pending=null;render('The task changed while the planner opened. Review its current time.');return false}
     }
     work.identity=identity(work.scope);
@@ -55,7 +55,7 @@ export function createScheduleChangeController({document=globalThis.document,get
  }
  async function save(target,changes){
   sync();if(pending||!getScope().ownerId)return false;
-  let request;try{request=buildScheduleChange(getState(),target,changes)}catch(error){render(error.message||'Review the current task before changing its time.');return false}
+  let request;try{request=buildScheduleChange(getState(),target,changes,{allowCompleted:getAllowCompleted()})}catch(error){render(error.message||'Review the current task before changing its time.');return false}
   const scope={...getScope()};undoSource=null;pending={...request,scope,expectedPlanId:scope.planId||'plan-'+scope.ownerId,identity:null,busy:false,initializing:false,needsInitialization:!scope.planId};return run();
  }
  async function undo(){

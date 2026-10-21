@@ -1,0 +1,12 @@
+.schedule-workspace-shell[hidden],.schedule-month-view[hidden]{display:none!important}
+#schedule-page.page-view.active{display:flex;flex-direction:column}
+#schedule-page .schedule-workspace-shell{flex:1;min-height:0;height:auto}
+.schedule-toolbar{flex:none}
+.schedule-month-view{flex:1;min-height:0;overflow:auto;box-sizing:border-box;padding:20px 24px 28px}
+.schedule-month-view .calendar-header-bar{margin-bottom:18px}
+.schedule-month-view .calendar-grid{min-width:650px}
+.schedule-page.is-month-view .ks-toolbar-nav,.schedule-page.is-month-view .ks-filter-wrap{display:none}
+.schedule-page.is-month-view .schedule-toolbar{justify-content:flex-end}
+.schedule-toolbar button:focus-visible{outline:2px solid var(--accent-glow);outline-offset:2px}
+#settings-planning h2:focus-visible{outline:2px solid var(--accent-glow);outline-offset:4px}
+@media(max-width:1200px){.schedule-month-view{padding:16px}.schedule-toolbar{height:auto;min-height:48px;gap:8px;flex-wrap:wrap;padding:8px 12px}.ks-toolbar-actions{gap:4px;flex-wrap:wrap}}

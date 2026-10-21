@@ -1,4 +1,4 @@
-import {savedPlanningPreferences} from './planning-preferences.js?v=2';
+import {savedPlanningPreferences} from './planning-preferences.js?v=3';
 import {savedWeeklyAvailability} from './weekly-availability.js';
 import { auth, db } from './firebase.js';
 import {aiPlanningSummary,resolveAiPlanningTimezone} from './ai-planning.js?v=13';

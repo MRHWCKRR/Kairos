@@ -5,8 +5,9 @@ import { db } from './firebase.js';
 import { doc, getDoc, runTransaction, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { mergePlanEdits, planState, stableStringify } from './plan-merge.js';
 import {validateAssignmentOrderChanges} from './assignment-order.js?v=1';
-import { applyTaskListCommand, taskListFingerprint } from './task-list-model.js?v=13';
-import {applyScheduleUndo} from './schedule-change-model.js?v=1';
+import { applyTaskListCommand, taskListFingerprint } from './task-list-model.js?v=14';
+import {completedScheduleChanges,assertCompletedScheduleChanges} from './schedule-policy.js?v=1';
+import {applyScheduleUndo} from './schedule-change-model.js?v=2';
 
 export async function persistTaskListCommand(planId, uid, command, expected, operationId, createdAt) {
     if(typeof operationId!=='string'||!operationId||operationId.length>160||!Number.isFinite(createdAt)||createdAt<=0)throw new Error('Invalid operation identity.');
@@ -18,7 +19,7 @@ export async function persistTaskListCommand(planId, uid, command, expected, ope
             // Bound the initiation window, rather than time spent awaiting the
             // shared save queue. A clicked-in-time Undo may finish later.
             if(!Number.isFinite(command.expiresAt)||command.expiresAt<=createdAt||command.expiresAt>createdAt+10000)throw Error('Schedule Undo expired.');
-            const applied=applyScheduleUndo(plan.data,source.result.scheduleUndo);Object.assign(plan.data,applied.next);
+            const applied=applyScheduleUndo(plan.data,source.result.scheduleUndo,{allowCompleted:plan.allowCompleted});Object.assign(plan.data,applied.next);
             return {...applied.result,undoneOperationId:source.id};
         }
         if(command.type==='planning_undo')return applyStoredPlanningUndo(plan,command,expected);
@@ -26,10 +27,10 @@ export async function persistTaskListCommand(planId, uid, command, expected, ope
             const source=plan.receipts.find(receipt=>receipt.id===command.sourceOperationId);
             if(!source||source.result?.type!=='create_task'||!source.result.createdTask||source.creationUndoUsedBy||stableStringify(source.result.createdTask)!==stableStringify(expected?.task))throw new Error('This creation receipt is unavailable or already undone. Review the task before changing it.');
         }
-        const applied=applyTaskListCommand(plan.data,command,expected);
+        const applied=applyTaskListCommand(plan.data,command,expected,{allowCompleted:plan.allowCompleted});
         Object.assign(plan.data,applied.next);
         return applied.result;
-    },{legacyFingerprint:stableStringify({command,expected}),planningOptions:command.type==='planning_batch'?command.options:null,...(command.type==='planning_undo'?{undoSourceOperationId:command.sourceOperationId,undoTimezone:command.options?.timezone}:{})});
+    },{manualScheduling:['schedule_change','schedule_undo','edit_task','task_tool','undo_task_list'].includes(command.type),legacyFingerprint:stableStringify({command,expected}),planningOptions:command.type==='planning_batch'?command.options:null,...(command.type==='planning_undo'?{undoSourceOperationId:command.sourceOperationId,undoTimezone:command.options?.timezone}:{})});
 }
 
 export function applyStoredPlanningUndo(plan,command,expected){
@@ -58,6 +59,7 @@ export async function savePlannerEdits(planId, uid, base, local, options={}) {
         const data = ownedPlan(snapshot, uid);
         if(options.scheduleAvailability){const userSnapshot=await transaction.get(doc(db,'users',uid));assertScheduleAvailability(options.scheduleAvailability,userSnapshot.exists()?userSnapshot.data():{});}
         const merged = mergePlanEdits(planState(base), planState(local), planState(data));
+        if(completedScheduleChanges(planState(data),merged)){const userSnapshot=await transaction.get(doc(db,'users',uid));assertCompletedScheduleChanges(planState(data),merged,userSnapshot.data()?.settings?.planning?.rescheduleCompleted===true);}
         validateAssignmentOrderChanges(planState(data),merged);
         transaction.set(ref, { ...(!snapshot.exists() ? data : {}), ...merged }, { merge: true });
         return merged;
@@ -113,8 +115,11 @@ export async function persistAiPlanAction(planId, uid, action, operationId, crea
         if (createdAt <= (data.aiActionReceiptFloor || 0)) throw new Error('This retry is too old to reconcile safely. Check the planner before requesting a new change.');
         if(options.planningOptions?.availabilitySource==='saved'){const userSnapshot=await transaction.get(doc(db,'users',uid));assertSavedAvailability(options.planningOptions,userSnapshot.exists()?userSnapshot.data():{});}
         if(options.undoSourceOperationId){const source=planningUndoSource(data,options.undoSourceOperationId),userSnapshot=await transaction.get(doc(db,'users',uid)),timezone=userSnapshot.data()?.settings?.profile?.timezone||options.undoTimezone;if(timezone!==source.result.planningUndo.timezone||options.undoTimezone!==timezone)throw Error('Your timezone changed. Review the previous placements manually.');}
+        let allowCompleted=false;
+        if(options.manualScheduling){const userSnapshot=await transaction.get(doc(db,'users',uid));allowCompleted=userSnapshot.data()?.settings?.planning?.rescheduleCompleted===true;}
         const next = planState(data);
-        const result = receiptResult(apply({ data: next,receipts }));
+        const result = receiptResult(apply({ data: next,receipts,allowCompleted }));
+        if(options.manualScheduling)assertCompletedScheduleChanges(planState(data),next,allowCompleted);
         if(result.type==='planning_undo'&&result.undoneOperationId!==options.undoSourceOperationId)throw Error('A saved planning receipt is required for Undo.');
         validateAssignmentOrderChanges(planState(data),next);
         const history=['planning_undo','undo_create_task','schedule_undo'].includes(result.type)?receipts.map(receipt=>receipt.id===result.undoneOperationId?{...receipt,[result.type==='planning_undo'?'planningUndoUsedBy':result.type==='schedule_undo'?'scheduleUndoUsedBy':'creationUndoUsedBy']:operationId}:receipt):receipts;

@@ -1,7 +1,7 @@
 import {bindTaskFocus} from './task-focus.js?v=3';
 import {bindDeadlineImpact} from './deadline-impact.js?v=3';
 import {stableStringify} from './plan-merge.js';
-import {taskDetailValues,TASK_DETAIL_FIELDS,applyTaskListCommand} from './task-list-model.js?v=10';
+import {taskDetailValues,TASK_DETAIL_FIELDS,applyTaskListCommand} from './task-list-model.js?v=14';
 import {recurrenceFieldsMarkup,bindRecurrenceFields,readRecurrenceFields} from './schedule-recurrence-ui.js?v=11';
 import {t} from './i18n.js';
 import {assignmentProgressIndex,assignmentProgressMarkup,refreshAssignmentProgress} from './assignment-progress.js?v=4';
@@ -10,7 +10,7 @@ import {mountTaskChecklistEditor} from './task-checklist-editor.js?v=6';
 import {matchesShortcut} from './shortcut-model.js?v=1';
 
 const esc=value=>String(value??'').replace(/[&<>'"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[ch]));
-export function mountTaskDetailPane({root,resolveTarget,commit,getShortcuts=()=>undefined,getOwnerId,getPlanId=()=>null,getState=()=>({boards:[]}),getToday=()=>planningClock(Date.now(),Intl.DateTimeFormat().resolvedOptions().timeZone).date,onClose=()=>{},openSchedule,onStartFocus,document=globalThis.document,window=globalThis.window}){
+export function mountTaskDetailPane({root,resolveTarget,commit,getAllowCompletedReschedule=()=>false,getShortcuts=()=>undefined,getOwnerId,getPlanId=()=>null,getState=()=>({boards:[]}),getToday=()=>planningClock(Date.now(),Intl.DateTimeFormat().resolvedOptions().timeZone).date,onClose=()=>{},openSchedule,onStartFocus,document=globalThis.document,window=globalThis.window}){
     let panel=null,form=null,target=null,baseline=null,displayBaseline=null,location=null,owner=null,planId=null,opener=null,pending=null,busy=false,dialog=null,choiceDialog=null,choiceFinish=null,revision=0,checklistEditor=null;
     let pendingFocus=null,pointerFocus=null,deadlineImpactView=null,taskFocusView=null,statusError=false;
     const copy=key=>t('task_detail_'+key,document.documentElement.lang||'en');
@@ -66,6 +66,8 @@ export function mountTaskDetailPane({root,resolveTarget,commit,getShortcuts=()=>
     function updateControls(){
         deadlineImpactView?.refresh();taskFocusView?.refresh();
         panel?.querySelectorAll('input,select,textarea').forEach(el=>el.disabled=busy||!!pending);
+        let scheduleLocked=false;try{scheduleLocked=resolveTarget(target).task.completed&&!getAllowCompletedReschedule()}catch{}
+        if(scheduleLocked)for(const name of ['date','startTime','durationMinutes']){const input=field(name);if(input)input.disabled=true;}
         checklistEditor?.setDisabled(busy||!!pending);
         panel?.querySelectorAll('[data-series-scope],[data-open-occurrence]').forEach(el=>el.disabled=busy||!!pending);
         refreshSaveControls();
@@ -210,7 +212,7 @@ export function mountTaskDetailPane({root,resolveTarget,commit,getShortcuts=()=>
             const view=document.activeElement?.matches?.('[type="submit"]')&&pointerFocus?pointerFocus:captureUi();pointerFocus=null;
             if(!pending){if(!checklistEditor?.flushEntry())return false;const changes=edits();if(!Object.keys(changes).length){status(copy('saved'));return true}
                 const command={type:'edit_task',target:{...target},changes},expected={...location,fields:structuredClone(baseline)};
-                applyTaskListCommand({boards:[{...found.board,sections:[{...found.section,tasks:[found.seriesTask||found.task]}]}]},command,expected);
+                applyTaskListCommand({boards:[{...found.board,sections:[{...found.section,tasks:[found.seriesTask||found.task]}]}]},command,expected,{allowCompleted:getAllowCompletedReschedule()});
                 pendingFocus=view;pending={command,expected,baseline:structuredClone(baseline),identity:{ownerId:owner,planId,operationId:'task-detail-'+(window.crypto?.randomUUID?.()||Date.now().toString(36)+'-'+Math.random().toString(36).slice(2)),createdAt:Date.now()}};remember();
             }
             busy=true;updateControls();status(copy('saving'));
@@ -223,6 +225,6 @@ export function mountTaskDetailPane({root,resolveTarget,commit,getShortcuts=()=>
             restoreUi(restore,canFocus);status(copy('saved'));return !!result;
         }catch(error){if(ticket!==revision)return false;busy=false;updateControls();status(copy('failed')+' '+error.message,true);return false}
     }
-    function sync(){deadlineImpactView?.refresh();taskFocusView?.refresh();if(panel&&owner===getOwnerId()&&planId===getPlanId()){refreshAssignmentProgress(panel.querySelector('[data-assignment-detail]'),assignmentProgressIndex(getState(),getToday()).get(target.taskId),{details:true})}if(!activePage())checklistEditor?.cancelReorder();if(panel&&(owner!==getOwnerId()||planId!==getPlanId())){forget();close()}}
+    function sync(){if(panel)updateControls();deadlineImpactView?.refresh();taskFocusView?.refresh();if(panel&&owner===getOwnerId()&&planId===getPlanId()){refreshAssignmentProgress(panel.querySelector('[data-assignment-detail]'),assignmentProgressIndex(getState(),getToday()).get(target.taskId),{details:true})}if(!activePage())checklistEditor?.cancelReorder();if(panel&&(owner!==getOwnerId()||planId!==getPlanId())){forget();close()}}
     return {open,save,requestClose,maximise,sync,dispose:close};
 }

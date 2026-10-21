@@ -2,7 +2,7 @@ import test from 'node:test';import assert from 'node:assert/strict';import * as
 const data=()=>({userID:'one',boards:[{id:'b',sections:[{id:'s',tasks:[{id:'a',title:'A',notes:'Keep',completed:true,date:'2026-10-15',startTime:'13:00',endTime:'14:00',priority:'high',operationHistory:{secret:'omit'},occurrenceOverrides:{omit:true},checklist:[{id:'old-step',title:'Step',completed:true}]},{id:'c',title:'C'}]}]}]});
 let counter=0;const options=()=>({uuid:()=>String(++counter)}),task=(state,id)=>state.boards[0].sections[0].tasks.find(task=>task.id===id);
 const build=(state,action,ids,extra={})=>{assert.equal(typeof model.buildTaskTool,'function');return model.buildTaskTool(state,action,ids,{...options(),...extra})};
-const apply=(state,op)=>model.applyTaskListCommand(state,op.command,op.expected);
+const apply=(state,op,options={})=>model.applyTaskListCommand(state,op.command,op.expected,options);
 test('Duplicate creates fresh ordinary task/checklist IDs and resets scheduling/progress/history',()=>{
  const input=data(),op=build(input,'duplicate',['a','c']),out=apply(input,op),copy=task(out.next,out.result.taskIds[0]);assert.notEqual(copy.id,'a');assert.equal(copy.title,'A');assert.equal(copy.notes,'Keep');assert.equal(copy.priority,'high');assert.equal(copy.completed,false);assert.equal(copy.archived,false);assert.equal(copy.date,null);assert.ok(!copy.startTime&&!copy.endTime&&!copy.recurrence&&!copy.operationHistory&&!copy.occurrenceOverrides);assert.notEqual(copy.checklist[0].id,'old-step');assert.equal(copy.checklist[0].completed,false);assert.equal(task(input,'a').completed,true);assert.equal(out.result.inverse,undefined);
 });
@@ -16,7 +16,7 @@ test('lost Duplicate response retries the same fresh IDs with one receipt and no
 });
 test('one-field batches reuse metadata validation and guarded Undo while retaining unrelated edits',()=>{
  for(const [field,value] of [['date','2026-10-20'],['dueDate','2026-11-01'],['priority','low'],['durationMinutes',90],['reminderMinutes',15],['scheduleLocked',true]]){
-  const input=data(),op=build(input,'edit',['a','c'],{field,value}),out=apply(input,op);assert.equal(model.taskDetailValues(task(out.next,'a'))[field],value);assert.equal(task(out.next,'a').notes,'Keep');task(out.next,'a').title='New title';const undo=model.applyTaskListCommand(out.next,{type:'undo_task_list',inverse:out.result.inverse,expiresAt:10000},{},{now:5000});assert.equal(model.taskDetailValues(task(undo.next,'a'))[field],model.taskDetailValues(task(input,'a'))[field]);assert.equal(task(undo.next,'a').title,'New title');
+  const input=data(),op=build(input,'edit',['a','c'],{field,value}),out=apply(input,op,{allowCompleted:true});assert.equal(model.taskDetailValues(task(out.next,'a'))[field],value);assert.equal(task(out.next,'a').notes,'Keep');task(out.next,'a').title='New title';const undo=model.applyTaskListCommand(out.next,{type:'undo_task_list',inverse:out.result.inverse,expiresAt:10000},{},{now:5000,allowCompleted:true});assert.equal(model.taskDetailValues(task(undo.next,'a'))[field],model.taskDetailValues(task(input,'a'))[field]);assert.equal(task(undo.next,'a').title,'New title');
   const stale=structuredClone(out.next);if(field==='date')task(stale,'a').date='2026-10-21';else if(field==='durationMinutes')task(stale,'a').endTime='15:00';else task(stale,'a')[field]=field==='scheduleLocked'?false:null;assert.throws(()=>model.applyTaskListCommand(stale,{type:'undo_task_list',inverse:out.result.inverse,expiresAt:10000},{},{now:5000}),/changed/i);
  }
 });
