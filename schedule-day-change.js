@@ -1,5 +1,5 @@
 import {parseTime,taskDurationMinutes} from './schedule-utils.js?v=2';
-import {generateTaskOccurrences} from './recurrence-utils.js?v=12';
+import {generateTaskOccurrences} from './recurrence-utils.js?v=14';
 
 export function dayChangeCandidates(boards,date,time) {
   const now=parseTime(time),items=[];

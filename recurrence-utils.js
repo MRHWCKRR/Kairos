@@ -58,7 +58,11 @@ function candidateStream(rule,hardEnd){
   if(rule.frequency==='yearly'){const startYear=dateFromKey(rule.startDate).getFullYear();for(let year=startYear;;year+=rule.interval){const key=validCandidate(year,rule.month,rule.monthDay),yearFirst=`${year}-01-01`;if(yearFirst>limit)break;if(key&&key>=rule.startDate&&key<=limit)out.push(key)}}return out;
 }
 
-export function generateOccurrenceDates(input,rangeStart,rangeEnd){const rule=normalizeRecurrence(input);if(!rule.enabled||!validDateKey(rule.startDate)||!validDateKey(rangeStart)||!validDateKey(rangeEnd)||rangeEnd<rangeStart)return [];let dates=candidateStream(rule,rangeEnd);if(rule.endType==='count')dates=dates.slice(0,rule.count);return dates.filter(key=>key>=rangeStart&&key<=rangeEnd&&(rule.endType!=='date'||key<=rule.endDate))}
+export function hasOccurrenceScheduleOverride(exception){return ['date','startTime','endTime','durationMinutes'].some(key=>Object.hasOwn(exception?.override||{},key))}
+
+export function preserveOccurrenceOnSeriesEdit(exception){return hasOccurrenceScheduleOverride(exception)||['completed','skipped'].includes(exception?.status)}
+
+export function generateOccurrenceDates(input,rangeStart,rangeEnd){const rule=normalizeRecurrence(input);if(!rule.enabled||!validDateKey(rule.startDate)||!validDateKey(rangeStart)||!validDateKey(rangeEnd)||rangeEnd<rangeStart)return [];let dates=candidateStream(rule,rangeEnd);if(rule.endType==='count')dates=dates.slice(0,rule.count);dates=dates.filter(key=>key>=rangeStart&&key<=rangeEnd&&(rule.endType!=='date'||key<=rule.endDate));for(const [key,exception] of Object.entries(rule.exceptions||{}))if(validDateKey(key)&&key>=rangeStart&&key<=rangeEnd&&preserveOccurrenceOnSeriesEdit(exception))dates.push(key);return [...new Set(dates)].sort()}
 export function nextOccurrenceDate(input,afterDate){const rule=normalizeRecurrence(input);if(!rule.enabled||!validDateKey(rule.startDate)||!validDateKey(afterDate))return null;const maxEnd=rule.endType==='date'?rule.endDate:`${dateFromKey(afterDate).getFullYear()+400}-12-31`,dates=candidateStream(rule,maxEnd),limited=rule.endType==='count'?dates.slice(0,rule.count):dates;return limited.find(key=>key>afterDate)||null}
 
 export function generateTaskOccurrences(task,rangeStart,rangeEnd,options={}){
@@ -90,7 +94,7 @@ export function projectStoredOccurrence(task,date,options={}){
 
 export function generateTaskOccurrencesThrough(task,rangeEnd,options={}){
   const rule=normalizeRecurrence(task,task?.date||rangeEnd),today=validDateKey(options.today)?options.today:dateKey(new Date());
-  if(!rule.enabled||!validDateKey(rule.startDate)||!validDateKey(rangeEnd)||rangeEnd<rule.startDate&&!options.includeCompleted)return [];
+  if(!rule.enabled||!validDateKey(rule.startDate)||!validDateKey(rangeEnd))return [];
   const byId=new Map();
   for(const item of generateTaskOccurrences(task,rule.startDate,rangeEnd,{today})){
     if((item.status==='pending'||options.includeCompleted&&item.status==='completed')&&item.displayDate<=rangeEnd)byId.set(item.occurrenceId,item);
@@ -98,6 +102,10 @@ export function generateTaskOccurrencesThrough(task,rangeEnd,options={}){
   for(const [logicalDate,exception] of Object.entries(rule.exceptions||{})){
     if(options.includeCompleted&&exception?.status==='completed'&&validDateKey(logicalDate)&&!byId.has(occurrenceId(task.id,logicalDate))){
       const item=projectOccurrence(task,rule,logicalDate,today);if(item.displayDate<=rangeEnd)byId.set(item.occurrenceId,item);
+    }
+    if(hasOccurrenceScheduleOverride(exception)&&validDateKey(logicalDate)){
+      const item=projectOccurrence(task,rule,logicalDate,today);if((item.status==='pending'||options.includeCompleted&&item.status==='completed')&&item.displayDate<=rangeEnd)byId.set(item.occurrenceId,item);
+      continue;
     }
     const movedDate=exception?.override?.date;
     if(!validDateKey(logicalDate)||logicalDate<=rangeEnd||!validDateKey(movedDate)||movedDate>rangeEnd)continue;
@@ -121,6 +129,7 @@ export function formatRecurrenceSummary(input,options={}){
 
 export function setOccurrenceStatus(task,occurrenceDate,status,timestamp=new Date().toISOString()){
   const next=structuredClone(task),rule=normalizeRecurrence(next,next?.date||occurrenceDate),existing=rule.exceptions?.[occurrenceDate]&&typeof rule.exceptions[occurrenceDate]==='object'?structuredClone(rule.exceptions[occurrenceDate]):{};
+  if(status==='pending'&&preserveOccurrenceOnSeriesEdit(existing)&&!generateOccurrenceDates({...rule,exceptions:{}},occurrenceDate,occurrenceDate).length){const old=projectOccurrence(next,rule,occurrenceDate,occurrenceDate);existing.override={...existing.override,date:old.displayDate,startTime:old.startTime,endTime:old.endTime,durationMinutes:old.durationMinutes};}
   existing.status=status;delete existing.completedAt;delete existing.skippedAt;if(status==='completed')existing.completedAt=timestamp;if(status==='skipped')existing.skippedAt=timestamp;
   rule.exceptions={...rule.exceptions,[occurrenceDate]:existing};next.recurrence=rule;return next;
 }
@@ -133,21 +142,28 @@ export function applyOccurrenceOverride(task,occurrenceDate,changes={}){
     if(key==='checklist'||JSON.stringify(value)!==JSON.stringify(baseline))override[key]=structuredClone(value);
     else delete override[key];
   }
+  // A detached date needs a schedule pin even when form values match the template.
+  if(preserveOccurrenceOnSeriesEdit(existing)&&!generateOccurrenceDates({...rule,exceptions:{}},occurrenceDate,occurrenceDate).length&&!hasOccurrenceScheduleOverride({override}))override.date=occurrenceDate;
   if(Object.keys(override).length)existing.override=override;else delete existing.override;
   rule.exceptions={...rule.exceptions,[occurrenceDate]:existing};next.recurrence=rule;return next;
 }
 
-export function splitRecurringSeries(task,occurrenceDate,edits={},newTaskId){
+export function splitRecurringSeries(task,occurrenceDate,edits={},newTaskId,{preserveMoved=false}={}){
   const originalTask=structuredClone(task),baseRule=normalizeRecurrence(originalTask,originalTask?.date||occurrenceDate),historical={};
-  for(const [key,value] of Object.entries(baseRule.exceptions||{}))if(key<occurrenceDate)historical[key]=structuredClone(value);
+  for(const [key,value] of Object.entries(baseRule.exceptions||{}))if(key<occurrenceDate||preserveMoved&&preserveOccurrenceOnSeriesEdit(value))historical[key]=structuredClone(value);
   // Keep the original identity's time ledger available to history corrections.
   // The new series starts with fresh occurrences and receives no copied time.
-  for(const [key,value] of Object.entries(baseRule.exceptions||{}))if(key>=occurrenceDate&&Object.hasOwn(value||{},'focusLoggedSeconds'))historical[key]={focusLoggedSeconds:value.focusLoggedSeconds};
-  originalTask.recurrence={...baseRule,endType:'date',endDate:addDays(occurrenceDate,-1),count:null,exceptions:historical};
+  for(const [key,value] of Object.entries(baseRule.exceptions||{}))if(key>=occurrenceDate&&!historical[key]&&Object.hasOwn(value||{},'focusLoggedSeconds'))historical[key]={focusLoggedSeconds:value.focusLoggedSeconds};
+  let cutoff=addDays(occurrenceDate,-1);
+  if(baseRule.endType==='date'&&baseRule.endDate<cutoff)cutoff=baseRule.endDate;
+  if(baseRule.endType==='count'){const dates=generateOccurrenceDates({...baseRule,exceptions:{}},baseRule.startDate,cutoff);cutoff=dates.at(-1)||addDays(baseRule.startDate,-1)}
+  originalTask.recurrence={...baseRule,endType:'date',endDate:cutoff,count:null,exceptions:historical};
   const recurrenceEdits=edits?.recurrence&&typeof edits.recurrence==='object'?edits.recurrence:{},taskEdits={...edits};delete taskEdits.recurrence;
+  const retained={};if(preserveMoved)for(const [key,value] of Object.entries(baseRule.exceptions||{}))if(key>=occurrenceDate&&preserveOccurrenceOnSeriesEdit(value))retained[key]={status:'deleted'};
   const newTask={...structuredClone(task),...structuredClone(taskEdits),id:newTaskId,completed:false};
   delete newTask.focusLoggedSeconds;delete newTask.remainingMinutes;
-  newTask.recurrence=normalizeRecurrence({...baseRule,...recurrenceEdits,enabled:true,startDate:occurrenceDate,exceptions:{},endType:recurrenceEdits.endType||baseRule.endType,endDate:recurrenceEdits.endType==='date'?recurrenceEdits.endDate:baseRule.endType==='date'?baseRule.endDate:null,count:recurrenceEdits.endType==='count'?recurrenceEdits.count:baseRule.endType==='count'?baseRule.count:null},occurrenceDate);
-  if(newTask.recurrence.endType==='date'&&newTask.recurrence.endDate&&newTask.recurrence.endDate<occurrenceDate){newTask.recurrence.endType='never';newTask.recurrence.endDate=null}
+  newTask.recurrence=normalizeRecurrence({...baseRule,...recurrenceEdits,enabled:true,startDate:occurrenceDate,exceptions:retained,endType:recurrenceEdits.endType||baseRule.endType,endDate:recurrenceEdits.endType==='date'?recurrenceEdits.endDate:baseRule.endType==='date'?baseRule.endDate:null,count:recurrenceEdits.endType==='count'?recurrenceEdits.count:baseRule.endType==='count'?baseRule.count:null},occurrenceDate);
+  if(preserveMoved&&baseRule.endType==='count'&&newTask.recurrence.endType==='count'&&newTask.recurrence.count===baseRule.count){const before=generateOccurrenceDates({...baseRule,exceptions:{}},baseRule.startDate,addDays(occurrenceDate,-1)).length;if(before>=baseRule.count)return {originalTask,newTask:null};newTask.recurrence.count=baseRule.count-before}
+  if(newTask.recurrence.endType==='date'&&newTask.recurrence.endDate&&newTask.recurrence.endDate<occurrenceDate){if(preserveMoved)return {originalTask,newTask:null};newTask.recurrence.endType='never';newTask.recurrence.endDate=null}
   return {originalTask,newTask};
 }

@@ -1,6 +1,6 @@
 import {stableStringify} from './plan-merge.js';
 import {parseTime,taskDurationMinutes} from './schedule-utils.js';
-import {normalizeRecurrence,projectStoredOccurrence,generateTaskOccurrences} from './recurrence-utils.js?v=13';
+import {normalizeRecurrence,projectStoredOccurrence,generateTaskOccurrences} from './recurrence-utils.js?v=14';
 
 const TASK_FIELDS=['date','startTime','endTime','estimatedMinutes','lastScheduledMinutes'];
 const OCCURRENCE_FIELDS=['date','startTime','endTime','durationMinutes'];

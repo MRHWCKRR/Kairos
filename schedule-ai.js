@@ -1,7 +1,7 @@
 import {schedulePlanningAvailability,schedulePlanningClock,sameScheduleAvailability,scheduleProposalFits,scheduleAvailabilityText} from './schedule-planning-availability.js?v=1';
 import {shiftPlanningDate} from './planning-model.js?v=1';
 import { validateScheduleProposals, parseTime, formatTime, taskDurationMinutes, toDateKey, getVisibleDates, blockGeometry, addDays } from './schedule-utils.js?v=2';
-import { generateTaskOccurrences, generateTaskOccurrencesThrough, applyOccurrenceOverride } from './recurrence-utils.js?v=12';
+import { generateTaskOccurrences, generateTaskOccurrencesThrough, applyOccurrenceOverride } from './recurrence-utils.js?v=14';
 import { aiErrorMessage } from './ai-request.js';
 import {dayChangeCandidates,prepareDayChange,proposalStillMatches} from './schedule-day-change.js?v=2';
 import {mountDayChange} from './schedule-day-change-ui.js?v=3';

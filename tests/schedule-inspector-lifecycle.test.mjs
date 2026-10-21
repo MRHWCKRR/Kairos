@@ -10,6 +10,7 @@ import {parseHTML} from 'linkedom';
 import * as utils from '../schedule-utils.js';
 import * as recurrence from '../recurrence-utils.js';
 import * as recurrenceUi from '../schedule-recurrence-ui.js';
+import * as recurrenceEdit from '../recurrence-edit.js';
 
 const tick=()=>new Promise(resolve=>setTimeout(resolve,0));
 test('assignment progress refreshes while Schedule preserves a dirty form',async()=>{
@@ -39,7 +40,7 @@ async function fixture({recurring=false,storage=new Map(),scopeChooser=async()=>
  // explicitly below; actual MutationObserver timing is covered in Chrome QA.
  class Observer{observe(){}disconnect(){}}
  cleanup=()=>observers.forEach(observer=>observer.disconnect());
- const context=vm.createContext({bindTaskFocus,bindDeadlineImpact,...assignment,planningClock,document,window,MutationObserver:Observer,...utils,...recurrence,...recurrenceUi,...sessionModule,showRecurrenceScopeDialog:scopeChooser,CSS:{escape:String},console:{error(){},warn(){}},structuredClone,requestAnimationFrame:()=>1,cancelAnimationFrame(){},setTimeout:()=>1,clearTimeout(){},setInterval:()=>1,clearInterval(){},confirmDialog:async()=>true});
+ const context=vm.createContext({bindTaskFocus,bindDeadlineImpact,...assignment,planningClock,document,window,MutationObserver:Observer,...utils,...recurrence,...recurrenceUi,...recurrenceEdit,...sessionModule,showRecurrenceScopeDialog:scopeChooser,CSS:{escape:String},console:{error(){},warn(){}},structuredClone,requestAnimationFrame:()=>1,cancelAnimationFrame(){},setTimeout:()=>1,clearTimeout(){},setInterval:()=>1,clearInterval(){},confirmDialog:async()=>true});
  const workspaceSource=(await readFile(new URL('../schedule-workspace.js',import.meta.url),'utf8')).replace(/^import\s[\s\S]*?from ['"][^'"]+['"];\r?\n/gm,'').replace('export function initScheduleWorkspace','function initScheduleWorkspace');
  vm.runInContext(workspaceSource,context);const ws=context.initScheduleWorkspace(bridge);window.__kairosScheduleWorkspace=ws;
  // Each module has its own lexical scope, just as in the browser.
@@ -151,9 +152,16 @@ test('Schedule deadline impact waits for confirmed save, handles failure and use
 
 test('recurring occurrence view starts focus with its logical date and refreshes logged seconds',async()=>{const f=await fixture({recurring:true});f.document.querySelector('[data-occurrence-cancel]').click();await tick();await tick();const button=f.document.querySelector('[data-task-focus-start]');assert.ok(button);button.click();const date=utils.toDateKey(new Date());assert.deepEqual(f.focusTargets,[{id:'t',occurrenceDate:date}]);f.task.recurrence.exceptions[date]={focusLoggedSeconds:60};f.ws.render();await tick();assert.match(f.document.querySelector('[data-task-focus]').textContent,/Logged: 1 min/);assert.equal(f.saves.length,0)});
 
-test('a remotely completed occurrence is saved only to that occurrence without offering series scope',async()=>{
- let choices=0;const f=await fixture({recurring:true,scopeChooser:async()=>{choices++;return 'series'}});f.type('start','14:00');const date=f.ws.state.selected.occurrenceDate;f.task.recurrence.exceptions[date]={status:'completed',completedAt:'keep',focusLoggedSeconds:120};f.submit();await tick();assert.equal(choices,0);assert.equal(f.saves.length,1);assert.equal(f.task.startTime,'10:00');assert.equal(f.boards[0].sections[0].tasks[0].recurrence.exceptions[date].override.startTime,'14:00');assert.equal(f.task.recurrence.exceptions[date].completedAt,'keep');assert.equal(f.task.recurrence.exceptions[date].focusLoggedSeconds,120);f.saves[0].resolve();await tick();
+test('a remotely completed occurrence is saved only to that occurrence through an occurrence-only confirmation',async()=>{
+ let choices=0;const f=await fixture({recurring:true,scopeChooser:async()=>{choices++;return 'series'}});f.type('start','14:00');const date=f.ws.state.selected.occurrenceDate;f.task.recurrence.exceptions[date]={status:'completed',completedAt:'keep',focusLoggedSeconds:120};f.submit();await tick();assert.equal(choices,1);assert.equal(f.saves.length,1);assert.equal(f.task.startTime,'10:00');assert.equal(f.boards[0].sections[0].tasks[0].recurrence.exceptions[date].override.startTime,'14:00');assert.equal(f.task.recurrence.exceptions[date].completedAt,'keep');assert.equal(f.task.recurrence.exceptions[date].focusLoggedSeconds,120);f.saves[0].resolve();await tick();
 });
-test('completion while the scope chooser is open still forces the selected occurrence',async()=>{
- let choose;const f=await fixture({recurring:true,scopeChooser:()=>new Promise(resolve=>choose=resolve)});f.type('start','14:00');f.submit();await tick();const date=f.ws.state.selected.occurrenceDate;f.task.recurrence.exceptions[date]={status:'completed',completedAt:'keep'};choose('series');await tick();assert.equal(f.saves.length,1);assert.equal(f.task.startTime,'10:00');assert.equal(f.boards[0].sections[0].tasks[0].recurrence.exceptions[date].override.startTime,'14:00');f.saves[0].resolve();await tick();
+test('completion while scope preview is open cancels the stale save and keeps the draft',async()=>{
+ let choose;const f=await fixture({recurring:true,scopeChooser:()=>new Promise(resolve=>choose=resolve)});f.type('start','14:00');f.submit();await tick();const date=f.ws.state.selected.occurrenceDate;f.task.recurrence.exceptions[date]={status:'completed',completedAt:'keep'};choose('series');await tick();assert.equal(f.saves.length,0);assert.equal(f.task.startTime,'10:00');assert.equal(f.field('start').value,'14:00');assert.equal(f.task.recurrence.exceptions[date].completedAt,'keep');
+});
+
+test('Skip exposes Restore, which returns only that occurrence to pending with its custom time intact',async()=>{
+ const f=await fixture({recurring:true}),date=f.ws.state.selected.occurrenceDate;f.task.recurrence.exceptions[date]={override:{date,startTime:'14:00',endTime:'15:00'},focusLoggedSeconds:120};f.document.querySelector('[data-occurrence-cancel]').click();await tick();f.document.querySelector('[data-occurrence-skip]').click();await tick();f.saves[0].resolve();await tick();const restore=f.document.querySelector('[data-occurrence-restore]');assert.ok(restore);restore.click();await tick();f.saves[1].resolve();await tick();const live=f.boards[0].sections[0].tasks[0];assert.equal(live.recurrence.exceptions[date].status,'pending');assert.equal(live.recurrence.exceptions[date].override.startTime,'14:00');assert.equal(live.recurrence.exceptions[date].focusLoggedSeconds,120);
+});
+test('the save scope receives an affected-date preview before any persistence',async()=>{
+ let options;const f=await fixture({recurring:true,scopeChooser:async value=>{options=value;return 'cancel'}});f.type('start','14:00');f.submit();await tick();assert.equal(typeof options.getPreview,'function');const preview=options.getPreview('occurrence');assert.equal(preview.after.length,1);assert.equal(preview.after[0].startTime,'14:00');assert.equal(f.saves.length,0);
 });

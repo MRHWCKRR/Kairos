@@ -1,4 +1,4 @@
-import {generateTaskOccurrencesThrough} from './recurrence-utils.js?v=13';
+import {generateTaskOccurrencesThrough} from './recurrence-utils.js?v=14';
 import {toDateKey,parseTime,formatTime} from './schedule-utils.js';
 
 const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
