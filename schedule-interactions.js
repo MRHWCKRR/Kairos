@@ -1,6 +1,6 @@
 import { applyResize, snapMinutes, formatTime, parseTime, taskDurationMinutes, blockGeometry } from './schedule-utils.js';
 import { projectStoredOccurrence, generateTaskOccurrences } from './recurrence-utils.js?v=14';
-import {createScheduleChangeController} from './schedule-change-controller.js?v=2';
+import {createScheduleChangeController} from './schedule-change-controller.js?v=3';
 
 const DAY_MINUTES=1440;
 const HOUR_HEIGHT=56;
@@ -20,7 +20,7 @@ function currentGesture(value=interaction){
   const task=value.isOccurrence?occurrence?.task:findTask(value.taskId)?.task;return !!task&&(!occurrence||occurrence.status==='pending'||bridge()?.getAllowCompletedReschedule?.()&&occurrence.status==='completed')&&JSON.stringify(snapshot(task))===JSON.stringify(value.original);
 }
 function changes(){
-  if(!changeController)changeController=createScheduleChangeController({document,getAllowCompleted:()=>bridge()?.getAllowCompletedReschedule?.()===true,getScope:pointerScope,getState:()=>({boards:bridge()?.getBoards?.()||[]}),
+  if(!changeController)changeController=createScheduleChangeController({document,getAllowCompleted:()=>bridge()?.getAllowCompletedReschedule?.()===true,getScope:pointerScope,getState:()=>({boards:bridge()?.getBoards?.()||[],scheduleEvents:bridge()?.getScheduleEvents?.()||[]}),
     ensurePlan:()=>bridge().ensureSchedulePlan(),commit:(...args)=>bridge().commitScheduleCommand(...args),
     isEditorBlocked:()=>!!(workspace()?.inspectorSession?.isBusy()||workspace()?.inspectorSession?.hasDraft())});
   return changeController;
@@ -168,7 +168,7 @@ function decorate(){
 
 function boot(){
   if(window.__kairosScheduleInteractionsBooted||!bridge())return;window.__kairosScheduleInteractionsBooted=true;decorate();
-  window.__kairosScheduleInteractions={sync:()=>{cancel();changeController?.sync()}};
+  window.__kairosScheduleInteractions={sync:()=>{cancel();changeController?.sync()},save:(target,fields,placement)=>changes().save(target,fields,{placement}),isBlocked:()=>changes().isBlocked()};
   const root=document.getElementById('schedule-page');if(root)new MutationObserver(records=>{if(records.some(record=>record.target===root&&record.attributeName==='class'&&(record.oldValue||'').split(/\s+/).includes('active')!==root.classList.contains('active')))cancel();decorate()}).observe(root,{subtree:true,childList:true,attributes:true,attributeFilter:['class'],attributeOldValue:true});
   document.addEventListener('pointermove',onMove);document.addEventListener('pointerup',event=>void finish(event,false));document.addEventListener('pointercancel',event=>void finish(event,true));
   document.addEventListener('lostpointercapture',event=>{if(interaction?.pointerId===event.pointerId)cancel()});

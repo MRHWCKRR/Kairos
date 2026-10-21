@@ -1,4 +1,4 @@
-import {buildScheduleChange} from './schedule-change-model.js?v=3';
+import {buildScheduleChange} from './schedule-change-model.js?v=4';
 
 // Owns only feedback and operation identities; the shared command store owns data.
 export function createScheduleChangeController({document=globalThis.document,getScope,getState,ensurePlan,commit,getAllowCompleted=()=>false,isEditorBlocked=()=>false,now=Date.now,idFactory=()=>globalThis.crypto.randomUUID()}){
@@ -53,9 +53,10 @@ export function createScheduleChangeController({document=globalThis.document,get
    return false;
   }finally{work.busy=false}
  }
- async function save(target,changes){
+ async function save(target,changes,{placement}={}){
   sync();if(pending||!getScope().ownerId)return false;
   let request;try{request=buildScheduleChange(getState(),target,changes,{allowCompleted:getAllowCompleted()})}catch(error){render(error.message||'Review the current task before changing its time.');return false}
+  if(placement)request.command.placement=structuredClone(placement);
   const scope={...getScope()};undoSource=null;pending={...request,scope,expectedPlanId:scope.planId||'plan-'+scope.ownerId,identity:null,busy:false,initializing:false,needsInitialization:!scope.planId};return run();
  }
  async function undo(){

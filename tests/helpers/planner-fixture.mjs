@@ -1,3 +1,4 @@
+import {assertFindTimeSettings} from '../../schedule-find-time-model.js';
 import {planningUndoSource,planningUndoPreview,applyPlanningUndo} from '../../planning-undo.js';
 import {savedPlanningPreferences,planningPreferencesText} from '../../planning-preferences.js';
 import {assertScheduleAvailability} from '../../schedule-planning-availability.js';
@@ -16,7 +17,7 @@ import {applyPlanningCommand} from '../../planning-commands.js';
 
 export async function plannerFixture(data, {failAfterCommit=false,retryTransaction=false,userData={}}={}) {
   let stored=structuredClone(data), userStored=structuredClone(userData), writes=[], events=0, fail=failAfterCommit;
-  const context=vm.createContext({completedScheduleChanges,assertCompletedScheduleChanges,applyScheduleUndo,planningUndoSource,planningUndoPreview,applyPlanningUndo,savedPlanningPreferences,planningPreferencesText,assertScheduleAvailability,savedWeeklyAvailability,assertSavedAvailability,applyTaskListCommand,validateAssignmentOrderChanges,structuredClone,console,Date,Intl,previewAiPlanning,aiPlanningSummary,resolveAiPlanningTimezone,planningConflicts,planningGapText,planningDailyLimitText,applyPlanningCommand,mergePlanEdits,planState,stableStringify,taskDurationMinutes,taskListFingerprint,
+  const context=vm.createContext({assertFindTimeSettings,completedScheduleChanges,assertCompletedScheduleChanges,applyScheduleUndo,planningUndoSource,planningUndoPreview,applyPlanningUndo,savedPlanningPreferences,planningPreferencesText,assertScheduleAvailability,savedWeeklyAvailability,assertSavedAvailability,applyTaskListCommand,validateAssignmentOrderChanges,structuredClone,console,Date,Intl,previewAiPlanning,aiPlanningSummary,resolveAiPlanningTimezone,planningConflicts,planningGapText,planningDailyLimitText,applyPlanningCommand,mergePlanEdits,planState,stableStringify,taskDurationMinutes,taskListFingerprint,
     globalSearchController:null,taskCaptureController:null,searchPlannerOwnerId:null,
     auth:{currentUser:{uid:'one'}},db:{},collection:()=>({}),query:x=>x,where:()=>({}),doc:(...args)=>args,
     serverTimestamp:()=>({seconds:1}),getDoc:async ref=>({exists:()=>!!stored,data:()=>structuredClone(ref?.[1]==='users'?userStored:stored)}),
