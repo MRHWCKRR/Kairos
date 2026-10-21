@@ -16,5 +16,5 @@ export function planningPreferencesText(saved,chosen=saved){
  const limit=n=>n?n+' minutes per day':'no daily limit',gap=n=>n?n+'-minute gaps':'no added gap';
  if(actual.dailyLimitMinutes!==defaults.dailyLimitMinutes)overrides.push(limit(actual.dailyLimitMinutes));
  if(actual.gapMinutes!==defaults.gapMinutes)overrides.push(gap(actual.gapMinutes));
- return 'Saved planning defaults: '+limit(defaults.dailyLimitMinutes)+', '+gap(defaults.gapMinutes)+'. '+(overrides.length?'Overrides for this plan: '+overrides.join(', ')+'. ':'')+'Changes here apply only to this plan. Edit defaults in Settings → Personal → Planning defaults.';
+ return 'Saved planning defaults: '+limit(defaults.dailyLimitMinutes)+', '+gap(defaults.gapMinutes)+'. '+(overrides.length?'Overrides for this plan: '+overrides.join(', ')+'. ':'')+'Changes here apply only to this plan. Edit defaults in Settings > Planning & Schedule > Planning defaults.';
 }

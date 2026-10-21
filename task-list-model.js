@@ -4,8 +4,9 @@ import {buildTaskToolCommand,applyTaskToolCommand} from './task-tools-model.js';
 import {parseTime,formatTime,taskDurationMinutes} from './schedule-utils.js';
 import {normalizeRecurrence,validateRecurrence,generateTaskOccurrences,applyOccurrenceOverride} from './recurrence-utils.js?v=12';
 import {applyPlanningCommand} from './planning-commands.js?v=9';
-import {applyScheduleChange} from './schedule-change-model.js?v=1';
-export {buildScheduleChange,applyScheduleUndo} from './schedule-change-model.js?v=1';
+import {assertCompletedScheduleChanges} from './schedule-policy.js?v=1';
+import {applyScheduleChange} from './schedule-change-model.js?v=2';
+export {buildScheduleChange,applyScheduleUndo} from './schedule-change-model.js?v=2';
 
 export const TASK_DETAIL_FIELDS=['title','notes','date','startTime','dueDate','durationMinutes','priority','reminderMinutes','scheduleLocked','schedulingPreference','color','recurrence','checklist'];
 const dateValid=value=>/^\d{4}-\d{2}-\d{2}$/.test(value)&&Number.isFinite(Date.parse(value+'T12:00:00Z'))&&new Date(value+'T12:00:00Z').toISOString().slice(0,10)===value;
@@ -151,14 +152,14 @@ function applyTaskBatch(state,command,expected,restore=false){
     return {next,result};
 }
 export function buildTaskTool(state,action,ids,options={}){batchIds(ids);return buildTaskToolCommand(state,action,ids,options,{resolve:taskListLocation,values:taskDetailValues})}
-export function applyTaskListCommand(state,command,expected,{now=Date.now()}={}){
-    if(command?.type==='schedule_change')return applyScheduleChange(state,command,expected);
+export function applyTaskListCommand(state,command,expected,{now=Date.now(),allowCompleted=false}={}){
+    if(command?.type==='schedule_change')return applyScheduleChange(state,command,expected,{allowCompleted});
     if(command?.type==='planning_batch')return applyPlanningCommand(state,command,expected,{now});
     if(['move_section','reorder_sections'].includes(command?.type))return applySectionCommand(state,command,expected);
-    if(command?.type==='task_tool'){batchIds(command.taskIds);return applyTaskToolCommand(state,command,expected,{resolve:taskListLocation,values:taskDetailValues,apply:applyTaskListCommand})}
+    if(command?.type==='task_tool'){batchIds(command.taskIds);return applyTaskToolCommand(state,command,expected,{resolve:taskListLocation,values:taskDetailValues,apply:(s,c,e)=>applyTaskListCommand(s,c,e,{now,allowCompleted})})}
     if(command?.type==='undo_task_list'){
         if(!Number.isFinite(command.expiresAt)||command.expiresAt<=now||command.expiresAt>now+10000)throw new Error('Undo expired.');
-        if(command.inverse?.command?.type==='restore_task_fields'){batchIds(command.inverse.command.taskIds);const out=applyTaskToolCommand(state,command.inverse.command,command.inverse.expected,{resolve:taskListLocation,values:taskDetailValues,apply:applyTaskListCommand},true);out.result.type='undo_task_list';return out}
+        if(command.inverse?.command?.type==='restore_task_fields'){batchIds(command.inverse.command.taskIds);const out=applyTaskToolCommand(state,command.inverse.command,command.inverse.expected,{resolve:taskListLocation,values:taskDetailValues,apply:(s,c,e)=>applyTaskListCommand(s,c,e,{now,allowCompleted})},true);out.result.type='undo_task_list';return out}
         if(command.inverse?.command?.type==='restore_task_batch'){const out=applyTaskBatch(state,command.inverse.command,command.inverse.expected,true);out.result.type='undo_task_list';return out}
         if(!['reorder_tasks','move_task','complete_task','archive_task','move_section','reorder_sections'].includes(command.inverse?.command?.type))throw new Error('Unsupported Undo action.');
         const out=applyTaskListCommand(state,command.inverse.command,command.inverse.expected,{now});out.result.type='undo_task_list';return out;
@@ -256,5 +257,6 @@ export function applyTaskListCommand(state,command,expected,{now=Date.now()}={})
     if(task.recurrence?.enabled&&!validateRecurrence(normalizeRecurrence(task.recurrence,task.date)))throw new Error('Invalid repeat rule: review the start and end dates.');
     if(task.startTime&&!task.date)throw new Error('Choose a scheduled date before setting a start time.');
     if(task.recurrence?.enabled&&task.recurrence.mode==='fixed'&&!task.startTime)throw new Error('Fixed recurring tasks need a start time.');
+    assertCompletedScheduleChanges(state,next,allowCompleted);
     return {next,result:{type:'edit_task',task,board:found.board.title,section:found.section.title}};
 }

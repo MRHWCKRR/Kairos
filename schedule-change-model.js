@@ -1,22 +1,22 @@
 import {stableStringify} from './plan-merge.js';
 import {parseTime,taskDurationMinutes} from './schedule-utils.js';
-import {normalizeRecurrence,generateTaskOccurrences} from './recurrence-utils.js?v=12';
+import {normalizeRecurrence,projectStoredOccurrence,generateTaskOccurrences} from './recurrence-utils.js?v=13';
 
 const TASK_FIELDS=['date','startTime','endTime','estimatedMinutes','lastScheduledMinutes'];
 const OCCURRENCE_FIELDS=['date','startTime','endTime','durationMinutes'];
 const pick=(value,keys)=>Object.fromEntries(keys.filter(key=>Object.hasOwn(value||{},key)).map(key=>[key,structuredClone(value[key])]));
 const validDate=value=>typeof value==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(value)&&Number.isFinite(Date.parse(value+'T12:00:00Z'))&&new Date(value+'T12:00:00Z').toISOString().slice(0,10)===value;
-function locate(state,target){
+function locate(state,target,{allowCompleted=false}={}){
  const found=(state.boards||[]).flatMap(board=>(board.sections||[]).flatMap(section=>(section.tasks||[]).filter(task=>String(task.id)===String(target?.taskId)).map(task=>({board,section,task}))));
  if(found.length!==1||found[0].board.archived||found[0].section.archived||found[0].task.archived)throw Error('This task is missing, archived or ambiguous.');
  const entry=found[0];
  if(target.occurrenceDate){
   if(!validDate(target.occurrenceDate))throw Error('Invalid occurrence date.');
-  const occurrence=generateTaskOccurrences(entry.task,target.occurrenceDate,target.occurrenceDate,{today:target.occurrenceDate})[0];
-  if(!occurrence||occurrence.status!=='pending')throw Error('This occurrence changed or was completed.');
+  const occurrence=entry.task.recurrence?.exceptions?.[target.occurrenceDate]?.status==='completed'?projectStoredOccurrence(entry.task,target.occurrenceDate):generateTaskOccurrences(entry.task,target.occurrenceDate,target.occurrenceDate,{today:target.occurrenceDate})[0];
+  if(!occurrence||!(occurrence.status==='pending'||allowCompleted&&occurrence.status==='completed'))throw Error('This occurrence changed or was completed.');
   return {...entry,occurrence};
  }
- if(entry.task.recurrence?.enabled||entry.task.completed)throw Error('Choose an unfinished task or a single recurring occurrence.');
+ if(entry.task.recurrence?.enabled||entry.task.completed&&!allowCompleted)throw Error('Choose an unfinished task or a single recurring occurrence.');
  return entry;
 }
 function fields(entry){
@@ -28,7 +28,7 @@ function signature(entry){
  const rule=normalizeRecurrence(entry.task,entry.task.date);delete rule.exceptions;
  return stableStringify({schedule:fields(entry).values,template:entry.occurrence?pick(entry.task,TASK_FIELDS):null,
   effective:entry.occurrence?{date:entry.occurrence.displayDate,startTime:entry.occurrence.startTime,endTime:entry.occurrence.endTime,durationMinutes:entry.occurrence.durationMinutes}:null,
-  completed:entry.task.completed===true,scheduleLocked:entry.task.scheduleLocked===true,rule:entry.occurrence?rule:null});
+  completed:entry.task.completed===true,status:entry.occurrence?.status??null,scheduleLocked:entry.task.scheduleLocked===true,rule:entry.occurrence?rule:null});
 }
 function validateChanges(changes,occurrence){
  const allowed=occurrence?OCCURRENCE_FIELDS:['date','startTime','endTime','lastScheduledMinutes'];
@@ -41,8 +41,8 @@ function validateChanges(changes,occurrence){
  if(duration!==undefined&&(!Number.isInteger(duration)||duration<1||duration>1440))throw Error('Choose a valid duration.');
  if(occurrence&&(!Number.isInteger(changes.durationMinutes)||start!==null&&((end-start+1440)%1440||1440)!==duration))throw Error('This occurrence duration does not match its times.');
 }
-export function buildScheduleChange(state,target,changes){
- const entry=locate(state,target);validateChanges(changes,!!entry.occurrence);
+export function buildScheduleChange(state,target,changes,options={}){
+ const entry=locate(state,target,options);validateChanges(changes,!!entry.occurrence);
  return {command:{type:'schedule_change',target:structuredClone(target),changes:structuredClone(changes)},expected:{boardId:entry.board.id,sectionId:entry.section.id,guard:signature(entry)}};
 }
 function check(entry,expected){
@@ -58,18 +58,18 @@ function writeFields(entry,saved){
  if(Object.keys(exception).length||saved.exceptionPresent)rule.exceptions[date]=exception;else delete rule.exceptions[date];
  entry.task.recurrence=rule;
 }
-export function applyScheduleChange(state,command,expected){
- const entry=locate(state,command.target);check(entry,expected);validateChanges(command.changes,!!entry.occurrence);
- const before=fields(entry),next=structuredClone(state),destination=locate(next,command.target);
+export function applyScheduleChange(state,command,expected,options={}){
+ const entry=locate(state,command.target,options);check(entry,expected);validateChanges(command.changes,!!entry.occurrence);
+ const before=fields(entry),next=structuredClone(state),destination=locate(next,command.target,options);
  writeFields(destination,{...before,values:{...before.values,...command.changes}});
- const after=locate(next,command.target);
+ const after=locate(next,command.target,options);
  return {next,result:{type:'schedule_change',task:after.task,scheduleUndo:{version:1,target:structuredClone(command.target),boardId:after.board.id,sectionId:after.section.id,guard:signature(after),before}}};
 }
-export function applyScheduleUndo(state,record){
+export function applyScheduleUndo(state,record,options={}){
  if(record?.version!==1||!record.target||!record.before?.values||typeof record.guard!=='string')throw Error('This saved schedule Undo is unavailable.');
- const entry=locate(state,record.target);check(entry,record);
+ const entry=locate(state,record.target,options);check(entry,record);
  const keys=entry.occurrence?OCCURRENCE_FIELDS:TASK_FIELDS;
  if(Object.keys(record.before.values).some(key=>!keys.includes(key)))throw Error('Invalid saved scheduling fields.');
- const next=structuredClone(state);writeFields(locate(next,record.target),record.before);
- return {next,result:{type:'schedule_undo',task:locate(next,record.target).task}};
+ const next=structuredClone(state);writeFields(locate(next,record.target,options),record.before);
+ return {next,result:{type:'schedule_undo',task:locate(next,record.target,options).task}};
 }

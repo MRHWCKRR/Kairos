@@ -29,3 +29,10 @@ test('a backlog round trip retains the previous scheduled duration over its esti
  const row=f.document.createElement('button');row.className='ks-backlog-row';row.dataset.taskId='t';backlog.appendChild(row);f.context.decorate();f.document.elementFromPoint=()=>f.grid;
  f.pointer('pointerdown',row,{clientY:0});f.pointer('pointerup',f.document,{clientY:700});await tick();assert.equal(f.task.startTime,'11:40');assert.equal(f.task.endTime,'13:10');assert.equal(f.task.estimatedMinutes,30);
 });
+
+test('completed pointer moves stay locked by default and opt-in preserves completion',async()=>{
+ for(const allowed of [false,true]){const f=fixture({allowCompleted:allowed});f.task.completed=true;f.task.completedAt='keep';f.pointer('pointerdown',f.block,{clientY:620});f.pointer('pointerup',f.document,{clientY:647});await tick();assert.equal(f.saves(),allowed?1:0);assert.equal(f.task.startTime,allowed?'10:25':'10:00');assert.equal(f.task.completed,true);assert.equal(f.task.completedAt,'keep')}
+});
+test('an opted-in completed occurrence can move and resize after the series start changes',async()=>{
+ for(const resize of [false,true]){const f=fixture({occurrence:true,allowCompleted:true});f.task.recurrence.startDate='2026-11-01';f.task.recurrence.exceptions['2026-10-16']={status:'completed',completedAt:'keep',focusLoggedSeconds:120};f.pointer('pointerdown',resize?f.grip:f.block,{clientY:620});f.pointer('pointerup',f.document,{clientY:647});await tick();assert.equal(f.saves(),1);const exception=f.boards[0].sections[0].tasks[0].recurrence.exceptions['2026-10-16'];assert.equal(exception.status,'completed');assert.equal(exception.completedAt,'keep');assert.equal(exception.focusLoggedSeconds,120);assert.equal(exception.override[resize?'durationMinutes':'startTime'],resize?85:'10:25')}
+});

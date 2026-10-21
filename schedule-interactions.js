@@ -1,6 +1,6 @@
 import { applyResize, snapMinutes, formatTime, parseTime, taskDurationMinutes, blockGeometry } from './schedule-utils.js';
-import { generateTaskOccurrences } from './recurrence-utils.js?v=12';
-import {createScheduleChangeController} from './schedule-change-controller.js?v=1';
+import { projectStoredOccurrence, generateTaskOccurrences } from './recurrence-utils.js?v=13';
+import {createScheduleChangeController} from './schedule-change-controller.js?v=2';
 
 const DAY_MINUTES=1440;
 const HOUR_HEIGHT=56;
@@ -17,10 +17,10 @@ function currentGesture(value=interaction){
   if(!value?.scope)return false;
   const now=pointerScope();if(value.scope.ownerId!==now.ownerId||value.scope.planId!==now.planId||!document.getElementById('schedule-page')?.classList.contains('active')||!value.originElement?.isConnected)return false;
   const occurrence=value.isOccurrence?findOccurrence(value.seriesId,value.occurrenceDate)?.occurrence:null;
-  const task=value.isOccurrence?occurrence?.task:findTask(value.taskId)?.task;return !!task&&(!occurrence||occurrence.status==='pending')&&JSON.stringify(snapshot(task))===JSON.stringify(value.original);
+  const task=value.isOccurrence?occurrence?.task:findTask(value.taskId)?.task;return !!task&&(!occurrence||occurrence.status==='pending'||bridge()?.getAllowCompletedReschedule?.()&&occurrence.status==='completed')&&JSON.stringify(snapshot(task))===JSON.stringify(value.original);
 }
 function changes(){
-  if(!changeController)changeController=createScheduleChangeController({document,getScope:pointerScope,getState:()=>({boards:bridge()?.getBoards?.()||[]}),
+  if(!changeController)changeController=createScheduleChangeController({document,getAllowCompleted:()=>bridge()?.getAllowCompletedReschedule?.()===true,getScope:pointerScope,getState:()=>({boards:bridge()?.getBoards?.()||[]}),
     ensurePlan:()=>bridge().ensureSchedulePlan(),commit:(...args)=>bridge().commitScheduleCommand(...args),
     isEditorBlocked:()=>!!(workspace()?.inspectorSession?.isBusy()||workspace()?.inspectorSession?.hasDraft())});
   return changeController;
@@ -46,7 +46,7 @@ function allTasks(){
 function findTask(id){return allTasks().find(x=>String(x.task.id)===String(id))||null}
 function findOccurrence(seriesId,occurrenceDate){
   const found=findTask(seriesId);if(!found)return null;
-  const occurrence=generateTaskOccurrences(found.task,occurrenceDate,occurrenceDate,{today:occurrenceDate})[0];
+  const occurrence=found.task.recurrence?.exceptions?.[occurrenceDate]?.status==='completed'?projectStoredOccurrence(found.task,occurrenceDate):generateTaskOccurrences(found.task,occurrenceDate,occurrenceDate,{today:occurrenceDate})[0];
   return occurrence?{...found,occurrence}:null;
 }
 function snapshot(task){return {date:task.date??null,startTime:task.startTime??null,endTime:task.endTime??null,estimatedMinutes:task.estimatedMinutes??null,lastScheduledMinutes:task.lastScheduledMinutes??null,completed:task.completed===true,archived:task.archived===true,scheduleLocked:task.scheduleLocked===true}}
@@ -99,14 +99,14 @@ function gridAtPoint(x,y){
 }
 function begin(mode,taskId,event,element){
   if(event.button!==0||!canBegin())return;cancel();const found=findTask(taskId);if(!found)return;if(mode==='resize'&&!found.task.startTime)return;
-  event.preventDefault();event.stopPropagation();element.setPointerCapture?.(event.pointerId);
+  event.preventDefault();event.stopPropagation();if(found.task.completed&&!bridge()?.getAllowCompletedReschedule?.()){showToast('Enable rescheduling completed tasks in Planning & Schedule settings.');return}element.setPointerCapture?.(event.pointerId);
   interaction={scope:pointerScope(),grabOffsetMinutes:mode==='move'?grabOffset(element,event,found.task):0,durationMinutes:pointerDuration(found.task),gridTop:element.closest('.ks-day-grid')?.getBoundingClientRect().top,mode,taskId:String(taskId),pointerId:event.pointerId,startX:event.clientX,startY:event.clientY,original:snapshot(found.task),preview:null,overBacklog:false,originElement:element,ghost:makeGhost(found.task,mode),previewElement:null,moved:false,isOccurrence:false};
   element.classList.add(mode==='resize'?'is-resizing':'is-dragging');moveGhost(event.clientX,event.clientY);
 }
 function beginOccurrence(mode,event,element){
   if(event.button!==0||!canBegin())return;cancel();
   const seriesId=element.dataset.seriesId,occurrenceDate=element.dataset.occurrenceDate,found=findOccurrence(seriesId,occurrenceDate);if(!found)return;
-  const task=found.occurrence.task;if(mode==='resize'&&!found.occurrence.startTime)return;
+  const task=found.occurrence.task;if(found.occurrence.status==='completed'&&!bridge()?.getAllowCompletedReschedule?.()){showToast('Enable rescheduling completed tasks in Planning & Schedule settings.');return}if(mode==='resize'&&!found.occurrence.startTime)return;
   event.preventDefault();event.stopPropagation();element.setPointerCapture?.(event.pointerId);
   interaction={scope:pointerScope(),grabOffsetMinutes:mode==='move'?grabOffset(element,event,task):0,original:snapshot(task),gridTop:element.closest('.ks-day-grid')?.getBoundingClientRect().top,mode,pointerId:event.pointerId,startX:event.clientX,startY:event.clientY,preview:null,overBacklog:false,originElement:element,ghost:makeGhost(task,mode),previewElement:null,moved:false,isOccurrence:true,seriesId,occurrenceId:element.dataset.occurrenceId,occurrenceDate,effectiveTask:task,durationMinutes:found.occurrence.durationMinutes};
   element.classList.add(mode==='resize'?'is-resizing':'is-dragging');moveGhost(event.clientX,event.clientY);

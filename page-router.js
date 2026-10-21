@@ -1,4 +1,4 @@
-export const PAGE_ROUTES={dashboard:'home-page',ai:'ai-page',tasks:'tasks-page',schedule:'schedule-page',calendar:'calendar-page',achievements:'achievements-page',statistics:'statistics-page',settings:'settings-page',plans:'plans-page'};
+export const PAGE_ROUTES={dashboard:'home-page',ai:'ai-page',tasks:'tasks-page',schedule:'schedule-page',calendar:'schedule-page',achievements:'achievements-page',statistics:'statistics-page',settings:'settings-page',plans:'plans-page'};
 
 export function pageFromUrl(href) {
   const route=new URL(href).searchParams.get('page');
@@ -8,6 +8,7 @@ export function pageFromUrl(href) {
 export function pageUrl(href,page) {
   const url=new URL(href),route=Object.keys(PAGE_ROUTES).find(key=>PAGE_ROUTES[key]===page);
   if(!route)throw Error('Unknown Kairos page');
+  if(page==='schedule-page'&&url.searchParams.get('page')==='calendar')url.searchParams.set('scheduleView','month');
   url.searchParams.set('page',route);
   return url;
 }
@@ -31,6 +32,7 @@ export function mountPageRouter({document=globalThis.document,window=globalThis.
   }
 
   async function navigate(page,{history='push'}={}) {
+    if(page==='calendar-page')page='schedule-page';
     const root=document.getElementById(page);
     if(!root||!Object.values(PAGE_ROUTES).includes(page))return;
     if(current===page)return;

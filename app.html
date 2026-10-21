@@ -131,7 +131,6 @@
                 <a class="nav-item" data-target="ai-page" href="app.html?page=ai"><span class="nav-label" data-i18n="nav_ai">AI Helper</span></a>
                 <a class="nav-item" data-target="tasks-page" href="app.html?page=tasks"><span class="nav-label" data-i18n="nav_tasks">Routines & Tasks</span></a>
                 <a class="nav-item" data-target="schedule-page" href="app.html?page=schedule"><span class="nav-label" data-i18n="nav_schedule">Schedule</span></a>
-                <a class="nav-item" data-target="calendar-page" href="app.html?page=calendar"><span class="nav-label" data-i18n="nav_calendar">Calendar</span></a>
                 <a class="nav-item" data-target="achievements-page" href="app.html?page=achievements"><span class="nav-label" data-i18n="nav_achievements">Achievements</span></a>
                 <a class="nav-item" data-target="statistics-page" href="app.html?page=statistics"><span class="nav-label" data-i18n="nav_statistics">Statistics</span></a>
                 <a class="nav-item" data-target="settings-page" href="app.html?page=settings"><span class="nav-label" data-i18n="nav_settings">Settings</span></a>
@@ -437,6 +436,7 @@
                     <nav class="settings-tablist">
                         <button class="settings-tab active" data-settings-tab="personal" data-i18n="settings_personal">Personal</button>
                         <button class="settings-tab" data-settings-tab="accessibility" data-i18n="settings_accessibility">Accessibility</button>
+                        <button class="settings-tab" data-settings-tab="planning">Planning &amp; Schedule</button>
                         <button class="settings-tab" data-settings-tab="security" data-i18n="settings_security">Security</button>
                         <button class="settings-tab" data-settings-tab="appearance" data-i18n="settings_appearance">Appearance</button>
                         <button class="settings-plan-link" type="button" data-view-plans>Plans <span aria-hidden="true">↗</span></button>
@@ -495,8 +495,7 @@
                                 <input type="date" id="settings-birthday" class="settings-input">
                                 <p class="settings-hint" data-i18n="birthday_hint">Used to help the AI tailor scheduling & health suggestions to you — never shared publicly.</p>
 
-                                <label class="settings-label" data-i18n="timezone">Timezone</label>
-                                <select id="settings-timezone" class="settings-input"></select>
+
                             </div>
 
                         </section>
@@ -515,13 +514,7 @@
                                 </div>
                             </div>
 
-                            <div class="settings-group">
-                                <h3 data-i18n="time_format">Time Format</h3>
-                                <div class="option-tile-row" id="time-format-options">
-                                    <button class="option-tile" data-value="12">12-hour (2:30 PM)</button>
-                                    <button class="option-tile" data-value="24">24-hour (14:30)</button>
-                                </div>
-                            </div>
+
 
                             <div class="settings-group">
                                 <h3 data-i18n="language">Language</h3>
@@ -536,8 +529,25 @@
                                 </label>
                             </div>
                             <div class="settings-group"><h3>Keyboard shortcuts</h3><div id="shortcut-settings-editor" tabindex="-1"></div></div>
-                        <div class="settings-group"><h3>Planning defaults</h3><div id="planning-preferences-editor"></div></div>
-                        <div class="settings-group"><h3>Weekly availability</h3><div id="weekly-availability-editor"></div></div>
+
+
+                        </section>
+
+                        <section id="settings-planning" class="settings-panel">
+                            <h2 tabindex="-1">Planning &amp; Schedule</h2>
+                            <p>Manage the preferences shared by Schedule and the AI planner.</p>
+                            <div class="settings-group"><h3>Planning defaults</h3><div id="planning-preferences-editor"></div></div>
+                            <div class="settings-group"><h3>Weekly availability</h3><div id="weekly-availability-editor"></div></div>
+                            <div class="settings-group"><h3>Completed tasks</h3><label class="settings-toggle-row"><span>Allow rescheduling completed tasks</span><input type="checkbox" id="settings-reschedule-completed" aria-describedby="completed-schedule-hint"></label><p class="settings-hint" id="completed-schedule-hint">Off by default. Allow manual date, time and duration changes while keeping tasks completed. The AI planner continues to leave completed work alone.</p></div>
+                            <div class="settings-group"><h3>Timezone</h3>                                <label class="settings-label" data-i18n="timezone">Timezone</label>
+                                <select id="settings-timezone" class="settings-input"></select></div>
+                            <div class="settings-group">
+                                <h3 data-i18n="time_format">Time Format</h3>
+                                <div class="option-tile-row" id="time-format-options">
+                                    <button class="option-tile" data-value="12">12-hour (2:30 PM)</button>
+                                    <button class="option-tile" data-value="24">24-hour (14:30)</button>
+                                </div>
+                            </div>
                         </section>
 
                         <!-- Security -->
@@ -692,7 +702,7 @@
         <div class="day-detail-panel">
             <button class="day-detail-close" id="day-detail-close-btn">&times;</button>
             <div class="day-detail-header">
-                <h2 id="day-detail-date-title">Loading...</h2>
+                <h2 id="day-detail-date-title">Loading...</h2><button type="button" class="action-btn small-btn" id="day-detail-open-schedule">Open day in Schedule</button>
                 <div class="day-detail-stats">
                     <span id="day-detail-total">0 tasks</span>
                     <span id="day-detail-completed">0 finished</span>
@@ -844,7 +854,7 @@
 
     <div id="achievement-toast-container" class="achievement-toast-container"></div>
     
-    <script type="module" src="app-bootstrap.js?v=48"></script>
+    <script type="module" src="app-bootstrap.js?v=49"></script>
 <script type="module" src="ui-bootstrap.js?v=2"></script>
 </body>
 </html>

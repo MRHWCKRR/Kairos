@@ -63,8 +63,12 @@ export function nextOccurrenceDate(input,afterDate){const rule=normalizeRecurren
 
 export function generateTaskOccurrences(task,rangeStart,rangeEnd,options={}){
   const rule=normalizeRecurrence(task,task?.date||rangeStart),today=validDateKey(options.today)?options.today:dateKey(new Date());if(!rule.enabled)return [];
-  const logicalDates=generateOccurrenceDates(rule,rangeStart,rangeEnd),seriesId=String(task?.id??'');
-  return logicalDates.map(occurrenceDate=>{
+  const logicalDates=generateOccurrenceDates(rule,rangeStart,rangeEnd);
+  return logicalDates.map(occurrenceDate=>projectOccurrence(task,rule,occurrenceDate,today));
+}
+
+function projectOccurrence(task,rule,occurrenceDate,today){
+    const seriesId=String(task?.id??'');
     const exception=rule.exceptions?.[occurrenceDate]&&typeof rule.exceptions[occurrenceDate]==='object'?rule.exceptions[occurrenceDate]:null,override=exception?.override&&typeof exception.override==='object'?exception.override:{},effectiveTask={...task,...override,recurrence:task.recurrence},displayDate=validDateKey(override.date)?override.date:occurrenceDate,status=['completed','skipped','deleted'].includes(exception?.status)?exception.status:'pending',duration=override.durationMinutes?Math.max(1,Math.round(Number(override.durationMinutes))):taskDuration(effectiveTask);
     if(Array.isArray(override.checklist))effectiveTask.checklist=structuredClone(override.checklist);
     else if(Array.isArray(task.checklist))effectiveTask.checklist=task.checklist.map(item=>({...item,completed:false}));
@@ -75,17 +79,26 @@ export function generateTaskOccurrences(task,rangeStart,rangeEnd,options={}){
     if(rule.mode==='fixed'){startTime=effectiveTask.startTime||null;endTime=effectiveTask.endTime||null;const start=parseMinutes(startTime);if(start!==null&&(!endTime||parseMinutes(endTime)===null))endTime=formatMinutes(start+duration)}
     else if(Object.prototype.hasOwnProperty.call(override,'startTime')){startTime=override.startTime||null;endTime=override.endTime||null;const start=parseMinutes(startTime);if(start!==null&&(!endTime||parseMinutes(endTime)===null))endTime=formatMinutes(start+duration)}
     return {occurrenceId:occurrenceId(seriesId,occurrenceDate),seriesId,occurrenceDate,displayDate,startTime,endTime,durationMinutes:duration,status,isOverdue:status==='pending'&&displayDate<today,isException:!!exception,mode:rule.mode,task:{...effectiveTask,date:displayDate,startTime,endTime}};
-  });
+}
+
+// Historical completion keeps its logical identity even when the series rule changes.
+export function projectStoredOccurrence(task,date,options={}){
+  if(!task?.recurrence?.enabled||!validDateKey(date))return null;
+  const recurrence={...task.recurrence,exceptions:{[date]:task.recurrence.exceptions?.[date]}};
+  return projectOccurrence(task,normalizeRecurrence(recurrence,date),date,options.today||date);
 }
 
 export function generateTaskOccurrencesThrough(task,rangeEnd,options={}){
   const rule=normalizeRecurrence(task,task?.date||rangeEnd),today=validDateKey(options.today)?options.today:dateKey(new Date());
-  if(!rule.enabled||!validDateKey(rule.startDate)||!validDateKey(rangeEnd)||rangeEnd<rule.startDate)return [];
+  if(!rule.enabled||!validDateKey(rule.startDate)||!validDateKey(rangeEnd)||rangeEnd<rule.startDate&&!options.includeCompleted)return [];
   const byId=new Map();
   for(const item of generateTaskOccurrences(task,rule.startDate,rangeEnd,{today})){
-    if(item.status==='pending'&&item.displayDate<=rangeEnd)byId.set(item.occurrenceId,item);
+    if((item.status==='pending'||options.includeCompleted&&item.status==='completed')&&item.displayDate<=rangeEnd)byId.set(item.occurrenceId,item);
   }
   for(const [logicalDate,exception] of Object.entries(rule.exceptions||{})){
+    if(options.includeCompleted&&exception?.status==='completed'&&validDateKey(logicalDate)&&!byId.has(occurrenceId(task.id,logicalDate))){
+      const item=projectOccurrence(task,rule,logicalDate,today);if(item.displayDate<=rangeEnd)byId.set(item.occurrenceId,item);
+    }
     const movedDate=exception?.override?.date;
     if(!validDateKey(logicalDate)||logicalDate<=rangeEnd||!validDateKey(movedDate)||movedDate>rangeEnd)continue;
     const item=generateTaskOccurrences(task,logicalDate,logicalDate,{today})[0];

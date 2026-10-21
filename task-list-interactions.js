@@ -1,4 +1,4 @@
-import {applyTaskListCommand,buildTaskBatch,buildTaskTool,taskDetailValues,taskListLocation,taskListSection} from './task-list-model.js?v=10';
+import {applyTaskListCommand,buildTaskBatch,buildTaskTool,taskDetailValues,taskListLocation,taskListSection} from './task-list-model.js?v=14';
 import {mountSectionOrganisation} from './task-section-organisation.js';
 import {openTaskFieldDialog} from './task-tools-dialog.js';
 import {t} from './i18n.js';
@@ -12,7 +12,7 @@ const closesDetails=command=>{const value=command.type==='undo_task_list'?comman
 const sectionMutation=command=>['move_section','reorder_sections'].includes((command.type==='undo_task_list'?command.inverse?.command:command)?.type);
 const previews=command=>['complete_task','reorder_tasks'].includes(command.type)||(command.type==='task_batch'&&['complete','incomplete','move'].includes(command.action));
 
-export function mountTaskListInteractions({root,getState,getOwnerId,getPlanId,commit,refresh=()=>{},ensurePlan=async()=>true,requestCloseDetails=async()=>true,onConfirmed=()=>{},getViewKey=()=>'',getSelectedTaskIds=()=>[],isSorted=()=>false,scrollElement=root.closest('.main-content')||root,document=root.ownerDocument,window=document.defaultView,clock=()=>Date.now(),storage,sectionBlocked=()=>false,setTimer=(fn,ms)=>window.setTimeout(fn,ms),clearTimer=id=>window.clearTimeout(id),requestFrame=fn=>window.requestAnimationFrame(fn),cancelFrame=id=>window.cancelAnimationFrame(id),confirmArchive=message=>confirmDialog(message),confirmDiscard=message=>confirmDialog(message)}={}){
+export function mountTaskListInteractions({getAllowCompletedReschedule=()=>false,root,getState,getOwnerId,getPlanId,commit,refresh=()=>{},ensurePlan=async()=>true,requestCloseDetails=async()=>true,onConfirmed=()=>{},getViewKey=()=>'',getSelectedTaskIds=()=>[],isSorted=()=>false,scrollElement=root.closest('.main-content')||root,document=root.ownerDocument,window=document.defaultView,clock=()=>Date.now(),storage,sectionBlocked=()=>false,setTimer=(fn,ms)=>window.setTimeout(fn,ms),clearTimer=id=>window.clearTimeout(id),requestFrame=fn=>window.requestAnimationFrame(fn),cancelFrame=id=>window.cancelAnimationFrame(id),confirmArchive=message=>confirmDialog(message),confirmDiscard=message=>confirmDialog(message)}={}){
     const copy=name=>t('task_order_'+name,document.documentElement.lang||'en');
     const sameBatchView=(command,view)=>!(['task_batch','task_tool','move_section','reorder_sections'].includes(command.type)||['restore_task_batch','restore_task_fields','move_section','reorder_sections'].includes(command.inverse?.command?.type))||(root.classList.contains('active')&&getViewKey()===view);
     try{storage??=window.sessionStorage}catch{}
@@ -46,7 +46,7 @@ export function mountTaskListInteractions({root,getState,getOwnerId,getPlanId,co
     function getDisplayState(){
         const state=getState(),operation=preview;
         if(!operation||operation.identity.ownerId!==getOwnerId()||operation.identity.planId!==getPlanId())return state;
-        try{return applyTaskListCommand(state,operation.command,operation.expected,{now:clock()}).next}
+        try{return applyTaskListCommand(state,operation.command,operation.expected,{now:clock(),allowCompleted:getAllowCompletedReschedule()}).next}
         catch{return state} // The saved result or a conflicting update is already visible.
     }
     function decorate(){
@@ -111,7 +111,7 @@ export function mountTaskListInteractions({root,getState,getOwnerId,getPlanId,co
             const ready=await ensurePlan();
             if(!ready||disposed||getOwnerId()!==actor||(originalPlan!==null&&(getPlanId()!==originalPlan||generation!==originalGeneration))||(originalPlan===null&&ready!==getPlanId())||!sameBatchView(command,originalView))return false;
             sync();operationGeneration=generation;busy=true;if(!plan)return false;
-            const applied=applyTaskListCommand(getState(),command,expected,{now:clock()}),uuid=()=>window.crypto?.randomUUID?.()||globalThis.crypto.randomUUID();
+            const applied=applyTaskListCommand(getState(),command,expected,{now:clock(),allowCompleted:getAllowCompletedReschedule()}),uuid=()=>window.crypto?.randomUUID?.()||globalThis.crypto.randomUUID();
             pending={command:structuredClone(command),expected:structuredClone(expected),inverse:applied.result.inverse?structuredClone(applied.result.inverse):null,identity:{ownerId:owner,planId:plan,operationId:'task-list-'+uuid(),createdAt:clock()}};remember();
         }catch(error){if(operationGeneration===generation){message.textContent=error.message;refresh()}return false}
         finally{if(operationGeneration===generation)busy=false;else sync();decorate()}
@@ -206,7 +206,7 @@ export function mountTaskListInteractions({root,getState,getOwnerId,getPlanId,co
             fieldDialogView=view;fieldDialog=openTaskFieldDialog({field,label,count:taskIds.length,initialValue,document,translate:key=>t(key,document.documentElement.lang||'en'),onClose:()=>{fieldDialog=null;if(!disposed&&getOwnerId()===actor&&getPlanId()===capturedPlan&&getViewKey()===view&&root.classList.contains('active')&&sourceElement?.isConnected)sourceElement.focus?.({preventScroll:true})},onSubmit:value=>{
                 if(disposed||ticket!==generation||getOwnerId()!==actor||getPlanId()!==capturedPlan||getViewKey()!==view||!root.classList.contains('active')){fieldDialog?.dispose();return false}
                 if(busy||pending)throw Error(copy('uncertain'));
-                const operation=buildTaskTool(snapshot,'edit',taskIds,{field,value});applyTaskListCommand(getState(),operation.command,operation.expected);fieldDialog?.dispose();return execute(operation.command,operation.expected);
+                const operation=buildTaskTool(snapshot,'edit',taskIds,{field,value});applyTaskListCommand(getState(),operation.command,operation.expected,{allowCompleted:getAllowCompletedReschedule()});fieldDialog?.dispose();return execute(operation.command,operation.expected);
             }});return true;
         }catch(error){message.textContent=error.message;decorate()}return false;
     }

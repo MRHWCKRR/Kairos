@@ -4,7 +4,7 @@ import {mountFocusTimer} from './focus-timer.js?v=6';
 import {persistFocusLog,persistFocusCorrection,loadFocusHistory} from './focus-store.js?v=5';
 import {mountFocusHistory} from './focus-history.js?v=3';
 import {taskFocusTarget} from './task-focus.js?v=3';
-import {normalisePlanningPreferences} from './planning-preferences.js?v=2';
+import {normalisePlanningPreferences} from './planning-preferences.js?v=3';
 import {mountPlanningPreferencesEditor} from './planning-preferences-editor.js?v=2';
 import {normaliseWeeklyAvailability} from './weekly-availability.js';
 import {mountWeeklyAvailabilityEditor} from './weekly-availability-editor.js';
@@ -14,8 +14,8 @@ import { requestBilling } from './billing-client.js';
 import { mountPlanUsage } from './plan-usage.js?v=3';
 import {assignmentProgressIndex,assignmentProgressMarkup} from './assignment-progress.js?v=4';
 import {planningClock} from './planning-model.js?v=1';
-import { createPageLoader } from './page-loader.js?v=59';
-import { mountPageRouter } from './page-router.js?v=2';
+import { createPageLoader } from './page-loader.js?v=60';
+import { mountPageRouter } from './page-router.js?v=3';
 import { createPageRenderCache } from './page-render-cache.js?v=1';
 import './boards-recurrence.js?v=11';
 import { auth, db } from './firebase.js';
@@ -40,8 +40,8 @@ import { LANGUAGES, applyTranslations, getLocale, getLanguageName, t, ACHIEVEMEN
 import { invalidateKairosContext } from './ai-context.js?v=16';
 import { dueTaskReminders, dueBedtimeReminders, reminderDeliveryStatus } from './task-reminders.js?v=3';
 import { deliverTaskReminder, deliverBedtimeReminder, saveNotificationEdits, escapeNotificationText } from './reminder-notifications.js?v=3';
-import { savePlannerEdits, persistTaskListCommand,loadPlanningUndoPreview } from './plan-store.js?v=15';
-import { resolveTaskDetail, taskListSection } from './task-list-model.js?v=12';
+import { savePlannerEdits, persistTaskListCommand,loadPlanningUndoPreview } from './plan-store.js?v=16';
+import { resolveTaskDetail, taskListSection } from './task-list-model.js?v=14';
 import { mergePlanEdits, planState } from './plan-merge.js';
 import {createSettingsRecovery,overlaySettingsEdits} from './settings-recovery.js?v=1';
 import {mountGettingStarted,openGettingStartedDestination} from './getting-started.js?v=2';
@@ -185,7 +185,7 @@ function defaultSettings() {
             customAmbientYoutubeUrl: '',
             confetti: true
         },
-        planning: {weeklyAvailability:null,dailyLimitMinutes:0,gapMinutes:0},
+        planning: {weeklyAvailability:null,dailyLimitMinutes:0,gapMinutes:0,rescheduleCompleted:false},
         notifications: { enabled: true, boardCompletion: true, bedtimeReminders: true, browserPush: false }
     };
 }
@@ -618,7 +618,7 @@ function bootApp() {
     }
     const pageLoader = createPageLoader({scheduleEnabled:!!document.getElementById('schedule-calendar'),taskDetailsEnabled:true,setupTaskDetails:module=>{
         taskDetails=module.mountTaskDetailPane({root:document.getElementById('tasks-page'),getShortcuts:()=>userSettings.accessibility.shortcuts,getOwnerId:()=>auth.currentUser?.uid||null,getPlanId:()=>currentPlanDocId,
-            getState:()=>({boards:boardsData}),getToday:()=>planningClock(Date.now(),userSettings.profile.timezone).date,resolveTarget:target=>resolveTaskDetail({boards:boardsData},target),commit:commitTaskDetails,onStartFocus:startTaskFocus,openSchedule:openTaskDetailsInSchedule});
+            getState:()=>({boards:boardsData}),getAllowCompletedReschedule:()=>settingsCloudSnapshot.planning?.rescheduleCompleted===true,getToday:()=>planningClock(Date.now(),userSettings.profile.timezone).date,resolveTarget:target=>resolveTaskDetail({boards:boardsData},target),commit:commitTaskDetails,onStartFocus:startTaskFocus,openSchedule:openTaskDetailsInSchedule});
     },setupTaskWorkspace:module=>{
         taskWorkspace=module.mountTaskListWorkspace({root:document.getElementById('tasks-page'),overview:document.getElementById('tasks-manager-container'),
             getToday:()=>planningClock(Date.now(),userSettings.profile.timezone).date,getState:()=>taskInteractions?.getDisplayState()||({boards:boardsData}),getOwnerId:()=>auth.currentUser?.uid||null,getPlanId:()=>currentPlanDocId,commit:commitTaskDetails,
@@ -626,7 +626,7 @@ function bootApp() {
             isMutationBlocked:()=>{const state=taskInteractions?.getActionState({taskId:''});return !!(state?.busy||state?.pending)},requestCloseDetails:()=>taskDetails?.requestClose()??true,renderOverview:renderBoardsGrid,onRender:()=>{taskInteractions?.decorate();taskSelection?.sync();taskMenus?.sync();taskShortcuts?.sync()}});
         renderBoardsGrid();
     },setupTaskInteractions:module=>{
-        taskInteractions=module.mountTaskListInteractions({root:document.getElementById('tasks-page'),getState:()=>({boards:boardsData}),getOwnerId:()=>auth.currentUser?.uid||null,getPlanId:()=>currentPlanDocId,
+        taskInteractions=module.mountTaskListInteractions({getAllowCompletedReschedule:()=>settingsCloudSnapshot.planning?.rescheduleCompleted===true,root:document.getElementById('tasks-page'),getState:()=>({boards:boardsData}),getOwnerId:()=>auth.currentUser?.uid||null,getPlanId:()=>currentPlanDocId,
             getViewKey:()=>taskWorkspace?.getViewKey(),getSelectedTaskIds:()=>taskSelection?.ids()||[],commit:commitTaskDetails,refresh:renderBoardsGrid,onConfirmed:(command,result)=>{taskWorkspace?.sectionMoved(command);recordTaskListCompletion(command,result)},sectionBlocked:()=>taskWorkspace?.hasPendingCapture()||false,requestCloseDetails:()=>taskDetails?.requestClose()??true,
             ensurePlan:async()=>{const owner=auth.currentUser?.uid,expectedPlan=currentPlanDocId||'plan-'+owner;if(!owner)return false;if(!currentPlanDocId&&!await updatePlanInFirestore())return false;return auth.currentUser?.uid===owner&&currentPlanDocId===expectedPlan?expectedPlan:false}});
     },setupTaskSelection:module=>{
@@ -747,7 +747,7 @@ function bootApp() {
                 <input type="text" class="task-text" data-section="${sectionId}" data-task="${task.id}" value="${escapeNotificationText(task.title)}" style="text-decoration: ${task.completed ? 'line-through' : 'none'};">
                 ${task.startTime ? `<span class="task-scheduled-time">${task.startTime}${task.endTime ? '–' + task.endTime : ''}</span>` : ''}
                 ${task.checklist?.length?`<span class="task-checklist-count">${task.recurrence?.enabled?'0':task.checklist.filter(item=>item.completed).length}/${task.checklist.length}</span>`:''}
-                ${showDatePicker ? `<input type="date" class="task-date-input" data-section="${sectionId}" data-task="${task.id}" value="${task.date || ''}" title="Schedule this task on the calendar">` : ''}
+                ${showDatePicker ? `<input type="date" class="task-date-input" data-section="${sectionId}" data-task="${task.id}" value="${task.date || ''}" ${task.completed&&settingsCloudSnapshot.planning?.rescheduleCompleted!==true?'disabled':''} title="Schedule this task on the calendar">` : ''}
                 ${showDatePicker ? `<button type="button" class="task-delete-btn" data-section="${sectionId}" data-task="${task.id}" title="${tr('delete_task')}">✕</button>` : ''}
                 ${showDatePicker ? `<button type="button" class="task-detail-open" data-task-detail="${escapeNotificationText(task.id)}" aria-label="${escapeNotificationText(tr('task_detail_open'))}">${tr('task_detail_heading')}</button>` : ''}
             </li>
@@ -1688,6 +1688,10 @@ function bootApp() {
     const calendarNextBtn = document.getElementById('calendar-next-btn');
 
     const dayDetailOverlay = document.getElementById('day-detail-overlay');
+    document.getElementById('day-detail-open-schedule')?.addEventListener('click',async()=>{
+        const date=selectedCalendarDate;if(!date)return;
+        if(await window.__kairosScheduleWorkspace?.setView('day')){closeDayPanel();window.__kairosScheduleWorkspace.focusDateTime(date);}
+    });
     const dayDetailCloseBtn = document.getElementById('day-detail-close-btn');
     const dayDetailDateTitle = document.getElementById('day-detail-date-title');
     const dayDetailTotal = document.getElementById('day-detail-total');
@@ -1717,7 +1721,7 @@ function bootApp() {
 
     function renderCalendar() {
         if (!calendarGrid || !calendarMonthYear) return;
-        if (pageRenders.defer('calendar-page',renderCalendar)) return;
+        if (pageRenders.defer('schedule-page',renderCalendar)) return;
 
         const year = calendarViewDate.getFullYear();
         const month = calendarViewDate.getMonth();
@@ -2226,6 +2230,7 @@ function bootApp() {
         planningPreferencesEditor?.refresh();
         weeklyAvailabilityEditor ||= mountWeeklyAvailabilityEditor({root:document.getElementById('weekly-availability-editor'),getValue:()=>pendingSettings.planning?.weeklyAvailability??null,onChange:value=>{pendingSettings.planning={...(pendingSettings.planning||{}),weeklyAvailability:value};checkDirty()}});
         weeklyAvailabilityEditor?.refresh();
+        const completedToggle=document.getElementById('settings-reschedule-completed');if(completedToggle)completedToggle.checked=pendingSettings.planning?.rescheduleCompleted===true;
         const user = auth.currentUser;
 
         const emailEl = document.getElementById('settings-current-email');
@@ -2633,7 +2638,7 @@ function bootApp() {
             const saved=await saveUserSettingsToFirestore(submitted,base,record);
             if(auth.currentUser?.uid!==owner||settingsSaveTicket!==ticket)return;
             if(saved){
-                settingsRecovery.clear(owner,record);settingsCloudSnapshot=cloneDeep(saved);
+                settingsRecovery.clear(owner,record);settingsCloudSnapshot=cloneDeep(saved);window.__kairosScheduleWorkspace?.invalidate();taskDetails?.sync();
                 pendingSettings=overlaySettingsEdits(submitted,pendingSettings,saved);userSettings=cloneDeep(saved);settingsPendingRecord=null;
                 if(JSON.stringify(pendingSettings)!==JSON.stringify(saved))settingsPendingRecord=settingsRecovery.stage(owner,saved,pendingSettings);
                 cacheAppliedSettings(owner,settingsPendingRecord?pendingSettings:userSettings);applyAllSettings();populateSettingsForm();
@@ -2656,6 +2661,15 @@ function bootApp() {
         pendingSettings=cloneDeep(userSettings);applyAllSettings();populateSettingsForm();document.dispatchEvent(new Event('kairos-controls-refresh'));updateSaveBarVisibility(false);
     });
 
+    document.getElementById('settings-reschedule-completed')?.addEventListener('change',event=>{pendingSettings.planning={...(pendingSettings.planning||{}),rescheduleCompleted:event.target.checked};checkDirty()});
+    async function openPlanningSettings(){
+        const actor=auth.currentUser?.uid,plan=currentPlanDocId;if(!actor)return false;
+        if(!await (window.__kairosScheduleWorkspace?.inspectorSession?.requestLeave?.()??true))return false;
+        if(auth.currentUser?.uid!==actor||currentPlanDocId!==plan)return false;
+        await pageRouter.navigate('settings-page');
+        if(auth.currentUser?.uid!==actor||currentPlanDocId!==plan)return false;
+        document.querySelector('[data-settings-tab="planning"]')?.click();document.querySelector('#settings-planning h2')?.focus();return true;
+    }
     // Settings tab switching
     const settingsTabs = document.querySelectorAll('.settings-tab');
     const settingsPanels = document.querySelectorAll('.settings-panel');

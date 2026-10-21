@@ -160,3 +160,9 @@ test('formats stable recurrence summaries',()=>{
   assert.equal(formatRecurrenceSummary({enabled:true,frequency:'monthly',monthlyMode:'weekdayPosition',weekdayPosition:'first',weekday:1,startDate:'2026-10-05',mode:'flexible'}),'First Monday monthly · Flexible');
   assert.equal(formatRecurrenceSummary({enabled:true,frequency:'yearly',month:10,monthDay:10,startDate:'2026-10-10',mode:'fixed',endType:'count',count:5}),'Yearly on Oct 10 · Fixed time · 5 occurrences');
 });
+
+test('completed history remains visible after cadence changes only when explicitly requested',()=>{
+ const task={id:'history',startTime:'10:00',endTime:'11:00',recurrence:normalizeRecurrence({enabled:true,frequency:'daily',interval:2,mode:'fixed',startDate:'2026-10-20',exceptions:{'2026-10-21':{status:'completed',completedAt:'keep'}}})};
+ assert.equal(generateTaskOccurrencesThrough(task,'2026-10-22').some(o=>o.status==='completed'),false);const shown=generateTaskOccurrencesThrough(task,'2026-10-22',{includeCompleted:true}).filter(o=>o.status==='completed');assert.equal(shown.length,1);assert.equal(shown[0].occurrenceId,'history::2026-10-21');assert.equal(shown[0].startTime,'10:00');
+ task.recurrence.startDate='2026-11-01';assert.equal(generateTaskOccurrencesThrough(task,'2026-10-22',{includeCompleted:true}).filter(o=>o.status==='completed').length,1);
+});

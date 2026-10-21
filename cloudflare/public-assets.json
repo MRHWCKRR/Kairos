@@ -94,6 +94,8 @@
     "schedule-interactions.js",
     "schedule-change-model.js",
     "schedule-change-controller.js",
+    "schedule-policy.js",
+    "schedule-calendar.css",
     "schedule-recurrence-ui.js",
     "schedule-responsive.js",
     "schedule-task-create.js",
