@@ -1,10 +1,12 @@
-import {findTaskTimes,assertFindTimePlacement,findTimeTask} from './schedule-find-time-model.js?v=1';
+import {findTaskTimes,assertFindTimePlacement,findTimeTask} from './schedule-find-time-model.js?v=2';
 import {planningClock} from './planning-model.js?v=1';
 import {planningDefaults} from './weekly-availability.js';
 import {normalisePlanningPreferences} from './planning-preferences.js?v=1';
 import {schedulePlanningAvailability} from './schedule-planning-availability.js?v=1';
 import {parseTime,formatTime} from './schedule-utils.js';
 import {stableStringify} from './plan-merge.js';
+import {taskOverdueState} from './schedule-overdue.js?v=1';
+import {generateTaskOccurrences} from './recurrence-utils.js?v=14';
 
 export function mountFindTime({root,getWorkspace,getBridge,getController,now=Date.now}={}){
  const document=root.ownerDocument,window=document.defaultView;
@@ -16,13 +18,19 @@ export function mountFindTime({root,getWorkspace,getBridge,getController,now=Dat
   if(!root.classList.contains('active')||workspace?.state.monthView||!scope()[0])return null;
   const target=selection?.type==='task'?{taskId:selection.id}:selection?.type==='occurrence'?{taskId:selection.seriesId,occurrenceDate:selection.occurrenceDate}:null;
   if(!target)return null;
-  let task;try{task=findTimeTask(state(),target).task}catch{return null}
+  let task,recovery;try{
+   const data=state(),base=data.boards.flatMap(board=>board.sections||[]).flatMap(section=>section.tasks||[]).find(task=>String(task.id)===String(target.taskId));
+   const occurrence=target.occurrenceDate?generateTaskOccurrences(base,target.occurrenceDate,target.occurrenceDate)[0]:null,effective=occurrence?.task||base;
+   const time=planningClock(now(),getBridge()?.getTimezone?.()||Intl.DateTimeFormat().resolvedOptions().timeZone||'UTC');
+   recovery=!!effective&&!!taskOverdueState(effective,time,occurrence?.durationMinutes);
+   task=findTimeTask(data,target,{recovery,clock:time}).task;
+  }catch{return null}
   const dates=[...root.querySelectorAll('.ks-day-column[data-date]')].map(column=>column.dataset.date).sort();
-  return dates.length?{target,dates,title:task.title||'Task'}:null;
+  return dates.length?{target,dates,title:task.title||'Task',recovery}:null;
  }
  function options(current){
   const bridge=getBridge(),availability=schedulePlanningAvailability(bridge);
-  return {from:current.dates[0],to:current.dates.at(-1),timezone:availability.timezone,...planningDefaults(availability.weeklyAvailability),...normalisePlanningPreferences(bridge?.getPlanningPreferences?.()||{})};
+  return {from:current.dates[0],to:current.dates.at(-1),timezone:availability.timezone,...planningDefaults(availability.weeklyAvailability),...normalisePlanningPreferences(bridge?.getPlanningPreferences?.()||{}),...(current.recovery?{recovery:true}:{})};
  }
  const clock=opts=>planningClock(now(),opts.timezone);
  function blocked(){const editor=getWorkspace()?.inspectorSession;return saving||getController()?.isBlocked?.()||editor?.isBusy?.()||editor?.hasDraft?.()}
@@ -30,14 +38,15 @@ export function mountFindTime({root,getWorkspace,getBridge,getController,now=Dat
  function message(text){const status=panel?.querySelector('[data-find-status]');if(status)status.textContent=text}
  function label(slot){
   const date=new Date(slot.date+'T12:00:00Z').toLocaleDateString(document.documentElement.lang||'en',{timeZone:'UTC',weekday:'short',month:'short',day:'numeric'}),hour12=getBridge()?.getTimeFormat?.()!=='24';
-  return date+' · '+formatTime(parseTime(slot.startTime),hour12)+'–'+formatTime(parseTime(slot.endTime),hour12);
+  return date+' · '+formatTime(parseTime(slot.startTime),hour12)+'–'+formatTime(parseTime(slot.endTime),hour12)+(parseTime(slot.endTime)<=parseTime(slot.startTime)?' (next day)':'');
  }
  function reset(){session=null;chosen=null;clearSlots();panel?.querySelector('[data-find-results]')?.replaceChildren()}
  function select(index){
   if(!session||saving)return;chosen=index;
   for(const button of root.querySelectorAll('[data-find-slot]'))button.setAttribute('aria-pressed',String(Number(button.dataset.findSlot)===index));
   const slot=session.slots[index],preview=panel.querySelector('[data-find-preview]');
-  preview.textContent=label(slot)+' · '+session.duration+' min'+(session.target.occurrenceDate?' · This occurrence':'');
+  const previous=session.previous;
+  preview.textContent=(session.options.recovery?'Previous: '+(previous.date?(previous.startTime&&previous.endTime?label(previous):previous.date):'Unscheduled')+'. New time: ':'')+label(slot)+' · '+session.duration+' min'+(session.target.occurrenceDate?' · This occurrence':'')+(session.afterDeadline?'. This time is after the deadline ('+session.afterDeadline+'). The deadline will stay unchanged.':'');
   panel.querySelector('[data-find-confirm]').disabled=false;
  }
  function markers(){
@@ -65,7 +74,7 @@ export function mountFindTime({root,getWorkspace,getBridge,getController,now=Dat
   try{
    const input=options(current),report=findTaskTimes(state(),current.target,input,clock(input));
    session={...report,options:input,scope:scope(),contextKey:stableStringify(current)};
-   message(report.slots.length?report.duration+' min · '+(input.availabilitySource==='saved'?'Saved work hours':'07:00–22:00 (no saved work hours)')+' · '+input.timezone+'. Showing the earliest placement in each suitable gap.': 'No suitable time in these dates. Check the task deadline, work hours or daily assignment limit, or view later dates.');
+   message(report.slots.length?report.duration+' min · '+(input.availabilitySource==='saved'?'Saved work hours':'07:00–22:00 (no saved work hours)')+' · '+input.timezone+'. Showing the earliest placement in each suitable gap.': 'No suitable time in these dates. Check the task deadline, work hours or daily task work limit, or view later dates.');
    if(report.slots.length)results();
   }catch(error){message(error.message||'Could not find a time. Review your planning settings.')}
  }
@@ -93,6 +102,7 @@ export function mountFindTime({root,getWorkspace,getBridge,getController,now=Dat
   panel=document.createElement('section');panel.className='ks-find-time-panel';panel.setAttribute('aria-label','Find a time');
   panel.innerHTML='<div class="ks-find-time-heading"><span data-find-title></span><button type="button" data-find-start>Find a time</button></div><p data-find-status role="status" aria-live="polite"></p><div data-find-results></div>';
   panel.querySelector('[data-find-title]').textContent=current.title;
+  panel.querySelector('[data-find-start]').textContent=current.recovery?'Find a new time':'Find a time';
   panel.querySelector('[data-find-start]').addEventListener('click',start);
   root.insertBefore(panel,root.querySelector('.schedule-workspace-shell'));
  }
@@ -100,7 +110,28 @@ export function mountFindTime({root,getWorkspace,getBridge,getController,now=Dat
  const changed=()=>{key=null;sync()};window.addEventListener('kairos-data-changed',changed);
  const escape=event=>{if(event.key==='Escape'&&session){event.preventDefault();event.stopPropagation();reset();message('');panel?.querySelector('[data-find-start]')?.focus()}};
  root.addEventListener('keydown',escape);sync();
- return {sync,dispose(){disposed=true;observer.disconnect();window.removeEventListener('kairos-data-changed',changed);root.removeEventListener('keydown',escape);reset();panel?.remove()}};
+ let recovering=false;
+ const recover=async event=>{
+  const button=event.target.closest?.('[data-recover-task]');if(!button||button.disabled||recovering)return;
+  event.preventDefault();event.stopPropagation();
+  const feedback=text=>{
+   if(button.isConnected){let status=button.parentElement.querySelector('[data-recover-status]');if(!status){status=document.createElement('p');status.dataset.recoverStatus='';status.setAttribute('role','status');button.after(status)}status.textContent=text;}
+   else message(text);
+  };
+  if(saving||getController()?.isBlocked?.()||getWorkspace()?.inspectorSession?.isBusy?.()){feedback('Finish the previous save or schedule change first.');return}
+  recovering=true;
+  const actor=stableStringify(scope()),workspace=getWorkspace(),taskId=button.dataset.recoverTask,occurrenceDate=button.dataset.recoverOccurrence,occurrenceId=button.dataset.recoverId;
+  try{
+   const today=planningClock(now(),getBridge()?.getTimezone?.()||Intl.DateTimeFormat().resolvedOptions().timeZone||'UTC').date;
+   if(!await workspace.setDate(today)||disposed||stableStringify(scope())!==actor)return;
+   const selected=occurrenceDate?await workspace.selectOccurrence({seriesId:taskId,occurrenceDate,occurrenceId,keepDate:true}):await workspace.selectItem('task',taskId,{keepDate:true});
+   if(!selected||disposed||stableStringify(scope())!==actor)return;
+   sync();start();panel?.querySelector('[data-find-start]')?.focus();
+  }catch(error){if(!disposed&&stableStringify(scope())===actor)feedback(error.message||'Could not find a new time. Try again.')}
+  finally{recovering=false}
+ };
+ root.addEventListener('click',recover);
+ return {sync,dispose(){disposed=true;observer.disconnect();window.removeEventListener('kairos-data-changed',changed);root.removeEventListener('keydown',escape);root.removeEventListener('click',recover);reset();panel?.remove()}};
 }
 
 function boot(){

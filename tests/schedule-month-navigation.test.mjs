@@ -1,3 +1,5 @@
+import * as overdue from '../schedule-overdue.js';
+import {planningClock} from '../planning-model.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -11,7 +13,7 @@ let month={};try{month=await import('../schedule-month.js')}catch(error){if(erro
 function fixture(){
  const {document,window}=parseHTML('<html><body><section id="schedule-page" class="active"><div id="schedule-toolbar"></div><div class="schedule-workspace-shell"><aside id="schedule-backlog"></aside><div id="schedule-calendar"></div><aside id="schedule-inspector" hidden></aside></div><div id="schedule-ai-review"></div></section><div id="calendar-page" class="page-view"><div id="calendar-grid"></div></div></body></html>');
  const task={id:'t',title:'Read',date:'2026-12-17',startTime:'10:00',endTime:'11:00'},boards=[{id:'b',sections:[{id:'s',tasks:[task]}]}];let owner='one',date;
- const context=vm.createContext({...utils,...recurrence,document,window,Date,CSS:{escape:String},requestAnimationFrame:()=>1,setInterval:()=>1,clearInterval(){}});vm.runInContext(source,context);
+ const context=vm.createContext({...overdue,planningClock,...utils,...recurrence,document,window,Date,CSS:{escape:String},requestAnimationFrame:()=>1,setInterval:()=>1,clearInterval(){}});vm.runInContext(source,context);
  const ws=context.initScheduleWorkspace({getBoards:()=>boards,getScheduleEvents:()=>[],getOwnerId:()=>owner,getPlanId:()=> 'plan',renderMonthCalendar:value=>date=value});return {ws,document,task,boards,monthDate:()=>date,setOwner:value=>owner=value};
 }
 test('Month and each timeline view retain the selected date across a year boundary',async()=>{

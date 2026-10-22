@@ -3,6 +3,8 @@ import {
   taskDurationMinutes, layoutOverlaps, findConflicts, splitOvernightInterval, blockGeometry
 } from './schedule-utils.js';
 import { projectStoredOccurrence, generateTaskOccurrences, generateTaskOccurrencesThrough } from './recurrence-utils.js?v=14';
+import {planningClock} from './planning-model.js?v=1';
+import {scheduleBacklogItems} from './schedule-overdue.js?v=1';
 
 const HOUR_HEIGHT = 56;
 const DAY_MINUTES = 1440;
@@ -25,7 +27,7 @@ export function initScheduleWorkspace(options){
   state.focusDate=options.getScheduleDate?.()||toDateKey(state.anchor);
   let clockTimer=null;
   let dirty=true;
-  let renderedDate=null,occurrenceCache=null;
+  let renderedDate=null,occurrenceCache=null,backlogKey=null;
   let inspectorSession=null,selectionRevision=0;
 
   const locale=()=>options.getLocale?.()||document.documentElement.lang||'en';
@@ -34,6 +36,7 @@ export function initScheduleWorkspace(options){
   const boards=()=>Array.isArray(options.getBoards?.())?options.getBoards():[];
   const events=()=>Array.isArray(options.getScheduleEvents?.())?options.getScheduleEvents():[];
   const categories=()=>options.getScheduleCategories?.()||{};
+  const currentClock=()=>planningClock(new Date().getTime(),options.getTimezone?.()||Intl.DateTimeFormat().resolvedOptions().timeZone||'UTC');
 
   function allTasks(){
     const out=[];
@@ -69,7 +72,7 @@ export function initScheduleWorkspace(options){
   }
   function recurringOccurrences(){
     if(occurrenceCache)return occurrenceCache;
-    const dates=visibleDates(),end=toDateKey(dates.at(-1)),today=toDateKey(new Date()),out=[];
+    const dates=visibleDates(),today=currentClock().date,end=[toDateKey(dates.at(-1)),today].sort().at(-1),out=[];
     for(const {task,board,section} of allTasks()){
       if(!task.recurrence?.enabled)continue;
       for(const occurrence of generateTaskOccurrencesThrough(task,end,{today,includeCompleted:true})) out.push({...occurrence,board,section});
@@ -92,22 +95,27 @@ export function initScheduleWorkspace(options){
     toolbar.querySelector('[data-event]').onclick=()=>options.openRecurringEventEditor?.();
   }
 
+  function backlogItems(){return scheduleBacklogItems(allTasks(),recurringOccurrences(),currentClock())}
+  function backlogSignature(items){return JSON.stringify(items.map(item=>[item.kind,item.occurrence?.occurrenceId||item.task.id,item.overdueReason]))}
   function renderBacklog(){
-    const ordinary=allTasks().filter(({task})=>!task.recurrence?.enabled&&!task.completed&&(!task.date||!task.startTime)).map(entry=>({kind:'task',...entry}));
-    const recurring=recurringOccurrences().filter(occurrence=>occurrence.status==='pending'&&occurrence.mode==='flexible'&&!occurrence.startTime).map(occurrence=>({kind:'occurrence',task:occurrence.task,board:occurrence.board,section:occurrence.section,occurrence}));
-    const items=[...ordinary,...recurring];
-    backlog.classList.toggle('is-collapsed',state.backlogCollapsed);
-    backlog.innerHTML=`<div class="ks-panel-title"><strong>${state.backlogCollapsed?'U':'Unscheduled'}</strong><span>${items.length}</span><button type="button" data-backlog-toggle aria-label="${state.backlogCollapsed?'Expand':'Collapse'} unscheduled tasks">${state.backlogCollapsed?'›':'‹'}</button></div>${state.backlogCollapsed?'':(items.length?`<div class="ks-backlog-list">${items.map(item=>{
-      const {task,board,section}=item,color=validTaskColor(task.color);
-      if(item.kind==='occurrence'){
-        const o=item.occurrence,selected=state.selected.type==='occurrence'&&state.selected.occurrenceId===o.occurrenceId;
-        return `<button type="button" class="ks-backlog-row ks-recurring ${selected?'is-selected':''} ${o.isOverdue?'is-overdue':''}" data-occurrence-id="${esc(o.occurrenceId)}" data-series-id="${esc(o.seriesId)}" data-occurrence-date="${esc(o.occurrenceDate)}" ${color?`style="--ks-task-color:${color}"`:''}><span class="ks-grab" aria-hidden="true">⋮⋮</span><span class="ks-task-color-dot" aria-hidden="true"></span><span class="ks-backlog-copy"><strong><span class="ks-recurring-mark" aria-hidden="true">↻</span> ${esc(task.title)}</strong><small>${esc(`${o.displayDate}${o.isOverdue?' · Overdue':''} · ${taskMeta({task,board,section})}`)}</small></span></button>`;
-      }
-      return `<button type="button" class="ks-backlog-row ${state.selected.type==='task'&&String(state.selected.id)===String(task.id)?'is-selected':''}" data-task-id="${esc(task.id)}" ${color?`style="--ks-task-color:${color}"`:''}><span class="ks-grab" aria-hidden="true">⋮⋮</span><span class="ks-task-color-dot" aria-hidden="true"></span><span class="ks-backlog-copy"><strong>${esc(task.title)}</strong><small>${esc(taskMeta({task,board,section}))}</small></span></button>`;
-    }).join('')}</div>`:'<p class="ks-panel-empty">No unscheduled tasks.</p>')}`;
+    const focused=backlog.contains(document.activeElement)?document.activeElement:null;
+    const focusKeys=['taskId','occurrenceId','recoverTask','recoverOccurrence','backlogToggle'];
+    const focusData=focused?focusKeys.filter(key=>key in focused.dataset).map(key=>[key,focused.dataset[key]]):[];
+    const items=backlogItems();backlogKey=backlogSignature(items);
+    const row=item=>{
+      const {task,board,section,occurrence:o,overdueReason}=item,color=validTaskColor(task.color);
+      const selected=o?state.selected.type==='occurrence'&&state.selected.occurrenceId===o.occurrenceId:state.selected.type==='task'&&String(state.selected.id)===String(task.id);
+      const identity=o?`data-occurrence-id="${esc(o.occurrenceId)}" data-series-id="${esc(o.seriesId)}" data-occurrence-date="${esc(o.occurrenceDate)}"`:`data-task-id="${esc(task.id)}"`;
+      const detail=[o?.displayDate||task.date,overdueReason==='deadline'?'Deadline passed':overdueReason==='schedule'?'Planned time passed':overdueReason?'Overdue':null,taskMeta({task,board,section})].filter(Boolean).join(' · ');
+      return `<div class="ks-backlog-entry"><button type="button" class="ks-backlog-row ${o?'ks-recurring':''} ${selected?'is-selected':''} ${overdueReason?'is-overdue':''}" ${identity} ${color?`style="--ks-task-color:${color}"`:''}><span class="ks-grab" aria-hidden="true">⋮⋮</span><span class="ks-task-color-dot" aria-hidden="true"></span><span class="ks-backlog-copy"><strong>${o?'<span class="ks-recurring-mark" aria-hidden="true">↻</span> ':''}${esc(task.title)}</strong><small>${esc(detail)}</small></span></button>${overdueReason?`<button type="button" class="ks-recover-task" data-recover-task="${esc(o?.seriesId||task.id)}" ${o?`data-recover-occurrence="${esc(o.occurrenceDate)}" data-recover-id="${esc(o.occurrenceId)}"`:''} ${task.scheduleLocked?'disabled title="Unlock this task to find a new time"':''} aria-label="Find a new time for ${esc(task.title)}${o?', this occurrence':''}">Find a new time</button>`:''}</div>`;
+    };
+    const groups=[['Overdue',items.filter(item=>item.overdueReason)],['Unscheduled',items.filter(item=>!item.overdueReason)]];
+    backlog.setAttribute('aria-label','Tasks to plan');backlog.classList.toggle('is-collapsed',state.backlogCollapsed);
+    backlog.innerHTML=`<div class="ks-panel-title"><strong>${state.backlogCollapsed?'P':'To plan'}</strong><span>${items.length}</span><button type="button" data-backlog-toggle aria-label="${state.backlogCollapsed?'Expand':'Collapse'} tasks to plan">${state.backlogCollapsed?'>':'<'}</button></div>${state.backlogCollapsed?'':items.length?`<div class="ks-backlog-list">${groups.filter(([,entries])=>entries.length).map(([title,entries])=>`<section class="ks-backlog-group" aria-label="${title}"><h3>${title} <span>${entries.length}</span></h3>${entries.map(row).join('')}</section>`).join('')}</div>`:'<p class="ks-panel-empty">No tasks to plan.</p>'}`;
     backlog.querySelector('[data-backlog-toggle]')?.addEventListener('click',()=>{state.backlogCollapsed=!state.backlogCollapsed;render()});
     backlog.querySelectorAll('[data-task-id]').forEach(el=>el.addEventListener('click',()=>selectItem('task',el.dataset.taskId)));
     backlog.querySelectorAll('[data-occurrence-id]').forEach(el=>el.addEventListener('click',()=>selectOccurrence(el.dataset)));
+    if(focusData.length)[...backlog.querySelectorAll('button')].find(button=>focusData.every(([key,value])=>button.dataset[key]===value))?.focus();
   }
 
   function recurringSegmentsForDate(date){
@@ -185,18 +193,18 @@ export function initScheduleWorkspace(options){
   }
 
   function changeSelection(next){
-    const apply=()=>{occurrenceCache=null;const entry=next.type==='task'?findTask(next.id):next.type==='occurrence'?findTask(next.seriesId):null;const effective=next.type==='occurrence'&&entry?projectStoredOccurrence(entry.task,next.occurrenceDate)?.task:entry?.task;if(parsedDate(effective?.date)){state.focusDate=effective.date;options.setScheduleDate?.(state.focusDate);}state.selected=next;state.inspectorOpen=!!next.type;renderBacklog();renderCalendar();renderInspector();return true};
+    const apply=()=>{occurrenceCache=null;const entry=next.type==='task'?findTask(next.id):next.type==='occurrence'?findTask(next.seriesId):null;const effective=next.type==='occurrence'&&entry?projectStoredOccurrence(entry.task,next.occurrenceDate)?.task:entry?.task;if(!next.keepDate&&parsedDate(effective?.date)){state.focusDate=effective.date;options.setScheduleDate?.(state.focusDate);}state.selected=next;state.inspectorOpen=!!next.type;renderBacklog();renderCalendar();renderInspector();return true};
     const ticket=++selectionRevision,actor=JSON.stringify([options.getOwnerId?.(),options.getPlanId?.()]);
     if(!inspectorSession)return apply();
     if(state.selected.type===next.type&&String(state.selected.id)===String(next.id))return true;
     return inspectorSession.requestLeave().then(allowed=>allowed&&ticket===selectionRevision&&actor===JSON.stringify([options.getOwnerId?.(),options.getPlanId?.()])?apply():false);
   }
-  function selectItem(type,id){return state.monthView?setView('day').then(allowed=>allowed?changeSelection({type,id}):false):changeSelection({type,id})}
+  function selectItem(type,id,{keepDate=false}={}){return state.monthView?setView('day').then(allowed=>allowed?changeSelection({type,id,keepDate}):false):changeSelection({type,id,keepDate})}
   function selectOccurrence(data){
     if(state.monthView)return setView('day').then(allowed=>allowed?selectOccurrence(data):false);
     const occurrenceId=data.occurrenceId||data.id,seriesId=data.seriesId,occurrenceDate=data.occurrenceDate;
     const found=recurringOccurrences().find(item=>item.occurrenceId===occurrenceId);
-    return changeSelection({type:'occurrence',id:occurrenceId,seriesId,occurrenceId,occurrenceDate,isOverdue:!!found?.isOverdue});
+    return changeSelection({type:'occurrence',id:occurrenceId,seriesId,occurrenceId,occurrenceDate,keepDate:!!data.keepDate,isOverdue:!!found?.isOverdue});
   }
   function clearSelection(){return changeSelection({type:null,id:null})}
   function focusDateTime(dateKey,timeValue){
@@ -234,8 +242,8 @@ export function initScheduleWorkspace(options){
     root.classList.toggle('is-month-view',state.monthView);shell.hidden=state.monthView;
     if(monthCalendar)monthCalendar.hidden=!state.monthView;
     if(state.monthView)options.renderMonthCalendar?.(state.focusDate);
-    renderToolbar();renderBacklog();if(!state.monthView)renderCalendar();renderInspector();review.hidden=!state.proposals.length;dirty=false;renderedDate=toDateKey(new Date()); }
-  function activate(){ if(dirty||renderedDate!==toDateKey(new Date()))render();updateNowLine(); }
+    renderToolbar();renderBacklog();if(!state.monthView)renderCalendar();renderInspector();review.hidden=!state.proposals.length;dirty=false;renderedDate=currentClock().date; }
+  function activate(){ if(dirty||renderedDate!==currentClock().date)render();else if(backlogSignature(backlogItems())!==backlogKey)renderBacklog();updateNowLine(); }
   function invalidate(){ dirty=true;if(root.classList.contains('active'))render(); }
   function destroy(){ if(clockTimer) clearInterval(clockTimer); }
 

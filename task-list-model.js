@@ -5,8 +5,8 @@ import {parseTime,formatTime,taskDurationMinutes} from './schedule-utils.js';
 import {normalizeRecurrence,validateRecurrence,generateTaskOccurrences,applyOccurrenceOverride} from './recurrence-utils.js?v=14';
 import {applyPlanningCommand} from './planning-commands.js?v=9';
 import {assertCompletedScheduleChanges} from './schedule-policy.js?v=1';
-import {applyScheduleChange} from './schedule-change-model.js?v=4';
-export {buildScheduleChange,applyScheduleUndo} from './schedule-change-model.js?v=4';
+import {applyScheduleChange} from './schedule-change-model.js?v=5';
+export {buildScheduleChange,applyScheduleUndo} from './schedule-change-model.js?v=5';
 
 export const TASK_DETAIL_FIELDS=['title','notes','date','startTime','dueDate','durationMinutes','priority','reminderMinutes','scheduleLocked','schedulingPreference','color','recurrence','checklist'];
 const dateValid=value=>/^\d{4}-\d{2}-\d{2}$/.test(value)&&Number.isFinite(Date.parse(value+'T12:00:00Z'))&&new Date(value+'T12:00:00Z').toISOString().slice(0,10)===value;
