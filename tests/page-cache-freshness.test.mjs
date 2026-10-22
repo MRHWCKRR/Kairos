@@ -1,3 +1,5 @@
+import * as overdue from '../schedule-overdue.js';
+import {planningClock} from '../planning-model.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
@@ -30,7 +32,7 @@ function scheduleFixture(){
   const {document,window}=parseHTML(html);Object.defineProperty(document,'readyState',{value:'loading'});
   let now=new Date(2026,9,12,23,59),tick;
   class Clock extends Date {constructor(...args){super(...(args.length?args:[now.getTime()]));}}
-  const context=vm.createContext({document,window,Date:Clock,...scheduleUtils,generateTaskOccurrencesThrough,
+  const context=vm.createContext({...overdue,planningClock,document,window,Date:Clock,...scheduleUtils,generateTaskOccurrencesThrough,
     requestAnimationFrame:fn=>fn(),setInterval:fn=>{tick=fn;return 1;},clearInterval(){}});
   vm.runInContext(scheduleSource,context);
   const workspace=context.initScheduleWorkspace({getBoards:()=>[],getScheduleEvents:()=>[]});

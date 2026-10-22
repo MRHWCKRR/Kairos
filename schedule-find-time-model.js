@@ -5,18 +5,20 @@ import {generateTaskOccurrences,projectStoredOccurrence} from './recurrence-util
 import {stableStringify} from './plan-merge.js';
 import {savedPlanningPreferences} from './planning-preferences.js?v=1';
 import {savedWeeklyAvailability,normaliseWeeklyAvailability} from './weekly-availability.js';
+import {taskOverdueState} from './schedule-overdue.js?v=1';
 
-export function findTimeTask(state,target){
+export function findTimeTask(state,target,{recovery=false,clock}={}){
  const entries=planningTasks(state).filter(({task})=>String(task.id)===String(target?.taskId));
  if(entries.length!==1)throw Error('This task is missing, archived or ambiguous.');
  const entry=entries[0];let task=entry.task,occurrence=null;
  if(target.occurrenceDate){
   occurrence=generateTaskOccurrences(task,target.occurrenceDate,target.occurrenceDate)[0];
-  if(!occurrence||occurrence.status!=='pending'||occurrence.mode!=='flexible')throw Error('Choose an unfinished flexible occurrence.');
+  if(!occurrence||occurrence.status!=='pending'||!recovery&&occurrence.mode!=='flexible')throw Error('Choose an unfinished flexible occurrence.');
   task=occurrence.task;
  }else if(task.recurrence?.enabled)throw Error('Choose a single recurring occurrence.');
  if(task.completed||task.scheduleLocked)throw Error('This task is completed or locked.');
- if(task.date&&parseTime(task.startTime)!==null)throw Error('This task is already scheduled.');
+ if(recovery){if(!clock||!taskOverdueState(task,clock,occurrence?.durationMinutes))throw Error('This task is no longer overdue.');}
+ else if(task.date&&parseTime(task.startTime)!==null)throw Error('This task is already scheduled.');
  if(task.dueDate&&!validPlanningDate(task.dueDate))throw Error('Review the task deadline first.');
  const remembered=Number(task.lastScheduledMinutes);
  const duration=occurrence?.durationMinutes??(parseTime(task.startTime)===null&&Number.isInteger(remembered)&&remembered>0?remembered:taskDurationMinutes(task));
@@ -31,11 +33,13 @@ function otherWork(state,target){return {...state,boards:(state.boards||[]).map(
 export function findTaskTimes(state,target,options,clock=planningClock(Date.now(),options.timezone)){
  validatePlanningRange(options.from,options.to);
  if(!validPlanningDate(clock.date)||parseTime(clock.time)===null)throw Error('Current planning time is unavailable.');
- const entry=findTimeTask(state,target),{task,duration}=entry;
- const busy=planningPlacementOccupancy(occupiedState(state),options),dailyWork=planningDailyWork(otherWork(state,target),options),cache=new Map(),slots=[];
+ const entry=findTimeTask(state,target,{recovery:options.recovery===true,clock}),{task,duration}=entry;
+ const remaining=otherWork(state,target),afterDeadline=options.recovery===true&&task.dueDate&&task.dueDate<clock.date?task.dueDate:null;
+ // Vacate only the reviewed placement. Other occurrences still reserve their time.
+ const busy=planningPlacementOccupancy(occupiedState(options.recovery===true?remaining:state),options),dailyWork=planningDailyWork(remaining,options),cache=new Map(),slots=[];
  const signature=stableStringify({target,options,busy,boardId:entry.board.id,sectionId:entry.section.id,duration,date:task.date??null,startTime:task.startTime??null,endTime:task.endTime??null,dueDate:task.dueDate??null,assignmentId:task.assignmentId??null,dailyWork:[...dailyWork]});
  for(let date=options.from;date<=options.to;date=shiftPlanningDate(date,1)){
-  if(date<clock.date||validPlanningDate(task.date)&&date<task.date||task.dueDate&&date>task.dueDate||task.assignmentId&&duration>planningDailyRemaining(dailyWork,date,options))continue;
+  if(date<clock.date||!options.recovery&&validPlanningDate(task.date)&&date<task.date||!afterDeadline&&task.dueDate&&date>task.dueDate||task.assignmentId&&duration>planningDailyRemaining(dailyWork,date,options))continue;
   for(const window of planningWindows(options,date)){
    let inGap=false;
    const earliest=Math.max(window.start,date===clock.date?parseTime(clock.time)+1:0);
@@ -47,7 +51,8 @@ export function findTaskTimes(state,target,options,clock=planningClock(Date.now(
    }
   }
  }
- return {target:structuredClone(target),title:String(task.title||'Task'),duration,signature,slots};
+ const previousStart=parseTime(task.startTime);
+ return {target:structuredClone(target),title:String(task.title||'Task'),duration,signature,slots,afterDeadline,previous:{date:task.date||null,startTime:task.startTime||null,endTime:previousStart===null?null:formatTime((previousStart+duration)%1440,false)}};
 }
 
 export function assertFindTimePlacement(state,target,changes,placement,clock){

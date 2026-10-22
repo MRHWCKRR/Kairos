@@ -1,4 +1,4 @@
-import {assertFindTimePlacement} from './schedule-find-time-model.js?v=1';
+import {assertFindTimePlacement} from './schedule-find-time-model.js?v=2';
 import {stableStringify} from './plan-merge.js';
 import {parseTime,taskDurationMinutes} from './schedule-utils.js';
 import {normalizeRecurrence,projectStoredOccurrence,generateTaskOccurrences} from './recurrence-utils.js?v=14';

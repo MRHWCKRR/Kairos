@@ -166,7 +166,8 @@
     "task-capture.js",
     "task-capture.css",
     "dialog-window.js",
-    "dialog-window.css"
+    "dialog-window.css",
+    "schedule-overdue.js"
   ],
   "directories": [
     "images",

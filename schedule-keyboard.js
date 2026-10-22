@@ -1,4 +1,4 @@
-import {keyboardScheduleStep,keyboardScheduleFields,readKeyboardSchedule} from './schedule-keyboard-model.js?v=1';
+import {keyboardScheduleStep,keyboardScheduleFields,readKeyboardSchedule} from './schedule-keyboard-model.js?v=2';
 import {formatTime,blockGeometry} from './schedule-utils.js';
 
 const help='Up/Down: move 5 minutes. Shift+Up/Down: resize 5 minutes. Enter: confirm. Escape: cancel.';

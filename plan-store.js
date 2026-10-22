@@ -1,4 +1,4 @@
-import {assertFindTimeSettings} from './schedule-find-time-model.js?v=1';
+import {assertFindTimeSettings} from './schedule-find-time-model.js?v=2';
 import {planningUndoSource,planningUndoPreview,applyPlanningUndo} from './planning-undo.js?v=3';
 import {assertScheduleAvailability} from './schedule-planning-availability.js?v=1';
 import {assertSavedAvailability} from './weekly-availability.js';
@@ -6,9 +6,9 @@ import { db } from './firebase.js';
 import { doc, getDoc, runTransaction, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { mergePlanEdits, planState, stableStringify } from './plan-merge.js';
 import {validateAssignmentOrderChanges} from './assignment-order.js?v=1';
-import { applyTaskListCommand, taskListFingerprint } from './task-list-model.js?v=16';
+import { applyTaskListCommand, taskListFingerprint } from './task-list-model.js?v=17';
 import {completedScheduleChanges,assertCompletedScheduleChanges} from './schedule-policy.js?v=1';
-import {applyScheduleUndo} from './schedule-change-model.js?v=4';
+import {applyScheduleUndo} from './schedule-change-model.js?v=5';
 
 export async function persistTaskListCommand(planId, uid, command, expected, operationId, createdAt) {
     if(typeof operationId!=='string'||!operationId||operationId.length>160||!Number.isFinite(createdAt)||createdAt<=0)throw new Error('Invalid operation identity.');
