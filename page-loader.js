@@ -1,7 +1,7 @@
 // Keep each workspace alive once loaded: navigating never cancels AI requests,
 // recreates Firebase listeners, or resets an in-progress schedule edit.
-const scheduleStyles=['schedule-find-time.css','schedule-workspace.css','schedule-calendar.css','schedule-interactions.css','schedule-inspector.css','schedule-ai.css','schedule-day-change.css','planning-hub.css','assignment-progress.css'];
-const scheduleModules=['schedule-interactions.js','schedule-inspector.js','schedule-responsive.js','schedule-task-create.js','schedule-ai.js','planning-hub.js','schedule-find-time.js'];
+const scheduleStyles=['schedule-find-time.css','schedule-workspace.css','schedule-calendar.css','schedule-interactions.css','schedule-inspector.css','schedule-ai.css','schedule-day-change.css','planning-hub.css','assignment-progress.css','schedule-keyboard.css'];
+const scheduleModules=['schedule-interactions.js','schedule-inspector.js','schedule-responsive.js','schedule-task-create.js','schedule-ai.js','planning-hub.js','schedule-find-time.js','schedule-keyboard.js'];
 
 export function loadPageStyle(href, document=globalThis.document) {
   const existing=[...document.querySelectorAll('link[rel="stylesheet"]')].find(link=>link.getAttribute('href')===href);
@@ -42,11 +42,11 @@ export function createPageLoader({importModule=url=>import(url),loadStyle=loadPa
         await importModule('./statistics-ai.js?v=1');
       }
       if(page==='schedule-page'&&scheduleEnabled) {
-        await Promise.all(scheduleStyles.map(name=>loadStyle(name+(name==='schedule-find-time.css'?'?v=1':name==='schedule-inspector.css'?'?v=11':name==='schedule-calendar.css'?'?v=11':name==='schedule-ai.css'?'?v=11':name==='planning-hub.css'?'?v=3':name==='assignment-progress.css'?'?v=2':name==='schedule-day-change.css'?'?v=1':name==='schedule-interactions.css'?'?v=12':'?v=10'))));
+        await Promise.all(scheduleStyles.map(name=>loadStyle(name+(name==='schedule-keyboard.css'?'?v=1':name==='schedule-find-time.css'?'?v=1':name==='schedule-inspector.css'?'?v=11':name==='schedule-calendar.css'?'?v=11':name==='schedule-ai.css'?'?v=11':name==='planning-hub.css'?'?v=3':name==='assignment-progress.css'?'?v=2':name==='schedule-day-change.css'?'?v=1':name==='schedule-interactions.css'?'?v=12':'?v=10'))));
         await importModule('./schedule-workspace.js?v=16');
         // These modules inspect the workspace during boot. Preserve that order
         // even when network responses arrive out of order.
-        for(const name of scheduleModules)await importModule('./'+name+(name==='schedule-find-time.js'?'?v=1':name==='planning-hub.js'?'?v=16':name==='schedule-interactions.js'?'?v=19':name==='schedule-inspector.js'?'?v=21':name==='schedule-ai.js'?'?v=14':name==='schedule-task-create.js'?'?v=13':'?v=11'));
+        for(const name of scheduleModules)await importModule('./'+name+(name==='schedule-keyboard.js'?'?v=1':name==='schedule-find-time.js'?'?v=1':name==='planning-hub.js'?'?v=16':name==='schedule-interactions.js'?'?v=19':name==='schedule-inspector.js'?'?v=21':name==='schedule-ai.js'?'?v=14':name==='schedule-task-create.js'?'?v=13':'?v=11'));
       }
     })();
     loaded.set(page,task);

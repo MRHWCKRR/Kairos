@@ -1,0 +1,12 @@
+.ks-keyboard-panel{flex:0 0 auto;margin:0 12px 12px;padding:12px 16px;border:1px solid var(--border-subtle);border-radius:8px;background:var(--bg-card);color:var(--text-primary);font-size:.8rem;line-height:1.5}
+.ks-keyboard-panel p{margin:6px 0;overflow-wrap:anywhere}
+.ks-keyboard-panel>p:first-of-type{color:var(--text-muted)}
+.ks-keyboard-panel>div{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
+.ks-keyboard-panel button{min-height:34px;padding:6px 10px;font:inherit;border:1px solid var(--border-subtle);border-radius:5px;background:var(--bg-main);color:var(--text-primary);cursor:pointer}
+.ks-keyboard-panel button:disabled{opacity:.5;cursor:not-allowed}
+.ks-keyboard-panel [data-keyboard-confirm]{border-color:var(--accent-glow);background:var(--accent-glow-soft);color:var(--text-primary)}
+.ks-keyboard-panel:focus-visible,.ks-keyboard-panel button:focus-visible{outline:2px solid var(--accent-glow);outline-offset:2px}
+.ks-task-block.is-keyboard-adjusting{opacity:.3}
+.ks-drag-preview.ks-keyboard-preview{border-style:dashed;opacity:1}
+.ks-keyboard-status{font-size:.8rem;line-height:1.5;color:var(--text-primary);margin:0 12px 10px}
+.ks-keyboard-status:empty{display:none}
