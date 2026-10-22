@@ -10,6 +10,6 @@
 .ks-find-time-panel [data-find-status]{color:var(--text-muted);margin:6px 0 0}
 .ks-find-time-panel [data-find-status]:empty{display:none}
 .ks-find-time-panel [data-find-preview]{margin:8px 0}
-.ks-find-time-actions [data-find-confirm]{background:var(--accent-glow);border-color:var(--accent-glow);color:#fff}
+.ks-find-time-actions [data-find-confirm]{background:var(--accent-glow-soft);border-color:var(--accent-glow);color:var(--text-primary)}
 .ks-block.ks-find-time-slot{position:absolute;left:3px;width:calc(100% - 6px);z-index:5;border:1px dashed var(--accent-glow);border-radius:5px;background:var(--bg-card);color:var(--text-primary);padding:3px 8px;text-align:left;overflow:hidden;font:inherit;font-size:.7rem;cursor:pointer;box-sizing:border-box}
 .ks-find-time-slot[aria-pressed=true]{border-style:solid;box-shadow:inset 3px 0 var(--accent-glow)}
