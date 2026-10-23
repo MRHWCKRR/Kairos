@@ -8,7 +8,7 @@ const zeroDecimalCharges=new Set(['bif','clp','djf','gnf','jpy','kmf','krw','mga
 export function appendPlanLimitActions(root,messages){
   const doc=root.ownerDocument,rows=root.querySelectorAll('.ai-chat-bubble-row');
   messages.forEach((message,index)=>{
-    if(message.limit?.reason!=='daily-account'||!rows[index])return;
+    if(!['daily-account','weekly-account'].includes(message.limit?.reason)||!rows[index])return;
     const button=doc.createElement('button');
     button.type='button';button.className='plan-link plan-limit-action';button.textContent='View plans';
     button.setAttribute('data-view-plans','');button.setAttribute('data-plan-limit-action','');
@@ -74,7 +74,7 @@ export function mountPlanUsage({root,auth,request,onStatus=()=>{},navigate=url=>
   function confirmUpgrade(status,uid){
     if(!pending||pending.uid!==uid)return false;
     if(status.access.tier==='plus'&&status.billing?.status==='active'&&status.billing.paidThrough>Date.now()&&!status.billing.paymentRisk){
-      doc.getElementById('plan-welcome-benefit').textContent=String(status.access.dailyLimit)+' AI requests a day to explore ideas, break down tasks and keep your plans moving.';
+      doc.getElementById('plan-welcome-benefit').textContent=String(status.access.dailyLimit)+' AI requests a day'+(status.access.weeklyLimit?', up to '+status.access.weeklyLimit+' a week':'')+' to explore ideas, break down tasks and keep your plans moving.';
       if(welcome.showModal)welcome.showModal();else welcome.setAttribute('open','');
       try {storage?.removeItem(pendingKey);}catch{}
       pending=null;clearTimeout(pollTimer);pollTimer=null;
@@ -98,6 +98,7 @@ export function mountPlanUsage({root,auth,request,onStatus=()=>{},navigate=url=>
     }
   }
   function clear() {
+    for(const id of ['plan-free-weekly-limit','plan-plus-weekly-limit','plan-compare-free-weekly','plan-compare-plus-weekly','plan-weekly-used','plan-weekly-allowance','plan-weekly-remaining','plan-weekly-reset'])if(find(id))find(id).textContent='—';
     if(find('plan-retry-btn'))find('plan-retry-btn').hidden=true;
     current=null;boundUid=null;interval='month';stale=true;retryAt=0;showNear=false;usageDirty=false;hideNear();clearTimeout(usageTimer);usageTimer=null;clearTimeout(retryTimer);retryTimer=null;renderLimitActions();
     if(accountPlan)accountPlan.textContent='—';closeWelcome();clearTimeout(pollTimer);pollTimer=null;
@@ -134,6 +135,9 @@ export function mountPlanUsage({root,auth,request,onStatus=()=>{},navigate=url=>
     find('plan-bonus').textContent=String(status.usage.bonusCredits);
     find('plan-reset').textContent=dateLabel(status.usage.resetsAt);
     find('plan-access-until').textContent=status.access.accessUntil?dateLabel(status.access.accessUntil):'—';
+    for(const [id,value] of Object.entries({'plan-weekly-used':status.usage.weeklyUsed,'plan-weekly-allowance':status.access.weeklyLimit,'plan-weekly-remaining':status.usage.weeklyRemaining}))if(find(id))find(id).textContent=Number.isSafeInteger(value)?String(value):'—';
+    if(find('plan-weekly-reset'))find('plan-weekly-reset').textContent=status.usage.weeklyResetsAt?dateLabel(status.usage.weeklyResetsAt):'—';
+    for(const tier of ['free','plus'])for(const id of ['plan-'+tier+'-weekly-limit','plan-compare-'+tier+'-weekly'])if(find(id))find(id).textContent=Number.isSafeInteger(status.plans?.[tier]?.weeklyLimit)?String(status.plans[tier].weeklyLimit):'—';
     const billing=status.billing||{status:'none'};
     const names={none:'No paid subscription',active:'Active',past_due:'Payment needs attention',canceled:'Canceled',unpaid:'Unpaid',incomplete:'Payment pending',incomplete_expired:'Payment expired',trialing:'Trial',paused:'Paused',refunded:'Refunded',disputed:'Payment disputed'};
     find('plan-subscription').textContent=(names[billing.status]||'Unavailable')+

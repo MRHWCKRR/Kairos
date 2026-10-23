@@ -51,3 +51,8 @@ test('browser shows a daily reset message rather than short burst-limit guidance
     fetchImpl: async () => Response.json({ code: 'daily-account', resetsAt: '2026-10-11T14:00:00.000Z' }, { status: 429 }) });
   await assert.rejects(request({}), error => /daily/i.test(error.message) && /Brisbane/i.test(error.message) && error.message !== 'rate');
 });
+
+test('weekly exhaustion never calls provider and reaches browser with weekly reset guidance',async()=>{
+ const resetsAt='2026-10-26T00:00:00.000Z';const ctx=fixture({async reserve(){return {allowed:false,reason:'weekly-account',resetsAt,retryAfter:3600};}});const res=await ctx.request();assert.equal(res.statusCode,429);assert.equal(res.body.code,'weekly-account');assert.equal(ctx.sent,0);
+ const request=createAiRequester({getUser:()=>({uid:'u',emailVerified:true,async getIdToken(){return 'id';}}),getAppToken:async()=> 'app',fetchImpl:async()=>Response.json(res.body,{status:429,headers:{'Retry-After':'3600'}})});await assert.rejects(request({}),error=>error.reason==='weekly-account'&&error.resetsAt===resetsAt&&/weekly/.test(error.message));
+});

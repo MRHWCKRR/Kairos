@@ -1,7 +1,7 @@
 import { auth, appCheckReady } from './firebase.js';
 import { getToken } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app-check.js';
-import { createAiRequester } from './ai-request.js';
-export { aiErrorMessage, aiConversationMessages } from './ai-request.js';
+import { createAiRequester } from './ai-request.js?v=2';
+export { aiErrorMessage, aiConversationMessages } from './ai-request.js?v=2';
 
 export const aiFetch = createAiRequester({
   onUsage: detail => window.dispatchEvent(new CustomEvent('kairos-ai-usage',{detail})),

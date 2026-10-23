@@ -144,3 +144,8 @@ test('successful AI usage during a slow status schedules a follow-up refresh',as
   assert.equal(calls,2);assert.equal(f.find('plan-used').textContent,'8');assert.equal(f.find('ai-plan-notice').hidden,false);f.module.destroy();
 });
 
+
+test('weekly allowance and remaining usage render and clear on sign out',async()=>{
+ const status=state();status.access.weeklyLimit=50;status.usage.weeklyUsed=42;status.usage.weeklyRemaining=8;status.usage.weeklyResetsAt='2026-10-26T00:00:00Z';status.plans={free:{dailyLimit:15,weeklyLimit:50},plus:{dailyLimit:50,weeklyLimit:350}};
+ const f=setup(async()=>status);await f.module.refresh();assert.equal(f.find('plan-weekly-used')?.textContent,'42');assert.equal(f.find('plan-weekly-allowance')?.textContent,'50');assert.equal(f.find('plan-free-weekly-limit')?.textContent,'50');assert.equal(f.find('plan-plus-weekly-limit')?.textContent,'350');f.auth.currentUser=null;await f.module.refresh();assert.equal(f.find('plan-weekly-used').textContent,'—');f.module.destroy();
+});

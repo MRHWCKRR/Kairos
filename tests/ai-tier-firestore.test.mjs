@@ -41,3 +41,7 @@ test('malformed entitlement storage prevents any admission or counter reset',asy
   await assert.rejects(()=>f.db.reserveAiUsage('a'));
   assert.ok(![...f.docs.keys()].some(path=>path.includes('/kairosAiUsage/')));
 });
+
+test('parallel requests cannot exceed the last weekly allowance',async()=>{
+ const f=await setup();f.env.AI_FREE_WEEKLY_LIMIT='1';const results=await Promise.all([f.db.reserveAiUsage('a'),f.db.reserveAiUsage('a')]);assert.equal(results.filter(r=>r.allowed).length,1);assert.equal(results.find(r=>!r.allowed).reason,'weekly-account');const usage=await f.db.readAiUsage('a');assert.equal(usage.weeklyUsed,1);assert.equal(usage.weeklyRemaining,0);assert.equal(usage.remaining,0);
+});
