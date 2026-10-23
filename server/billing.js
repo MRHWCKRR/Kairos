@@ -4,8 +4,21 @@ import { codeDigest,generateAccessCode,redeemAccessCode } from './access-codes.j
 import { readBoundedText } from './http-body.js';
 import { prepareBillingDeletion } from './billing-account-deletion.js';
 function response(body,status=200) {return Response.json(body,{status,headers:{'Cache-Control':'no-store',...(status===429?{'Retry-After':'60'}:{})}});}
-export function createBillingHandlers({env,store,stripe,adminAuth,appCheck,rateLimiter,clock=Date.now,usage=uid=>store.readUsage(uid)}) {
+export function createBillingHandlers({env,store,stripe,adminAuth,appCheck,rateLimiter,clock=Date.now,usage=uid=>store.readUsage(uid),reportDiagnostic=entry=>console.warn(JSON.stringify(entry))}) {
+
   const catalog=planCatalog(env);
+  async function dependency(stage,operation) {
+    try {return await operation();}
+    catch(error) {
+      const type=['StripePermissionError','StripeAuthenticationError','StripeInvalidRequestError','StripeConnectionError','StripeAPIError'].includes(error.type)?error.type:null;
+      const providerStatus=error.statusCode||error.status;
+      const code=['resource_missing','api_key_expired','permission_denied','PERMISSION_DENIED','UNAUTHENTICATED','NOT_FOUND','UNAVAILABLE'].includes(error.code)?error.code:null;
+      reportDiagnostic({event:'kairos_billing_dependency_failed',stage,type,code,status:Number.isInteger(providerStatus)?providerStatus:null});
+      const message=stage==='offers'?'Plan pricing is temporarily unavailable. Try again.':'We couldn’t load your plan. Try again.';
+      throw Object.assign(Error(message),{status:503});
+    }
+  }
+
   async function authenticate(request,{verified=true,recent=false}={}) {
     const token=/^Bearer ([^\s]+)$/i.exec(request.headers.get('Authorization')||'')?.[1];
     if(!token) throw Object.assign(Error('Sign in to manage your plan.'),{status:401});
@@ -42,10 +55,12 @@ export function createBillingHandlers({env,store,stripe,adminAuth,appCheck,rateL
   function codesEnabled() {return flag(env.ACCESS_CODES_ENABLED)&&Boolean(env.REDEMPTION_HASH_SECRET);}
   const handlers={
     status:route('status','GET',[],async uid=>{
-      const account=await store.readAccount(uid);
+      const account=await dependency('account',()=>store.readAccount(uid));
       if(account.deleting)throw Error('Account deleting');
       const access=resolveAccess({catalog,billing:account.billing,grants:account.grants,now:clock()});
-      return {access,usage:await usage(uid,access),billing:account.billing||{status:'none',paidThrough:null,cancelAtPeriodEnd:false},offers:await stripe.offers(),codesEnabled:codesEnabled(),trial:!catalog.enforced,plans:{free:catalog.free,plus:catalog.plus},billingMode:env.STRIPE_MODE==='live'?'live':'test'};
+      const currentUsage=await dependency('usage',()=>usage(uid,access));
+      const offers=await dependency('offers',()=>stripe.offers());
+      return {access,usage:currentUsage,billing:account.billing||{status:'none',paidThrough:null,cancelAtPeriodEnd:false},offers,codesEnabled:codesEnabled(),trial:!catalog.enforced,plans:{free:catalog.free,plus:catalog.plus},billingMode:env.STRIPE_MODE==='live'?'live':'test'};
     }),
     checkout:route('checkout','POST',['planId','requestId','interval'],async(uid,body)=>{
       if((body.interval!==undefined && !['month','year'].includes(body.interval)) || body.planId!=='plus' || typeof body.requestId!=='string' || !/^[a-zA-Z0-9_-]{1,80}$/.test(body.requestId)) throw Object.assign(Error('Invalid plan request.'),{status:400});

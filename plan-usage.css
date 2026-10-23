@@ -138,3 +138,7 @@ body.standalone-plans #plans-page { min-height: 100vh; }
 @media (max-width:800px) {
   .plans-interval { margin-left:0; }
 }
+
+.plan-feedback { display:flex; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:20px; }
+#plans-page .plan-feedback .plans-message { flex:1; margin:0; padding:8px 0; }
+.plan-feedback .plans-refresh { flex-shrink:0; }

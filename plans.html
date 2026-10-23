@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Plans | Kairos</title>
     <link rel="stylesheet" href="app.css?v=15">
-    <link rel="stylesheet" href="plan-usage.css?v=6">
+    <link rel="stylesheet" href="plan-usage.css?v=7">
     <link rel="icon" type="image/png" sizes="32x32" href="images/favicon-32.png">
     <link rel="apple-touch-icon" sizes="180x180" href="images/favicon-180.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -76,6 +76,10 @@
 
                     </header>
 
+                    <div id="plan-feedback" class="plan-feedback">
+                    <p id="plan-message" class="plans-message" role="status" aria-live="polite">Loading your plan…</p>
+                        <button id="plan-retry-btn" class="plans-refresh" type="button" hidden>Try again</button>
+                    </div>
                     <div class="plans-interval" role="group" aria-label="Billing period">
                         <button id="plan-interval-month" type="button" aria-pressed="true">Monthly</button>
                         <button id="plan-interval-year" type="button" aria-pressed="false">Yearly</button>
@@ -124,7 +128,7 @@
                             <tr><th scope="row">AI requests per day</th><td id="plan-compare-free">—</td><td id="plan-compare-plus">—</td></tr>
                         </tbody></table>
                     </section>
-                    <p id="plan-message" class="plans-message" role="status" aria-live="polite">Loading your plan…</p>
+
 
                     <section class="plans-account" aria-labelledby="plan-account-title">
                         <div class="plans-section-heading"><h2 id="plan-account-title">Your plan &amp; usage</h2><button id="plan-refresh-btn" class="plans-refresh" type="button">Refresh usage</button></div>
@@ -166,7 +170,7 @@
         <div class="plan-welcome-benefits"><strong>More space to think</strong><p id="plan-welcome-benefit"></p><strong>Your workspace, carried forward</strong><p>Your tasks, routines and conversations are right where you left them.</p></div>
         <div class="plan-welcome-actions"><button id="plan-welcome-start" class="action-btn" type="button" autofocus>Let’s plan something</button><button id="plan-welcome-plan" class="action-btn ghost-btn" type="button">View my plan</button></div>
     </dialog>
-<script type="module" src="plans-bootstrap.js?v=2"></script>
+<script type="module" src="plans-bootstrap.js?v=3"></script>
 <script type="module" src="ui-bootstrap.js?v=2"></script>
 </body>
 </html>
