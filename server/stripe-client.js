@@ -3,19 +3,20 @@ import { createHmac } from 'node:crypto';
 import { flag } from './plans.js';
 export const STRIPE_API_VERSION='2026-09-30.endive';
 function objectId(value) { return typeof value==='string'?value:value?.id; }
+export function stripeSigningSecret(env) {return env.STRIPE_MODE==='live'?env.STRIPE_LIVE_WEBHOOK_SECRET:env.STRIPE_WEBHOOK_SECRET;}
 export function createStripeClient(env,{store,fetchImpl=fetch,clock=Date.now}={}) {
   const mode=env.STRIPE_MODE||'test';
   if(!['test','live'].includes(mode)) throw Error('Invalid Stripe mode');
-  const key=env.STRIPE_SECRET_KEY;
+  const key=mode==='live'?env.STRIPE_LIVE_SECRET_KEY:env.STRIPE_SECRET_KEY;
   if(key && !new RegExp('^[sr]k_'+mode+'_').test(key)) throw Error('Stripe key mode mismatch');
   const origin=env.BILLING_ORIGIN;
   if(origin && !['https://kairos-web-preview.kirosapp.workers.dev','https://kairos-web.kirosapp.workers.dev','http://localhost:8787'].includes(origin)) throw Error('Invalid billing origin');
   const sdk=key?new Stripe(key,{apiVersion:STRIPE_API_VERSION,httpClient:Stripe.createFetchHttpClient(fetchImpl),timeout:10000,maxNetworkRetries:0}):null;
-  const configured=Boolean(flag(env.BILLING_ENABLED)&&sdk&&(env.STRIPE_PLUS_PRICE_ID||env.STRIPE_PLUS_YEARLY_PRICE_ID)&&origin);
+  const priceIds=mode==='live'?{month:env.STRIPE_LIVE_PLUS_PRICE_ID,year:env.STRIPE_LIVE_PLUS_YEARLY_PRICE_ID}:{month:env.STRIPE_PLUS_PRICE_ID,year:env.STRIPE_PLUS_YEARLY_PRICE_ID};
+  const configured=Boolean(flag(env.BILLING_ENABLED)&&sdk&&(priceIds.month||priceIds.year)&&origin);
   function requireSdk() { if(!sdk) throw Error('Stripe unavailable');return sdk; }
   const idempotency=(uid,action)=>createHmac('sha256',env.ANALYTICS_HASH_SECRET).update((env.AI_BUDGET_SCOPE||'production')+'\0'+mode+'\0'+uid+'\0'+action).digest('hex');
   function checkMode(resource) { if(resource.livemode!==undefined && resource.livemode!==(mode==='live')) throw Error('Stripe resource mode mismatch'); }
-  const priceIds={month:env.STRIPE_PLUS_PRICE_ID,year:env.STRIPE_PLUS_YEARLY_PRICE_ID};
   const knownPrices=new Set(Object.values(priceIds).filter(Boolean));
   async function verifyPrice(planId,interval='month') {
     if(planId!=='plus' || !Object.hasOwn(priceIds,interval) || !priceIds[interval]) throw Error('Invalid plan');
@@ -196,7 +197,7 @@ export function createStripeClient(env,{store,fetchImpl=fetch,clock=Date.now}={}
       return null;
     },
     async verifyWebhook(raw,signature) {
-      return requireSdk().webhooks.constructEventAsync(raw,signature,env.STRIPE_WEBHOOK_SECRET,300,Stripe.createSubtleCryptoProvider(),clock());
+      return requireSdk().webhooks.constructEventAsync(raw,signature,stripeSigningSecret(env),300,Stripe.createSubtleCryptoProvider(),clock());
     }
   };
 }

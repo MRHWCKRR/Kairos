@@ -5,6 +5,11 @@ import { validateCodeDefinition } from '../server/access-codes.js';
 import { creditBalance } from '../server/ai-budget.js';
 
 export const BILLING_COLLECTIONS=new Set(['kairosBillingAccounts','kairosBillingCustomers','kairosBillingEntitlements','kairosBillingEvents','kairosBillingLocks','kairosCreditAccounts','kairosCreditGrants','kairosAccessCodes','kairosCodeRedemptions']);
+export function billingNamespace(env) {
+  const scope=env.AI_BUDGET_SCOPE||'production',mode=env.STRIPE_MODE||'test';
+  if(!['production','preview'].includes(scope)||!['test','live'].includes(mode))throw Error('Invalid billing namespace');
+  return scope+(mode==='live'?'-live':'');
+}
 export function createBillingStore({env,transport,clock=Date.now}) {
   const scope=env.AI_BUDGET_SCOPE||'production',secret=env.ANALYTICS_HASH_SECRET,catalog=planCatalog(env);
   if (!['preview','production'].includes(scope) || !secret || !transport?.get || !transport?.commit) throw Error('Invalid billing store configuration');
@@ -14,7 +19,7 @@ export function createBillingStore({env,transport,clock=Date.now}) {
   }
   function path(collection,id) {
     if(!BILLING_COLLECTIONS.has(collection) || !/^[a-zA-Z0-9_-]{1,160}$/.test(id)) throw Error('Invalid billing path');
-    return collection+'/'+scope+'-'+id;
+    return collection+'/'+billingNamespace(env)+'-'+id;
   }
   const accountPath=uid=>path('kairosBillingEntitlements',identity(uid));
   const empty=()=>({schema:1,billing:null,grants:[],deleting:false});

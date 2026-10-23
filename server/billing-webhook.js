@@ -1,5 +1,5 @@
 import { readBoundedText } from './http-body.js';
-import { STRIPE_API_VERSION } from './stripe-client.js';
+import { STRIPE_API_VERSION, stripeSigningSecret } from './stripe-client.js';
 const supported=new Set(['checkout.session.completed','checkout.session.async_payment_succeeded','checkout.session.async_payment_failed',
   'customer.subscription.created','customer.subscription.updated','customer.subscription.deleted','customer.subscription.paused','customer.subscription.resumed',
   'invoice.paid','invoice.payment_failed','invoice.payment_action_required','charge.refunded','charge.dispute.created','charge.dispute.closed','charge.dispute.updated',
@@ -7,7 +7,7 @@ const supported=new Set(['checkout.session.completed','checkout.session.async_pa
 function response(body,status=200){return Response.json(body,{status,headers:{'Cache-Control':'no-store'}});}
 export async function handleStripeWebhook(request,{env,stripe,store}) {
   if(request.method!=='POST')return response({error:'Method Not Allowed'},405);
-  if(!env.STRIPE_WEBHOOK_SECRET)return response({error:'Webhook unavailable'},503);
+  if(!stripeSigningSecret(env))return response({error:'Webhook unavailable'},503);
   let event;
   try {
     const raw=await readBoundedText(request,256*1024);
