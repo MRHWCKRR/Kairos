@@ -47,9 +47,9 @@ export function createBillingHandlers({env,store,stripe,adminAuth,appCheck,rateL
       const access=resolveAccess({catalog,billing:account.billing,grants:account.grants,now:clock()});
       return {access,usage:await usage(uid,access),billing:account.billing||{status:'none',paidThrough:null,cancelAtPeriodEnd:false},offers:await stripe.offers(),codesEnabled:codesEnabled(),trial:!catalog.enforced,plans:{free:catalog.free,plus:catalog.plus},billingMode:env.STRIPE_MODE==='live'?'live':'test'};
     }),
-    checkout:route('checkout','POST',['planId','requestId'],async(uid,body)=>{
-      if(body.planId!=='plus' || typeof body.requestId!=='string' || !/^[a-zA-Z0-9_-]{1,80}$/.test(body.requestId)) throw Object.assign(Error('Invalid plan request.'),{status:400});
-      return stripe.createCheckout(uid,body.planId,body.requestId);
+    checkout:route('checkout','POST',['planId','requestId','interval'],async(uid,body)=>{
+      if((body.interval!==undefined && !['month','year'].includes(body.interval)) || body.planId!=='plus' || typeof body.requestId!=='string' || !/^[a-zA-Z0-9_-]{1,80}$/.test(body.requestId)) throw Object.assign(Error('Invalid plan request.'),{status:400});
+      return stripe.createCheckout(uid,body.planId,body.requestId,body.interval||'month');
     }),
     portal:route('portal','POST',[],uid=>stripe.createPortal(uid)),
     deleteAccount:route('delete-account','POST',[],uid=>prepareBillingDeletion(uid,{store,stripe}),{verified:false,recent:true}),

@@ -16,7 +16,9 @@ Account and AI Helper include View plans. Plan comparison uses non-sensitive val
 
 Purchases disabled: Plus coming soon.
 Sandbox enabled: Test checkout, with an explicit no-real-money notice.
-Live enabled: Upgrade to Plus with the verified currency, amount and monthly interval.
+Live enabled: Upgrade to Plus with the verified currency, total charge and selected monthly/yearly interval. Missing intervals are unavailable; the browser cannot supply a Stripe Price or amount.
+
+The standalone Plans page includes a semantic feature comparison, current allowance and subscription attention/renewal details. Checkout and Portal return directly to Plans. Canceled checkout clears only the signed-in account’s local purchase intent. Success polling stops after five retries with a useful pending message and manual refresh; no return URL grants access.
 Unknown/stale offer: no purchase until a successful fresh status check.
 Existing subscription: management remains available rather than another purchase prompt.
 

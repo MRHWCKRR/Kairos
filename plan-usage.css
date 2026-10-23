@@ -118,3 +118,23 @@ body.standalone-plans #plans-page { min-height: 100vh; }
   .plans-section-heading { align-items: flex-start; }
 }
 @media (max-width: 768px) { .settings-plan-link { width: auto; flex-shrink: 0; white-space: nowrap; gap: 16px; } }
+
+
+/* Billing choices share the planner's existing surfaces and contrast tokens. */
+.plans-interval { display:flex; width:fit-content; gap:4px; margin:0 auto 24px; padding:4px; border:1px solid var(--border-subtle); border-radius:8px; background:var(--bg-card); }
+.plans-interval button { min-width:108px; min-height:38px; padding:8px 20px; border:1px solid transparent; border-radius:5px; background:none; color:var(--text-muted); font:inherit; font-size:14px; cursor:pointer; }
+.plans-interval button[aria-pressed="true"] { background:var(--bg-main); color:var(--text-primary); border-color:var(--border-subtle); font-weight:600; }
+#plans-page .plan-price-detail { min-height:22px; margin:-4px 0 12px; color:var(--text-muted); font-size:12px; }
+.plans-comparison { margin:28px 0; }
+#plans-page .plans-comparison h2 { margin:0 0 16px; font-size:16px; font-weight:600; }
+.plans-comparison table { width:100%; table-layout:fixed; border-collapse:collapse; font-size:13px; line-height:1.5; }
+.plans-comparison th, .plans-comparison td { padding:14px 12px; border-bottom:1px solid var(--border-subtle); text-align:left; overflow-wrap:anywhere; }
+.plans-comparison th:first-child { width:52%; padding-left:0; }
+.plans-comparison thead th { color:var(--text-muted); font-weight:500; }
+.plans-comparison tbody th { font-weight:500; }
+.plans-comparison td { color:var(--text-muted); }
+#plans-page .plan-billing-notice { margin-top:12px; max-width:720px; color:var(--text-muted); font-size:13px; line-height:1.65; }
+#plans-page .plans-message:empty { display:none; }
+@media (max-width:800px) {
+  .plans-interval { margin-left:0; }
+}

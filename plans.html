@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Plans | Kairos</title>
-    <link rel="stylesheet" href="app.css?v=10">
-    <link rel="stylesheet" href="plan-usage.css?v=5">
+    <link rel="stylesheet" href="app.css?v=15">
+    <link rel="stylesheet" href="plan-usage.css?v=6">
     <link rel="icon" type="image/png" sizes="32x32" href="images/favicon-32.png">
     <link rel="apple-touch-icon" sizes="180x180" href="images/favicon-180.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -71,14 +71,20 @@
                 <div class="plans-page-inner">
                     <header class="plans-page-header">
                         <button id="plan-back-btn" class="plans-back" type="button">← Back to Kairos</button>
-                        <h1 id="plan-comparison-title" tabindex="-1">Choose your plan</h1>
+                        <h1 id="plan-comparison-title" tabindex="-1">Plans that fit your day</h1>
+                        <p>Your planning tools, with more AI help when you need it.</p>
 
                     </header>
 
+                    <div class="plans-interval" role="group" aria-label="Billing period">
+                        <button id="plan-interval-month" type="button" aria-pressed="true">Monthly</button>
+                        <button id="plan-interval-year" type="button" aria-pressed="false">Yearly</button>
+                    </div>
                     <div class="plans-choices" aria-label="Available plans">
                         <article id="plan-free-card" class="plan-choice" aria-labelledby="plan-free-title">
                             <div class="plan-choice-heading"><h2 id="plan-free-title">Free</h2><span id="plan-free-current" class="plan-current-label" hidden>Current plan</span></div>
                             <p class="plan-choice-price">$0 <span>/ month</span></p>
+                            <p class="plan-price-detail" aria-hidden="true"></p>
                             <p class="plan-choice-description">For everyday tasks and planning.</p>
                             <button id="plan-free-cta" class="plan-current-choice" type="button" disabled>Checking your plan…</button>
                             <ul class="plan-feature-list">
@@ -91,7 +97,8 @@
                         <article id="plan-plus-card" class="plan-choice" aria-labelledby="plan-plus-title">
                             <div class="plan-choice-heading"><h2 id="plan-plus-title">Kairos Plus</h2><span id="plan-plus-current" class="plan-current-label" hidden>Current plan</span></div>
                             <p class="plan-choice-price"><span id="plan-plus-price">Checking availability…</span><span id="plan-plus-period"></span></p>
-                            <p class="plan-choice-description">For weeks when you need more AI help.</p>
+                            <p id="plan-price-detail" class="plan-price-detail"></p>
+                            <p class="plan-choice-description">More AI requests for busy days.</p>
                             <div class="plan-choice-action">
                                 <button id="plan-upgrade-btn" class="action-btn" type="button" hidden>Upgrade to Plus</button>
                                 <button id="plan-manage-btn" class="action-btn" type="button" hidden>Manage subscription</button>
@@ -100,17 +107,29 @@
                             <ul class="plan-feature-list">
                                 <li>Everything included in Free</li>
                                 <li><strong id="plan-plus-limit">—</strong> <span data-plan-limit-period>AI requests a day</span></li>
-                                <li>More AI help with your plans</li>
+                                <li>The same planner, with a larger daily allowance</li>
                             </ul>
                         </article>
                     </div>
                     <p id="plan-offer-status" class="plan-offer-status">Check your plan to see availability.</p>
                     <p id="plan-comparison-note" hidden></p>
+                    <section class="plans-comparison" aria-labelledby="plan-features-title">
+                        <h2 id="plan-features-title">Compare what’s included</h2>
+                        <table><thead><tr><th scope="col">Feature</th><th scope="col">Free</th><th scope="col">Plus</th></tr></thead>
+                        <tbody>
+                            <tr><th scope="row">Tasks, boards &amp; checklists</th><td>Included</td><td>Included</td></tr>
+                            <tr><th scope="row">Schedule &amp; recurring tasks</th><td>Included</td><td>Included</td></tr>
+                            <tr><th scope="row">Daily insights &amp; focus tools</th><td>Included</td><td>Included</td></tr>
+                            <tr><th scope="row">Saved AI conversations</th><td>Included</td><td>Included</td></tr>
+                            <tr><th scope="row">AI requests per day</th><td id="plan-compare-free">—</td><td id="plan-compare-plus">—</td></tr>
+                        </tbody></table>
+                    </section>
                     <p id="plan-message" class="plans-message" role="status" aria-live="polite">Loading your plan…</p>
 
                     <section class="plans-account" aria-labelledby="plan-account-title">
                         <div class="plans-section-heading"><h2 id="plan-account-title">Your plan &amp; usage</h2><button id="plan-refresh-btn" class="plans-refresh" type="button">Refresh usage</button></div>
                         <p class="plan-account-summary"><strong id="plan-tier">—</strong> · <span id="plan-daily-remaining">—</span> AI requests remaining today</p>
+                        <p id="plan-billing-notice" class="plan-billing-notice" role="status"></p>
                         <p id="plan-trial-note" hidden></p>
                         <details class="plans-usage-detail"><summary>Usage and access details</summary>
                             <dl class="plan-usage-details">
@@ -140,14 +159,14 @@
 </main>
     <dialog id="plan-welcome" class="plan-welcome" aria-labelledby="plan-welcome-title" aria-describedby="plan-welcome-copy">
         <button id="plan-welcome-close" class="plan-welcome-close" type="button" aria-label="Close welcome">×</button>
-        <div class="plan-welcome-mark" aria-hidden="true">✦<span>✧</span><span>✧</span></div>
-        <p class="plan-welcome-eyebrow">A little more room for what matters</p>
+
+        <p class="plan-welcome-eyebrow">Payment confirmed</p>
         <h2 id="plan-welcome-title">Welcome to Kairos Plus</h2>
         <p id="plan-welcome-copy">Thanks for making Kairos part of your day. Your upgrade is ready — let’s turn your next idea into a plan.</p>
         <div class="plan-welcome-benefits"><strong>More space to think</strong><p id="plan-welcome-benefit"></p><strong>Your workspace, carried forward</strong><p>Your tasks, routines and conversations are right where you left them.</p></div>
         <div class="plan-welcome-actions"><button id="plan-welcome-start" class="action-btn" type="button" autofocus>Let’s plan something</button><button id="plan-welcome-plan" class="action-btn ghost-btn" type="button">View my plan</button></div>
     </dialog>
-<script type="module" src="plans-bootstrap.js?v=1"></script>
+<script type="module" src="plans-bootstrap.js?v=2"></script>
 <script type="module" src="ui-bootstrap.js?v=2"></script>
 </body>
 </html>

@@ -25,7 +25,18 @@ export function mountPlanUsage({root,auth,request,onStatus=()=>{},navigate=url=>
   try {storage ??= doc.defaultView.sessionStorage;}catch{}
   const pendingKey='kairos_upgrade_pending';
   let pending=null,pollTimer=null,pollCount=0;
-  const returned=new URL(returnUrl||doc.defaultView.location?.href||'https://kairos.invalid').searchParams.get('billing')==='return';
+  const returnState=new URL(returnUrl||doc.defaultView.location?.href||'https://kairos.invalid').searchParams.get('billing');
+  const returned=returnState==='return';
+  let interval='month',returnNotice=true;
+  const selectedOffer=status=>status?.offers?.find(offer=>offer.planId==='plus'&&(offer.interval||'month')===interval);
+  const money=offer=>new Intl.NumberFormat('en-AU',{style:'currency',currency:offer.currency.toUpperCase()}).format(offer.amount/(zeroDecimalCharges.has(offer.currency)?1:100));
+  function messageForReturn(){
+    if(returnNotice&&returnState==='canceled')return 'Checkout canceled. Your current plan is shown below. You can choose a billing period when you’re ready.';
+    if(pending?.uid===boundUid)return pollCount>=5?'We’re still confirming your payment. This is taking longer than usual. Refresh your plan shortly; you don’t need to pay again.':'Confirming your upgrade… Your plan will update once payment is verified. You can refresh here at any time.';
+    if(returnNotice&&returnState==='portal')return 'Your subscription details are up to date.';
+    if(returnNotice&&returned)return 'Your plan is up to date. Payment confirmation appears here once it is verified.';
+    return 'Usage is up to date.';
+  }
   try {const saved=JSON.parse(storage?.getItem(pendingKey)||'null');if(returned&&saved?.uid&&Number.isFinite(saved.startedAt)&&Date.now()-saved.startedAt<86400000&&saved.startedAt<=Date.now())pending=saved;}catch{}
   function closeWelcome(){if(welcome?.hasAttribute('open')){if(welcome.close)welcome.close();else welcome.removeAttribute('open');}}
   function openPlan(){void Promise.resolve(onOpenPlans?.()).then(()=>find('plan-comparison-title')?.focus());}
@@ -73,21 +84,24 @@ export function mountPlanUsage({root,auth,request,onStatus=()=>{},navigate=url=>
     if(pollCount<5&&!pollTimer){pollCount++;pollTimer=setTimeout(()=>{pollTimer=null;if(!destroyed&&auth.currentUser?.uid===uid)void refresh();},2000);pollTimer.unref?.();}
     return false;
   }
-  const controls=['plan-refresh-btn','plan-upgrade-btn','plan-manage-btn','plan-code-btn','plan-code-input'];
+  const controls=['plan-refresh-btn','plan-upgrade-btn','plan-manage-btn','plan-code-btn','plan-code-input','plan-interval-month','plan-interval-year'];
   function setBusy(value) {
     busy=value;
-    for(const id of controls)find(id).disabled=value;
+    for(const id of controls)if(find(id))find(id).disabled=value;
     if(!value) {
       const enabled=current?.codesEnabled===true;
       find('plan-code-btn').disabled=!enabled;find('plan-code-input').disabled=!enabled;
-      find('plan-upgrade-btn').disabled=stale;
+      find('plan-upgrade-btn').disabled=stale||!selectedOffer(current);
       find('plan-refresh-btn').disabled=retryAt>Date.now();
       if(usageDirty)scheduleUsage();
     }
   }
   function clear() {
-    current=null;boundUid=null;stale=true;retryAt=0;showNear=false;usageDirty=false;hideNear();clearTimeout(usageTimer);usageTimer=null;clearTimeout(retryTimer);retryTimer=null;renderLimitActions();
+    current=null;boundUid=null;interval='month';stale=true;retryAt=0;showNear=false;usageDirty=false;hideNear();clearTimeout(usageTimer);usageTimer=null;clearTimeout(retryTimer);retryTimer=null;renderLimitActions();
     if(accountPlan)accountPlan.textContent='—';closeWelcome();clearTimeout(pollTimer);pollTimer=null;
+    for(const id of ['plan-compare-free','plan-compare-plus'])if(find(id))find(id).textContent='—';
+    for(const id of ['plan-price-detail','plan-billing-notice'])if(find(id))find(id).textContent='';
+    renderInterval();
     for(const id of ['plan-tier','plan-daily-remaining','plan-used','plan-allowance','plan-bonus','plan-reset','plan-subscription','plan-access-until'])find(id).textContent='—';
     find('plan-upgrade-btn').hidden=true;find('plan-manage-btn').hidden=true;
     for(const tier of ['free','plus']) {
@@ -103,10 +117,10 @@ export function mountPlanUsage({root,auth,request,onStatus=()=>{},navigate=url=>
     if(find('plan-comparison-note'))find('plan-comparison-note').textContent='Current allowances and pricing appear after your plan loads.';
     setBusy(false);
   }
-  function render(status) {
+  function render(status,{preserveStale=false}={}) {
     if(!status || !['free','plus'].includes(status.access?.tier) || !Number.isInteger(status.access.dailyLimit) ||
         !status.usage || ['used','remaining','bonusCredits'].some(key=>!Number.isSafeInteger(status.usage[key]) || status.usage[key]<0)) throw Error('Plan service returned an invalid status.');
-    current=status;stale=false;retryAt=0;
+    current=status;if(!preserveStale){stale=false;retryAt=0;}
     find('plan-tier').textContent=status.access.tier==='plus'?'Plus':'Free';
     if(accountPlan)accountPlan.textContent=status.access.tier==='plus'?'Kairos Plus':'Free';
     find('plan-daily-remaining').textContent=String(status.usage.remaining);
@@ -120,14 +134,27 @@ export function mountPlanUsage({root,auth,request,onStatus=()=>{},navigate=url=>
     find('plan-subscription').textContent=(names[billing.status]||'Unavailable')+
       (billing.paidThrough?'; '+(billing.cancelAtPeriodEnd?'ends ':'paid through ')+dateLabel(billing.paidThrough):'');
     find('plan-trial-note').hidden=true;
-    const offer=status.offers?.find(offer=>offer.planId==='plus');
+    const offer=selectedOffer(status);
+    for(const item of status.offers||[])if(item.planId==='plus'&&(!Number.isSafeInteger(item.amount)||item.amount<1||!/^[a-z]{3}$/.test(item.currency||'')||!['month','year'].includes(item.interval||'month')))throw Error('Invalid plan price');
+    renderInterval();
     find('plan-upgrade-btn').hidden=!offer || ['active','past_due','trialing','incomplete','paused','unpaid'].includes(billing.status);
     if(offer) {
       if(!Number.isSafeInteger(offer.amount) || !/^[a-z]{3}$/.test(offer.currency))throw Error('Invalid plan price');
-      find('plan-upgrade-btn').textContent=(status.billingMode==='test'?'Test checkout — ':'Upgrade to Plus — ')+new Intl.NumberFormat('en-AU',{style:'currency',currency:offer.currency.toUpperCase()}).format(offer.amount/(zeroDecimalCharges.has(offer.currency)?1:100))+'/month';
+      find('plan-upgrade-btn').textContent=(status.billingMode==='test'?'Test checkout — ':'Upgrade to Plus — ')+money(offer)+'/'+interval;
     }
     for(const tier of ['free','plus']){const limit=status.trial===true?status.access.dailyLimit:status.plans?.[tier]?.dailyLimit;if(find('plan-'+tier+'-limit'))find('plan-'+tier+'-limit').textContent=Number.isInteger(limit)&&limit>0?String(limit):'—';}
-    if(find('plan-offer-status'))find('plan-offer-status').textContent=offer?(status.billingMode==='test'?'Sandbox checkout: use test payment details. No real money moves.':'Monthly subscription. Manage renewal and cancellation in your billing portal.'):'Plus coming soon. Purchases are not available here yet.';
+    if(find('plan-offer-status'))find('plan-offer-status').textContent=offer?(status.billingMode==='test'?'Test checkout: use test payment details. No real money moves.':(interval==='year'?'Yearly':'Monthly')+' subscription. Manage renewal and cancellation in your billing portal.'):
+      status.offers?.length?(interval==='year'?'Yearly':'Monthly')+' billing is currently unavailable. Choose another billing period.':'Plus coming soon. Purchases are not available here yet.';
+    for(const tier of ['free','plus'])if(find('plan-compare-'+tier))find('plan-compare-'+tier).textContent=find('plan-'+tier+'-limit')?.textContent||'—';
+    const detail=find('plan-price-detail');
+    if(detail)detail.textContent=offer?offer.currency.toUpperCase()+' · '+money(offer)+' billed '+(interval==='year'?'yearly':'monthly')+'.':'';
+    const notice=find('plan-billing-notice');
+    if(notice)notice.textContent=billing.cancelAtPeriodEnd&&billing.paidThrough>Date.now()?'Your subscription will end on '+dateLabel(billing.paidThrough)+'. You can manage renewal in the billing portal.':
+      billing.paymentRisk?'A payment needs attention. Review your subscription in the billing portal.':
+      ['past_due','unpaid','incomplete','incomplete_expired'].includes(billing.status)?'Your payment needs attention. Open Manage subscription to review your payment details.':
+      billing.status==='active'&&billing.paidThrough>Date.now()?'Your '+(billing.interval==='year'?'yearly':billing.interval==='month'?'monthly':'paid')+' subscription renews after '+dateLabel(billing.paidThrough)+'.':
+      status.access.tier==='plus'&&status.access.accessUntil?'Your Plus access lasts until '+dateLabel(status.access.accessUntil)+'.':
+      status.trial===true?'Your current daily allowance is '+status.access.dailyLimit+' AI requests.':'You’re on Free. Your tasks and conversations stay with you if you change plans.';
     if(find('plan-comparison-note'))find('plan-comparison-note').textContent='';
     const accountLink=doc.getElementById('settings-account-manage-plan');
     if(accountLink)accountLink.textContent=status.access.tier==='plus'?'Manage plan':'View plans';
@@ -142,15 +169,15 @@ export function mountPlanUsage({root,auth,request,onStatus=()=>{},navigate=url=>
     find('plan-free-cta').textContent=status.access.tier==='free'?'Your current plan':'Free plan';
     const price=find('plan-plus-price'),period=find('plan-plus-period');
     if(offer) {
-      price.textContent=new Intl.NumberFormat('en-AU',{style:'currency',currency:offer.currency.toUpperCase()}).format(offer.amount/(zeroDecimalCharges.has(offer.currency)?1:100));
-      period.textContent=' / month';
+      price.textContent=money(offer);
+      period.textContent=' / '+interval;
     } else {
-      price.textContent=status.access.tier==='plus'?'Current plan':'Coming soon';
+      price.textContent=status.access.tier==='plus'?'Current plan':status.offers?.length?'Unavailable':'Coming soon';
       period.textContent='';
     }
     const unavailable=find('plan-plus-unavailable');
     unavailable.hidden=!find('plan-upgrade-btn').hidden || !find('plan-manage-btn').hidden;
-    unavailable.textContent=status.access.tier==='plus'?'Your current plan':'Coming soon';
+    unavailable.textContent=status.access.tier==='plus'?'Your current plan':status.offers?.length?'Billing period unavailable':'Coming soon';
     for(const label of root.querySelectorAll('[data-plan-limit-period]'))label.textContent='AI requests a day';
     find('plan-code-hint').textContent=!status.codesEnabled?'Code redemption will be available soon.':
       ['active','past_due','trialing','paused'].includes(billing.status)?
@@ -166,7 +193,9 @@ export function mountPlanUsage({root,auth,request,onStatus=()=>{},navigate=url=>
     const ticket=++generation;
     if(!uid){clear();message.textContent='Please sign in to manage your plan.';onStatus(null);return;}
     if(boundUid && boundUid!==uid)clear();
-    boundUid=uid;setBusy(true);
+    boundUid=uid;
+    if(returnState==='canceled'&&returnNotice){try{const saved=JSON.parse(storage?.getItem(pendingKey)||'null');if(saved?.uid===uid)storage?.removeItem(pendingKey);}catch{}pending=null;}
+    setBusy(true);
     if(!preserveMessage)message.textContent='Loading your plan…';
     try {
       const status=await request('status',null,{fresh:fresh||pending?.uid===uid});
@@ -174,7 +203,7 @@ export function mountPlanUsage({root,auth,request,onStatus=()=>{},navigate=url=>
       if(auth.currentUser?.uid!==uid){clear();onStatus(null);return;}
       boundUid=uid;lastRefresh=Date.now();render(status);
       const welcomed=confirmUpgrade(status,uid);
-      if(!preserveMessage)message.textContent=welcomed?'Your Kairos Plus upgrade is ready.':pending?.uid===uid?'Confirming your upgrade… Your plan will update once payment is verified. You can refresh here at any time.':'Usage is up to date.';
+      if(!preserveMessage)message.textContent=welcomed?'Your Kairos Plus upgrade is ready.':messageForReturn();
     } catch(error) {
       if(destroyed || ticket!==generation || auth.currentUser?.uid!==uid)return;
       stale=true;retryAt=error.retryAt||0;hideNear();renderLimitActions();
@@ -188,13 +217,13 @@ export function mountPlanUsage({root,auth,request,onStatus=()=>{},navigate=url=>
   }
   async function action(route,body) {
     if(busy || destroyed || !auth.currentUser?.uid || boundUid!==auth.currentUser.uid)return;
-    const uid=auth.currentUser.uid;setBusy(true);message.textContent=route==='redeem'?'Checking your code…':'Opening subscription management…';
+    const uid=auth.currentUser.uid;returnNotice=false;setBusy(true);message.textContent=route==='redeem'?'Checking your code…':route==='checkout'?'Opening secure checkout…':'Opening subscription management…';
     try {
       if(route==='checkout'){
         const status=await request('status',null,{fresh:true});
         if(destroyed||auth.currentUser?.uid!==uid)return;
         render(status);
-        if(!status.offers?.some(offer=>offer.planId==='plus'))throw Error('Plus purchases are not available here yet.');
+        if(!selectedOffer(status))throw Error('This billing period is unavailable. Refresh your plan and choose another period.');
       }
       const result=await request(route,body);
       if(destroyed || auth.currentUser?.uid!==uid)return;
@@ -209,14 +238,19 @@ export function mountPlanUsage({root,auth,request,onStatus=()=>{},navigate=url=>
         navigate(url.href);
       }
     }catch(error){if(!destroyed && auth.currentUser?.uid===uid){if(route==='checkout'){stale=true;hideNear();renderLimitActions();}message.textContent=error.message||'Please try again.';}}
-    finally{if(!destroyed)setBusy(false);}
+    finally{if(!destroyed&&auth.currentUser?.uid===uid)setBusy(false);}
   }
   const refreshClick=()=>{if(!busy)void refresh({fresh:true});};
-  let checkoutUid=null,checkoutRequestId=null;
+  function renderInterval(){for(const period of ['month','year'])find('plan-interval-'+period)?.setAttribute('aria-pressed',String(period===interval));}
+  const selectInterval=period=>{if(busy||destroyed)return;interval=period;if(current)render(current,{preserveStale:stale});else renderInterval();};
+  const selectMonth=()=>selectInterval('month'),selectYear=()=>selectInterval('year');
+  find('plan-interval-month')?.addEventListener('click',selectMonth);
+  find('plan-interval-year')?.addEventListener('click',selectYear);
+  let checkoutUid=null,checkoutRequestId=null,checkoutInterval=null;
   const upgradeClick=()=>{
-    if(checkoutUid!==auth.currentUser?.uid){checkoutUid=auth.currentUser?.uid;checkoutRequestId=null;}
+    if(checkoutUid!==auth.currentUser?.uid||checkoutInterval!==interval){checkoutUid=auth.currentUser?.uid;checkoutInterval=interval;checkoutRequestId=null;}
     checkoutRequestId ||= globalThis.crypto.randomUUID();
-    void action('checkout',{planId:'plus',requestId:checkoutRequestId});
+    void action('checkout',{planId:'plus',interval,requestId:checkoutRequestId});
   };
   const manageClick=()=>void action('portal',{});
   const redeem=event=>{event.preventDefault();if(current?.codesEnabled)void action('redeem',{code:find('plan-code-input').value.trim()});};
@@ -249,6 +283,8 @@ export function mountPlanUsage({root,auth,request,onStatus=()=>{},navigate=url=>
     doc.getElementById('plan-welcome-plan')?.removeEventListener('click',viewPlan);
     find('plan-refresh-btn').removeEventListener('click',refreshClick);
     find('plan-upgrade-btn').removeEventListener('click',upgradeClick);
+    find('plan-interval-month')?.removeEventListener('click',selectMonth);
+    find('plan-interval-year')?.removeEventListener('click',selectYear);
     find('plan-manage-btn').removeEventListener('click',manageClick);
     find('plan-code-form').removeEventListener('submit',redeem);
   }};
