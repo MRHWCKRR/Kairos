@@ -24,3 +24,15 @@ test('onboarding light mode is previewed and saved with the rest of setup',async
  document.getElementById('ko-next').click();document.getElementById('ko-guide-skip').click();await flush();
  assert.equal(writes[0].settings.appearance.mode,'light');assert.equal(writes[0].settings.profile.displayName,'User');assert.equal(writes[0].onboardingCompleted,true);
 });
+test('keyboard Tab can reach the guide from a modal form and return to the form',async()=>{
+ const {document,window}=parseHTML('<html><body></body></html>');let active;
+ Object.defineProperty(document,'activeElement',{get:()=>active});
+ window.HTMLElement.prototype.focus=function(){active=this;};
+ const guide=mountGettingStarted({document,window,getOwner:()=> 'one',save:async()=>{},navigate:async()=>true});
+ guide.hydrate({onboardingCompleted:true,gettingStarted:{version:2,status:'active',step:0}});
+ const dialog=document.createElement('dialog');dialog.setAttribute('open','');dialog.innerHTML='<input id="name"><button id="save">Save</button>';document.body.appendChild(dialog);await flush();
+ const key=(element,shift=false)=>{const event=new window.Event('keydown',{bubbles:true,cancelable:true});event.key='Tab';event.shiftKey=shift;element.dispatchEvent(event);};
+ const save=document.getElementById('save');save.focus();key(save);assert.ok(active.closest('.getting-started'),'Tab reaches the guide');
+ key(active,true);assert.equal(active.id,'save');
+ const last=document.querySelector('.getting-started [data-guide="next"]');last.focus();key(last);assert.equal(active.id,'name');guide.dispose();
+});

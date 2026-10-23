@@ -68,7 +68,7 @@ export function mountGettingStarted({document=globalThis.document,window=globalT
   const heading=root.querySelector('h2');if(heading)heading.textContent=step.title;
   const copy=root.querySelector('.gs-copy');if(copy)copy.textContent=last?`Mod means Ctrl on Windows/Linux or Command on Mac. Use ${describeShortcut('search',getShortcuts())} to search your planner, ${describeShortcut('addTask',getShortcuts())} to add a task in Routines & Tasks, and ${describeShortcut('showTaskShortcuts',getShortcuts())} for its shortcut guide. Save task details with ${describeShortcut('saveTaskDetails',getShortcuts())}. AI Helper also accepts commands such as “Create a task for tomorrow”; review changes before applying them. Change your keybinds in Settings → Accessibility.`:step.text;
   const status=root.querySelector('.gs-status');if(status)status.textContent=message;
-  root.addEventListener('click',click);root.addEventListener('keydown',event=>{keydown(event);event.stopPropagation()});document.body.appendChild(root);syncLayer();
+  root.addEventListener('click',click);root.addEventListener('keydown',event=>{modalTab(event);keydown(event);event.stopPropagation()});document.body.appendChild(root);syncLayer();
  }
  function sync(){const next=getOwner();if(next===owner)return;clearHighlight();owner=next;revision++;busy=false;message='';progressQueue=Promise.resolve();state=owner?(cache.get(owner)||null):null;render()}
  function hydrate(data){
@@ -109,10 +109,17 @@ export function mountGettingStarted({document=globalThis.document,window=globalT
   else{message=typeof result==='string'?result:'This page could not open. Try again, or use the sidebar.';render();root.querySelector('[data-guide="action"]')?.focus()}
  }
  function complete(event){if(event.detail?.ownerId!==getOwner())return;sync();if(event.detail.guide&&!terminal.has(owner)){hydrate({onboardingCompleted:true,gettingStarted:{version:2,status:'active',step:0}});open()}}
+ function modalTab(event){
+  const dialog=root?.parentElement;
+  if(event.defaultPrevented||event.key!=='Tab'||!dialog?.matches('dialog[open]'))return;
+  const controls=[...dialog.querySelectorAll('input:not([type="hidden"]),button,select,textarea,[tabindex="0"]')].filter(control=>!control.disabled&&!control.closest('[hidden],[inert]'));
+  const index=controls.indexOf(document.activeElement);if(index<0||!controls.length)return;
+  event.preventDefault();event.stopPropagation();controls[(index+(event.shiftKey?-1:1)+controls.length)%controls.length].focus();
+ }
  function keydown(event){if(event.key==='Escape'&&state?.expanded&&event.target?.nodeType===1&&root?.contains(event.target)){event.preventDefault();collapse()}}
- opener?.addEventListener('click',open);window.addEventListener('kairos:onboarding-complete',complete);document.addEventListener('keydown',keydown);
+ opener?.addEventListener('click',open);window.addEventListener('kairos:onboarding-complete',complete);document.addEventListener('keydown',keydown);document.addEventListener('keydown',modalTab,true);
  window.addEventListener('resize',positionHighlight);document.addEventListener('scroll',positionHighlight,true);
  const observer=window.MutationObserver?new window.MutationObserver(()=>{syncLayer();positionHighlight()}):null;observer?.observe(document.body,{attributes:true,childList:true,subtree:true,attributeFilter:['class','hidden','inert','open']});
  sync();if(window.__kairosGettingStartedOwner===getOwner()&&getOwner()){window.__kairosGettingStartedOwner=null;complete({detail:{ownerId:getOwner(),guide:true}})}
- return {open,sync,hydrate,dispose(){revision++;clearHighlight();root?.remove();observer?.disconnect();opener?.removeEventListener('click',open);window.removeEventListener('kairos:onboarding-complete',complete);document.removeEventListener('keydown',keydown);window.removeEventListener('resize',positionHighlight);document.removeEventListener('scroll',positionHighlight,true)}};
+ return {open,sync,hydrate,dispose(){revision++;clearHighlight();root?.remove();observer?.disconnect();opener?.removeEventListener('click',open);window.removeEventListener('kairos:onboarding-complete',complete);document.removeEventListener('keydown',keydown);document.removeEventListener('keydown',modalTab,true);window.removeEventListener('resize',positionHighlight);document.removeEventListener('scroll',positionHighlight,true)}};
 }
