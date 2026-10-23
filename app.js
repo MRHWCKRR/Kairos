@@ -12,7 +12,7 @@ import {mountWeeklyAvailabilityEditor} from './weekly-availability-editor.js';
 import { showNotice, confirmDialog, promptDialog } from './ui-dialogs.js?v=1';
 import { aiFetch, aiErrorMessage } from './ai-client.js';
 import { requestBilling } from './billing-client.js';
-import { mountPlanUsage } from './plan-usage.js?v=3';
+import { mountPlanUsage } from './plan-usage.js?v=4';
 import {assignmentProgressIndex,assignmentProgressMarkup} from './assignment-progress.js?v=4';
 import {planningClock} from './planning-model.js?v=1';
 import { createPageLoader } from './page-loader.js?v=67';

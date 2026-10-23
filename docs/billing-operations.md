@@ -19,7 +19,8 @@ Public server variables:
 - AI_TIER_ENFORCEMENT=false preserves the existing trial admission path; true uses trusted plan access and credit spending.
 - AI_FREE_DAILY_LIMIT=10, AI_PLUS_DAILY_LIMIT=100; accepted range 1–5,000.
 - STRIPE_MODE=test for isolated sandbox keys, live only after launch approval.
-- STRIPE_PLUS_PRICE_ID: trusted recurring monthly Price, positive amount, one-month interval. No launch price is invented.
+- STRIPE_PLUS_PRICE_ID: trusted recurring monthly Price, positive amount, one-month interval.
+- STRIPE_PLUS_YEARLY_PRICE_ID: optional trusted recurring yearly Price, positive amount, one-year interval. Both Prices must be fixed licensed prices in the selected Stripe mode. No launch price is invented. A missing interval stays unavailable in the UI.
 - BILLING_ORIGIN: exact trusted production, protected preview or localhost origin.
 - AI_BUDGET_SCOPE: production or preview; never share payment resources across modes/scopes.
 - Existing ANALYTICS_ADMIN_UID is the trusted owner; profile fields cannot confer operator access.
@@ -41,7 +42,7 @@ Conditional commits cover code counters/grants and AI counter/bonus spending. On
 
 Account deletion requires recent Firebase reauthentication and App Check. It first marks deletion, expires every open customer Checkout session, cancels and verifies all renewing Stripe subscriptions, then clears personal customer mappings and access grants. A customer tombstone retains only an opaque account HMAC and deletion flag, without the Firebase UID; signed delayed completion events use it to cancel late subscriptions. Keep that tombstone while delayed delivery or reconciliation can occur; no automated tombstone purge is provided. Failure stops before Firebase identity/data deletion and allows retry. Stripe retains its required payment records. Do not remove cancellation/webhook handling while subscriptions can renew.
 
-Billing mutations inside account leases conditionally commit the current lease ownership alongside the account changes. Expired or superseded operations fail; webhook retry must fetch fresh Stripe state. The 90-second lease bounds successful mutations even if slow external reads continue longer. Checkout parameters and browser retry IDs are stable across retries of the same operation.
+Billing mutations inside account leases conditionally commit the current lease ownership alongside the account changes. Expired or superseded operations fail; webhook retry must fetch fresh Stripe state. The 90-second lease bounds successful mutations even if slow external reads continue longer. Checkout parameters and browser retry IDs are stable across retries of the same operation and billing interval. Open Checkout sessions are recovered directly from Stripe even after a lost mapping write. Switching intervals atomically expires an existing open Checkout before creating another; a concurrent completion stops replacement.
 
 ## Rules evidence
 
@@ -75,7 +76,7 @@ Hosted Checkout supports Stripe promotion-code entry. Create discount coupons/pr
 
 The success URL shows payment confirmation pending until signed billing events verify access. Stripe does not need Firebase login/App Check for its webhook; only the bounded original raw body and valid signing secret are accepted. App/account route protections remain intact.
 
-Reconciliation retrieves current subscriptions, paid invoices and covering payment/refund/dispute state. Period-end cancellation preserves already paid coverage; terminal cancellation ends it. Pending/unpaid billing without paid coverage uses Free. Fully refunded or disputed covering payments invalidate only their invoice coverage; independent clean paid coverage remains. Payment risk is stored separately from subscription lifecycle, so refund/dispute does not hide continuing renewal or the access-code billing warning. A won dispute can restore current paid coverage. Independent access-code grants survive billing risk events. Event IDs and fenced account leases prevent replay/stale snapshot overwrite.
+Reconciliation retrieves current subscriptions, paid invoices from the last 400 days and covering payment/refund/dispute state. Both configured monthly and yearly Prices grant the same Plus tier. Retain old Price configuration while it has paid subscribers; removing a configured Price removes it from recognized coverage. Period-end cancellation preserves already paid coverage; terminal cancellation ends it. Pending/unpaid billing without paid coverage uses Free. Fully refunded or disputed covering payments invalidate only their invoice coverage; independent clean paid coverage remains. Payment risk is stored separately from subscription lifecycle, so refund/dispute does not hide continuing renewal or the access-code billing warning. A won dispute can restore current paid coverage. Independent access-code grants survive billing risk events. Event IDs and fenced account leases prevent replay/stale snapshot overwrite.
 
 The webhook route handles subscription, paid/failed invoice, Checkout/asynchronous completion, refund and dispute events. Configure only documented supported events and the pinned API version. Unknown unrelated events/customers are acknowledged without access changes; processing errors return retryable failures.
 
@@ -89,7 +90,7 @@ Prove: Checkout plus promo; signed fulfillment; renew/fail/cancel; account-owned
 
 ## Launch and rollback
 
-Remaining inputs: live Stripe onboarding, monthly price/currency, selected paid allowance, isolated live keys/Price/webhook and explicit live activation. Review taxes/registrations before charging: https://docs.stripe.com/billing/taxes/collect-taxes . automatic_tax is not enabled without confirmed active registrations.
+Remaining inputs: live Stripe onboarding, monthly/yearly prices and currency, selected paid allowance, isolated live keys/Price/webhook and explicit live activation. Review taxes/registrations before charging: https://docs.stripe.com/billing/taxes/collect-taxes . automatic_tax is not enabled without confirmed active registrations.
 
 First activate only the protected sandbox preview. Obtain live acceptance, review/CI and exact publication/credential-transfer approvals if required. Then enable production purchases and tier enforcement through an explicit config change. Confirm deployed flags and build version.
 

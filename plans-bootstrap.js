@@ -3,7 +3,7 @@ async function boot() {
     document.getElementById('mobile-access-screen')?.setAttribute('aria-hidden','false');
     return;
   }
-  try { await import('./plans-page.js?v=1'); }
+  try { await import('./plans-page.js?v=2'); }
   catch (error) {
     console.error('[Kairos] Plans could not load.', error);
     const message=document.getElementById('plans-auth-status');

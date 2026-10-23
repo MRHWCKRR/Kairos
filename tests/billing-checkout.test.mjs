@@ -12,6 +12,7 @@ function setup() {
     if(route==='/v1/prices/price_plus')return Response.json({id:'price_plus',object:'price',active:true,livemode:false,currency:'aud',unit_amount:500,recurring:{interval:'month',interval_count:1},product:'prod_plus'});
     if(route==='/v1/customers') {customers++;return Response.json({id:'cus_owner',object:'customer',livemode:false});}
     if(route==='/v1/subscriptions')return Response.json({object:'list',has_more:false,data:active?[{id:'sub_1',status:'active',customer:'cus_owner'}]:[]});
+    if(route==='/v1/checkout/sessions'&&options.method==='GET')return Response.json({has_more:false,data:sessions?[{id:'cs_1',url:'https://checkout.stripe.com/c/pay/cs_1',status:'open',mode:'subscription',customer:'cus_owner',livemode:false,expires_at:Math.floor(f.now()/1000)+1800,line_items:{has_more:false,data:[{price:'price_plus',quantity:1}]}}]:[]});
     if(route==='/v1/checkout/sessions') {
       sessions++;const params=new URLSearchParams(options.body);payloads.push(params);
       return Response.json({id:'cs_1',url:'https://checkout.stripe.com/c/pay/cs_1',expires_at:Math.floor(f.now()/1000)+1800,status:'open',customer:'cus_owner',livemode:false});
@@ -24,13 +25,12 @@ function setup() {
   return {...f,stripe,handlers,payloads,count:()=>({customers,sessions}),activate:()=>active=true};
 }
 const request=(body,path='checkout')=>new Request(origin+'/api/billing/'+path,{method:'POST',headers:{Authorization:'Bearer id','X-Firebase-AppCheck':'app','Content-Type':'application/json'},body:JSON.stringify(body)});
-test('checkout retry recovers identical Stripe parameters after mapping failure',async()=>{
+test('checkout retry recovers the existing Stripe session after mapping failure',async()=>{
   const f=setup(),commit=f.transport.commit;let failed=false;
   f.transport.commit=async writes=>{if(!failed&&writes.some(w=>w.data?.checkoutId)){failed=true;throw Error('temporary storage failure');}return commit(writes);};
   await assert.rejects(()=>f.stripe.createCheckout('a','plus','retry-operation'));
   await f.stripe.createCheckout('a','plus','retry-operation');
-  assert.equal(f.payloads.length,2);
-  assert.equal(f.payloads[0].toString(),f.payloads[1].toString());
+  assert.equal(f.payloads.length,1,'the Stripe-side session is recovered without another create call');
 });
 test('checkout verifies price and creates only one customer/session across repeated requests',async()=>{
   const f=setup();
@@ -41,7 +41,7 @@ test('checkout verifies price and creates only one customer/session across repea
   assert.deepEqual(f.count(),{customers:1,sessions:1});
   assert.equal(f.payloads[0].get('allow_promotion_codes'),'true');
   assert.equal(f.payloads[0].get('line_items[0][price]'),'price_plus');
-  assert.equal(f.payloads[0].get('success_url'),origin+'/app.html?billing=return');
+  assert.equal(f.payloads[0].get('success_url'),origin+'/plans.html?billing=return');
   assert.equal(f.payloads[0].has('payment_method_types[0]'),false);
 });
 test('client cannot choose Stripe identity, price, return destination or entitlement',async()=>{
