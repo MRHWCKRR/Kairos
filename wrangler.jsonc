@@ -15,13 +15,15 @@
     "AI_BUDGET_SCOPE": "production",
     "AI_PROVIDER": "openrouter",
     "AI_MODEL": "openai/gpt-oss-120b",
-    "BILLING_ENABLED": "false",
+    "BILLING_ENABLED": "true",
     "ACCESS_CODES_ENABLED": "false",
     "AI_TIER_ENFORCEMENT": "false",
     "AI_FREE_DAILY_LIMIT": "10",
     "AI_PLUS_DAILY_LIMIT": "100",
     "STRIPE_MODE": "test",
-    "BILLING_ORIGIN": "https://kairos-web.kirosapp.workers.dev"
+    "BILLING_ORIGIN": "https://kairos-web.kirosapp.workers.dev",
+    "STRIPE_PLUS_PRICE_ID": "price_1U77RyPX3ScSvSEmRHfq8vUQ",
+    "STRIPE_PLUS_YEARLY_PRICE_ID": "price_1UTdu1PX3ScSvSEmLQ08zosd"
   },
   "ratelimits": [
     {
@@ -54,7 +56,14 @@
   },
   "observability": {
     "enabled": true,
-    "head_sampling_rate": 0.1
+    "head_sampling_rate": 1,
+    "redact_query_string": true,
+    "logs": {
+      "enabled": true,
+      "head_sampling_rate": 1,
+      "persist": true,
+      "invocation_logs": false
+    }
   },
   "triggers": {
     "crons": [
