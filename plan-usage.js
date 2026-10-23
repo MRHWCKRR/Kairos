@@ -120,6 +120,8 @@ export function mountPlanUsage({root,auth,request,onStatus=()=>{},navigate=url=>
   function render(status,{preserveStale=false}={}) {
     if(!status || !['free','plus'].includes(status.access?.tier) || !Number.isInteger(status.access.dailyLimit) ||
         !status.usage || ['used','remaining','bonusCredits'].some(key=>!Number.isSafeInteger(status.usage[key]) || status.usage[key]<0)) throw Error('Plan service returned an invalid status.');
+    if(status.offers!==undefined&&!Array.isArray(status.offers))throw Error('Invalid plan price');
+    for(const item of status.offers||[])if(item.planId==='plus'&&(!Number.isSafeInteger(item.amount)||item.amount<1||!/^[a-z]{3}$/.test(item.currency||'')||!['month','year'].includes(item.interval||'month')))throw Error('Invalid plan price');
     current=status;if(!preserveStale){stale=false;retryAt=0;}
     find('plan-tier').textContent=status.access.tier==='plus'?'Plus':'Free';
     if(accountPlan)accountPlan.textContent=status.access.tier==='plus'?'Kairos Plus':'Free';
@@ -135,7 +137,6 @@ export function mountPlanUsage({root,auth,request,onStatus=()=>{},navigate=url=>
       (billing.paidThrough?'; '+(billing.cancelAtPeriodEnd?'ends ':'paid through ')+dateLabel(billing.paidThrough):'');
     find('plan-trial-note').hidden=true;
     const offer=selectedOffer(status);
-    for(const item of status.offers||[])if(item.planId==='plus'&&(!Number.isSafeInteger(item.amount)||item.amount<1||!/^[a-z]{3}$/.test(item.currency||'')||!['month','year'].includes(item.interval||'month')))throw Error('Invalid plan price');
     renderInterval();
     find('plan-upgrade-btn').hidden=!offer || ['active','past_due','trialing','incomplete','paused','unpaid'].includes(billing.status);
     if(offer) {

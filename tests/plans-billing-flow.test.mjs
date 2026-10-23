@@ -152,3 +152,10 @@ test('a saved customer with a lost checkout mapping cannot keep two intervals op
   await f.stripe.createCheckout('a','plus','second','year');
   assert.deepEqual(f.expirations,['cs_1'],'recover and expire the unmapped open session before yearly checkout');
 });
+
+test('an invalid initial price leaves interval controls usable without retaining a broken offer',async()=>{
+  const s=status();s.offers[0].amount=-1;const f=ui(async()=>s);
+  await f.module.refresh();assert.match(f.find('plan-message').textContent,/invalid plan price/i);
+  assert.doesNotThrow(()=>f.find('plan-interval-year').click());
+  assert.equal(f.find('plan-upgrade-btn').hidden,true);f.module.destroy();
+});
