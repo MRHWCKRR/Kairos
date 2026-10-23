@@ -19,7 +19,10 @@ import { createPageLoader } from './page-loader.js?v=67';
 import { mountPageRouter } from './page-router.js?v=3';
 import { createPageRenderCache } from './page-render-cache.js?v=1';
 import './boards-recurrence.js?v=11';
-import { auth, db } from './firebase.js';
+import { auth, db, appCheckReady } from './firebase.js';
+import {getToken as getAppCheckToken} from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app-check.js';
+import {createPlannerBootstrap} from './planner-bootstrap.js?v=1';
+const initializePlanner=createPlannerBootstrap({getUser:()=>auth.currentUser,projectId:auth.app.options.projectId,getAppToken:async()=>{const check=await appCheckReady;if(!check)throw Error('Security verification is unavailable. Refresh Kairos and try again.');return (await getAppCheckToken(check,false)).token;}});
 import {
     signInWithEmailAndPassword,
     createUserWithEmailAndPassword,
@@ -45,14 +48,14 @@ import { savePlannerEdits, persistTaskListCommand,loadPlanningUndoPreview } from
 import { resolveTaskDetail, taskListSection } from './task-list-model.js?v=17';
 import { mergePlanEdits, planState } from './plan-merge.js';
 import {createSettingsRecovery,overlaySettingsEdits} from './settings-recovery.js?v=1';
-import {mountGettingStarted,openGettingStartedDestination} from './getting-started.js?v=2';
+import {mountGettingStarted,openGettingStartedDestination} from './getting-started.js?v=3';
 import {createGettingStartedStore} from './getting-started-store.js?v=1';
 import {mountFocusBreakdown} from './focus-breakdown.js?v=1';
 import {mountGlobalSearch} from './global-search.js?v=4';
 import {mountTaskCapture} from './task-capture.js?v=4';
 import {normaliseShortcuts,describeShortcut} from './shortcut-model.js?v=1';
 import {mountShortcutSettings} from './shortcut-settings.js?v=1';
-import {mountSidebarIcons} from './sidebar-icons.js?v=1';
+import {mountSidebarIcons} from './sidebar-icons.js?v=2';
 console.log("APP.js is loaded and running");
 
 // ===========================================================
@@ -1312,6 +1315,7 @@ function bootApp() {
             if (auth.currentUser?.uid !== user.uid) throw new Error('The signed-in account changed.');
             const planId = currentPlanDocId || 'plan-' + user.uid;
             const local = planState({ boards: boardsData, dayInsights, scheduleEvents: scheduleData });
+            if(!currentPlanDocId)await initializePlanner(user.uid);
             const saved = await savePlannerEdits(planId, user.uid, planSnapshot || planState({}), local, options);
             if (auth.currentUser?.uid !== user.uid) throw new Error('The signed-in account changed.');
             const live = planState({ boards: boardsData, dayInsights, scheduleEvents: scheduleData });
@@ -2087,8 +2091,8 @@ function bootApp() {
 
         authContainer.innerHTML = `
             <div class="notif-wrapper" id="notif-wrapper">
-                <button class="icon-btn notif-bell-btn" id="notif-bell-btn" title="Notifications">
-                    🔔<span class="notif-badge" id="notif-badge" style="display:none;">0</span>
+                <button class="icon-btn notif-bell-btn" id="notif-bell-btn" title="Notifications" aria-label="Notifications">
+                    <span data-shell-icon="bell"></span><span class="notif-badge" id="notif-badge" style="display:none;">0</span>
                 </button>
                 <div class="notif-panel" id="notif-panel">
                     <div class="notif-panel-header">${tr('notifications_group_title')}</div>
@@ -2102,7 +2106,7 @@ function bootApp() {
                     <span style="font-size: 0.7em; opacity: 0.7;">▼</span>
                 </div>
                 <div id="profile-dropdown-menu" class="profile-dropdown-menu">
-                    <button id="dropdown-settings-btn">⚙️ ${tr('nav_settings')}</button>
+                    <button id="dropdown-settings-btn"><span data-shell-icon="settings-page"></span> ${tr('nav_settings')}</button>
                     <button id="dropdown-logout-btn">${tr('log_out')}</button>
                 </div>
             </div>
@@ -2110,6 +2114,7 @@ function bootApp() {
 
         const toggleWrapper = document.getElementById("profile-dropdown-toggle");
         const dropdownMenu = document.getElementById("profile-dropdown-menu");
+        mountSidebarIcons(document);
         const settingsBtn = document.getElementById("dropdown-settings-btn");
         const logoutBtn = document.getElementById("dropdown-logout-btn");
 

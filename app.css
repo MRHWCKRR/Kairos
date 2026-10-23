@@ -2383,3 +2383,7 @@ html.kairos-mobile-device body > #ambient-audio {
 .schedule-v2-focus-task small{color:var(--text-muted)}.schedule-v2-focus-task .done{text-decoration:line-through;opacity:.5}
 @media(max-width:1200px){.schedule-v2-layout{grid-template-columns:minmax(0,1fr) 190px}.schedule-v2-main .schedule-day-col{min-width:95px}}
 @media(max-width:850px){.schedule-v2-layout,.schedule-v2-today-columns{grid-template-columns:1fr}.schedule-v2-sidebar{position:static}.schedule-v2-main .schedule-week-grid{overflow:auto}}
+
+[data-shell-icon]{display:inline-flex;align-items:center;justify-content:center;vertical-align:middle;flex-shrink:0}
+#dropdown-settings-btn{display:flex;align-items:center;gap:8px}
+.notif-bell-btn{display:inline-flex;align-items:center;justify-content:center}

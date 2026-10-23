@@ -31,7 +31,7 @@ export async function openGettingStartedDestination({request,owner,getOwner,navi
 export function mountGettingStarted({document=globalThis.document,window=globalThis.window,getOwner,navigate,save=async()=>{throw Error('Guide storage unavailable')},onComplete=()=>{},getShortcuts=()=>undefined,storage}={}){
  if(!storage)try{storage=window.localStorage}catch{}
  const opener=document.getElementById('getting-started-open');
- let owner=null,state=null,root=null,revision=0,busy=false,message='',highlight=null,target=null,progressQueue=Promise.resolve();
+ let owner=null,state=null,root=null,revision=0,busy=false,message='',highlight=null,target=null,progressQueue=Promise.resolve(),layerHost=null;
  const terminal=new Set(),cache=new Map();
  const key=id=>'kairos-getting-started:'+id;
  function persist(){cache.set(owner,state);try{storage?.setItem(key(owner),JSON.stringify(state))}catch{}}
@@ -47,8 +47,19 @@ export function mountGettingStarted({document=globalThis.document,window=globalT
   if(guideRect&&rect.left<guideRect.right&&rect.right>guideRect.left&&rect.top<guideRect.bottom&&rect.bottom>guideRect.top){root.style.right='auto';root.style.left='24px'}
  }
  function spotlight(selector){clearHighlight();target=document.querySelector(selector);if(!target)return;highlight=document.createElement('div');highlight.className='gs-spotlight';highlight.setAttribute('aria-hidden','true');document.body.appendChild(highlight);positionHighlight()}
+ function syncLayer(){
+  if(!root)return;
+  const dialog=[...document.querySelectorAll('dialog[open]')].at(-1)||null,host=dialog||document.body;
+  if(root.parentElement!==host)host.appendChild(root);
+  if(layerHost!==dialog){
+   if(typeof root.hidePopover==='function'&&root.hasAttribute('popover'))root.hidePopover();
+   root.removeAttribute('popover');
+   if(dialog&&typeof root.showPopover==='function'){root.setAttribute('popover','manual');root.showPopover()}
+   layerHost=dialog;
+  }
+ }
  function render(){
-  root?.remove();root=null;if(opener)opener.hidden=!owner||state?.status!=='active';
+  root?.remove();root=null;layerHost=null;if(opener)opener.hidden=!owner||state?.status!=='active';
   if(!owner||state?.status!=='active'){clearHighlight();return}
   root=document.createElement('aside');root.className='getting-started';root.dataset.gettingStarted='';root.setAttribute('aria-label','Getting started');
   const step=STEPS[state.step],last=state.step===STEPS.length-1;
@@ -57,7 +68,7 @@ export function mountGettingStarted({document=globalThis.document,window=globalT
   const heading=root.querySelector('h2');if(heading)heading.textContent=step.title;
   const copy=root.querySelector('.gs-copy');if(copy)copy.textContent=last?`Mod means Ctrl on Windows/Linux or Command on Mac. Use ${describeShortcut('search',getShortcuts())} to search your planner, ${describeShortcut('addTask',getShortcuts())} to add a task in Routines & Tasks, and ${describeShortcut('showTaskShortcuts',getShortcuts())} for its shortcut guide. Save task details with ${describeShortcut('saveTaskDetails',getShortcuts())}. AI Helper also accepts commands such as “Create a task for tomorrow”; review changes before applying them. Change your keybinds in Settings → Accessibility.`:step.text;
   const status=root.querySelector('.gs-status');if(status)status.textContent=message;
-  root.addEventListener('click',click);document.body.appendChild(root);
+  root.addEventListener('click',click);root.addEventListener('keydown',event=>{modalTab(event);keydown(event);event.stopPropagation()});document.body.appendChild(root);syncLayer();
  }
  function sync(){const next=getOwner();if(next===owner)return;clearHighlight();owner=next;revision++;busy=false;message='';progressQueue=Promise.resolve();state=owner?(cache.get(owner)||null):null;render()}
  function hydrate(data){
@@ -98,10 +109,17 @@ export function mountGettingStarted({document=globalThis.document,window=globalT
   else{message=typeof result==='string'?result:'This page could not open. Try again, or use the sidebar.';render();root.querySelector('[data-guide="action"]')?.focus()}
  }
  function complete(event){if(event.detail?.ownerId!==getOwner())return;sync();if(event.detail.guide&&!terminal.has(owner)){hydrate({onboardingCompleted:true,gettingStarted:{version:2,status:'active',step:0}});open()}}
+ function modalTab(event){
+  const dialog=root?.parentElement;
+  if(event.defaultPrevented||event.key!=='Tab'||!dialog?.matches('dialog[open]'))return;
+  const controls=[...dialog.querySelectorAll('input:not([type="hidden"]),button,select,textarea,[tabindex="0"]')].filter(control=>!control.disabled&&!control.closest('[hidden],[inert]'));
+  const index=controls.indexOf(document.activeElement);if(index<0||!controls.length)return;
+  event.preventDefault();event.stopPropagation();controls[(index+(event.shiftKey?-1:1)+controls.length)%controls.length].focus();
+ }
  function keydown(event){if(event.key==='Escape'&&state?.expanded&&event.target?.nodeType===1&&root?.contains(event.target)){event.preventDefault();collapse()}}
- opener?.addEventListener('click',open);window.addEventListener('kairos:onboarding-complete',complete);document.addEventListener('keydown',keydown);
+ opener?.addEventListener('click',open);window.addEventListener('kairos:onboarding-complete',complete);document.addEventListener('keydown',keydown);document.addEventListener('keydown',modalTab,true);
  window.addEventListener('resize',positionHighlight);document.addEventListener('scroll',positionHighlight,true);
- const observer=window.MutationObserver?new window.MutationObserver(positionHighlight):null;observer?.observe(document.body,{attributes:true,subtree:true,attributeFilter:['class','hidden','inert']});
+ const observer=window.MutationObserver?new window.MutationObserver(()=>{syncLayer();positionHighlight()}):null;observer?.observe(document.body,{attributes:true,childList:true,subtree:true,attributeFilter:['class','hidden','inert','open']});
  sync();if(window.__kairosGettingStartedOwner===getOwner()&&getOwner()){window.__kairosGettingStartedOwner=null;complete({detail:{ownerId:getOwner(),guide:true}})}
- return {open,sync,hydrate,dispose(){revision++;clearHighlight();root?.remove();observer?.disconnect();opener?.removeEventListener('click',open);window.removeEventListener('kairos:onboarding-complete',complete);document.removeEventListener('keydown',keydown);window.removeEventListener('resize',positionHighlight);document.removeEventListener('scroll',positionHighlight,true)}};
+ return {open,sync,hydrate,dispose(){revision++;clearHighlight();root?.remove();observer?.disconnect();opener?.removeEventListener('click',open);window.removeEventListener('kairos:onboarding-complete',complete);document.removeEventListener('keydown',keydown);document.removeEventListener('keydown',modalTab,true);window.removeEventListener('resize',positionHighlight);document.removeEventListener('scroll',positionHighlight,true)}};
 }

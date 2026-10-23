@@ -1,3 +1,4 @@
+import {createPlannerBootstrap} from '../../planner-bootstrap.js';
 import {assertFindTimeSettings} from '../../schedule-find-time-model.js';
 import {planningUndoSource,planningUndoPreview,applyPlanningUndo} from '../../planning-undo.js';
 import {savedPlanningPreferences,planningPreferencesText} from '../../planning-preferences.js';
@@ -15,17 +16,17 @@ import {applyScheduleUndo} from '../../schedule-change-model.js';
 import {previewAiPlanning,aiPlanningSummary,resolveAiPlanningTimezone} from '../../ai-planning.js';
 import {applyPlanningCommand} from '../../planning-commands.js';
 
-export async function plannerFixture(data, {failAfterCommit=false,retryTransaction=false,userData={}}={}) {
+export async function plannerFixture(data, {failAfterCommit=false,retryTransaction=false,userData={},denyMissingReads=false}={}) {
   let stored=structuredClone(data), userStored=structuredClone(userData), writes=[], events=0, fail=failAfterCommit;
   const context=vm.createContext({assertFindTimeSettings,completedScheduleChanges,assertCompletedScheduleChanges,applyScheduleUndo,planningUndoSource,planningUndoPreview,applyPlanningUndo,savedPlanningPreferences,planningPreferencesText,assertScheduleAvailability,savedWeeklyAvailability,assertSavedAvailability,applyTaskListCommand,validateAssignmentOrderChanges,structuredClone,console,Date,Intl,previewAiPlanning,aiPlanningSummary,resolveAiPlanningTimezone,planningConflicts,planningGapText,planningDailyLimitText,applyPlanningCommand,mergePlanEdits,planState,stableStringify,taskDurationMinutes,taskListFingerprint,
     globalSearchController:null,taskCaptureController:null,searchPlannerOwnerId:null,
-    auth:{currentUser:{uid:'one'}},db:{},collection:()=>({}),query:x=>x,where:()=>({}),doc:(...args)=>args,
+    initializePlanner:createPlannerBootstrap({getUser:()=>context.auth.currentUser,projectId:'kairos-1a',getAppToken:async()=> 'test-app-check',fetchImpl:async(_url,options)=>{if(stored)return {ok:false,status:409,json:async()=>({error:{status:'ALREADY_EXISTS'}})};const fields=JSON.parse(options.body).fields;stored={userID:fields.userID.stringValue,boards:[],dayInsights:{},scheduleEvents:[]};return {ok:true,status:200};}}),auth:{currentUser:{uid:'one',emailVerified:true,getIdToken:async()=> 'test-id-token'}},db:{},collection:()=>({}),query:x=>x,where:()=>({}),doc:(...args)=>args,
     serverTimestamp:()=>({seconds:1}),getDoc:async ref=>({exists:()=>!!stored,data:()=>structuredClone(ref?.[1]==='users'?userStored:stored)}),
     getDocs:async()=>({docs:stored?[{id:'plan',data:()=>structuredClone(stored)}]:[]}),
     setDoc:async(_,next)=>{stored={...stored,...structuredClone(next)};writes.push(structuredClone(stored))},
     runTransaction:async(_,callback)=>{
       let pending;
-      const tx={get:async ref=>({exists:()=>!!stored,data:()=>structuredClone(ref?.[1]==='users'?userStored:stored)}),
+      const tx={get:async ref=>{if(denyMissingReads&&!stored)throw Object.assign(Error('Missing or insufficient permissions'),{code:'permission-denied'});return {exists:()=>!!stored,data:()=>structuredClone(ref?.[1]==='users'?userStored:stored)}},
         set:(_,next)=>pending=structuredClone(next)};
       if(retryTransaction){await callback(tx);pending=undefined}
       const result=await callback(tx);
