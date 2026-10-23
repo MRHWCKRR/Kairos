@@ -33,6 +33,9 @@
         .form-group label { display: block; margin-bottom: 5px; color: #ccc; font-size: 0.9rem; }
         .form-group input { width: 100%; padding: 12px; border-radius: 6px; background: #1e1e2f; border: 1px solid #333; color: #fff; box-sizing: border-box; }
         .login-btn { width: 100%; padding: 12px; border-radius: 6px; background: #a855f7; border: none; color: white; font-weight: bold; cursor: pointer; margin-top: 10px; box-sizing: border-box; }
+        .auth-link { border: 0; background: none; color: #c084fc; font: inherit; font-size: 0.9rem; cursor: pointer; padding: 8px 0; text-decoration: underline; text-underline-offset: 3px; }
+        .login-box :focus-visible { outline: 2px solid #c084fc; outline-offset: 3px; }
+        .login-box #auth-status[data-type="success"] { color: #ddd; background: #1e1e2f; }
         .login-btn:disabled { opacity: 0.65; cursor: not-allowed; }
 
         .auth-switch {
@@ -106,7 +109,18 @@
                         <label for="remember-me" style="margin: 0; cursor: pointer;">Remember me</label>
                     </div>
 
+                    <button type="button" class="auth-link" id="forgot-password">Forgot password?</button>
                     <button type="submit" class="login-btn" id="auth-submit">Sign In</button>
+                </form>
+
+                <form id="password-reset-form" hidden>
+                    <p>If you use Google to sign in, choose Continue with Google above.</p>
+                    <div class="form-group">
+                        <label for="reset-email">Email Address</label>
+                        <input type="email" id="reset-email" required placeholder="you@example.com" autocomplete="email">
+                    </div>
+                    <button type="submit" class="login-btn" id="reset-submit">Send reset link</button>
+                    <button type="button" class="auth-link" id="reset-back">Back to sign in</button>
                 </form>
 
                 <div class="auth-switch">
@@ -118,7 +132,7 @@
         <div class="image-container"></div>
     </div>
 
-    <script type="module" src="login.js?v=2"></script>
+    <script type="module" src="login.js?v=3"></script>
 <script type="module" src="ui-bootstrap.js?v=2"></script>
 </body>
 </html>

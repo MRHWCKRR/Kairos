@@ -2,6 +2,7 @@ import { createAuthFeedback } from './auth-feedback.js?v=1';
 import { auth } from './firebase.js';
 import {
     signInWithEmailAndPassword,
+    sendPasswordResetEmail,
     setPersistence,
     browserLocalPersistence,
     browserSessionPersistence,
@@ -77,5 +78,62 @@ googleBtn?.addEventListener('click', async () => {
         console.error('Google Auth Error:', error);
         feedback(error.code === 'auth/popup-closed-by-user' ? 'Sign-in cancelled. You can try again.' : error.code === 'auth/popup-blocked' ? 'Your browser blocked Google sign-in. Allow popups for Kairos and try again.' : error.code === 'auth/network-request-failed' ? 'Check your connection and try Google sign-in again.' : 'Google sign-in failed. Please try again.');
         googleBtn.disabled = false;
+    }
+});
+
+const resetForm = document.getElementById('password-reset-form');
+const resetEmail = document.getElementById('reset-email');
+const resetSubmit = document.getElementById('reset-submit');
+const resetBack = document.getElementById('reset-back');
+let resetPending = false;
+
+document.getElementById('forgot-password')?.addEventListener('click', () => {
+    feedback('');
+    resetEmail.value = document.getElementById('email').value.trim();
+    loginForm.hidden = true;
+    resetForm.hidden = false;
+    document.getElementById('auth-title').textContent = 'Reset your password';
+    document.getElementById('auth-subtitle').textContent = 'Request a reset link for your email and password account.';
+    resetEmail.focus();
+});
+resetBack?.addEventListener('click', () => {
+    if (resetPending) return;
+    feedback('');
+    resetForm.hidden = true;
+    loginForm.hidden = false;
+    document.getElementById('auth-title').textContent = 'Welcome back';
+    document.getElementById('auth-subtitle').textContent = 'Log in to access your intelligent schedule.';
+    document.getElementById('forgot-password').focus();
+});
+resetForm?.addEventListener('submit', async event => {
+    event.preventDefault();
+    if (resetPending) return;
+    if (!resetForm.checkValidity()) { resetForm.reportValidity(); return; }
+    const email = resetEmail.value.trim();
+    if (!email) return;
+    resetPending = true;
+    resetSubmit.disabled = true;
+    resetBack.disabled = true;
+    resetEmail.disabled = true;
+    resetSubmit.textContent = 'Sending…';
+    feedback('');
+    try {
+        try { await sendPasswordResetEmail(auth, email); }
+        catch (error) { if (error.code !== 'auth/user-not-found') throw error; }
+        // Use the same confirmation whether or not a password account exists.
+        feedback('If this email has a password account, a reset link has been sent. Check your inbox and spam folder.', { type: 'success' });
+    } catch (error) {
+        const messages = {
+            'auth/invalid-email': 'Please enter a valid email address.',
+            'auth/network-request-failed': 'Check your connection and try sending the reset link again.',
+            'auth/too-many-requests': 'Too many requests. Please wait a while before trying again.'
+        };
+        feedback(messages[error.code] || 'Could not send the reset link. Please try again.', { fields: error.code === 'auth/invalid-email' ? ['reset-email'] : [] });
+    } finally {
+        resetPending = false;
+        resetSubmit.disabled = false;
+        resetBack.disabled = false;
+        resetEmail.disabled = false;
+        resetSubmit.textContent = 'Send reset link';
     }
 });

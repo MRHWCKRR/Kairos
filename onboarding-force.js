@@ -81,8 +81,8 @@ async function save(showGuide=true){
  }
 }
 
-async function start(user){
- const ticket=++startRevision;root?.remove();root=null;
+async function start(user,retry=false){
+ const ticket=++startRevision;if(!retry){root?.remove();root=null}
  if(!user?.emailVerified)return;
  try{
    const snap=await getDoc(doc(db,'users',user.uid));
@@ -90,12 +90,20 @@ async function start(user){
    const data=snap.exists()?snap.data():{};
    // This is the shared completion flag used by all Kairos clients. If any
    // platform has completed onboarding, web skips it too.
-   if(data.onboardingCompleted===true){window.dispatchEvent(new CustomEvent('kairos:onboarding-complete'));return}
+   if(data.onboardingCompleted===true){root?.remove();root=null;window.dispatchEvent(new CustomEvent('kairos:onboarding-complete'));return}
    hydrateFromProfile(data);
+   root?.remove();
    root=document.createElement('div');root.id='kairos-onboarding';document.body.appendChild(root);page=0;render();
  }catch(error){
+   if(auth.currentUser?.uid!==user.uid||ticket!==startRevision)return;
    console.error('Kairos onboarding status check failed:',error);
-   // Fail closed: only show onboarding when we can establish it is incomplete.
+   // Keep the workspace gated until the account's saved setup is known.
+   root?.remove();root=document.createElement('div');root.id='kairos-onboarding';
+   root.innerHTML='<div id="ko-shell"><main id="ko-main"><div id="ko-page"><h1 tabindex="-1">We couldn’t load your setup</h1><p>Check your connection and try again. Your saved details have not changed.</p><button type="button" class="ko-btn ko-next" id="ko-retry">Retry</button></div></main></div>';
+   document.body.appendChild(root);
+   const button=root.querySelector('#ko-retry');
+   button.addEventListener('click',()=>{if(button.disabled)return;button.disabled=true;button.textContent='Checking…';void start(user,true)});
+   root.querySelector('h1').focus();
  }
 }
 
