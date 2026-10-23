@@ -1,7 +1,7 @@
 import { importPKCS8, SignJWT } from 'jose';
 import { readBoundedText } from '../server/http-body.js';
 import { budgetPolicy, budgetWindow, budgetWeek, reserveBudget, reserveTierBudget, readBudgetUsage, creditBalance } from '../server/ai-budget.js';
-import { BILLING_COLLECTIONS, createBillingStore } from './billing-store.js';
+import { BILLING_COLLECTIONS, createBillingStore, billingNamespace } from './billing-store.js';
 import { flag, planCatalog } from '../server/plans.js';
 import { resolveAccess } from '../server/entitlements.js';
 
@@ -131,11 +131,10 @@ export function createFirestore({ env, fetchImpl = fetch, now = Date.now }) {
 
   return {
     billingTransport() {
-      const scope = env.AI_BUDGET_SCOPE || 'production';
-      if (!['production', 'preview'].includes(scope)) throw Error('Invalid billing scope');
+      const scope = env.AI_BUDGET_SCOPE || 'production',namespace=billingNamespace(env);
       function billingName(path) {
         const [collection, id, extra] = String(path).split('/');
-        if (extra !== undefined || !BILLING_COLLECTIONS.has(collection) || !id?.startsWith(scope + '-') ||
+        if (extra !== undefined || !BILLING_COLLECTIONS.has(collection) || (!id?.startsWith(namespace + '-') || (namespace===scope && id.startsWith(scope+'-live-'))) ||
             !/^[a-zA-Z0-9_-]{1,180}$/.test(id)) throw Error('Invalid billing document path');
         return documents + '/' + path;
       }
