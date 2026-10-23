@@ -125,6 +125,8 @@
     "ui-validation.js",
     "ui-controls.css",
     "auth-feedback.js",
+    "auth-page.css",
+    "planner-bootstrap.js",
     "plan-store.js",
     "plan-merge.js",
     "ai-action-schema.js",

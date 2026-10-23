@@ -1,0 +1,11 @@
+.login-logo span{font-family:'Manrope',ui-sans-serif,system-ui,sans-serif;font-size:26px;font-weight:700;letter-spacing:-.04em;color:#fff}
+.login-logo img{filter:brightness(0) invert(1)}
+.login-box #auth-status{border-left:0}
+.login-page .image-container{background-image:url('images/auth-workspace.jpg');background-size:cover;background-position:center;min-height:100vh;border-left:0}
+.login-box input[type="checkbox"]{appearance:none;-webkit-appearance:none;display:inline-grid;place-content:center;flex:0 0 18px;width:18px!important;height:18px;padding:0;margin:0;border:1px solid #777582;border-radius:4px;background:#1e1e2f;cursor:pointer}
+.login-box input[type="checkbox"]:checked{background:#c084fc;border-color:#c084fc}
+.login-box input[type="checkbox"]:checked::after{content:'';width:8px;height:4px;border-left:2px solid #17121f;border-bottom:2px solid #17121f;transform:translateY(-1px) rotate(-45deg)}
+.login-box input[type="checkbox"]:focus-visible{outline:2px solid #c084fc;outline-offset:3px}
+.login-box input[type="checkbox"]:disabled{opacity:.5;cursor:not-allowed}
+@media(max-width:768px){.login-page .image-container{display:none}}
+@media(forced-colors:active){.login-box input[type="checkbox"]{appearance:auto}.login-box input[type="checkbox"]::after{display:none}}

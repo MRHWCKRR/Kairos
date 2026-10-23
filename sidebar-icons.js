@@ -27,6 +27,7 @@ SOFTWARE.
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
 const SIDEBAR_ICONS = {
+    bell:{name:'bell',paths:['M10 5a2 2 0 0 1 4 0a7 7 0 0 1 4 7v3l2 3h-16l2 -3v-3a7 7 0 0 1 4 -7','M9 21h6']},
     'home-page': {
         name: 'layout-dashboard',
         paths: [
@@ -106,8 +107,8 @@ const SIDEBAR_ICONS = {
 
 /** Add local, decorative icons without replacing navigation labels or handlers. */
 export function mountSidebarIcons(document) {
-    for (const link of document.querySelectorAll('#sidebar .sidebar-nav .nav-item[data-target]')) {
-        const definition = SIDEBAR_ICONS[link.getAttribute('data-target')];
+    for (const link of document.querySelectorAll('#sidebar .sidebar-nav .nav-item[data-target], [data-shell-icon]')) {
+        const definition = SIDEBAR_ICONS[link.getAttribute('data-target')||link.getAttribute('data-shell-icon')];
         if (!definition || link.querySelector('[data-sidebar-icon]')) continue;
         const icon = document.createElementNS(SVG_NS, 'svg');
         const attributes = {
