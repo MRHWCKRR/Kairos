@@ -84,7 +84,7 @@ export function mountPlanUsage({root,auth,request,onStatus=()=>{},navigate=url=>
     if(pollCount<5&&!pollTimer){pollCount++;pollTimer=setTimeout(()=>{pollTimer=null;if(!destroyed&&auth.currentUser?.uid===uid)void refresh();},2000);pollTimer.unref?.();}
     return false;
   }
-  const controls=['plan-refresh-btn','plan-upgrade-btn','plan-manage-btn','plan-code-btn','plan-code-input','plan-interval-month','plan-interval-year'];
+  const controls=['plan-refresh-btn','plan-upgrade-btn','plan-manage-btn','plan-code-btn','plan-code-input','plan-interval-month','plan-interval-year','plan-retry-btn'];
   function setBusy(value) {
     busy=value;
     for(const id of controls)if(find(id))find(id).disabled=value;
@@ -93,10 +93,12 @@ export function mountPlanUsage({root,auth,request,onStatus=()=>{},navigate=url=>
       find('plan-code-btn').disabled=!enabled;find('plan-code-input').disabled=!enabled;
       find('plan-upgrade-btn').disabled=stale||!selectedOffer(current);
       find('plan-refresh-btn').disabled=retryAt>Date.now();
+      if(find('plan-retry-btn'))find('plan-retry-btn').disabled=retryAt>Date.now();
       if(usageDirty)scheduleUsage();
     }
   }
   function clear() {
+    if(find('plan-retry-btn'))find('plan-retry-btn').hidden=true;
     current=null;boundUid=null;interval='month';stale=true;retryAt=0;showNear=false;usageDirty=false;hideNear();clearTimeout(usageTimer);usageTimer=null;clearTimeout(retryTimer);retryTimer=null;renderLimitActions();
     if(accountPlan)accountPlan.textContent='—';closeWelcome();clearTimeout(pollTimer);pollTimer=null;
     for(const id of ['plan-compare-free','plan-compare-plus'])if(find(id))find(id).textContent='—';
@@ -122,6 +124,7 @@ export function mountPlanUsage({root,auth,request,onStatus=()=>{},navigate=url=>
         !status.usage || ['used','remaining','bonusCredits'].some(key=>!Number.isSafeInteger(status.usage[key]) || status.usage[key]<0)) throw Error('Plan service returned an invalid status.');
     if(status.offers!==undefined&&!Array.isArray(status.offers))throw Error('Invalid plan price');
     for(const item of status.offers||[])if(item.planId==='plus'&&(!Number.isSafeInteger(item.amount)||item.amount<1||!/^[a-z]{3}$/.test(item.currency||'')||!['month','year'].includes(item.interval||'month')))throw Error('Invalid plan price');
+    if(find('plan-retry-btn')&&!preserveStale)find('plan-retry-btn').hidden=true;
     current=status;if(!preserveStale){stale=false;retryAt=0;}
     find('plan-tier').textContent=status.access.tier==='plus'?'Plus':'Free';
     if(accountPlan)accountPlan.textContent=status.access.tier==='plus'?'Kairos Plus':'Free';
@@ -208,7 +211,12 @@ export function mountPlanUsage({root,auth,request,onStatus=()=>{},navigate=url=>
     } catch(error) {
       if(destroyed || ticket!==generation || auth.currentUser?.uid!==uid)return;
       stale=true;retryAt=error.retryAt||0;hideNear();renderLimitActions();
-      if(!current){clear();retryAt=error.retryAt||0;onStatus(null);}
+      if(!current){clear();retryAt=error.retryAt||0;onStatus(null);
+        find('plan-free-cta').textContent='Plan unavailable';
+        find('plan-plus-price').textContent='Unavailable';
+        find('plan-plus-unavailable').textContent='Could not check availability';
+      }
+      if(find('plan-retry-btn'))find('plan-retry-btn').hidden=false;
       message.textContent=(current?'We couldn’t refresh your plan. Showing your last update. ':'')+(error.message||'Plan service is temporarily unavailable.')+
         (retryAt>Date.now()?' Retry after '+dateLabel(retryAt)+'.':'');
       if(find('plan-offer-status'))find('plan-offer-status').textContent='Refresh your plan before purchasing. Plan availability could not be confirmed.';
@@ -256,6 +264,7 @@ export function mountPlanUsage({root,auth,request,onStatus=()=>{},navigate=url=>
   const manageClick=()=>void action('portal',{});
   const redeem=event=>{event.preventDefault();if(current?.codesEnabled)void action('redeem',{code:find('plan-code-input').value.trim()});};
   find('plan-refresh-btn').addEventListener('click',refreshClick);
+  find('plan-retry-btn')?.addEventListener('click',refreshClick);
   find('plan-upgrade-btn').addEventListener('click',upgradeClick);
   find('plan-manage-btn').addEventListener('click',manageClick);
   find('plan-code-form').addEventListener('submit',redeem);
@@ -283,6 +292,7 @@ export function mountPlanUsage({root,auth,request,onStatus=()=>{},navigate=url=>
     doc.getElementById('plan-welcome-start')?.removeEventListener('click',explore);
     doc.getElementById('plan-welcome-plan')?.removeEventListener('click',viewPlan);
     find('plan-refresh-btn').removeEventListener('click',refreshClick);
+    find('plan-retry-btn')?.removeEventListener('click',refreshClick);
     find('plan-upgrade-btn').removeEventListener('click',upgradeClick);
     find('plan-interval-month')?.removeEventListener('click',selectMonth);
     find('plan-interval-year')?.removeEventListener('click',selectYear);

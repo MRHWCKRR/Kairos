@@ -1,5 +1,5 @@
 const routes=new Set(['status','checkout','portal','redeem','delete-account']);
-export function createBillingRequester({getUser,getAppToken,fetchImpl=fetch,clock=Date.now}) {
+export function createBillingRequester({getUser,getAppToken,fetchImpl=fetch,clock=Date.now,timeoutMs=30000}) {
   let identity=null,state=null;
   function clear(){identity=null;state=null;}
   function account(uid){
@@ -24,17 +24,22 @@ export function createBillingRequester({getUser,getAppToken,fetchImpl=fetch,cloc
     }
     const revision=scope.revision;
     const sameAccount=()=>state===scope&&getUser()?.uid===user.uid;
+    let expired=false;
+    const controller=new AbortController();
+    const timeoutError=()=>Object.assign(Error('The request took too long. Try again.'),{code:'billing-timeout'});
+    const active=()=>{if(expired)throw timeoutError();if(!sameAccount())throw Error('Your sign-in changed. Please try again.');};
     const work=(async()=>{
-      const idToken=await user.getIdToken(route==='delete-account'),appToken=await getAppToken();
+      const idToken=await user.getIdToken(route==='delete-account');active();
+      const appToken=await getAppToken();active();
       if(!appToken || !sameAccount())throw Error('Your sign-in changed. Please try again.');
       const response=await fetchImpl('/api/billing/'+route,{
-        method:route==='status'?'GET':'POST',credentials:'same-origin',cache:'no-store',
+        method:route==='status'?'GET':'POST',credentials:'same-origin',cache:'no-store',signal:controller.signal,
         headers:{'Content-Type':'application/json',Authorization:'Bearer '+idToken,'X-Firebase-AppCheck':appToken},
         ...(route==='status'?{}:{body:JSON.stringify(body||{})})
       });
-      if(!sameAccount())throw Error('Your sign-in changed. Please try again.');
+      active();
       let data;try{data=await response.json();}catch{data={};}
-      if(!sameAccount())throw Error('Your sign-in changed. Please try again.');
+      active();
       if(!response.ok){
         const error=Object.assign(Error(data.error||'Plan service is temporarily unavailable.'),{status:response.status});
         if(response.status===429){
@@ -50,8 +55,11 @@ export function createBillingRequester({getUser,getAppToken,fetchImpl=fetch,cloc
       if(route!=='status')invalidate();
       return data;
     })();
-    if(route==='status'){scope.pending=work;scope.pendingRevision=revision;}
-    try{return await work;}finally{if(scope.pending===work)scope.pending=null;}
+    let timer;
+    const timeout=new Promise((_,reject)=>{timer=setTimeout(()=>{expired=true;reject(timeoutError());controller.abort();},timeoutMs);});
+    const pending=Promise.race([work,timeout]);
+    if(route==='status'){scope.pending=pending;scope.pendingRevision=revision;}
+    try{return await pending;}finally{clearTimeout(timer);if(scope.pending===pending)scope.pending=null;}
   }
   requestBilling.invalidate=invalidate;
   requestBilling.clear=clear;
