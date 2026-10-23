@@ -1003,9 +1003,22 @@ body.cursor-spaceship, body.cursor-spaceship * { cursor: url('cursors/spaceship.
     display: inline-block;
 }
 
-.notif-bell-btn {
+.icon-btn.notif-bell-btn {
     position: relative;
+    width: 36px;
+    height: 36px;
+    padding: 7px;
+    flex-shrink: 0;
+    color: #f5f5f5;
+    background-color: var(--bg-card);
+    border: 1px solid #52525b;
+    border-radius: 10px;
+    opacity: 1;
+    transition: background-color 0.2s, border-color 0.2s;
 }
+body.mode-light .notif-bell-btn { color: #17171b; border-color: #a1a1aa; }
+.icon-btn.notif-bell-btn:hover { background-color: var(--bg-main); border-color: currentColor; }
+.icon-btn.notif-bell-btn:focus-visible { outline: 2px solid var(--accent-glow); outline-offset: 3px; }
 
 .notif-badge {
     position: absolute;
