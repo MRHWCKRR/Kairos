@@ -1,0 +1,21 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "kairos-billing-sandbox-webhook",
+  "main": "cloudflare/sandbox-webhook.js",
+  "compatibility_date": "2026-10-23",
+  "workers_dev": true,
+  "vars": {
+    "STRIPE_MODE": "test",
+    "AI_BUDGET_SCOPE": "preview"
+  },
+  "services": [
+    {
+      "binding": "BILLING_PREVIEW",
+      "service": "kairos-web-preview"
+    }
+  ],
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 0.1
+  }
+}
