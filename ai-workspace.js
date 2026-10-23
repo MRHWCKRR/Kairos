@@ -1,5 +1,5 @@
 import {weeklyAvailabilityText} from './weekly-availability.js';
-import { aiFetch, aiErrorMessage, aiConversationMessages } from './ai-client.js';
+import { aiFetch, aiErrorMessage, aiConversationMessages } from './ai-client.js?v=2';
 import { auth, db } from './firebase.js';
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
@@ -341,7 +341,7 @@ async function send(){
         :batch?'I could not confirm the remaining change: '+error.message+'. Say “retry” to check its saved status and continue safely.'
         :'I could not apply that change: '+error.message;
       if(error.message==='cancelled'){target.pendingActionBatch=null;target.pendingActionRequest='';}
-      target.messages.push({role:'assistant',notice:error.code==='ai-protection',...(error.reason==='daily-account'&&typeof error.resetsAt==='string'?{limit:{reason:error.reason,resetsAt:error.resetsAt}}:{}),content:prefix+message});
+      target.messages.push({role:'assistant',notice:error.code==='ai-protection',...(['daily-account','weekly-account'].includes(error.reason)&&typeof error.resetsAt==='string'?{limit:{reason:error.reason,resetsAt:error.resetsAt}}:{}),content:prefix+message});
     }
   }finally{
     pendingChats.delete(chatId);

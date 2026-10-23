@@ -97,12 +97,14 @@ test('invalid server policy and missing hash secret fail closed', async () => {
   }
 });
 
-test('daily cleanup removes old account pseudonyms without deleting current allowances', async () => {
+test('cleanup retains weekly counts until both daily and weekly windows expire', async () => {
   let time = Date.parse('2026-10-11T00:00:00Z');
   const storage = storageFixture(), db = database(storage, {}, () => time);
   await db.reserveAiUsage('one');
   assert.equal(await db.clearExpiredAiUsage?.(), 0); assert.ok(storage.document);
   time = Date.parse('2026-10-11T14:00:00Z');
+  assert.equal(await db.clearExpiredAiUsage(), 0);
+  time = Date.parse('2026-10-12T00:00:00Z');
   assert.equal(await db.clearExpiredAiUsage(), 1); assert.equal(storage.document, undefined);
   assert.equal(await db.clearExpiredAiUsage(), 0);
 });

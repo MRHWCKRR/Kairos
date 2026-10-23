@@ -40,7 +40,7 @@ test('preview relay stays isolated while the main site uses sandbox billing',asy
   const config=JSON.parse(await fs.readFile(new URL('../wrangler.sandbox-webhook.jsonc',import.meta.url),'utf8'));
   assert.equal(config.services[0].service,'kairos-web-preview');assert.equal(config.vars.STRIPE_MODE,'test');assert.equal(config.vars.AI_BUDGET_SCOPE,'preview');
   const app=JSON.parse(await fs.readFile(new URL('../wrangler.jsonc',import.meta.url),'utf8'));
-  assert.equal(app.vars.BILLING_ENABLED,'true');assert.equal(app.vars.STRIPE_MODE,'test');assert.equal(app.vars.AI_TIER_ENFORCEMENT,'false');
+  assert.equal(app.vars.BILLING_ENABLED,'true');assert.equal(app.vars.STRIPE_MODE,'test');assert.equal(app.vars.AI_TIER_ENFORCEMENT,'true');
   assert.equal(app.vars.BILLING_ORIGIN,'https://kairos-web.kirosapp.workers.dev');
   assert.equal(app.vars.STRIPE_PLUS_PRICE_ID,'price_1U77RyPX3ScSvSEmRHfq8vUQ');
   assert.equal(app.vars.STRIPE_PLUS_YEARLY_PRICE_ID,'price_1UTdu1PX3ScSvSEmLQ08zosd');

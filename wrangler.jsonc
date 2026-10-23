@@ -17,13 +17,15 @@
     "AI_MODEL": "openai/gpt-oss-120b",
     "BILLING_ENABLED": "true",
     "ACCESS_CODES_ENABLED": "false",
-    "AI_TIER_ENFORCEMENT": "false",
-    "AI_FREE_DAILY_LIMIT": "10",
-    "AI_PLUS_DAILY_LIMIT": "100",
+    "AI_TIER_ENFORCEMENT": "true",
+    "AI_FREE_DAILY_LIMIT": "15",
+    "AI_PLUS_DAILY_LIMIT": "50",
     "STRIPE_MODE": "test",
     "BILLING_ORIGIN": "https://kairos-web.kirosapp.workers.dev",
     "STRIPE_PLUS_PRICE_ID": "price_1U77RyPX3ScSvSEmRHfq8vUQ",
-    "STRIPE_PLUS_YEARLY_PRICE_ID": "price_1UTdu1PX3ScSvSEmLQ08zosd"
+    "STRIPE_PLUS_YEARLY_PRICE_ID": "price_1UTdu1PX3ScSvSEmLQ08zosd",
+    "AI_FREE_WEEKLY_LIMIT": "50",
+    "AI_PLUS_WEEKLY_LIMIT": "350"
   },
   "ratelimits": [
     {
@@ -81,11 +83,13 @@
       "AI_MODEL": "openai/gpt-oss-120b",
       "BILLING_ENABLED": "false",
       "ACCESS_CODES_ENABLED": "false",
-      "AI_TIER_ENFORCEMENT": "false",
-      "AI_FREE_DAILY_LIMIT": "10",
-      "AI_PLUS_DAILY_LIMIT": "100",
+      "AI_TIER_ENFORCEMENT": "true",
+      "AI_FREE_DAILY_LIMIT": "15",
+      "AI_PLUS_DAILY_LIMIT": "50",
       "STRIPE_MODE": "test",
-      "BILLING_ORIGIN": "https://kairos-web-preview.kirosapp.workers.dev"
+      "BILLING_ORIGIN": "https://kairos-web-preview.kirosapp.workers.dev",
+      "AI_FREE_WEEKLY_LIMIT": "50",
+      "AI_PLUS_WEEKLY_LIMIT": "350"
     },
     "ratelimits": [
       {
@@ -119,13 +123,15 @@
         "AI_MODEL": "openai/gpt-oss-120b",
         "BILLING_ENABLED": "true",
         "ACCESS_CODES_ENABLED": "false",
-        "AI_TIER_ENFORCEMENT": "false",
-        "AI_FREE_DAILY_LIMIT": "10",
-        "AI_PLUS_DAILY_LIMIT": "100",
+        "AI_TIER_ENFORCEMENT": "true",
+        "AI_FREE_DAILY_LIMIT": "15",
+        "AI_PLUS_DAILY_LIMIT": "50",
         "STRIPE_MODE": "test",
         "BILLING_ORIGIN": "https://kairos-web-preview.kirosapp.workers.dev",
         "STRIPE_PLUS_PRICE_ID": "price_1U77RyPX3ScSvSEmRHfq8vUQ",
-        "STRIPE_PLUS_YEARLY_PRICE_ID": "price_1UTdu1PX3ScSvSEmLQ08zosd"
+        "STRIPE_PLUS_YEARLY_PRICE_ID": "price_1UTdu1PX3ScSvSEmLQ08zosd",
+        "AI_FREE_WEEKLY_LIMIT": "50",
+        "AI_PLUS_WEEKLY_LIMIT": "350"
       },
       "ratelimits": [
         {

@@ -1,6 +1,6 @@
 import { importPKCS8, SignJWT } from 'jose';
 import { readBoundedText } from '../server/http-body.js';
-import { budgetPolicy, budgetWindow, reserveBudget, reserveTierBudget, readBudgetUsage, creditBalance } from '../server/ai-budget.js';
+import { budgetPolicy, budgetWindow, budgetWeek, reserveBudget, reserveTierBudget, readBudgetUsage, creditBalance } from '../server/ai-budget.js';
 import { BILLING_COLLECTIONS, createBillingStore } from './billing-store.js';
 import { flag, planCatalog } from '../server/plans.js';
 import { resolveAccess } from '../server/entitlements.js';
@@ -179,7 +179,7 @@ export function createFirestore({ env, fetchImpl = fetch, now = Date.now }) {
       catch (error) { if (error.status === 404 && error.code === 'NOT_FOUND') return 0; throw error; }
       if (existing.name !== name || !existing.updateTime || !/^\d{4}-\d{2}-\d{2}$/.test(existing.fields?.day?.stringValue || '')) throw Error('Invalid AI counter snapshot');
       const today = budgetWindow(now()).day;
-      if (existing.fields.day.stringValue >= today) return 0;
+      if (existing.fields.day.stringValue >= today || (existing.fields.weeklyStart && existing.fields.weeklyStart.stringValue >= budgetWeek(now()).week)) return 0;
       try { await request(`${baseUrl}:commit`, { writes: [{ delete: name, currentDocument: { updateTime: existing.updateTime } }] }, { timeoutMs: 5000 }); }
       catch (error) { if (['ABORTED', 'FAILED_PRECONDITION', 'NOT_FOUND'].includes(error.code)) return 0; throw error; }
       return 1;
@@ -231,7 +231,7 @@ export function createFirestore({ env, fetchImpl = fetch, now = Date.now }) {
         access=resolveAccess({catalog:planCatalog(env),billing:account.billing,grants:account.grants,now:now()});
       }
       const credits=await store.loadCredits(uid),usage=readBudgetUsage(existing?.fields,uid,policy,env.ANALYTICS_HASH_SECRET,now());
-      return {used:usage.used,remaining:Math.max(0,access.dailyLimit-usage.used),resetsAt:usage.resetsAt,bonusCredits:creditBalance(credits.doc?.data||null,now())};
+      return {used:usage.used,remaining:Math.max(0,Math.min(access.dailyLimit-usage.used,access.weeklyLimit===undefined?Infinity:access.weeklyLimit-usage.weeklyUsed)),resetsAt:usage.resetsAt,...(access.weeklyLimit===undefined?{}:{weeklyUsed:usage.weeklyUsed,weeklyRemaining:Math.max(0,access.weeklyLimit-usage.weeklyUsed),weeklyResetsAt:usage.weeklyResetsAt}),bonusCredits:creditBalance(credits.doc?.data||null,now())};
     },
     collection(name) { if (name !== 'kairosAnalytics') throw new Error('Unsupported analytics collection.'); return query(); },
     batch() {

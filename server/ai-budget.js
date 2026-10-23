@@ -28,6 +28,34 @@ export function budgetWindow(time) {
     retryAfter: Math.max(1, Math.ceil((midnight + DAY_MS - BRISBANE_OFFSET_MS - time) / 1000)) };
 }
 
+export function budgetWeek(time) {
+  if (!Number.isFinite(time)) throw Error('Invalid AI budget clock');
+  const date=new Date(time), start=Date.UTC(date.getUTCFullYear(),date.getUTCMonth(),date.getUTCDate())-((date.getUTCDay()+6)%7)*DAY_MS;
+  return {week:new Date(start).toISOString().slice(0,10),weeklyResetsAt:new Date(start+7*DAY_MS).toISOString(),weeklyRetryAfter:Math.max(1,Math.ceil((start+7*DAY_MS-time)/1000))};
+}
+function weeklyState(fields,uid,policy,secret,time) {
+  const window=budgetWeek(time), stored=fields?.weeklyStart?.stringValue;
+  let accounts={},migration;
+  if(fields?.weeklyStart!==undefined || fields?.weeklyAccounts!==undefined) {
+    const records=fields.weeklyAccounts?.mapValue?.fields;
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(stored||'') || new Date(stored+'T00:00:00Z').getUTCDay()!==1 || stored>window.week || !records || typeof records!=='object' || Array.isArray(records) || Object.keys(records).length>5000)throw Error('Invalid weekly AI counter');
+    for(const [key,value]of Object.entries(records))if(!/^[a-f0-9]{64}$/.test(key)||!/^\d+$/.test(value.integerValue||'')||!Number.isSafeInteger(Number(value.integerValue))||Number(value.integerValue)<1)throw Error('Invalid weekly AI counter');
+    if(stored===window.week)accounts={...records};
+  }
+  if(stored===window.week && fields?.weeklyMigration) {
+    const legacy=fields.weeklyMigration.mapValue?.fields;
+    counterState(legacy,{day:budgetWindow(time).day});
+    if(!legacy || legacy.day.stringValue<window.week)throw Error('Invalid weekly migration');
+    migration=legacy;
+  } else if(stored===undefined && fields?.day?.stringValue>=window.week) {
+    migration={day:fields.day,total:fields.total,accounts:fields.accounts};
+  }
+  const key=createHmac('sha256',secret).update(policy.scope+'\0week\0'+window.week+'\0'+uid).digest('hex');
+  // Existing snapshots contain only the current day; seed it once on migration.
+  const legacyKey=migration?createHmac('sha256',secret).update(policy.scope+'\0'+migration.day.stringValue+'\0'+uid).digest('hex'):null;
+  const used=Number(accounts[key]?.integerValue || migration?.accounts.mapValue.fields[legacyKey]?.integerValue || 0);
+  return {...window,accounts,key,used,migration};
+}
 function counterState(fields, window) {
   let total = 0, accounts = {};
   if (fields) {
@@ -49,7 +77,8 @@ export function readBudgetUsage(fields,uid,policy,secret,time) {
   if(typeof uid!=='string' || !uid || uid.length>128)throw Error('Invalid AI budget identity');
   const window=budgetWindow(time),{total,accounts}=counterState(fields,window);
   const key=createHmac('sha256',secret).update(`${policy.scope}\0${window.day}\0${uid}`).digest('hex');
-  return {used:Number(accounts[key]?.integerValue||0),total,...window};
+  const used=Number(accounts[key]?.integerValue||0),weekly=weeklyState(fields,uid,policy,secret,time);
+  return {used,total,...window,weeklyUsed:weekly.used,weeklyResetsAt:weekly.weeklyResetsAt};
 }
 export function reserveBudget(fields, uid, policy, secret, time) {
   if (typeof uid !== 'string' || !uid || uid.length > 128) throw Error('Invalid AI budget identity');
@@ -57,10 +86,14 @@ export function reserveBudget(fields, uid, policy, secret, time) {
   const {total,accounts}=counterState(fields,window);
   const key = createHmac('sha256', secret).update(`${policy.scope}\0${window.day}\0${uid}`).digest('hex');
   const used = Number(accounts[key]?.integerValue || 0);
+  const weekly=weeklyState(fields,uid,policy,secret,time,used);
   if (total >= policy.siteLimit) return { allowed: false, reason: 'site', ...window };
+  if(policy.weeklyLimit!==undefined && weekly.used>=policy.weeklyLimit)return {allowed:false,reason:'weekly-account',day:window.day,resetsAt:weekly.weeklyResetsAt,retryAfter:weekly.weeklyRetryAfter};
   if (used >= policy.accountLimit) return { allowed: false, reason: 'account', ...window };
+  if(!weekly.accounts[weekly.key] && Object.keys(weekly.accounts).length>=5000)throw Error('Weekly AI counter capacity');
+  weekly.accounts[weekly.key]={integerValue:String(weekly.used+1)};
   accounts[key] = { integerValue: String(used + 1) };
-  return { allowed: true, ...window, fields: { day: { stringValue: window.day }, total: { integerValue: String(total + 1) }, accounts: { mapValue: { fields: accounts } } } };
+  return { allowed: true, ...window, fields: { ...(weekly.migration?{weeklyMigration:{mapValue:{fields:weekly.migration}}}:{}),weeklyStart:{stringValue:weekly.week},weeklyAccounts:{mapValue:{fields:weekly.accounts}},day: { stringValue: window.day }, total: { integerValue: String(total + 1) }, accounts: { mapValue: { fields: accounts } } } };
 }
 
 export function creditBalance(account,time) {
@@ -77,8 +110,9 @@ export function creditBalance(account,time) {
 }
 export function reserveTierBudget({fields,uid,policy,secret,time,access,creditAccount}) {
   if(!Number.isInteger(access?.dailyLimit) || access.dailyLimit<1 || access.dailyLimit>5000)throw Error('Invalid trusted allowance');
+  if(access.weeklyLimit!==undefined && (!Number.isInteger(access.weeklyLimit)||access.weeklyLimit<1||access.weeklyLimit>5000))throw Error('Invalid trusted weekly allowance');
   const balance=creditBalance(creditAccount,time);
-  const result=reserveBudget(fields,uid,{...policy,accountLimit:access.dailyLimit},secret,time);
+  const result=reserveBudget(fields,uid,{...policy,accountLimit:access.dailyLimit,weeklyLimit:access.weeklyLimit},secret,time);
   if(result.allowed || result.reason==='site' || !balance)return result;
   const next=structuredClone(creditAccount);
   const spendable=next.grants.filter(entry=>entry.grant.revokedAt===null && entry.grant.startsAt<=time &&

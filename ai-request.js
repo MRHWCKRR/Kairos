@@ -31,12 +31,12 @@ export function createAiRequester({ getUser, getAppToken, fetchImpl = fetch, onU
     if (response.status === 429) {
       let budget;
       try { budget = await response.json(); } catch {}
-      if (['daily-account', 'daily-site'].includes(budget?.code)) {
+      if (['daily-account', 'daily-site', 'weekly-account'].includes(budget?.code)) {
         const date = new Date(budget.resetsAt);
         const reset = Number.isFinite(date.getTime())
           ? ` Resets at ${new Intl.DateTimeFormat('en-AU', { timeZone: 'Australia/Brisbane', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }).format(date)} Brisbane time.`
-          : ' Please try again after the next daily reset.';
-        const message = budget.code === 'daily-account' ? 'You have reached your daily Kairos AI allowance.' : 'Kairos has reached its daily AI allowance.';
+          : ' Please try again after the next allowance reset.';
+        const message = budget.code==='weekly-account'?'You have reached your weekly Kairos AI allowance.':budget.code === 'daily-account' ? 'You have reached your daily Kairos AI allowance.' : 'Kairos has reached its daily AI allowance.';
         throw Object.assign(protectionError(message + reset),{reason:budget.code,resetsAt:budget.resetsAt,retryAfter:Number(response.headers.get('Retry-After'))||60});
       }
       throw Object.assign(protectionError('rate'),{reason:budget?.code==='rate'?'rate':'unavailable',retryAfter:Number(response.headers.get('Retry-After'))||60});

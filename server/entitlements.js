@@ -36,5 +36,5 @@ export function resolveAccess({catalog,billing,grants,now}) {
     if (grant.kind === 'plan') { tier='plus'; accessUntil=Math.max(accessUntil||0,grant.expiresAt||Number.MAX_SAFE_INTEGER); }
     if (grant.kind === 'feature' && catalog.features.includes(grant.featureId)) features.add(grant.featureId);
   }
-  return {tier,dailyLimit:catalog.enforced?catalog[tier].dailyLimit:catalog.trialLimit,features:[...features],accessUntil};
+  return {tier,dailyLimit:catalog.enforced?catalog[tier].dailyLimit:catalog.trialLimit,...(catalog.enforced?{weeklyLimit:catalog[tier].weeklyLimit}:{}),features:[...features],accessUntil};
 }

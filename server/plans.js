@@ -15,8 +15,8 @@ export function planCatalog(env) {
   return {
     enforced: flag(env.AI_TIER_ENFORCEMENT),
     trialLimit: allowance(env.AI_DAILY_ACCOUNT_LIMIT,100),
-    free: {id:'free',name:'Free',dailyLimit:allowance(env.AI_FREE_DAILY_LIMIT,10)},
-    plus: {id:'plus',name:'Plus',dailyLimit:allowance(env.AI_PLUS_DAILY_LIMIT,100)},
+    free: {id:'free',name:'Free',dailyLimit:allowance(env.AI_FREE_DAILY_LIMIT,10),weeklyLimit:allowance(env.AI_FREE_WEEKLY_LIMIT,50)},
+    plus: {id:'plus',name:'Plus',dailyLimit:allowance(env.AI_PLUS_DAILY_LIMIT,100),weeklyLimit:allowance(env.AI_PLUS_WEEKLY_LIMIT,350)},
     features: []
   };
 }

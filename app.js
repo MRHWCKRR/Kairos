@@ -10,12 +10,12 @@ import {mountPlanningPreferencesEditor} from './planning-preferences-editor.js?v
 import {normaliseWeeklyAvailability} from './weekly-availability.js';
 import {mountWeeklyAvailabilityEditor} from './weekly-availability-editor.js';
 import { showNotice, confirmDialog, promptDialog } from './ui-dialogs.js?v=1';
-import { aiFetch, aiErrorMessage } from './ai-client.js';
+import { aiFetch, aiErrorMessage } from './ai-client.js?v=2';
 import { requestBilling } from './billing-client.js?v=2';
-import { mountPlanUsage } from './plan-usage.js?v=5';
+import { mountPlanUsage } from './plan-usage.js?v=6';
 import {assignmentProgressIndex,assignmentProgressMarkup} from './assignment-progress.js?v=4';
 import {planningClock} from './planning-model.js?v=1';
-import { createPageLoader } from './page-loader.js?v=67';
+import { createPageLoader } from './page-loader.js?v=68';
 import { mountPageRouter } from './page-router.js?v=3';
 import { createPageRenderCache } from './page-render-cache.js?v=1';
 import './boards-recurrence.js?v=11';

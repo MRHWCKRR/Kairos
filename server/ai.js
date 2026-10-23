@@ -52,11 +52,11 @@ export function createHandler({ env, adminAuth, appCheck, rateLimiter, dailyBudg
     try {
         const budget = await dailyBudget?.reserve(user.uid);
         if (budget?.allowed !== true) {
-            if (budget?.allowed !== false || !['account', 'site'].includes(budget.reason) ||
+            if (budget?.allowed !== false || !['account', 'site', 'weekly-account'].includes(budget.reason) ||
                 !Number.isFinite(Date.parse(budget.resetsAt)) || !Number.isInteger(budget.retryAfter) || budget.retryAfter < 1) throw Error('Invalid daily allowance');
             res.setHeader('Retry-After', String(budget.retryAfter));
-            return res.status(429).json({ code: `daily-${budget.reason}`, resetsAt: budget.resetsAt,
-                error: budget.reason === 'account' ? 'You have reached your daily Kairos AI allowance.' : 'Kairos has reached its daily AI allowance.' });
+            return res.status(429).json({ code: budget.reason==='weekly-account'?'weekly-account':`daily-${budget.reason}`, resetsAt: budget.resetsAt,
+                error: budget.reason==='weekly-account'?'You have reached your weekly Kairos AI allowance.':budget.reason === 'account' ? 'You have reached your daily Kairos AI allowance.' : 'Kairos has reached its daily AI allowance.' });
         }
     } catch {
         console.error(JSON.stringify({ event: 'kairos_ai_budget_unavailable' }));
