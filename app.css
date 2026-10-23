@@ -1015,9 +1015,8 @@ body.cursor-spaceship, body.cursor-spaceship * { cursor: url('cursors/spaceship.
     border-radius: 6px;
     opacity: 1;
 }
-.notif-bell-btn [data-shell-icon] { filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.85)); }
+.notif-bell-btn [data-sidebar-icon="bell"] { fill: currentColor; }
 body.mode-light .notif-bell-btn { color: #17171b; }
-body.mode-light .notif-bell-btn [data-shell-icon] { filter: drop-shadow(0 1px 1px rgba(255, 255, 255, 0.95)); }
 .icon-btn.notif-bell-btn:focus-visible { outline: 2px solid var(--accent-glow); outline-offset: 3px; }
 
 .notif-badge {
