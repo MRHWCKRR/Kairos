@@ -1,3 +1,4 @@
+import {plannerChanges,undoPlannerChanges,plannerChangeRows} from './planner-changes.js?v=1';
 import {assertFindTimeSettings} from './schedule-find-time-model.js?v=2';
 import {planningUndoSource,planningUndoPreview,applyPlanningUndo} from './planning-undo.js?v=3';
 import {assertScheduleAvailability} from './schedule-planning-availability.js?v=1';
@@ -6,7 +7,7 @@ import { db } from './firebase.js';
 import { doc, getDoc, runTransaction, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { mergePlanEdits, planState, stableStringify } from './plan-merge.js';
 import {validateAssignmentOrderChanges} from './assignment-order.js?v=1';
-import { applyTaskListCommand, taskListFingerprint } from './task-list-model.js?v=17';
+import { applyTaskListCommand, taskListFingerprint } from './task-list-model.js?v=18';
 import {completedScheduleChanges,assertCompletedScheduleChanges} from './schedule-policy.js?v=1';
 import {applyScheduleUndo} from './schedule-change-model.js?v=5';
 
@@ -14,6 +15,13 @@ export async function persistTaskListCommand(planId, uid, command, expected, ope
     if(typeof operationId!=='string'||!operationId||operationId.length>160||!Number.isFinite(createdAt)||createdAt<=0)throw new Error('Invalid operation identity.');
     const commandHash=await taskListFingerprint(command,expected);
     return persistAiPlanAction(planId,uid,{type:'task_list',commandHash},operationId,createdAt,plan=>{
+        if(command.type==='action_undo'){
+            if(Object.keys(command).some(key=>!['type','sourceOperationId'].includes(key))||expected?.sourceOperationId!==command.sourceOperationId)throw Error('Invalid reviewed AI Undo.');
+            const source=plan.receipts.find(receipt=>receipt.id===command.sourceOperationId);
+            if(!source?.result?.plannerUndo||source.plannerUndoUsedBy)throw Error('This AI Undo is unavailable or already used.');
+            Object.assign(plan.data,undoPlannerChanges(plan.data,source.result.plannerUndo));
+            return {type:'action_undo',undoneOperationId:source.id};
+        }
         if(command.type==='schedule_undo'){
             const source=plan.receipts.find(receipt=>receipt.id===command.sourceOperationId);
             if(!source?.result?.scheduleUndo||source.scheduleUndoUsedBy||expected?.sourceOperationId!==command.sourceOperationId)throw Error('This schedule Undo is unavailable or already used.');
@@ -31,7 +39,7 @@ export async function persistTaskListCommand(planId, uid, command, expected, ope
         const applied=applyTaskListCommand(plan.data,command,expected,{allowCompleted:plan.allowCompleted});
         Object.assign(plan.data,applied.next);
         return applied.result;
-    },{manualScheduling:['schedule_change','schedule_undo','edit_task','task_tool','undo_task_list'].includes(command.type),legacyFingerprint:stableStringify({command,expected}),findTimeOptions:command.type==='schedule_change'?command.placement?.options:null,planningOptions:command.type==='planning_batch'?command.options:null,...(command.type==='planning_undo'?{undoSourceOperationId:command.sourceOperationId,undoTimezone:command.options?.timezone}:{})});
+    },{manualScheduling:['schedule_change','schedule_undo','edit_task','task_tool','undo_task_list','action_undo'].includes(command.type),legacyFingerprint:stableStringify({command,expected}),findTimeOptions:command.type==='schedule_change'?command.placement?.options:null,planningOptions:command.type==='planning_batch'?command.options:null,...(command.type==='planning_undo'?{undoSourceOperationId:command.sourceOperationId,undoTimezone:command.options?.timezone}:{})});
 }
 
 export function applyStoredPlanningUndo(plan,command,expected){
@@ -73,7 +81,7 @@ function receiptResult(result) {
     if(result.planningUndo)compact.planningUndo=structuredClone(result.planningUndo);
     if(result.scheduleUndo)compact.scheduleUndo=structuredClone(result.scheduleUndo);
     if(result.planningUndoUnavailable)compact.planningUndoUnavailable=true;
-    if(['planning_undo','undo_create_task','schedule_undo'].includes(result.type))compact.undoneOperationId=result.undoneOperationId;
+    if(['planning_undo','undo_create_task','schedule_undo','action_undo'].includes(result.type))compact.undoneOperationId=result.undoneOperationId;
     if(Array.isArray(result.taskIds)){compact.taskIds=structuredClone(result.taskIds);compact.completedTaskIds=structuredClone(result.completedTaskIds||[]);if(result.action!==undefined)compact.action=result.action;}
     for (const field of ['task', 'event', 'movedTask']) {
         const item = result[field];
@@ -121,10 +129,15 @@ export async function persistAiPlanAction(planId, uid, action, operationId, crea
         if(options.manualScheduling){const userSnapshot=await transaction.get(doc(db,'users',uid));allowCompleted=userSnapshot.data()?.settings?.planning?.rescheduleCompleted===true;}
         const next = planState(data);
         const result = receiptResult(apply({ data: next,receipts,allowCompleted }));
+        if(action.type!=='task_list'&&!action.type.startsWith('plan_')){
+            const changes=plannerChanges(planState(data),next);
+            if(changes.length&&changes.length<=250&&JSON.stringify(changes).length<=16384)result.plannerUndo=changes;
+            else if(changes.length)result.plannerUndoUnavailable=true;
+        }
         if(options.manualScheduling)assertCompletedScheduleChanges(planState(data),next,allowCompleted);
         if(result.type==='planning_undo'&&result.undoneOperationId!==options.undoSourceOperationId)throw Error('A saved planning receipt is required for Undo.');
         validateAssignmentOrderChanges(planState(data),next);
-        const history=['planning_undo','undo_create_task','schedule_undo'].includes(result.type)?receipts.map(receipt=>receipt.id===result.undoneOperationId?{...receipt,[result.type==='planning_undo'?'planningUndoUsedBy':result.type==='schedule_undo'?'scheduleUndoUsedBy':'creationUndoUsedBy']:operationId}:receipt):receipts;
+        const history=['planning_undo','undo_create_task','schedule_undo','action_undo'].includes(result.type)?receipts.map(receipt=>receipt.id===result.undoneOperationId?{...receipt,[result.type==='planning_undo'?'planningUndoUsedBy':result.type==='schedule_undo'?'scheduleUndoUsedBy':result.type==='action_undo'?'plannerUndoUsedBy':'creationUndoUsedBy']:operationId}:receipt):receipts;
         const updated = [...history, { id: operationId, createdAt, fingerprint, result }];
         const removed = updated.slice(0, Math.max(0, updated.length - 100));
         const retained=updated.slice(-100);
@@ -139,4 +152,12 @@ export async function persistAiPlanAction(planId, uid, action, operationId, crea
         }, { merge: true });
         return result;
     });
+}
+
+export async function loadActionUndoPreview(planId,uid){
+ const snapshot=await getDoc(doc(db,'study_plans',planId)),data=ownedPlan(snapshot,uid);
+ const source=[...(data.aiActionReceipts||[])].reverse().find(receipt=>receipt.result?.plannerUndo&&!receipt.plannerUndoUsedBy);
+ if(!source)throw Error('There is no supported AI change to undo. Deleted tasks and boards can also be restored from Archive.');
+ const before=planState(data),after=undoPlannerChanges(before,source.result.plannerUndo);
+ return {command:{type:'action_undo',sourceOperationId:source.id},expected:{sourceOperationId:source.id},rows:plannerChangeRows(before,after)};
 }

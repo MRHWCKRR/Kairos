@@ -24,6 +24,8 @@ jobs:
         run: npm ci
       - name: Run full regression suite
         run: npm test
+      - name: Run planner journeys in a real browser
+        run: node scripts/run-planner-browser-test.mjs
       - name: Run Cloudflare tests and build
         run: npm run build:cloudflare
       - name: Verify Cloudflare runtime and bundle

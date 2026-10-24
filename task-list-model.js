@@ -1,3 +1,4 @@
+import {applyRestoreCommand} from './planner-archive.js?v=1';
 import {stableStringify,mergePlanEdits} from './plan-merge.js';
 import {applySectionCommand} from './task-section-model.js';
 import {buildTaskToolCommand,applyTaskToolCommand} from './task-tools-model.js';
@@ -153,6 +154,7 @@ function applyTaskBatch(state,command,expected,restore=false){
 }
 export function buildTaskTool(state,action,ids,options={}){batchIds(ids);return buildTaskToolCommand(state,action,ids,options,{resolve:taskListLocation,values:taskDetailValues})}
 export function applyTaskListCommand(state,command,expected,{now=Date.now(),allowCompleted=false}={}){
+    if(command?.type==='restore_entity')return applyRestoreCommand(state,command,expected);
     if(command?.type==='schedule_change')return applyScheduleChange(state,command,expected,{allowCompleted});
     if(command?.type==='planning_batch')return applyPlanningCommand(state,command,expected,{now});
     if(['move_section','reorder_sections'].includes(command?.type))return applySectionCommand(state,command,expected);
@@ -197,15 +199,19 @@ export function applyTaskListCommand(state,command,expected,{now=Date.now(),allo
     }
     if(command?.type==='create_task'){
         const item=command.task;
-        if(!item||typeof item!=='object'||Array.isArray(item)||Object.keys(item).some(key=>!['id','title','date','dueDate','estimatedMinutes'].includes(key))||typeof item.id!=='string'||!item.id.trim()||item.id.length>160||typeof item.title!=='string'||!item.title.trim()||item.title.length>180)throw new Error('Enter a task title up to 180 characters and a valid ID.');
+        if(!item||typeof item!=='object'||Array.isArray(item)||Object.keys(item).some(key=>!['id','title','date','dueDate','estimatedMinutes','startTime','endTime'].includes(key))||typeof item.id!=='string'||!item.id.trim()||item.id.length>160||typeof item.title!=='string'||!item.title.trim()||item.title.length>180)throw new Error('Enter a task title up to 180 characters and a valid ID.');
         for(const field of ['date','dueDate'])if(item[field]!=null&&(typeof item[field]!=='string'||!dateValid(item[field])))throw new Error('Enter a valid date or deadline.');
         if(item.estimatedMinutes!=null&&(!Number.isInteger(item.estimatedMinutes)||item.estimatedMinutes<1||item.estimatedMinutes>1440))throw new Error('Enter an estimate from 1 to 1440 minutes.');
         if(item.date&&item.dueDate&&item.date>item.dueDate)throw new Error('The task date cannot be after its deadline.');
         const next=structuredClone(state),matches=(next.boards||[]).flatMap(board=>(board.sections||[]).filter(section=>board.id===command.target?.boardId&&section.id===command.target?.sectionId).map(section=>({board,section})));
         if(matches.length!==1||matches[0].board.archived||matches[0].section.archived||expected?.boardId!==command.target?.boardId||expected?.sectionId!==command.target?.sectionId)throw new Error('This section is missing, archived or ambiguous.');
         if((next.boards||[]).some(board=>(board.sections||[]).some(section=>(section.tasks||[]).some(task=>task.id===item.id))))throw new Error('This task ID already exists. Reconcile the original save.');
+        if(item.startTime!=null||item.endTime!=null){
+            const start=parseTime(item.startTime),end=parseTime(item.endTime);
+            if(!item.date||typeof item.startTime!=='string'||typeof item.endTime!=='string'||!/^([01]\d|2[0-3]):[0-5]\d$/.test(item.startTime)||!/^([01]\d|2[0-3]):[0-5]\d$/.test(item.endTime)||start===null||end===null||end<=start)throw Error('Choose a valid date and time range for this task.');
+        }
         const {board,section}=matches[0],task={id:item.id,title:item.title.trim(),completed:false,date:item.date??null,archived:false};
-        for(const field of ['dueDate','estimatedMinutes'])if(Object.hasOwn(item,field))task[field]=item[field];
+        for(const field of ['dueDate','estimatedMinutes','startTime','endTime'])if(Object.hasOwn(item,field))task[field]=item[field];
         (section.tasks??=[]).push(task);
         return {next,result:{type:'create_task',task,board:board.title,section:section.title}};
     }

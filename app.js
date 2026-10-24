@@ -1,3 +1,9 @@
+import {mountTodayView,mountMutationFeedback} from './today-view.js?v=1';
+import {createMutationSession} from './mutation-session.js?v=1';
+import {archiveMarkup,buildRestoreCommand} from './planner-archive.js?v=1';
+import {createPlannerBackup,downloadPlannerBackup} from './planner-backup.js?v=1';
+import {mountAiUndo} from './ai-undo-view.js?v=1';
+import {loadActionUndoPreview} from './plan-store.js?v=19';
 import {calendarDate,shiftCalendarMonth,monthTaskEntries,calendarMonthMarkup,calendarTaskMarkup} from './schedule-month.js?v=2';
 import {taskWorkCheckin} from './remaining-work.js?v=2';
 import {promptFocusCheckin} from './focus-checkin.js?v=1';
@@ -15,7 +21,7 @@ import { requestBilling } from './billing-client.js?v=2';
 import { mountPlanUsage } from './plan-usage.js?v=6';
 import {assignmentProgressIndex,assignmentProgressMarkup} from './assignment-progress.js?v=4';
 import {planningClock} from './planning-model.js?v=1';
-import { createPageLoader } from './page-loader.js?v=68';
+import { createPageLoader } from './page-loader.js?v=69';
 import { mountPageRouter } from './page-router.js?v=3';
 import { createPageRenderCache } from './page-render-cache.js?v=1';
 import './boards-recurrence.js?v=11';
@@ -44,15 +50,15 @@ import { LANGUAGES, applyTranslations, getLocale, getLanguageName, t, ACHIEVEMEN
 import { invalidateKairosContext } from './ai-context.js?v=16';
 import { dueTaskReminders, dueBedtimeReminders, reminderDeliveryStatus } from './task-reminders.js?v=3';
 import { deliverTaskReminder, deliverBedtimeReminder, saveNotificationEdits, escapeNotificationText } from './reminder-notifications.js?v=3';
-import { savePlannerEdits, persistTaskListCommand,loadPlanningUndoPreview } from './plan-store.js?v=18';
-import { resolveTaskDetail, taskListSection } from './task-list-model.js?v=17';
+import { savePlannerEdits, persistTaskListCommand,loadPlanningUndoPreview } from './plan-store.js?v=19';
+import { resolveTaskDetail, taskListSection } from './task-list-model.js?v=18';
 import { mergePlanEdits, planState } from './plan-merge.js';
 import {createSettingsRecovery,overlaySettingsEdits} from './settings-recovery.js?v=1';
 import {mountGettingStarted,openGettingStartedDestination} from './getting-started.js?v=3';
 import {createGettingStartedStore} from './getting-started-store.js?v=1';
 import {mountFocusBreakdown} from './focus-breakdown.js?v=1';
 import {mountGlobalSearch} from './global-search.js?v=4';
-import {mountTaskCapture} from './task-capture.js?v=4';
+import {mountTaskCapture} from './task-capture.js?v=5';
 import {normaliseShortcuts,describeShortcut} from './shortcut-model.js?v=1';
 import {mountShortcutSettings} from './shortcut-settings.js?v=1';
 import {mountSidebarIcons} from './sidebar-icons.js?v=2';
@@ -312,73 +318,13 @@ function bootApp() {
     }
 
     function renderArchivePanel() {
-        const container = document.getElementById('archive-panel-container');
-        const countEl = document.getElementById('archive-count');
-        if (!container) return;
-
-        const archivedBoards = boardsData.filter(b => b.archived);
-        const archivedSections = [];
-        const archivedTasks = [];
-        boardsData.forEach(board => {
-            board.sections.forEach(section => {
-                if (section.archived && !board.archived) archivedSections.push({ board, section });
-                section.tasks.forEach(task => {
-                    if (task.archived && !section.archived && !board.archived) archivedTasks.push({ board, section, task });
-                });
-            });
-        });
-
-        const totalCount = archivedBoards.length + archivedSections.length + archivedTasks.length;
-        if (countEl) countEl.textContent = totalCount;
-
-        if (!totalCount) {
-            container.innerHTML = `<div class="archive-panel"><p class="archive-empty">${tr('archive_empty')}</p></div>`;
-            return;
-        }
-
-        let html = `<div class="archive-panel">`;
-
-        if (archivedBoards.length) {
-            html += `<p class="archive-section-title">${tr('archived_boards')}</p>`;
-            html += archivedBoards.map(b => `
-                <div class="archive-item-row">
-                    <span class="archive-item-label">${b.title}</span>
-                    <div class="archive-item-actions">
-                        <button type="button" class="archive-restore-board-btn" data-board-id="${b.id}">${tr('restore')}</button>
-                        <button type="button" class="archive-delete-board-btn danger-option" data-board-id="${b.id}">${tr('delete_forever')}</button>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        if (archivedSections.length) {
-            html += `<p class="archive-section-title">${tr('archived_sections')}</p>`;
-            html += archivedSections.map(({ board, section }) => `
-                <div class="archive-item-row">
-                    <span class="archive-item-label">${section.title} <span class="archive-item-meta">— ${board.title}</span></span>
-                    <div class="archive-item-actions">
-                        <button type="button" class="archive-restore-section-btn" data-section-id="${section.id}">${tr('restore')}</button>
-                        <button type="button" class="archive-delete-section-btn danger-option" data-board-id="${board.id}" data-section-id="${section.id}">${tr('delete_forever')}</button>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        if (archivedTasks.length) {
-            html += `<p class="archive-section-title">${tr('archived_tasks')}</p>`;
-            html += archivedTasks.map(({ board, section, task }) => `
-                <div class="archive-item-row">
-                    <span class="archive-item-label">${task.title} <span class="archive-item-meta">— ${board.title} / ${section.title}</span></span>
-                    <div class="archive-item-actions">
-                        <button type="button" class="archive-restore-task-btn" data-section-id="${section.id}" data-task-id="${task.id}">${tr('restore')}</button>
-                        <button type="button" class="archive-delete-task-btn danger-option" data-section-id="${section.id}" data-task-id="${task.id}">${tr('delete_forever')}</button>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        html += `</div>`;
-        container.innerHTML = html;
+        const container=document.getElementById('archive-panel-container');if(!container)return;
+        const view=archiveMarkup({boards:boardsData},{translate:tr});container.innerHTML=view.html;
+        const count=document.getElementById('archive-count');if(count)count.textContent=view.count;
+    }
+    async function restoreArchived(target){
+        try{const {command,expected}=buildRestoreCommand({boards:boardsData},target);await plannerMutations.run(command,expected);}
+        catch(error){showNotice(error.message);}
     }
 
     const toggleArchiveBtn = document.getElementById('toggle-archive-btn');
@@ -503,7 +449,7 @@ function bootApp() {
     onAuthStateChanged(auth, async (user) => {
         globalThis.window?.__kairosScheduleInteractions?.sync();
         searchPlannerOwnerId = null;
-        globalSearchController?.sync();taskCaptureController?.sync();
+        globalSearchController?.sync();taskCaptureController?.sync();plannerMutations?.sync();aiUndoView?.sync();todayView?.sync();
         focusTimerController?.sync();
         focusHistoryController?.sync();
         gettingStarted?.sync();
@@ -584,7 +530,7 @@ function bootApp() {
 
     let aiPageAutoCollapsed = false;
     let sidebarManuallyToggledOnAI = false;
-    let taskDetails=null,taskWorkspace=null,taskInteractions=null,taskMenus=null,taskSelection=null,taskShortcuts=null,focusBreakdownView=null,globalSearchController=null,taskCaptureController=null;
+    let taskDetails=null,taskWorkspace=null,taskInteractions=null,taskMenus=null,taskSelection=null,taskShortcuts=null,focusBreakdownView=null,globalSearchController=null,taskCaptureController=null,todayView=null,plannerMutations=null,aiUndoView=null;
     async function commitTaskDetails(command,expected,identity){
         const user=auth.currentUser;
         if(!user||identity.ownerId!==user.uid||identity.planId!==currentPlanDocId)throw new Error('The signed-in account or planner changed.');
@@ -788,33 +734,7 @@ function bootApp() {
         return null;
     }
 
-    function renderFocusMode() {
-        if (!focusContainer) return;
-        if (pageRenders.defer('home-page',renderFocusMode)) return;
-        const activeSection = findFirstIncompleteSection();
-        if (activeSection) {
-            const visibleTasks = activeSection.tasks.filter(t => !t.archived);
-            let tasksHTML = visibleTasks.map(task => createTaskHTML(task, activeSection.id)).join('');
-            focusContainer.innerHTML = `
-                <div class="fade-in-section">
-                    <div class="checklist-header">
-                        <h3 class="editable-title" spellcheck="false">${activeSection.title}</h3>
-                    </div>
-                    <ul class="task-list">
-                        ${tasksHTML}
-                    </ul>
-                </div>
-            `;
-        } else {
-            focusContainer.innerHTML = `
-                <div class="fade-in-section all-done-state">
-                    <span class="all-done-icon">🎉</span>
-                    <h3>${tr('all_caught_up_title')}</h3>
-                    <p class="text-muted">${tr('all_caught_up_desc')}</p>
-                </div>
-            `;
-        }
-    }
+    function renderFocusMode() { if(pageRenders.defer('home-page',renderFocusMode))return;todayView?.sync(); }
 
     function renderSectionBlockHTML(board, section) {
         const visibleTasks = section.tasks.filter(t => !t.archived);
@@ -1009,7 +929,7 @@ function bootApp() {
         const restoreBoardBtn = e.target.closest('.archive-restore-board-btn');
         if (restoreBoardBtn) {
             const board = findBoard(restoreBoardBtn.getAttribute('data-board-id'));
-            if (board) { board.archived = false; updatePlanInFirestore(); renderApp(); }
+            if (board) await restoreArchived({kind:'board',boardId:board.id});
             return;
         }
 
@@ -1027,7 +947,7 @@ function bootApp() {
         const restoreSectionBtn = e.target.closest('.archive-restore-section-btn');
         if (restoreSectionBtn) {
             const found = findSection(restoreSectionBtn.getAttribute('data-section-id'));
-            if (found) { found.section.archived = false; updatePlanInFirestore(); renderApp(); }
+            if (found) await restoreArchived({kind:'section',boardId:found.board.id,sectionId:found.section.id});
             return;
         }
 
@@ -1050,7 +970,7 @@ function bootApp() {
         if (restoreTaskBtn) {
             const found = findSection(restoreTaskBtn.getAttribute('data-section-id'));
             const task = found ? found.section.tasks.find(t => t.id === restoreTaskBtn.getAttribute('data-task-id')) : null;
-            if (task) { task.archived = false; updatePlanInFirestore(); renderApp(); }
+            if (task) await restoreArchived({kind:'task',taskId:task.id,sectionId:found.section.id});
             return;
         }
 
@@ -2712,30 +2632,14 @@ function bootApp() {
         });
     }
 
-    // Privacy: export data
-    const exportBtn = document.getElementById('privacy-export-btn');
-    if (exportBtn) {
-        exportBtn.addEventListener('click', () => {
-            const exportObj = {
-                exportedAt: new Date().toISOString(),
-                boards: boardsData,
-                dayInsights: dayInsights,
-                scheduleEvents: scheduleData,
-                achievements: achievementsData,
-                focusData: focusData,
-                settings: userSettings
-            };
-            const blob = new Blob([JSON.stringify(exportObj, null, 2)], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `kairos-data-export-${toDateKey(new Date())}.json`;
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-            URL.revokeObjectURL(url);
-        });
-    }
+    // Export the currently loaded planner, including recoverable archived items.
+    document.getElementById('privacy-export-btn')?.addEventListener('click',()=>{
+        const identity=globalSearchIdentity();
+        try{
+            downloadPlannerBackup(createPlannerBackup({...identity,plan:{boards:boardsData,dayInsights,scheduleEvents:scheduleData},settings:userSettings,achievements:achievementsData,focusData}));
+            showNotice('Backup download started. Archived items are included; restore deleted work from Archive.');
+        }catch(error){showNotice('Could not export your data. '+error.message);}
+    });
 
     // Privacy: delete account
     const deleteBtn = document.getElementById('privacy-delete-btn');
@@ -3884,7 +3788,20 @@ function bootApp() {
 
     appReady = true;
     globalSearchController=mountGlobalSearch({getLocale:()=>getLocale(userSettings.accessibility.language||'en'),getShortcuts:()=>userSettings.accessibility.shortcuts,getIdentity:globalSearchIdentity,getState:()=>({boards:boardsData}),getToday:()=>planningClock(Date.now(),userSettings.profile.timezone).date,onNavigate:openGlobalSearchResult});
-    taskCaptureController=mountTaskCapture({getIdentity:globalSearchIdentity,getState:()=>({boards:boardsData}),commit:commitTaskDetails,confirmClear:message=>confirmDialog(message,{confirmText:'Clear recovery'})});
+    plannerMutations=createMutationSession({getIdentity:globalSearchIdentity,commit:async(command,expected,identity)=>{const result=await commitTaskDetails(command,expected,identity);recordTaskListCompletion(command,result);return result;}});
+    mountMutationFeedback({root:document.getElementById('planner-mutation-feedback'),session:plannerMutations,confirmClear:message=>confirmDialog(message,{confirmText:'Clear recovery'})});
+    taskCaptureController=mountTaskCapture({getIdentity:globalSearchIdentity,getState:()=>({boards:boardsData}),getDefaults:()=>({...taskWorkspace?.getCurrentSection?.(),...(document.getElementById('home-page')?.classList.contains('active')?{date:planningClock(Date.now(),userSettings.profile.timezone).date}:document.getElementById('schedule-page')?.classList.contains('active')?{date:calendarFocusDate}:{})}),commit:commitTaskDetails,confirmClear:message=>confirmDialog(message,{confirmText:'Clear recovery'})});
+    todayView=mountTodayView({root:document.getElementById('dashboard-focus-container'),getIdentity:globalSearchIdentity,getState:()=>({boards:boardsData,scheduleEvents:scheduleData}),getToday:()=>planningClock(Date.now(),userSettings.profile.timezone).date,session:plannerMutations,onCapture:context=>taskCaptureController.open(context),confirmClear:message=>confirmDialog(message,{confirmText:'Clear recovery'}),onOpen:async(row,action,source)=>{
+        const owner=auth.currentUser?.uid,plan=currentPlanDocId;if(!owner||!plan)return false;
+        const current=()=>auth.currentUser?.uid===owner&&currentPlanDocId===plan;
+        if(action==='open'&&row.kind==='task'&&!row.occurrenceDate)return openTaskDetailsFromList(row.taskId,source);
+        if(!await (taskDetails?.requestClose?.()??true)||!current())return false;
+        await pageRouter.navigate('schedule-page');if(!current())return false;
+        window.__kairosScheduleBridge?.setScheduleDate(row.date||planningClock(Date.now(),userSettings.profile.timezone).date);
+        if(row.occurrenceDate)return window.__kairosScheduleWorkspace?.selectOccurrence?.({seriesId:row.taskId,occurrenceId:row.taskId+'::'+row.occurrenceDate,occurrenceDate:row.occurrenceDate});
+        return window.__kairosScheduleWorkspace?.selectItem?.(row.kind==='event'?'event':'task',row.taskId||row.id);
+    }});
+    aiUndoView=mountAiUndo({root:document.getElementById('ai-mutation-tools'),getIdentity:globalSearchIdentity,session:plannerMutations,loadPreview:loadActionUndoPreview});
     renderApp();
     renderAchievementsPage();
     renderGoalSelects();

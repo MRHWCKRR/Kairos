@@ -49,13 +49,15 @@ test('board deletion previews children and cannot execute without matching confi
   assert.equal(preview.summary.sectionCount,1);
   assert.equal(preview.summary.sections[0].tasks[0].title,'Revision');
   await f.execute(preview.action,{confirmation:preview.approval});
-  assert.deepEqual(f.data().boards.map(b=>b.id),['b2']);
+  assert.deepEqual(f.data().boards.filter(b=>!b.archived).map(b=>b.id),['b2']);
+  assert.equal(f.data().boards[0].sections[0].tasks[0].id,'t1');
 });
-test('section deletion removes only the confirmed section and its tasks',async()=>{
+test('section deletion archives only the confirmed section and retains its tasks',async()=>{
   const f=await plannerFixture(plan());
   const preview=await f.context.previewKairosAction({type:'delete_section',args:{sectionId:'s1'}},{planId:'plan'});
   await f.execute(preview.action,{confirmation:preview.approval});
-  assert.equal(f.data().boards[0].sections.length,0);
+  assert.equal(f.data().boards[0].sections[0].archived,true);
+  assert.equal(f.data().boards[0].sections[0].tasks[0].id,'t1');
   assert.equal(f.data().boards[1].sections.length,1);
 });
 test('changed board contents require another preview before deletion',async()=>{

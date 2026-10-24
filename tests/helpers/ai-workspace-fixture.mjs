@@ -1,16 +1,19 @@
+import {parseHTML} from 'linkedom';
 import vm from 'node:vm';
 import {readFile} from 'node:fs/promises';
 import {plannerFixture} from './planner-fixture.mjs';
 
 export async function fixture(options={}) {
   const f=await plannerFixture({userID:'one',boards:[{id:'b',title:'Study',sections:[{id:'s',title:'General',tasks:[]}]}]},options);
+  const {document}=parseHTML('<html><body></body></html>');
   let input={value:'Create two tasks',style:{}},asks=0,workspaces=[];
-  Object.assign(f.context,{document:{readyState:'loading',documentElement:{lang:'en'},addEventListener(){},getElementById:id=>id==='ai-chat-input'?input:null},
+  Object.assign(f.context,{document:Object.assign(document,{readyState:'loading',getElementById:id=>id==='ai-chat-input'?input:null}),
     setTimeout:()=>0,clearTimeout(){},aiConversationMessages:x=>x,getKairosContext:async()=>'',recordSentMessage:async()=>{},aiErrorMessage:e=>e.message,
     setDoc:async(ref,value)=>workspaces.push({ref,...structuredClone(value)}),console:{log(){},warn(){},error(){}}});
   const source=await readFile(new URL('../../ai-workspace.js',import.meta.url),'utf8');
   vm.runInContext(source.replace(/^import[^\n]*\n/gm,''),f.context);
   f.context.planSuggestion=()=>{};
+  if(options.autoApprove!==false){const show=f.context.dialogBox;f.context.dialogBox=html=>{const modal=show(html);queueMicrotask(()=>modal.querySelector('[data-ok]')?.click());return modal;};}
   f.context.ask=async()=>{
     asks++;
     return {reply:'I will create two tasks.',actions:[

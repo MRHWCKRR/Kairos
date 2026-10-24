@@ -169,7 +169,15 @@
     "task-capture.css",
     "dialog-window.js",
     "dialog-window.css",
-    "schedule-overdue.js"
+    "schedule-overdue.js",
+    "today-model.js",
+    "today-view.js",
+    "today-view.css",
+    "mutation-session.js",
+    "planner-changes.js",
+    "planner-archive.js",
+    "planner-backup.js",
+    "ai-undo-view.js"
   ],
   "directories": [
     "images",

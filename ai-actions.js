@@ -1,8 +1,10 @@
+import {plannerChangeRows} from './planner-changes.js?v=1';
+import {applyTaskListCommand} from './task-list-model.js?v=18';
 import {planningUndoPreview} from './planning-undo.js?v=3';
 import {savedPlanningPreferences,planningPreferencesText} from './planning-preferences.js?v=3';
 import {savedWeeklyAvailability} from './weekly-availability.js';
 import { auth, db } from './firebase.js';
-import { persistAiPlanAction, getConfirmedAiAction, applyStoredPlanningUndo } from './plan-store.js?v=18';
+import { persistAiPlanAction, getConfirmedAiAction, applyStoredPlanningUndo } from './plan-store.js?v=19';
 import { validateActionShape } from './ai-action-schema.js?v=11';
 import { stableStringify, planState } from './plan-merge.js';
 import { taskDurationMinutes } from './schedule-utils.js';
@@ -160,7 +162,12 @@ export async function previewKairosAction(action, options = {}) {
         const proposal=previewAiPlanning(planState(data),action,preferences);
         return {action,approval:proposal.command?{request:stableStringify(action),command:proposal.command,expected:proposal.expected}:null,summary:{kind:'planning',title:action.type==='plan_sessions'?'New work sessions':action.type==='plan_assignments'?'Combined assignment plan':'Schedule changes',rows:proposal.rows,timezone,options:proposal.command?.options||proposal.options,...(proposal.capacity?{capacity:proposal.capacity}:{}),remainingConflicts:proposal.remainingConflicts||0,notice:[proposal.notice,planningPreferencesText(preferences.planningPreferences,proposal.command?.options||proposal.options),proposal.command?planningDailyLimitText(proposal.command.options)+' '+planningGapText(proposal.command.options):'',proposal.command?.ordered!==undefined?'Session order: '+(proposal.command.ordered?'numbered sequence (earlier work first).':'independent placement.'):''].filter(Boolean).join(' ')}};
     }
-    return actionPreview(planState(data), action);
+    const before=planState(data),next=structuredClone(before);
+    const detailed=['delete_task','delete_schedule_event','delete_board','delete_section'].includes(action.type)||(['update_board','update_section'].includes(action.type)&&action.args.archived===true);
+    const base=detailed?actionPreview(before,action):null,pinned=base?.action||structuredClone(action);
+    const simulated=applyKairosAction({data:next},pinned.type,pinned.args,{...options,confirmation:base?.approval});
+    const rows=plannerChangeRows(before,next);
+    return {action:pinned,approval:{...base?.approval,reviewedState:stableStringify(before)},summary:{...(base?.summary||{kind:'changes',title:simulated.task?.title||simulated.event?.title||simulated.section?.title||simulated.board?.title||action.type.replace(/_/g,' ')}),rows}};
 }
 
 export async function confirmedKairosAction(action, options) {
@@ -201,7 +208,7 @@ function createBoard(plan, title) {
 }
 
 export function actionNeedsConfirmation(action) {
-    return action?.type?.startsWith('plan_') || ACTIONS_REQUIRING_CONFIRMATION.has(action?.type) || (['update_board', 'update_section'].includes(action?.type) && action.args?.archived === true) || Number(action?.count || 1) > 1;
+    return typeof action?.type==='string';
 }
 
 export async function executeKairosAction(action, options = {}) {
@@ -231,6 +238,7 @@ export async function executeKairosAction(action, options = {}) {
 }
 
 function applyKairosAction(plan, type, args, options) {
+    if(options.confirmation?.reviewedState&&options.confirmation.reviewedState!==stableStringify(plan.data))throw Error('The planner changed after this preview. Review a fresh preview.');
     if(type==='plan_undo')return applyStoredPlanningUndo(plan,options.confirmation.command,options.confirmation.expected);
     if(type.startsWith('plan_')) {
         const applied=applyPlanningCommand(plan.data,options.confirmation.command,options.confirmation.expected);
@@ -255,7 +263,7 @@ function applyKairosAction(plan, type, args, options) {
         const board = resolveBoard(plan.data, args), originalTitle = board.title;
         if (type === 'delete_board') {
             const affectedCount = (board.sections || []).reduce((n, section) => n + (section.tasks || []).length, 0);
-            plan.data.boards = plan.data.boards.filter(item => item.id !== board.id);
+            board.archived = true;
             return { type, board, affectedCount };
         }
         if (args.newTitle !== undefined) {
@@ -278,7 +286,7 @@ function applyKairosAction(plan, type, args, options) {
     if (type === 'update_section' || type === 'delete_section') {
         const { board, section } = resolveSection(plan.data, args), originalTitle = section.title;
         if (type === 'delete_section') {
-            board.sections = board.sections.filter(item => item.id !== section.id);
+            section.archived = true;
             return { type, section, board: board.title, affectedCount: (section.tasks || []).length };
         }
         if (args.newTitle !== undefined) {
@@ -351,25 +359,15 @@ function applyKairosAction(plan, type, args, options) {
     }
 
     if (type === 'create_task') {
-        const { board, section } = findSection(plan.data, args);
-        const title = clean(args.title, 180);
-        if (!title) throw new Error('A task title is required.');
-        const task = {
-            id: makeId('task'),
-            title,
-            completed: false,
-            archived: false,
-            date: clean(args.date, 20) || null,
-            startTime: clean(args.startTime, 5) || null,
-            endTime: clean(args.endTime, 5) || null
-        };
-        section.tasks = Array.isArray(section.tasks) ? section.tasks : [];
-        section.tasks.push(task);
-        return { type, task, board: board.title, section: section.title };
+        const {board,section}=findSection(plan.data,args),task={id:makeId('task'),title:clean(args.title,180)};
+        for(const key of ['date','startTime','endTime'])if(args[key]!=null&&args[key]!=='')task[key]=args[key];
+        const applied=applyTaskListCommand(plan.data,{type:'create_task',target:{boardId:board.id,sectionId:section.id},task},{boardId:board.id,sectionId:section.id});
+        Object.assign(plan.data,applied.next);return applied.result;
     }
 
     if (type === 'update_task') {
         const found = findTask(plan.data, args);
+        if(args.completed!==undefined)applyTaskListCommand(plan.data,{type:'complete_task',target:{taskId:found.task.id},value:args.completed},{boardId:found.board.id,sectionId:found.section.id,value:found.task.completed===true});
         const originalTitle = found.task.title;
         let finalLocation = found;
         if (['date', 'startTime', 'endTime'].some(key => args[key] !== undefined)) {
@@ -419,16 +417,10 @@ function applyKairosAction(plan, type, args, options) {
         };
     }
 
-    if (type === 'complete_task') {
-        const found = findTask(plan.data, args);
-        found.task.completed = true;
-        return { type, task: found.task };
-    }
-
-    if (type === 'delete_task') {
-        const found = findTask(plan.data, args);
-        found.section.tasks = found.section.tasks.filter(task => task.id !== found.task.id);
-        return { type, task: found.task };
+    if (type === 'complete_task' || type === 'delete_task') {
+        const found=findTask(plan.data,args),archiving=type==='delete_task',command={type:archiving?'archive_task':'complete_task',target:{taskId:found.task.id},value:true};
+        const applied=applyTaskListCommand(plan.data,command,{boardId:found.board.id,sectionId:found.section.id,value:found.task[archiving?'archived':'completed']===true});
+        Object.assign(plan.data,applied.next);return {...applied.result,type};
     }
 
     if (type === 'create_schedule_event') {

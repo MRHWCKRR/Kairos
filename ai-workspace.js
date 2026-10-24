@@ -4,7 +4,7 @@ import { auth, db } from './firebase.js';
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { getKairosContext } from './ai-context.js?v=16';
-import { actionNeedsConfirmation, executeKairosAction, getAiPlanId, previewKairosAction, confirmedKairosAction } from './ai-actions.js?v=16';
+import { actionNeedsConfirmation, executeKairosAction, getAiPlanId, previewKairosAction, confirmedKairosAction } from './ai-actions.js?v=20';
 import { ACTION_TYPES, ACTION_INSTRUCTIONS, explicitDurationIntent, validateActionShape } from './ai-action-schema.js?v=11';
 import { appendPlanLimitActions } from './plan-usage.js';
 import {savedMessageCount} from './ai-usage.js?v=1';
@@ -134,7 +134,7 @@ async function ask(messages){
   if(!actions.length&&successClaim.test(result.reply))throw Error('no-action');
   return {reply:result.reply,actions};
 }
-function actionResultReply(results){return results.filter(Boolean).map(result=>singleActionResultReply([result])).join("\n\n")}
+function actionResultReply(results){return results.filter(Boolean).map(result=>singleActionResultReply([result])+(result.plannerUndoUnavailable?' Automatic Undo is unavailable for this change.':'')).join("\n\n")}
 function singleActionResultReply(results){
   const r=results.filter(Boolean).at(-1);
   if(!r)return 'Done.';
@@ -158,8 +158,8 @@ function singleActionResultReply(results){
   if(r.type==='update_board'&&r.board)return entityUpdateReply('board',r.board,r);
   if(r.type==='update_section'&&r.section)return entityUpdateReply('section',r.section,r);
   if(r.type==='create_section'&&r.section)return (r.sectionCreated===false?'Used the existing':'Created the')+' "'+r.section.title+'" section'+(r.board?' on the "'+r.board+'" board':'')+'.';
-  if(r.type==='delete_board'&&r.board)return 'Deleted the "'+r.board.title+'" board and its '+(r.affectedCount||0)+' tasks.';
-  if(r.type==='delete_section'&&r.section)return 'Deleted the "'+r.section.title+'" section and its '+(r.affectedCount||0)+' tasks.';
+  if(r.type==='delete_board'&&r.board)return 'Moved the "'+r.board.title+'" board and its '+(r.affectedCount||0)+' tasks to Archive. You can restore it from Routines & Tasks.';
+  if(r.type==='delete_section'&&r.section)return 'Moved the "'+r.section.title+'" section and its '+(r.affectedCount||0)+' tasks to Archive.';
   if(r.type==='resize_task'&&r.task)return r.task.startTime?'Changed "'+r.task.title+'" to run from '+r.task.startTime+' to '+r.task.endTime+' on '+r.task.date+'.':'Changed the duration of "'+r.task.title+'" to '+r.task.estimatedMinutes+' minutes.';
   if(r.type==='update_task'&&r.task){
     let s=r.originalTitle?'Renamed "'+r.originalTitle+'" to "'+r.task.title+'".':'Updated "'+r.task.title+'".';
@@ -173,7 +173,7 @@ function singleActionResultReply(results){
     return verb+' "'+r.board.title+'" board'+(r.movedTask?' and moved "'+r.movedTask.title+'" into it':'')+'.';
   }
   if(r.type==='complete_task'&&r.task)return 'Marked "'+r.task.title+'" as complete.';
-  if(r.type==='delete_task'&&r.task)return 'Deleted "'+r.task.title+'".';
+  if(r.type==='delete_task'&&r.task)return 'Moved "'+r.task.title+'" to Archive. You can restore it from Routines & Tasks.';
   if(r.type==='create_schedule_event'&&r.event)return 'Created the recurring "'+r.event.title+'" schedule event.';
   if(r.type==='update_schedule_event'&&r.event)return 'Updated the "'+r.event.title+'" schedule event.';
   if(r.type==='delete_schedule_event'&&r.event)return 'Deleted the "'+r.event.title+'".';
@@ -190,6 +190,9 @@ function combinedCapacityMarkup(capacity){
   return '<ul class="ai-action-preview-list">'+capacity.assignments.map(a=>'<li><strong>'+esc(a.title)+' - '+esc(labels[a.status]||a.status)+'</strong>: '+esc(a.remainingMinutes)+' minutes.'+(a.status==='fits'?'':' '+esc(a.reason.replace(/^Not placed by this check\. /,'')))+'</li>').join('')+'</ul>';
 }
 function actionPreviewMarkup(summary){
+  if(summary.kind!=='planning'&&summary.kind!=='planning-undo'&&summary.rows){
+    return (['board','section'].includes(summary.kind)?actionPreviewMarkup({...summary,rows:null}):'')+'<div class="ai-planning-preview" tabindex="0" role="region" aria-label="Proposed changes"><table><caption>'+esc(summary.title)+'</caption><thead><tr><th>Item</th><th>Field</th><th>Before</th><th>After</th></tr></thead><tbody>'+summary.rows.map(row=>'<tr><th scope="row">'+esc(row.title)+'</th><td>'+esc(row.field)+'</td><td>'+esc(row.before)+'</td><td>'+esc(row.after)+'</td></tr>').join('')+'</tbody></table>'+(summary.rows.length?'':'<p>No changes are needed.</p>')+'</div>';
+  }
   if(summary.kind==='planning-undo'){const placement=v=>v?.archived?'Archive':(v?.date||'Unscheduled')+(v?.startTime?' '+v.startTime+'-'+(v.endTime||''):'')+(v?.minutes?' / '+v.minutes+' min':'')+(v?.sessionOrder?' ('+v.sessionOrder+')':'');return '<p>'+esc(summary.notice)+'</p><p>Times use '+esc(summary.timezone)+'.</p><div class="ai-planning-preview" tabindex="0" role="region" aria-label="Reviewed Undo changes"><table><caption>'+esc(summary.title)+'</caption><thead><tr><th>Task</th><th>Change</th><th>Current</th><th>Restored</th></tr></thead><tbody>'+summary.rows.map(row=>'<tr><th scope="row">'+esc(row.title)+'</th><td>'+esc(row.action)+'</td><td>'+esc(placement(row.from))+'</td><td>'+esc(placement(row.to))+'</td></tr>').join('')+'</tbody></table></div>'}
 
   if(summary.kind==='planning')return combinedCapacityMarkup(summary.capacity)+(summary.notice?'<p>'+esc(summary.notice)+'</p>':'')+(summary.remainingConflicts?'<p role="note">'+esc(summary.remainingConflicts)+' fixed, locked or recurring overlaps will remain. Review these commitments in Schedule.</p>':'')+'<p>Times use '+esc(summary.timezone)+'. '+(summary.options.weeklyAvailability?(summary.options.availabilitySource==='custom-weekly'?'Custom weekly hours for this plan: ':'Saved weekly hours: ')+esc(weeklyAvailabilityText(summary.options.weeklyAvailability)):'Daily availability: '+esc(summary.options.dayStart)+'-'+esc(summary.options.dayEnd))+'.</p><p>Review every row. '+(summary.title==='New work sessions'?'Your assignment and checklist stay intact.':'Only the listed tasks move; durations and deadlines stay intact.')+'</p><div class="ai-planning-preview" tabindex="0" role="region" aria-label="Proposed planning changes"><table><caption>'+esc(summary.title)+'</caption><thead><tr><th>Task</th><th>Date</th><th>Time</th><th>Minutes</th></tr></thead><tbody>'+summary.rows.map(row=>'<tr><th scope="row">'+esc(row.title)+'</th><td>'+esc(row.date)+'</td><td>'+esc(row.startTime)+'-'+esc(row.endTime)+'</td><td>'+esc(row.minutes)+'</td></tr>').join('')+'</tbody></table></div>';
@@ -360,7 +363,13 @@ async function runAction(chatId,action,options={}){
   if(!chats.some(chat=>chat.id===chatId)||auth.currentUser?.uid!==options.ownerId)throw new Error('The signed-in account or conversation changed.');
   return executeKairosAction(action,options);
 }
-async function requestActionConfirmation(chatId,action,options,entry=null){
+let actionConfirmationQueue=Promise.resolve();
+function requestActionConfirmation(...args){
+  const work=actionConfirmationQueue.catch(()=>{}).then(()=>showActionConfirmation(...args));
+  actionConfirmationQueue=work.catch(()=>{});
+  return work;
+}
+async function showActionConfirmation(chatId,action,options,entry=null){
   if(options.operationId&&options.planId){
     const confirmed=await confirmedKairosAction(action,options);
     if(confirmed)return confirmed;
@@ -377,11 +386,11 @@ async function requestActionConfirmation(chatId,action,options,entry=null){
   if(auth.currentUser?.uid!==options.ownerId||!chats.some(chat=>chat.id===chatId))throw new Error('The signed-in account or conversation changed.');
   return new Promise((resolve,reject)=>{
     const label=action.type.replace(/_/g,' ');
-    const archive=action.args.archived===true;
-    const contents=['board','section','planning','planning-undo'].includes(preview.summary.kind)?actionPreviewMarkup(preview.summary):'';
-    const note=planning?'Nothing changes until you Apply. If this preview becomes stale, cancel and request a fresh plan.':archive?'Its tasks remain saved and can be restored from the Archive.':'This change cannot be undone automatically.';
-    const modal=dialogBox('<button type="button" class="close-modal" aria-label="Cancel action" data-cancel>x</button><h2>'+(action.type==='plan_undo'?'Review Undo':planning?'Review planning changes':'Confirm action')+'</h2>'+(planning?'<p>Review the proposed work and schedule below.</p>':'<p>Kairos is ready to '+esc(label)+' for "'+esc(preview.summary.title)+'".</p>')+contents+'<p>'+note+'</p><div class="ai-chat-dialog-actions"><button class="settings-cancel-btn" data-cancel>Cancel</button><button class="action-btn '+(planning?'':'ai-chat-dialog-danger')+'" data-ok>'+(action.type==='plan_undo'?'Undo reviewed changes':planning?'Apply changes':'Confirm')+'</button></div>');
-    if(planning){
+    const archive=action.args.archived===true||['delete_task','delete_board','delete_section'].includes(action.type);
+    const contents=!!preview.summary.rows||['board','section','planning','planning-undo'].includes(preview.summary.kind)?actionPreviewMarkup(preview.summary):'';
+    const note=planning?'Nothing changes until you Apply. If this preview becomes stale, cancel and request a fresh plan.':archive?'Its tasks remain saved and can be restored from the Archive.':'Supported changes can be reversed using Undo AI change. Review the affected fields before applying.';
+    const modal=dialogBox('<button type="button" class="close-modal" aria-label="Cancel action" data-cancel>x</button><h2>'+(action.type==='plan_undo'?'Review Undo':planning?'Review planning changes':'Review changes')+'</h2>'+(planning?'<p>Review the proposed work and schedule below.</p>':'<p>Kairos is ready to '+esc(label)+' for "'+esc(preview.summary.title)+'".</p>')+contents+'<p>'+note+'</p><div class="ai-chat-dialog-actions"><button class="settings-cancel-btn" data-cancel>Cancel</button><button class="action-btn '+(action.type.startsWith('delete_')?'ai-chat-dialog-danger':'')+'" data-ok>'+(action.type==='plan_undo'?'Undo reviewed changes':planning?'Apply changes':'Apply change')+'</button></div>');
+    {
       modal.querySelector('.ai-chat-dialog')?.classList.add('ai-planning-dialog');
       modal.querySelector('h2').id='ai-planning-review-title';
       modal.querySelector('[role="dialog"]').setAttribute('aria-labelledby','ai-planning-review-title');
