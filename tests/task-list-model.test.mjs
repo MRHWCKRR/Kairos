@@ -50,3 +50,24 @@ test('a repeat rule cannot end before its first occurrence',async()=>{
   const {applyTaskListCommand}=await load();
   assert.throws(()=>applyTaskListCommand(state(),{type:'edit_task',target,changes:{recurrence:{enabled:true,frequency:'daily',interval:1,startDate:'2026-10-15',endType:'date',endDate:'2026-10-14'}}},{boardId:'b',sectionId:'s',fields:{recurrence:null}}),/repeat|recurr|end/i);
 });
+test('clearing a time retains block duration over an older estimate',async()=>{
+ const {applyTaskListCommand,taskDetailValues}=await load(),data=state();data.boards[0].sections[0].tasks[0].estimatedMinutes=20;
+ const edit=(input,changes)=>applyTaskListCommand(input,{type:'edit_task',target,changes},{boardId:'b',sectionId:'s',fields:taskDetailValues(input.boards[0].sections[0].tasks[0])}).next;
+ const cleared=edit(data,{date:null,startTime:null});
+ assert.equal(taskDetailValues(cleared.boards[0].sections[0].tasks[0]).durationMinutes,60);
+ const placed=edit(cleared,{date:'2026-10-26',startTime:'09:00'});
+ assert.equal(placed.boards[0].sections[0].tasks[0].endTime,'10:00');
+ assert.equal(data.boards[0].sections[0].tasks[0].estimatedMinutes,20);
+});
+test('clearing a time keeps missing estimates absent and explicit duration edits take priority',async()=>{
+ const {applyTaskListCommand,taskDetailValues}=await load();
+ for(const estimate of [undefined,null,20]){
+  for(const duration of [undefined,90]){
+   const data=state(),task=data.boards[0].sections[0].tasks[0];task.endTime='14:35';if(estimate!==undefined)task.estimatedMinutes=estimate;
+   const changes={startTime:null,...(duration?{durationMinutes:duration}:{})};
+   const cleared=applyTaskListCommand(data,{type:'edit_task',target,changes},{boardId:'b',sectionId:'s',fields:taskDetailValues(task)}).next.boards[0].sections[0].tasks[0];
+   assert.equal(taskDetailValues(cleared).durationMinutes,duration??95);
+   if(duration===undefined&&estimate==null)assert.equal(cleared.estimatedMinutes,estimate);
+  }
+ }
+});
