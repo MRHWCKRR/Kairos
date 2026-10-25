@@ -109,7 +109,7 @@ export function mountTaskDetailPane({root,resolveTarget,commit,getAllowCompleted
     async function requestClose(){
         if(!panel)return true;if(busy)return false;
         if(owner!==getOwnerId()){forget();close();return true}
-        if(dirty()){const answer=await chooseDraft();if(answer==='stay')return false;if(answer==='save'&&!await save())return false;if(answer==='discard')forget();}
+        if(dirty()){const answer=await chooseDraft();if(answer==='stay')return false;if(answer==='save'&&!await save())return false;if(answer==='discard'){commit.discard?.(pending?.identity);forget();}}
         close();return true;
     }
     function trap(event,surface){
@@ -226,5 +226,10 @@ export function mountTaskDetailPane({root,resolveTarget,commit,getAllowCompleted
         }catch(error){if(ticket!==revision)return false;busy=false;updateControls();status(copy('failed')+' '+error.message,true);return false}
     }
     function sync(){if(panel)updateControls();deadlineImpactView?.refresh();taskFocusView?.refresh();if(panel&&owner===getOwnerId()&&planId===getPlanId()){refreshAssignmentProgress(panel.querySelector('[data-assignment-detail]'),assignmentProgressIndex(getState(),getToday()).get(target.taskId),{details:true})}if(!activePage())checklistEditor?.cancelReorder();if(panel&&(owner!==getOwnerId()||planId!==getPlanId())){forget();close()}}
-    return {open,save,requestClose,maximise,sync,dispose:close};
+    function resolveRecovery(identity,status){
+        if(status!=='discarded'||busy||!panel||identity.ownerId!==getOwnerId()||identity.planId!==getPlanId()||pending?.identity.operationId!==identity.operationId||pending?.identity.createdAt!==identity.createdAt)return;
+        forget();pending=null;updateControls();statusError=false;
+        const el=panel.querySelector('.task-detail-footer [role="status"]');if(el)el.textContent='Recovery cleared. Your draft is still here. Review it before saving.';
+    }
+    return {open,save,requestClose,maximise,sync,resolveRecovery,dispose:close};
 }

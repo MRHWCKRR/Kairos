@@ -25,6 +25,7 @@ const BRIDGE=`
         renderMonthCalendar: date => {syncCalendarDate(date);renderCalendar();},
         openScheduleSettings: () => openPlanningSettings(),
         commitScheduleCommand: (command, expected, identity) => commitTaskDetails(command, expected, identity),
+        discardScheduleRecovery: identity => plannerMutations?.discard(identity),
         ensureSchedulePlan: async () => {
             const owner = auth.currentUser?.uid, expectedPlan = currentPlanDocId || 'plan-' + owner;
             if (!owner) throw new Error('You must be signed in.');

@@ -124,7 +124,7 @@ export function mountTaskListInteractions({getAllowCompletedReschedule=()=>false
     async function discard(){
         sync();if(!pending||busy)return false;const original=pending,ticket=generation;
         if(!await confirmDiscard(copy('discard_warning'))||ticket!==generation||getOwnerId()!==owner||getPlanId()!==plan||pending!==original||disposed)return false;
-        pending=null;remember();message.textContent=copy('discarded');refresh();decorate();return true;
+        commit.discard?.(original.identity);pending=null;remember();message.textContent=copy('discarded');refresh();decorate();return true;
     }
     function sourceFor(row){return taskListLocation(getState(),row.dataset.detailRow)}
     function destinationFor(element){
@@ -270,5 +270,9 @@ export function mountTaskListInteractions({getAllowCompletedReschedule=()=>false
     const dragClick=event=>{if(suppressPointer!==null&&event.pointerId===suppressPointer&&event.detail>0){suppressPointer=null;event.preventDefault();event.stopImmediatePropagation()}};
     document.addEventListener('pointerdown',nextPress,true);document.addEventListener('click',dragClick,true);
     root.addEventListener('click',onClick);root.addEventListener('change',onChange);root.addEventListener('keydown',onKey);root.addEventListener('pointerdown',onDown);root.addEventListener('pointermove',onMove);root.addEventListener('pointerup',onUp);root.addEventListener('pointercancel',onCancel);sync();decorate();
-    return {runSectionAction:sections.run,getSectionState:sections.state,getDisplayState,getActionState,runTaskAction,runTaskBatch,runTaskTool,execute,retry:reconcile,undo,discard,sync,decorate,cancelDrag,isDragging:()=>!!drag||sections.isDragging(),reportError(text){message.textContent=text;decorate()},dispose(){document.removeEventListener('pointerdown',nextPress,true);document.removeEventListener('click',dragClick,true);window.removeEventListener('blur',onCancel);document.removeEventListener('visibilitychange',onVisibility);root.removeEventListener('lostpointercapture',onCancel);sections.dispose();disposed=true;preview=null;generation++;cancelDrag();clearUndo();moveDialog?.remove();fieldDialog?.dispose();bar.remove();for(const [type,handler] of [['click',onClick],['change',onChange],['keydown',onKey],['pointerdown',onDown],['pointermove',onMove],['pointerup',onUp],['pointercancel',onCancel]])root.removeEventListener(type,handler)}};
+    function resolveRecovery(identity,status){
+        if(status!=='discarded'||busy||disposed||identity.ownerId!==getOwnerId()||identity.planId!==getPlanId()||pending?.identity.operationId!==identity.operationId||pending?.identity.createdAt!==identity.createdAt)return;
+        pending=null;preview=null;remember();message.textContent=copy('discarded');refresh();decorate();
+    }
+    return {resolveRecovery,runSectionAction:sections.run,getSectionState:sections.state,getDisplayState,getActionState,runTaskAction,runTaskBatch,runTaskTool,execute,retry:reconcile,undo,discard,sync,decorate,cancelDrag,isDragging:()=>!!drag||sections.isDragging(),reportError(text){message.textContent=text;decorate()},dispose(){document.removeEventListener('pointerdown',nextPress,true);document.removeEventListener('click',dragClick,true);window.removeEventListener('blur',onCancel);document.removeEventListener('visibilitychange',onVisibility);root.removeEventListener('lostpointercapture',onCancel);sections.dispose();disposed=true;preview=null;generation++;cancelDrag();clearUndo();moveDialog?.remove();fieldDialog?.dispose();bar.remove();for(const [type,handler] of [['click',onClick],['change',onChange],['keydown',onKey],['pointerdown',onDown],['pointermove',onMove],['pointerup',onUp],['pointercancel',onCancel]])root.removeEventListener(type,handler)}};
 }

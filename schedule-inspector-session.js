@@ -34,6 +34,10 @@ export function createScheduleInspectorSession({inspector,getIdentity,getSelecti
   try{if(!storage)throw Error('Storage unavailable');storage.setItem(storageKey(editor.identity),JSON.stringify(record));editor.storageId=record.id}
   catch{recoveryStatus('Draft recovery is unavailable. Keep this tab open until your changes are saved.')}
  }
+ function acknowledge(submitted){
+  if(!current()||values(editor.form)!==submitted)return false;
+  clearSaved(editor);editor.baseline=values(editor.form);editor.original=snapshot(editor.form);return true;
+ }
  function reset(){finishChoice?.('stay');editor=null;}
  function track(form,save,{onRestore}={}){
   if(editor?.form===form)return;
@@ -99,5 +103,5 @@ export function createScheduleInspectorSession({inspector,getIdentity,getSelecti
  document.defaultView?.addEventListener('pagehide',persist);
  function takeRecoverySelection(){const record=readSaved();if(!record||recoveryAttempted===identity())return null;recoveryAttempted=identity();return structuredClone(record.selection)}
  const hasRecovery=kind=>{const record=readSaved();return record?.kind===kind&&selectionKey(record.selection)===selectionKey(getSelection())};
- return {track,preserve,requestLeave,run,isBusy:()=>busy,hasDraft:dirty,reset,takeRecoverySelection,hasRecovery};
+ return {track,preserve,requestLeave,run,acknowledge,capture:()=>current()?values(editor.form):null,isBusy:()=>busy,hasDraft:dirty,reset,takeRecoverySelection,hasRecovery};
 }

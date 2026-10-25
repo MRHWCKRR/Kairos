@@ -90,6 +90,7 @@
     "schedule-ai.js",
     "schedule-inspector.css",
     "schedule-inspector.js",
+    "schedule-inspector-commands.js",
     "schedule-interactions.css",
     "schedule-interactions.js",
     "schedule-change-model.js",

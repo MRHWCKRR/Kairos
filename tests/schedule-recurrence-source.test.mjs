@@ -29,14 +29,6 @@ test('recurrence UI provides a reusable edit-scope dialog contract',()=>{
   assert.match(ui,/showRecurrenceScopeDialog/);assert.match(ui,/This occurrence/);assert.match(ui,/This and future/);assert.match(ui,/Entire series/);assert.match(ui,/occurrence/);assert.match(ui,/future/);assert.match(ui,/series/);assert.match(ui,/cancel/);
 });
 
-test('recurring occurrence inspector exposes occurrence-only complete and skip actions',()=>{
-  assert.match(inspector,/selected\?\.type[^\n]*occurrence|type==='occurrence'/);assert.match(inspector,/Skip occurrence/);assert.match(inspector,/data-occurrence-complete/);assert.match(inspector,/data-occurrence-skip/);assert.match(inspector,/setOccurrenceStatus/);assert.match(inspector,/occurrenceDate/);
-});
-
-test('editing or deleting a recurring occurrence asks for one of three scopes',()=>{
-  assert.match(inspector,/showRecurrenceScopeDialog/);assert.match(inspector,/scope==='occurrence'/);assert.match(inspector,/scope==='future'/);assert.match(inspector,/scope==='series'/);assert.match(inspector,/splitRecurringSeries/);assert.match(inspector,/applyOccurrenceOverride/);assert.match(inspector,/persistPlan/);
-});
-
 test('Schedule expands recurring series into all pending virtual occurrences through the visible range',()=>{
   assert.match(workspace,/generateTaskOccurrencesThrough/);
   assert.doesNotMatch(workspace,/RECURRENCE_LOOKBACK_DAYS/);

@@ -1,3 +1,5 @@
+import {applyRecurringInspectorCommand,applyInspectorDelete,buildRecurringInspectorCommand as buildRecurringCommand,buildInspectorDelete as buildDeleteCommand} from './schedule-inspector-commands.js?v=1';
+
 import {applyRestoreCommand} from './planner-archive.js?v=1';
 import {stableStringify,mergePlanEdits} from './plan-merge.js';
 import {applySectionCommand} from './task-section-model.js';
@@ -9,7 +11,7 @@ import {assertCompletedScheduleChanges} from './schedule-policy.js?v=1';
 import {applyScheduleChange} from './schedule-change-model.js?v=5';
 export {buildScheduleChange,applyScheduleUndo} from './schedule-change-model.js?v=5';
 
-export const TASK_DETAIL_FIELDS=['title','notes','date','startTime','dueDate','durationMinutes','priority','reminderMinutes','scheduleLocked','schedulingPreference','color','recurrence','checklist'];
+export const TASK_DETAIL_FIELDS=['title','notes','date','startTime','dueDate','durationMinutes','estimatedMinutes','priority','reminderMinutes','scheduleLocked','schedulingPreference','color','recurrence','checklist'];
 const dateValid=value=>/^\d{4}-\d{2}-\d{2}$/.test(value)&&Number.isFinite(Date.parse(value+'T12:00:00Z'))&&new Date(value+'T12:00:00Z').toISOString().slice(0,10)===value;
 export async function taskListFingerprint(command,expected){
     const bytes=new TextEncoder().encode(stableStringify({command,expected}));
@@ -153,7 +155,12 @@ function applyTaskBatch(state,command,expected,restore=false){
     return {next,result};
 }
 export function buildTaskTool(state,action,ids,options={}){batchIds(ids);return buildTaskToolCommand(state,action,ids,options,{resolve:taskListLocation,values:taskDetailValues})}
+const inspectorHelpers=()=>({resolve:taskListLocation,values:taskDetailValues,apply:applyTaskListCommand});
+export function buildRecurringInspectorCommand(state,target,intent){return buildRecurringCommand(state,target,intent,inspectorHelpers())}
+export function buildInspectorDelete(state,taskId){return buildDeleteCommand(state,taskId,inspectorHelpers())}
 export function applyTaskListCommand(state,command,expected,{now=Date.now(),allowCompleted=false}={}){
+    if(command?.type==='recurring_inspector')return applyRecurringInspectorCommand(state,command,expected,{allowCompleted,...inspectorHelpers()});
+    if(command?.type==='delete_task')return applyInspectorDelete(state,command,expected,inspectorHelpers());
     if(command?.type==='restore_entity')return applyRestoreCommand(state,command,expected);
     if(command?.type==='schedule_change')return applyScheduleChange(state,command,expected,{allowCompleted});
     if(command?.type==='planning_batch')return applyPlanningCommand(state,command,expected,{now});
@@ -236,6 +243,7 @@ export function applyTaskListCommand(state,command,expected,{now=Date.now(),allo
         if(key==='notes'&&(typeof value!=='string'||value.length>3000))throw new Error('Notes must be text up to 3000 characters.');
         if(['date','dueDate'].includes(key)&&value!==null&&!dateValid(value))throw new Error('Invalid date.');
         if(key==='startTime'&&value!==null&&(typeof value!=='string'||!/^([01]\d|2[0-3]):[0-5]\d$/.test(value)))throw new Error('Invalid start time.');
+        if(key==='estimatedMinutes'&&value!==null&&(!Number.isInteger(value)||value<1||value>=1440))throw new Error('Estimate must be 1-1439 minutes.');
         if(key==='durationMinutes'&&(!Number.isInteger(value)||value<1||value>=1440))throw new Error('Duration must be 1–1439 minutes.');
         if(key==='reminderMinutes'&&value!==null&&(!Number.isInteger(value)||value<1||value>10080))throw new Error('Invalid reminder lead time.');
         if(key==='priority'&&![null,'low','medium','high'].includes(value))throw new Error('Invalid priority.');

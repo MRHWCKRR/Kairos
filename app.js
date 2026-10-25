@@ -532,6 +532,11 @@ function bootApp() {
     let sidebarManuallyToggledOnAI = false;
     let taskDetails=null,taskWorkspace=null,taskInteractions=null,taskMenus=null,taskSelection=null,taskShortcuts=null,focusBreakdownView=null,globalSearchController=null,taskCaptureController=null,todayView=null,plannerMutations=null,aiUndoView=null;
     async function commitTaskDetails(command,expected,identity){
+        if(!plannerMutations)throw new Error('Planner saving is still loading. Your edits are retained.');
+        return plannerMutations.submit(command,expected,identity);
+    }
+    commitTaskDetails.discard=identity=>identity&&plannerMutations?.discard(identity);
+    async function persistTaskDetails(command,expected,identity){
         const user=auth.currentUser;
         if(!user||identity.ownerId!==user.uid||identity.planId!==currentPlanDocId)throw new Error('The signed-in account or planner changed.');
         planEditRevision++;planLoadRevision++;
@@ -3788,7 +3793,9 @@ function bootApp() {
 
     appReady = true;
     globalSearchController=mountGlobalSearch({getLocale:()=>getLocale(userSettings.accessibility.language||'en'),getShortcuts:()=>userSettings.accessibility.shortcuts,getIdentity:globalSearchIdentity,getState:()=>({boards:boardsData}),getToday:()=>planningClock(Date.now(),userSettings.profile.timezone).date,onNavigate:openGlobalSearchResult});
-    plannerMutations=createMutationSession({getIdentity:globalSearchIdentity,commit:async(command,expected,identity)=>{const result=await commitTaskDetails(command,expected,identity);recordTaskListCompletion(command,result);return result;}});
+    plannerMutations=createMutationSession({getIdentity:globalSearchIdentity,commit:async(command,expected,identity)=>{const result=await persistTaskDetails(command,expected,identity);recordTaskListCompletion(command,result);return result;},onResolve:(identity,status)=>{
+        taskDetails?.resolveRecovery?.(identity,status);taskWorkspace?.resolveRecovery?.(identity,status);taskInteractions?.resolveRecovery?.(identity,status);taskCaptureController?.resolveRecovery?.(identity,status);window.__kairosScheduleMutationResolved?.(identity,status);
+    }});
     mountMutationFeedback({root:document.getElementById('planner-mutation-feedback'),session:plannerMutations,confirmClear:message=>confirmDialog(message,{confirmText:'Clear recovery'})});
     taskCaptureController=mountTaskCapture({getIdentity:globalSearchIdentity,getState:()=>({boards:boardsData}),getDefaults:()=>({...taskWorkspace?.getCurrentSection?.(),...(document.getElementById('home-page')?.classList.contains('active')?{date:planningClock(Date.now(),userSettings.profile.timezone).date}:document.getElementById('schedule-page')?.classList.contains('active')?{date:calendarFocusDate}:{})}),commit:commitTaskDetails,confirmClear:message=>confirmDialog(message,{confirmText:'Clear recovery'})});
     todayView=mountTodayView({root:document.getElementById('dashboard-focus-container'),getIdentity:globalSearchIdentity,getState:()=>({boards:boardsData,scheduleEvents:scheduleData}),getToday:()=>planningClock(Date.now(),userSettings.profile.timezone).date,session:plannerMutations,onCapture:context=>taskCaptureController.open(context),confirmClear:message=>confirmDialog(message,{confirmText:'Clear recovery'}),onOpen:async(row,action,source)=>{
