@@ -1,7 +1,7 @@
 import {mountDialogWindow} from './dialog-window.js?v=1';
-import {applyTaskListCommand} from './task-list-model.js?v=17';
+import {applyTaskListCommand} from './task-list-model.js?v=18';
 
-export function mountTaskCapture({document=globalThis.document,window=globalThis.window,getIdentity,getState,commit,confirmClear=async()=>false,storage,uuid=()=>window.crypto.randomUUID(),now=Date.now}={}) {
+export function mountTaskCapture({document=globalThis.document,window=globalThis.window,getIdentity,getState,getDefaults=()=>({}),commit,confirmClear=async()=>false,storage,uuid=()=>window.crypto.randomUUID(),now=Date.now}={}) {
     if(!storage)try{storage=window.localStorage}catch{}
     const dialog=document.createElement('dialog');
     dialog.className='task-capture-dialog';dialog.setAttribute('aria-labelledby','task-capture-title');
@@ -76,10 +76,11 @@ export function mountTaskCapture({document=globalThis.document,window=globalThis
         find('[data-capture-status]').textContent=message||(!identity?'Your planner is loading. Close and try again once it is ready.':!boards.length?'Create a board and section in Routines & Tasks first.':!sections.length?'Add a section to this board in Routines & Tasks first.':'');
         dialog.setAttribute('aria-busy',String(busy));
     }
-    function open(){
+    function open(context={}){
         if(disposed||[...document.querySelectorAll('dialog[open]')].some(item=>item!==dialog))return false;
         sync();if(!getIdentity()?.ownerId)return false;
         const saved=identity?read():null;if(valid(saved)&&saved.identity.operationId!==pending?.identity.operationId)restore(saved);
+        if(!pending&&!String(draft.title||'').trim()){const defaults={...getDefaults(),...context},boards=activeBoards(),board=boards.find(b=>b.id===defaults.boardId)||boards.find(b=>b.id===draft.boardId)||boards[0];if(board){draft.boardId=board.id;draft.sectionId=(board.sections||[]).find(s=>!s.archived&&s.id===defaults.sectionId)?.id||(board.sections||[]).find(s=>!s.archived)?.id||'';}if(typeof defaults.date==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(defaults.date))draft.date=defaults.date;}
         opener=document.activeElement;render();if(!visible()){if(dialog.showModal)dialog.showModal();else dialog.setAttribute('open','');dialogWindow.reset()}
         (pending?find('[data-capture-save]'):field('title')).focus?.();return true;
     }

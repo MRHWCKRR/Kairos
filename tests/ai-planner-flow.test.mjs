@@ -82,15 +82,9 @@ test('switching chats preserves each pending request and its confirmed target',a
 });
 
 test('closing a confirmation dialog resolves cancellation without executing',async()=>{
-  const f=await fixture();
-  f.context.document.body={classList:{remove(){}}};
-  f.context.document.createElement=()=>({set textContent(value){this.innerHTML=value}});
-  let shown;
-  const ready=new Promise(resolve=>shown=resolve);
-  f.context.dialogBox=()=>{shown();return {querySelector:()=>({addEventListener(){}})}};
+  const f=await fixture({autoApprove:false});
+  let shown;const ready=new Promise(resolve=>shown=resolve),show=f.context.dialogBox;
+  f.context.dialogBox=html=>{const modal=show(html);shown();return modal;};
   const pending=f.context.requestActionConfirmation('chat-one',{type:'delete_board',args:{boardId:'b'}},{ownerId:'one',planId:'plan',operationId:'close-dialog',createdAt:Date.now()});
-  await ready;
-  f.context.closeDialog();
-  assert.equal(await pending,false);
-  assert.equal(f.writes.length,0);
+  await ready;f.context.closeDialog();assert.equal(await pending,false);assert.equal(f.writes.length,0);
 });

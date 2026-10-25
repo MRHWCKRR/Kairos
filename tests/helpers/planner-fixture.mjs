@@ -1,3 +1,4 @@
+import {plannerChanges,undoPlannerChanges,plannerChangeRows} from '../../planner-changes.js';
 import {createPlannerBootstrap} from '../../planner-bootstrap.js';
 import {assertFindTimeSettings} from '../../schedule-find-time-model.js';
 import {planningUndoSource,planningUndoPreview,applyPlanningUndo} from '../../planning-undo.js';
@@ -18,8 +19,8 @@ import {applyPlanningCommand} from '../../planning-commands.js';
 
 export async function plannerFixture(data, {failAfterCommit=false,retryTransaction=false,userData={},denyMissingReads=false}={}) {
   let stored=structuredClone(data), userStored=structuredClone(userData), writes=[], events=0, fail=failAfterCommit;
-  const context=vm.createContext({assertFindTimeSettings,completedScheduleChanges,assertCompletedScheduleChanges,applyScheduleUndo,planningUndoSource,planningUndoPreview,applyPlanningUndo,savedPlanningPreferences,planningPreferencesText,assertScheduleAvailability,savedWeeklyAvailability,assertSavedAvailability,applyTaskListCommand,validateAssignmentOrderChanges,structuredClone,console,Date,Intl,previewAiPlanning,aiPlanningSummary,resolveAiPlanningTimezone,planningConflicts,planningGapText,planningDailyLimitText,applyPlanningCommand,mergePlanEdits,planState,stableStringify,taskDurationMinutes,taskListFingerprint,
-    globalSearchController:null,taskCaptureController:null,searchPlannerOwnerId:null,
+  const context=vm.createContext({plannerChanges,undoPlannerChanges,plannerChangeRows,assertFindTimeSettings,completedScheduleChanges,assertCompletedScheduleChanges,applyScheduleUndo,planningUndoSource,planningUndoPreview,applyPlanningUndo,savedPlanningPreferences,planningPreferencesText,assertScheduleAvailability,savedWeeklyAvailability,assertSavedAvailability,applyTaskListCommand,validateAssignmentOrderChanges,structuredClone,console,Date,Intl,previewAiPlanning,aiPlanningSummary,resolveAiPlanningTimezone,planningConflicts,planningGapText,planningDailyLimitText,applyPlanningCommand,mergePlanEdits,planState,stableStringify,taskDurationMinutes,taskListFingerprint,
+    globalSearchController:null,taskCaptureController:null,plannerMutations:null,aiUndoView:null,todayView:null,searchPlannerOwnerId:null,
     initializePlanner:createPlannerBootstrap({getUser:()=>context.auth.currentUser,projectId:'kairos-1a',getAppToken:async()=> 'test-app-check',fetchImpl:async(_url,options)=>{if(stored)return {ok:false,status:409,json:async()=>({error:{status:'ALREADY_EXISTS'}})};const fields=JSON.parse(options.body).fields;stored={userID:fields.userID.stringValue,boards:[],dayInsights:{},scheduleEvents:[]};return {ok:true,status:200};}}),auth:{currentUser:{uid:'one',emailVerified:true,getIdToken:async()=> 'test-id-token'}},db:{},collection:()=>({}),query:x=>x,where:()=>({}),doc:(...args)=>args,
     serverTimestamp:()=>({seconds:1}),getDoc:async ref=>({exists:()=>!!stored,data:()=>structuredClone(ref?.[1]==='users'?userStored:stored)}),
     getDocs:async()=>({docs:stored?[{id:'plan',data:()=>structuredClone(stored)}]:[]}),

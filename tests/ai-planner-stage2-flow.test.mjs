@@ -19,22 +19,15 @@ test('rename follow-up instructions respect board and section target kinds',asyn
   assert.match(prompt,/matching the.*target kind/i);
 });
 
-test('a saved deletion is reconciled on retry without another preview',async()=>{
-  const f=await fixture({failAfterCommit:true});
-  f.context.document.createElement=()=>({set textContent(value){this.innerHTML=value}});
-  f.context.document.body={classList:{remove(){}}};
-  const ok={};let shown,dialogs=0;
-  const ready=new Promise(resolve=>shown=resolve);
-  f.context.dialogBox=()=>{dialogs++;shown();return {querySelector:selector=>selector==='[data-ok]'?ok:{addEventListener(){}}}};
-  f.context.ask=async()=>({reply:'I will delete it.',actions:[{type:'delete_board',args:{title:'Study'}}]});
-  f.input.value='Delete Study';
-  const first=f.context.send();await ready;await ok.onclick();await first;
-  assert.equal(f.data().boards.length,0);
+test('a saved archive is reconciled on retry without another preview',async()=>{
+  const f=await fixture({failAfterCommit:true,autoApprove:false});
+  const show=f.context.dialogBox;let dialogs=0;
+  f.context.dialogBox=html=>{dialogs++;const modal=show(html);queueMicrotask(()=>modal.querySelector('[data-ok]').click());return modal;};
+  f.context.ask=async()=>({reply:'I will archive it.',actions:[{type:'delete_board',args:{title:'Study'}}]});
+  f.input.value='Delete Study';await f.context.send();assert.equal(f.data().boards[0].archived,true);
   vm.runInContext('chats=chats.map(norm);',f.context);
   f.input.value='retry';await f.context.send();
-  assert.equal(dialogs,1);
-  assert.equal(f.chat().pendingActionBatch,null);
-  assert.match(f.chat().messages.at(-1).content,/Deleted/);
+  assert.equal(dialogs,1);assert.equal(f.chat().pendingActionBatch,null);assert.match(f.chat().messages.at(-1).content,/Archive/);
 });
 
 test('chat end-time follow-up executes an explicitly requested resize',async()=>{
@@ -61,19 +54,10 @@ test('section actions report their confirmed result and persist the section foll
   assert.equal(f.chat().lastActionTarget.kind,'section');
 });
 test('board preview escapes child text and cancellation performs no deletion',async()=>{
-  const f=await fixture();
-  await f.execute({type:'create_task',args:{title:'<script>bad</script>'}});
-  f.context.document.createElement=()=>({set textContent(v){this.innerHTML=String(v).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;')}});
-  f.context.document.body={classList:{remove(){}}};
-  let show,markup;
-  const shown=new Promise(resolve=>show=resolve);
-  f.context.dialogBox=html=>{markup=html;show();return {querySelector:()=>({addEventListener(){}})}};
+  const f=await fixture({autoApprove:false});await f.execute({type:'create_task',args:{title:'<script>bad</script>'}});
+  const display=f.context.dialogBox;let show,markup;const shown=new Promise(resolve=>show=resolve);
+  f.context.dialogBox=html=>{markup=html;const modal=display(html);show();return modal;};
   const promise=f.context.requestActionConfirmation('chat-one',{type:'delete_board',args:{boardId:'b'}},{ownerId:'one',planId:'plan',operationId:'preview-cancel',createdAt:Date.now()});
-  await shown;
-  assert.match(markup,/1 task/);
-  assert.match(markup,/&lt;script&gt;bad&lt;\/script&gt;/);
-  assert.doesNotMatch(markup,/<script>/);
-  f.context.closeDialog();
-  assert.equal(await promise,false);
-  assert.equal(f.data().boards.length,1);
+  await shown;assert.match(markup,/1 task/);assert.match(markup,/&lt;script&gt;bad&lt;\/script&gt;/);assert.doesNotMatch(markup,/<script>/);
+  f.context.closeDialog();assert.equal(await promise,false);assert.equal(f.data().boards.length,1);
 });

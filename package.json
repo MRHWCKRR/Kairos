@@ -15,7 +15,8 @@
     "test:billing-rules": "node --test tests/billing-rules.test.mjs",
     "test:pages": "node --test tests/page-*.test.mjs tests/getting-started.test.mjs tests/planning-*.test.mjs tests/assignment-*.test.mjs tests/deadline-feasibility.test.mjs tests/weekly-availability.test.mjs",
     "test:reminders": "node --test tests/task-reminders.test.mjs tests/bedtime-reminders.test.mjs tests/reminder-notifications.test.mjs tests/reminder-runner.test.mjs tests/reminder-flow.test.mjs tests/ai-planner-reminders.test.mjs",
-    "test:recovery": "node --test tests/settings-recovery.test.mjs tests/schedule-draft-recovery.test.mjs"
+    "test:recovery": "node --test tests/settings-recovery.test.mjs tests/schedule-draft-recovery.test.mjs",
+    "test:planner-browser": "node scripts/run-planner-browser-test.mjs"
   },
   "dependencies": {
     "firebase-admin": "^13.5.0",

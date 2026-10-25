@@ -22,6 +22,7 @@
 <link rel="stylesheet" href="shortcut-settings.css?v=1">
 <link rel="stylesheet" href="task-capture.css?v=3">
 <link rel="stylesheet" href="dialog-window.css?v=2">
+<link rel="stylesheet" href="today-view.css?v=1">
 </head>
 <body>
     <script>
@@ -165,6 +166,7 @@
                 </div>
             </header>
 
+            <div id="planner-mutation-feedback" hidden></div>
             <!-- Dashboard -->
             <div id="home-page" class="page-view active">
                 <div class="hero-header">
@@ -175,7 +177,7 @@
                 <div class="dashboard-grid">
                     
                     <!-- Empty container for the Dashboard Focus Mode -->
-                    <div id="dashboard-focus-container" class="dash-card checklist-card">
+                    <div id="dashboard-focus-container" class="dash-card checklist-card today-view">
                         <!-- Content injected by JavaScript -->
                     </div>
 
@@ -256,7 +258,7 @@
                                 </div>
                             </div>
                             <div class="ai-chat-header-actions">
-                                <div class="ai-chat-header-status">Kairos AI</div>
+                                <div id="ai-mutation-tools" class="ai-undo-toolbar"></div><div class="ai-chat-header-status">Kairos AI</div>
                             </div>
                         </header>
 
