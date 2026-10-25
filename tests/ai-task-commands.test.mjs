@@ -43,3 +43,8 @@ test('shared schedule rules reject completed edits, partial time clearing and im
  assert.throws(()=>applyAiTaskMutation(original,request('update_task',{endTime:'09:30'})),/duration/i);
 });
 
+test('AI unscheduling and later placement retain block length over a stale estimate',()=>{
+ const cleared=applyAiTaskMutation(state(),request('update_task',{date:null,startTime:null,endTime:null})).next;
+ const placed=applyAiTaskMutation(cleared,request('update_task',{date:'2026-10-26',startTime:'11:00'})).next;
+ assert.equal(placed.boards[0].sections[0].tasks[0].endTime,'12:00');
+});

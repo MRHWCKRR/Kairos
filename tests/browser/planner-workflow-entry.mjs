@@ -59,6 +59,10 @@ async function run(){
   data=applyAiTaskMutation(data,{type:'update_task',args:{newTitle:'Reviewed science revision',startTime:'14:00'},target:{taskId:'science'}}).next;
   check(data.boards[0].sections[0].tasks.find(t=>t.id==='science').endTime==='14:45','An AI move must preserve duration.');
   data=applyAiTaskMutation(data,{type:'resize_task',args:{durationMinutes:60},target:{taskId:'science'}},{allowDurationChange:true}).next;
+  data.boards[0].sections[0].tasks.find(t=>t.id==='science').estimatedMinutes=20;
+  data=applyAiTaskMutation(data,{type:'update_task',args:{date:null,startTime:null,endTime:null},target:{taskId:'science'}}).next;
+  data=applyAiTaskMutation(data,{type:'update_task',args:{date:today,startTime:'14:00'},target:{taskId:'science'}}).next;
+  check(data.boards[0].sections[0].tasks.find(t=>t.id==='science').endTime==='15:00','Unscheduling and placing again must retain duration over an old estimate.');
   data=applyAiTaskMutation(data,{type:'set_task_reminder',args:{minutesBefore:15},target:{taskId:'science'}}).next;
   check(data.boards[0].sections[0].tasks.find(t=>t.id==='science').endTime==='15:00','Explicit resize must update the end time.');
   check(data.boards[0].sections[0].tasks.find(t=>t.id==='science').reminderMinutes===15,'AI reminder edits must use the shared field.');

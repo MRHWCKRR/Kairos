@@ -256,7 +256,8 @@ export function applyTaskListCommand(state,command,expected,{now=Date.now(),allo
         if(start!==null){if(start+duration>1440)throw new Error('The task must end by midnight.');task.endTime=formatTime((start+duration)%1440,false);}
         else task.endTime=null;
         task.lastScheduledMinutes=duration;
-        if(Object.hasOwn(changes,'durationMinutes'))task.estimatedMinutes=duration;
+        // Once the interval is removed, an old estimate must not shorten its duration.
+        if(Object.hasOwn(changes,'durationMinutes')||start===null&&values.startTime!==null&&Number(task.estimatedMinutes)>0)task.estimatedMinutes=duration;
     }
     if(Object.hasOwn(changes,'recurrence'))task.recurrence=changes.recurrence?{...normalizeRecurrence(changes.recurrence,task.date),exceptions:structuredClone(task.recurrence?.exceptions||{})}:null;
     if(task.recurrence?.enabled&&task.checklist?.some(item=>item.completed))task.checklist=task.checklist.map(item=>({...item,completed:false}));
