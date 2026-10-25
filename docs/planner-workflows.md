@@ -10,7 +10,7 @@ Kairos keeps one planner document and the existing Firebase ownership checks.
 - Today actions, Archive restore and reviewed AI Undo share an owner/plan-scoped mutation session. It retains the command before submitting, blocks overlaps and retries with the original operation identity. A lost acknowledgement cannot create a second mutation. Recovery is cleared only for the matching saved request. Pending requests are never automatically replayed on reconnect.
 - Export Your Data downloads a versioned `kairos-backup` JSON file containing the currently loaded planner, including Archive, settings, achievements and focus totals. Existing top-level export keys remain available. It refuses to export while the planner is unavailable. It does not provide full-account restoration or export the separate AI chat history.
 
-Task creation, ordinary completion and archiving reuse the task command model across manual/AI entry points. Schedule interactions and detail edits keep the existing guarded command transaction. Composite AI updates retain their existing duration, destination and lock rules.
+Task creation, ordinary completion and archiving reuse the task command model across manual/AI entry points. Schedule interactions and detail edits keep the existing guarded command transaction. Composite AI updates, explicit resizes, task moves and reminders now use ai-task-commands.js to translate requests into those same commands on a private draft. Existing duration, destination, lock and explicit-resize rules stay in force; completed-task scheduling reads the saved preference in both preview and transaction. An invalid later step cannot partially save an earlier rename or completion.
 
 ## Verification
 
