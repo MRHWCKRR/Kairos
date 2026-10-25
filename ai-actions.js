@@ -1,3 +1,4 @@
+import {applyAiTaskMutation} from './ai-task-commands.js?v=1';
 import {plannerChangeRows} from './planner-changes.js?v=1';
 import {applyTaskListCommand} from './task-list-model.js?v=18';
 import {planningUndoPreview} from './planning-undo.js?v=3';
@@ -7,7 +8,6 @@ import { auth, db } from './firebase.js';
 import { persistAiPlanAction, getConfirmedAiAction, applyStoredPlanningUndo } from './plan-store.js?v=19';
 import { validateActionShape } from './ai-action-schema.js?v=11';
 import { stableStringify, planState } from './plan-merge.js';
-import { taskDurationMinutes } from './schedule-utils.js';
 import {previewAiPlanning,resolveAiPlanningTimezone} from './ai-planning.js?v=13';
 import {planningConflicts,planningGapText,planningDailyLimitText} from './planning-slots.js?v=4';
 import {applyPlanningCommand} from './planning-commands.js?v=9';
@@ -165,7 +165,13 @@ export async function previewKairosAction(action, options = {}) {
     const before=planState(data),next=structuredClone(before);
     const detailed=['delete_task','delete_schedule_event','delete_board','delete_section'].includes(action.type)||(['update_board','update_section'].includes(action.type)&&action.args.archived===true);
     const base=detailed?actionPreview(before,action):null,pinned=base?.action||structuredClone(action);
-    const simulated=applyKairosAction({data:next},pinned.type,pinned.args,{...options,confirmation:base?.approval});
+    let allowCompleted=false;
+    if(['update_task','resize_task'].includes(pinned.type)){
+        const userSnapshot=await getDoc(doc(db,'users',user.uid));
+        if(auth.currentUser?.uid!==user.uid)throw Error('The signed-in account changed.');
+        allowCompleted=userSnapshot.data()?.settings?.planning?.rescheduleCompleted===true;
+    }
+    const simulated=applyKairosAction({data:next,allowCompleted},pinned.type,pinned.args,{...options,confirmation:base?.approval});
     const rows=plannerChangeRows(before,next);
     return {action:pinned,approval:{...base?.approval,reviewedState:stableStringify(before)},summary:{...(base?.summary||{kind:'changes',title:simulated.task?.title||simulated.event?.title||simulated.section?.title||simulated.board?.title||action.type.replace(/_/g,' ')}),rows}};
 }
@@ -232,7 +238,7 @@ export async function executeKairosAction(action, options = {}) {
         if(!approval?.command || approval.request!==stableStringify({type,args}))throw Error('A reviewed planning preview is required.');
         if(approval.command.options?.timezone!==await planningTimezone(user))throw Error('Your timezone changed. Review a new preview.');
     }
-    const result = await persistAiPlanAction(planId, user.uid, { type, args }, operationId, createdAt, plan => applyKairosAction(plan, type, args, options),{planningOptions:type.startsWith('plan_')?options.confirmation?.command?.options:null,...(type==='plan_undo'?{undoSourceOperationId:options.confirmation?.command?.sourceOperationId,undoTimezone:options.confirmation?.command?.options?.timezone}:{})});
+    const result = await persistAiPlanAction(planId, user.uid, { type, args }, operationId, createdAt, plan => applyKairosAction(plan, type, args, options),{manualScheduling:['update_task','resize_task'].includes(type),planningOptions:type.startsWith('plan_')?options.confirmation?.command?.options:null,...(type==='plan_undo'?{undoSourceOperationId:options.confirmation?.command?.sourceOperationId,undoTimezone:options.confirmation?.command?.options?.timezone}:{})});
     window.dispatchEvent(new CustomEvent('kairos-data-changed'));
     return aiActionResult(type,result);
 }
@@ -246,15 +252,15 @@ function applyKairosAction(plan, type, args, options) {
         if(type==='plan_conflicts')applied.result.remainingConflicts=planningConflicts(applied.next,args.from,args.to).length;
         return applied.result;
     }
-    if (type === 'set_task_reminder' || type === 'remove_task_reminder') {
-        const found = findTask(plan.data, args);
-        found.task.reminderMinutes = type === 'remove_task_reminder' ? null : args.minutesBefore;
-        if (found.task.recurrence?.exceptions) {
-            for (const exception of Object.values(found.task.recurrence.exceptions)) {
-                if (exception?.override) delete exception.override.reminderMinutes;
-            }
+    if(['update_task','resize_task','set_task_reminder','remove_task_reminder'].includes(type)){
+        const found=findTask(plan.data,args);
+        let destination;
+        if(type==='update_task'&&['boardId','sectionId','board','section'].some(key=>args[key]!==undefined)){
+            const dest=findSection(plan.data,{board:args.board,boardId:args.boardId!==undefined?args.boardId:args.board===undefined&&args.sectionId===undefined?found.board.id:undefined,sectionId:args.sectionId,section:args.section});
+            destination={boardId:dest.board.id,sectionId:dest.section.id};
         }
-        return { type, task: found.task, board: found.board.title, section: found.section.title };
+        const applied=applyAiTaskMutation(plan.data,{type,args,target:{taskId:found.task.id},destination},{allowDurationChange:options.allowDurationChange===true,allowCompleted:plan.allowCompleted===true});
+        Object.assign(plan.data,applied.next);return applied.result;
     }
     if (['delete_board', 'delete_section'].includes(type) || (['update_board', 'update_section'].includes(type) && args.archived === true)) {
         requireReviewedContents(plan.data, { type, args }, options.confirmation);
@@ -297,32 +303,6 @@ function applyKairosAction(plan, type, args, options) {
         if (args.archived !== undefined) section.archived = args.archived;
         return { type, section, board: board.title, ...(args.archived !== undefined ? { archiveChanged: args.archived } : {}), ...(args.newTitle !== undefined ? { originalTitle } : {}) };
     }
-    if (type === 'resize_task') {
-        if (options.allowDurationChange !== true) throw new Error('An explicit duration change request is required.');
-        const found = findTask(plan.data, args), task = found.task;
-        if (task.scheduleLocked) throw new Error('This task schedule is locked.');
-        if (task.recurrence?.enabled) throw new Error('Use the schedule to change recurring task occurrences.');
-        const next = { ...task };
-        for (const key of ['date', 'startTime', 'endTime']) if (args[key] !== undefined) next[key] = args[key];
-        const scheduled = next.startTime != null && next.startTime !== '';
-        let duration = args.durationMinutes;
-        if (scheduled) {
-            if (duration !== undefined) {
-                const end = timeMinutes(next.startTime) + duration;
-                if (end >= 1440) throw new Error('Invalid duration: the task must end on the same day.');
-                const endTime = String(Math.floor(end / 60)).padStart(2, '0') + ':' + String(end % 60).padStart(2, '0');
-                if (args.endTime !== undefined && args.endTime !== endTime) throw new Error('Invalid duration: end time and duration do not agree.');
-                next.endTime = endTime;
-            }
-            validateTaskSchedule(next);
-            duration = timeMinutes(next.endTime) - timeMinutes(next.startTime);
-        } else if (args.endTime !== undefined || duration === undefined) throw new Error('Invalid duration: provide a start time or duration.');
-        validateTaskSchedule(next);
-        Object.assign(task, next, { estimatedMinutes: duration, lastScheduledMinutes: duration });
-        return { type, task, board: found.board.title, section: found.section.title };
-    }
-
-
     if (type === 'create_board') {
         // Resolve the task first when this is a "move task to a new board"
         // request. This lets us recover from malformed/low-quality board titles
@@ -347,15 +327,13 @@ function applyKairosAction(plan, type, args, options) {
     const boardCreated = !(plan.data.boards || []).some(board => !board.archived && clean(board.title, 100).toLowerCase() === boardTitle.toLowerCase());
     const board = createBoard(plan.data, boardTitle);
 
-        // Move the existing task into the board's first section.
-        if (found) {
-            const { section } = findSection(plan.data, { boardId: board.id });
-            found.section.tasks = found.section.tasks.filter(task => task.id !== found.task.id);
-            section.tasks = Array.isArray(section.tasks) ? section.tasks : [];
-            section.tasks.push(found.task);
+        let movedTask=null;
+        if(found){
+            const {section}=findSection(plan.data,{boardId:board.id});
+            const applied=applyAiTaskMutation(plan.data,{type:'move_task',args:{},target:{taskId:found.task.id},destination:{boardId:board.id,sectionId:section.id}});
+            Object.assign(plan.data,applied.next);movedTask=applied.result.task;
         }
-
-        return { type, board, boardCreated, movedTask: found?.task || null };
+        return {type,board:plan.data.boards.find(item=>item.id===board.id),boardCreated,movedTask};
     }
 
     if (type === 'create_task') {
@@ -363,58 +341,6 @@ function applyKairosAction(plan, type, args, options) {
         for(const key of ['date','startTime','endTime'])if(args[key]!=null&&args[key]!=='')task[key]=args[key];
         const applied=applyTaskListCommand(plan.data,{type:'create_task',target:{boardId:board.id,sectionId:section.id},task},{boardId:board.id,sectionId:section.id});
         Object.assign(plan.data,applied.next);return applied.result;
-    }
-
-    if (type === 'update_task') {
-        const found = findTask(plan.data, args);
-        if(args.completed!==undefined)applyTaskListCommand(plan.data,{type:'complete_task',target:{taskId:found.task.id},value:args.completed},{boardId:found.board.id,sectionId:found.section.id,value:found.task.completed===true});
-        const originalTitle = found.task.title;
-        let finalLocation = found;
-        if (['date', 'startTime', 'endTime'].some(key => args[key] !== undefined)) {
-            if (found.task.scheduleLocked) throw new Error('This task schedule is locked.');
-            if (found.task.recurrence?.enabled) throw new Error('Use the schedule to change recurring task occurrences.');
-            const next = { ...found.task, ...args };
-            if (args.startTime && args.endTime === undefined) {
-                const end = timeMinutes(args.startTime) + taskDurationMinutes(found.task);
-                if (end >= 1440) throw new Error('Invalid schedule duration: the task must end on the same day.');
-                args = { ...args, endTime: String(Math.floor(end / 60)).padStart(2, '0') + ':' + String(end % 60).padStart(2, '0') };
-                next.endTime = args.endTime;
-            }
-            validateTaskSchedule(next);
-            if (next.startTime && next.endTime &&
-                timeMinutes(next.endTime) - timeMinutes(next.startTime) !== taskDurationMinutes(found.task)) {
-                throw new Error('The schedule must preserve the task duration.');
-            }
-        }
-        if (args.newTitle !== undefined) found.task.title = clean(args.newTitle, 180);
-        if (args.date !== undefined) found.task.date = clean(args.date, 20) || null;
-        if (args.startTime !== undefined) found.task.startTime = clean(args.startTime, 5) || null;
-        if (args.endTime !== undefined) found.task.endTime = clean(args.endTime, 5) || null;
-        if (args.completed !== undefined) found.task.completed = Boolean(args.completed);
-        if (args.archived !== undefined) found.task.archived = Boolean(args.archived);
-
-        if (args.boardId !== undefined || args.sectionId !== undefined || args.board !== undefined || args.section !== undefined) {
-            const destination = findSection(plan.data, {
-                board: args.board,
-                boardId: args.boardId !== undefined ? args.boardId : (args.board === undefined && args.sectionId === undefined ? found.board.id : undefined),
-                sectionId: args.sectionId,
-                section: args.section
-            });
-            finalLocation = destination;
-            if (destination.board.id !== found.board.id || destination.section.id !== found.section.id) {
-                found.section.tasks = found.section.tasks.filter(task => task.id !== found.task.id);
-                destination.section.tasks = Array.isArray(destination.section.tasks) ? destination.section.tasks : [];
-                destination.section.tasks.push(found.task);
-            }
-        }
-
-        return {
-            type,
-            task: found.task,
-            ...(args.newTitle !== undefined ? { originalTitle } : {}),
-            board: finalLocation.board.title,
-            section: finalLocation.section.title
-        };
     }
 
     if (type === 'complete_task' || type === 'delete_task') {

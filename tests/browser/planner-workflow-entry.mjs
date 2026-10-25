@@ -1,3 +1,4 @@
+import {applyAiTaskMutation} from '../../ai-task-commands.js';
 import {mountTodayView} from '../../today-view.js';
 import {mountTaskCapture} from '../../task-capture.js';
 import {createMutationSession} from '../../mutation-session.js';
@@ -55,7 +56,13 @@ async function run(){
   check(archiveMarkup(data).count===1,'Archive must retain deleted work.');
   const restore=buildRestoreCommand(data,{kind:'task',taskId:'maths'});await session.run(restore.command,restore.expected);
   check(!data.boards[0].sections[0].tasks.find(t=>t.id==='maths').archived,'Restore must recover the same task.');
-  const before=structuredClone(data);data.boards[0].sections[0].tasks.find(t=>t.id==='maths').date=today;undoRecord={id:'ai-change',changes:plannerChanges(before,data)};
+  data=applyAiTaskMutation(data,{type:'update_task',args:{newTitle:'Reviewed science revision',startTime:'14:00'},target:{taskId:'science'}}).next;
+  check(data.boards[0].sections[0].tasks.find(t=>t.id==='science').endTime==='14:45','An AI move must preserve duration.');
+  data=applyAiTaskMutation(data,{type:'resize_task',args:{durationMinutes:60},target:{taskId:'science'}},{allowDurationChange:true}).next;
+  data=applyAiTaskMutation(data,{type:'set_task_reminder',args:{minutesBefore:15},target:{taskId:'science'}}).next;
+  check(data.boards[0].sections[0].tasks.find(t=>t.id==='science').endTime==='15:00','Explicit resize must update the end time.');
+  check(data.boards[0].sections[0].tasks.find(t=>t.id==='science').reminderMinutes===15,'AI reminder edits must use the shared field.');
+  const before=structuredClone(data);data=applyAiTaskMutation(data,{type:'update_task',args:{date:today},target:{taskId:'maths'}}).next;undoRecord={id:'ai-change',changes:plannerChanges(before,data)};
   document.querySelector('[data-ai-undo-open]').click();await wait(()=>document.querySelector('.ai-undo-dialog').hasAttribute('open'));
   check(data.boards[0].sections[0].tasks.find(t=>t.id==='maths').date===today,'Undo must wait for review.');
   document.querySelector('[data-ai-undo-apply]').click();await wait(()=>!document.querySelector('.ai-undo-dialog').hasAttribute('open'));

@@ -177,7 +177,8 @@
     "planner-changes.js",
     "planner-archive.js",
     "planner-backup.js",
-    "ai-undo-view.js"
+    "ai-undo-view.js",
+    "ai-task-commands.js"
   ],
   "directories": [
     "images",
