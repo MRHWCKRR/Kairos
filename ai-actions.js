@@ -1,11 +1,11 @@
-import {applyAiTaskMutation} from './ai-task-commands.js?v=1';
+import {applyAiTaskMutation} from './ai-task-commands.js?v=2';
 import {plannerChangeRows} from './planner-changes.js?v=1';
-import {applyTaskListCommand} from './task-list-model.js?v=18';
+import {applyTaskListCommand} from './task-list-model.js?v=20';
 import {planningUndoPreview} from './planning-undo.js?v=3';
 import {savedPlanningPreferences,planningPreferencesText} from './planning-preferences.js?v=3';
 import {savedWeeklyAvailability} from './weekly-availability.js';
 import { auth, db } from './firebase.js';
-import { persistAiPlanAction, getConfirmedAiAction, applyStoredPlanningUndo } from './plan-store.js?v=19';
+import { persistAiPlanAction, getConfirmedAiAction, applyStoredPlanningUndo } from './plan-store.js?v=20';
 import { validateActionShape } from './ai-action-schema.js?v=11';
 import { stableStringify, planState } from './plan-merge.js';
 import {previewAiPlanning,resolveAiPlanningTimezone} from './ai-planning.js?v=13';

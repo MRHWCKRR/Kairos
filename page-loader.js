@@ -22,9 +22,9 @@ export function createPageLoader({importModule=url=>import(url),loadStyle=loadPa
     const task=(async()=>{
       if(page==='tasks-page'&&taskDetailsEnabled){
         await Promise.all([loadStyle('task-list.css?v=19'),loadStyle('assignment-progress.css?v=2'),loadStyle('schedule-inspector.css?v=11')]);
-        await setupTaskDetails(await importModule('./task-detail-pane.js?v=18'));
-        if(setupTaskWorkspace)await setupTaskWorkspace(await importModule('./task-list-workspace.js?v=15'));
-        if(setupTaskInteractions)await setupTaskInteractions(await importModule('./task-list-interactions.js?v=13'));
+        await setupTaskDetails(await importModule('./task-detail-pane.js?v=19'));
+        if(setupTaskWorkspace)await setupTaskWorkspace(await importModule('./task-list-workspace.js?v=16'));
+        if(setupTaskInteractions)await setupTaskInteractions(await importModule('./task-list-interactions.js?v=14'));
         if(setupTaskSelection)await setupTaskSelection(await importModule('./task-selection.js?v=4'));
         if(setupTaskMenus){const [actions,menu]=await Promise.all([importModule('./task-actions.js?v=5'),importModule('./task-action-menu.js?v=6')]);await setupTaskMenus({actions,menu})}
         if(setupTaskShortcuts)await setupTaskShortcuts(await importModule('./task-keyboard-shortcuts.js?v=2'));
@@ -34,7 +34,7 @@ export function createPageLoader({importModule=url=>import(url),loadStyle=loadPa
         // Markdown enhances already-escaped text; a CDN outage must not prevent
         // authentication or plain-text chat. Sanitisation stays in ai-markdown.
         void importModule('./ai-markdown.js?v=1').catch(error=>warn('[Kairos] Markdown unavailable; using plain text.',error));
-        await importModule('./ai-workspace.js?v=51');
+        await importModule('./ai-workspace.js?v=52');
         await waitForChat();
       }
       if(page==='statistics-page') {
@@ -46,7 +46,7 @@ export function createPageLoader({importModule=url=>import(url),loadStyle=loadPa
         await importModule('./schedule-workspace.js?v=17');
         // These modules inspect the workspace during boot. Preserve that order
         // even when network responses arrive out of order.
-        for(const name of scheduleModules)await importModule('./'+name+(name==='schedule-keyboard.js'?'?v=2':name==='schedule-find-time.js'?'?v=2':name==='planning-hub.js'?'?v=16':name==='schedule-interactions.js'?'?v=20':name==='schedule-inspector.js'?'?v=21':name==='schedule-ai.js'?'?v=14':name==='schedule-task-create.js'?'?v=13':'?v=11'));
+        for(const name of scheduleModules)await importModule('./'+name+(name==='schedule-keyboard.js'?'?v=2':name==='schedule-find-time.js'?'?v=2':name==='planning-hub.js'?'?v=16':name==='schedule-interactions.js'?'?v=20':name==='schedule-inspector.js'?'?v=22':name==='schedule-ai.js'?'?v=15':name==='schedule-task-create.js'?'?v=14':'?v=11'));
       }
     })();
     loaded.set(page,task);

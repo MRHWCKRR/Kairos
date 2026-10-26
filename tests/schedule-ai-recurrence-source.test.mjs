@@ -23,8 +23,8 @@ test('AI validator addresses recurring proposals by occurrence ID instead of bas
 });
 
 test('applying an AI proposal to a recurring occurrence stores an exception override',()=>{
-  assert.match(ai,/applyOccurrenceOverride/);
-  assert.match(ai,/persistOccurrenceProposal/);
+  assert.match(ai,/buildReviewedSchedule/);
+  assert.match(ai,/commitScheduleCommand/);
   assert.match(ai,/occurrenceDate/);
   assert.match(ai,/recurrence/);
 });

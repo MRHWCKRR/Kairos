@@ -1,3 +1,5 @@
+import {createNotificationCenter} from '../notification-center.js';
+import {parseHTML} from 'linkedom';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
@@ -15,14 +17,16 @@ test('saved reminder feedback distinguishes blocked browser notifications from d
   assert.equal(f.chat().lastActionTarget.kind,'reminder');
 });
 test('notification titles, messages and IDs render as escaped text',async()=>{
-  const app=await readFile(new URL('../app.js',import.meta.url),'utf8');
-  const source=app.slice(app.indexOf('    function renderNotifPanel()'),app.indexOf('    function setupNotificationBell()'));
+  const {document}=parseHTML('<html><body><div id="notif-panel-list"></div></body></html>');
   const store=(await readFile(new URL('../reminder-notifications.js',import.meta.url),'utf8')).replace(/^import[^\n]*\n/gm,'').replace(/^export /gm,'');
-  const list={innerHTML:''};
-  const context=vm.createContext({document:{getElementById:()=>list},notificationsData:[{id:'"><script>x</script>',title:'<script>x</script>',message:'<img src=x onerror=x>'}],notifTimeAgo:()=>''});
-  vm.runInContext(store+'\n'+source,context);context.renderNotifPanel();
-  assert.doesNotMatch(list.innerHTML,/<script>|<img/);
-  assert.match(list.innerHTML,/&lt;script&gt;/);
+  const context=vm.createContext({});vm.runInContext(store,context);let receive;
+  const center=createNotificationCenter({document,getOwnerId:()=> 'one',subscribe:(_id,next)=>{receive=next;return ()=>{};},persist:async(_id,_base,local)=>local,escapeText:context.escapeNotificationText});
+  center.setup('one');receive({notifications:[{id:'"><script>x</script>',title:'<script>x</script>',message:'<img src=x onerror=x>'}]});
+  const list=document.getElementById('notif-panel-list');
+  assert.equal(list.querySelectorAll('script,img').length,0);
+  assert.doesNotMatch(list.querySelector('.notif-item-title').innerHTML,/<script>|<img/);
+  assert.equal(list.querySelector('.notif-item').dataset.notifId,'"><script>x</script>');
+  assert.match(list.innerHTML,/&lt;script&gt;/);center.dispose();
 });
 
 test('implicit removal of a reminder cannot be executed as task deletion',async()=>{

@@ -15,15 +15,16 @@ test('proposal Change editor exposes scheduling and task metadata controls', () 
 test('proposal metadata stays in proposal draft until Apply', () => {
   assert.match(ai, /metadata:/);
   assert.match(ai, /proposal\.metadata/);
-  assert.match(ai, /Object\.assign\(task,p\.to,p\.metadata/);
+  assert.match(ai, /buildReviewedSchedule/);
 });
 
-test('proposal apply snapshots metadata so rollback restores task details', () => {
+test('proposal Apply submits retained commands without live assignment or rollback', () => {
   assert.match(ai, /priority:task\.priority/);
   assert.match(ai, /estimatedMinutes:task\.estimatedMinutes/);
   assert.match(ai, /schedulingPreference:task\.schedulingPreference/);
   assert.match(ai, /color:task\.color/);
-  assert.match(ai, /Object\.assign\(s\.task,s\.before\)/);
+  assert.match(ai, /commitScheduleCommand/);
+  assert.doesNotMatch(ai, /Object\.assign\(task|snapshotsFor|persistPlan/);
 });
 
 test('proposal overlay previews draft color before Apply', () => {

@@ -1,3 +1,5 @@
+import * as inspectorCommands from '../schedule-inspector-commands.js';
+import * as taskListModel from '../task-list-model.js';
 import * as overdue from '../schedule-overdue.js';
 import {bindTaskFocus} from '../task-focus.js';
 import {bindDeadlineImpact} from '../deadline-impact.js';
@@ -33,7 +35,7 @@ async function fixture({recurring=false,storage=new Map(),scopeChooser=async()=>
  boards[0].sections.push({id:'dest',title:'Destination',tasks:[]});
  boards.push({id:'other-board',title:'Other board',sections:[{id:'other-section',title:'Other section',tasks:[]}]});
  let owner='one',plan='plan',saves=[],reviews=[],focusTargets=[];window.__kairosPlanningHub={openAssignmentReview:(id,actor)=>reviews.push({id,actor})};
- const bridge={getAllowCompletedReschedule:()=>true,startTaskFocus:(id,occurrenceDate)=>focusTargets.push({id,occurrenceDate}),getBoards:()=>boards,getOwnerId:()=>owner,getPlanId:()=>plan,getTimeFormat:()=> '24',getScheduleEvents:()=>[],persistPlan:()=>new Promise((resolve,reject)=>saves.push({resolve,reject})),refreshAppViews(){}};
+ const bridge={getAllowCompletedReschedule:()=>true,startTaskFocus:(id,occurrenceDate)=>focusTargets.push({id,occurrenceDate}),getBoards:()=>boards,getOwnerId:()=>owner,getPlanId:()=>plan,getTimeFormat:()=> '24',getScheduleEvents:()=>[],persistPlan:()=>{throw Error('Legacy inspector persistence is forbidden')},commitScheduleCommand:(command,expected,identity)=>new Promise((resolve,reject)=>saves.push({command,expected,identity,reject,resolve:()=>{try{const next=taskListModel.applyTaskListCommand({boards},command,expected,{allowCompleted:bridge.getAllowCompletedReschedule()}).next;for(const board of next.boards){const live=boards.find(item=>item.id===board.id);for(const section of board.sections){const dest=live.sections.find(item=>item.id===section.id);dest.tasks=section.tasks.map(item=>{const old=boards.flatMap(b=>b.sections.flatMap(s=>s.tasks)).find(t=>t.id===item.id);if(old){for(const key of Object.keys(old))if(!Object.hasOwn(item,key))delete old[key];return Object.assign(old,item)}return item})}}resolve({type:command.type})}catch(error){reject(error)}}})),refreshAppViews(){}};
  window.__kairosScheduleBridge=bridge;window.__kairosScheduleInspectorBooted=false;window.__kairosScheduleWorkspace=null;
  window.sessionStorage={getItem:key=>storage.get(key)||null,setItem:(key,value)=>storage.set(key,value),removeItem:key=>storage.delete(key)};
  let sessionModule={};try{sessionModule=await import('../schedule-inspector-session.js')}catch(error){if(error.code!=='ERR_MODULE_NOT_FOUND')throw error}
@@ -41,7 +43,7 @@ async function fixture({recurring=false,storage=new Map(),scopeChooser=async()=>
  // explicitly below; actual MutationObserver timing is covered in Chrome QA.
  class Observer{observe(){}disconnect(){}}
  cleanup=()=>observers.forEach(observer=>observer.disconnect());
- const context=vm.createContext({...overdue,bindTaskFocus,bindDeadlineImpact,...assignment,planningClock,document,window,MutationObserver:Observer,...utils,...recurrence,...recurrenceUi,...recurrenceEdit,...sessionModule,showRecurrenceScopeDialog:scopeChooser,CSS:{escape:String},console:{error(){},warn(){}},structuredClone,requestAnimationFrame:()=>1,cancelAnimationFrame(){},setTimeout:()=>1,clearTimeout(){},setInterval:()=>1,clearInterval(){},confirmDialog:async()=>true});
+ const context=vm.createContext({...overdue,bindTaskFocus,bindDeadlineImpact,...assignment,planningClock,document,window,MutationObserver:Observer,...utils,...recurrence,...recurrenceUi,...recurrenceEdit,...inspectorCommands,...taskListModel,...sessionModule,showRecurrenceScopeDialog:scopeChooser,CSS:{escape:String},console:{error(){},warn(){}},structuredClone,requestAnimationFrame:()=>1,cancelAnimationFrame(){},setTimeout:()=>1,clearTimeout(){},setInterval:()=>1,clearInterval(){},confirmDialog:async()=>true});
  const workspaceSource=(await readFile(new URL('../schedule-workspace.js',import.meta.url),'utf8')).replace(/^import\s[\s\S]*?from ['"][^'"]+['"];\r?\n/gm,'').replace('export function initScheduleWorkspace','function initScheduleWorkspace');
  vm.runInContext(workspaceSource,context);const ws=context.initScheduleWorkspace(bridge);window.__kairosScheduleWorkspace=ws;
  // Each module has its own lexical scope, just as in the browser.
@@ -117,7 +119,7 @@ test('a recurring draft can be retried after a failed save',async()=>{
 });
 
 test('saving a retained draft targets refreshed data and preserves fields edited elsewhere',async()=>{
- const f=await fixture();f.type('title','My draft');const live={...f.task,title:'Remote title',notes:'Remote notes',startTime:'09:00',endTime:'10:00'};f.boards[0].sections[0].tasks[0]=live;f.ws.render();await tick();
+ const f=await fixture();f.type('title','My draft');const live={...f.task,notes:'Remote notes',startTime:'09:00',endTime:'10:00'};f.boards[0].sections[0].tasks[0]=live;f.ws.render();await tick();
  f.submit();await tick();f.saves[0].resolve();await tick();assert.equal(live.title,'My draft');assert.equal(live.notes,'Remote notes');assert.equal(live.startTime,'09:00');
 });
 
@@ -154,7 +156,7 @@ test('Schedule deadline impact waits for confirmed save, handles failure and use
 test('recurring occurrence view starts focus with its logical date and refreshes logged seconds',async()=>{const f=await fixture({recurring:true});f.document.querySelector('[data-occurrence-cancel]').click();await tick();await tick();const button=f.document.querySelector('[data-task-focus-start]');assert.ok(button);button.click();const date=utils.toDateKey(new Date());assert.deepEqual(f.focusTargets,[{id:'t',occurrenceDate:date}]);f.task.recurrence.exceptions[date]={focusLoggedSeconds:60};f.ws.render();await tick();assert.match(f.document.querySelector('[data-task-focus]').textContent,/Logged: 1 min/);assert.equal(f.saves.length,0)});
 
 test('a remotely completed occurrence is saved only to that occurrence through an occurrence-only confirmation',async()=>{
- let choices=0;const f=await fixture({recurring:true,scopeChooser:async()=>{choices++;return 'series'}});f.type('start','14:00');const date=f.ws.state.selected.occurrenceDate;f.task.recurrence.exceptions[date]={status:'completed',completedAt:'keep',focusLoggedSeconds:120};f.submit();await tick();assert.equal(choices,1);assert.equal(f.saves.length,1);assert.equal(f.task.startTime,'10:00');assert.equal(f.boards[0].sections[0].tasks[0].recurrence.exceptions[date].override.startTime,'14:00');assert.equal(f.task.recurrence.exceptions[date].completedAt,'keep');assert.equal(f.task.recurrence.exceptions[date].focusLoggedSeconds,120);f.saves[0].resolve();await tick();
+ let choices=0;const f=await fixture({recurring:true,scopeChooser:async()=>{choices++;return 'series'}});f.type('start','14:00');const date=f.ws.state.selected.occurrenceDate;f.task.recurrence.exceptions[date]={status:'completed',completedAt:'keep',focusLoggedSeconds:120};f.submit();await tick();assert.equal(choices,1);assert.equal(f.saves.length,1);assert.equal(f.task.startTime,'10:00');assert.equal(f.boards[0].sections[0].tasks[0].recurrence.exceptions[date].override,undefined);f.saves[0].resolve();await tick();assert.equal(f.boards[0].sections[0].tasks[0].recurrence.exceptions[date].override.startTime,'14:00');assert.equal(f.task.recurrence.exceptions[date].completedAt,'keep');assert.equal(f.task.recurrence.exceptions[date].focusLoggedSeconds,120);f.saves[0].resolve();await tick();
 });
 test('completion while scope preview is open cancels the stale save and keeps the draft',async()=>{
  let choose;const f=await fixture({recurring:true,scopeChooser:()=>new Promise(resolve=>choose=resolve)});f.type('start','14:00');f.submit();await tick();const date=f.ws.state.selected.occurrenceDate;f.task.recurrence.exceptions[date]={status:'completed',completedAt:'keep'};choose('series');await tick();assert.equal(f.saves.length,0);assert.equal(f.task.startTime,'10:00');assert.equal(f.field('start').value,'14:00');assert.equal(f.task.recurrence.exceptions[date].completedAt,'keep');
@@ -165,4 +167,61 @@ test('Skip exposes Restore, which returns only that occurrence to pending with i
 });
 test('the save scope receives an affected-date preview before any persistence',async()=>{
  let options;const f=await fixture({recurring:true,scopeChooser:async value=>{options=value;return 'cancel'}});f.type('start','14:00');f.submit();await tick();assert.equal(typeof options.getPreview,'function');const preview=options.getPreview('occurrence');assert.equal(preview.after.length,1);assert.equal(preview.after[0].startTime,'14:00');assert.equal(f.saves.length,0);
+});
+
+test('ordinary edits submit commands without changing live tasks before acknowledgement',async()=>{const f=await fixture();f.type('title','Confirmed');f.submit();await tick();assert.equal(f.task.title,'Revision');assert.equal(f.saves.length,1,'the inspector must use the command gateway');assert.equal(f.saves[0].command.type,'edit_task');f.saves[0].resolve();await tick();assert.equal(f.task.title,'Confirmed')});
+
+
+test('a remote change to an edited ordinary field rejects the save and retains the draft',async()=>{const f=await fixture();f.type('title','Mine');f.task.title='Remote';f.submit();await tick();f.saves[0].resolve();await tick();assert.equal(f.task.title,'Remote');assert.equal(f.field('title').value,'Mine');assert.match(f.document.querySelector('[data-inspector-save-status]').textContent,/changed/)});
+
+test('deleting a task waits for acknowledgement then closes its dirty inspector',async()=>{const f=await fixture();f.type('notes','Unsaved');f.document.querySelector('[data-delete]').click();await tick();assert.equal(f.saves[0].command.type,'delete_task');assert.equal(f.boards[0].sections[0].tasks.length,2);f.saves[0].resolve();await tick();assert.equal(f.boards[0].sections[0].tasks.length,1);assert.equal(f.ws.state.selected.type,null)});
+
+test('recurring drafts do not follow a remotely moved series into another section',async()=>{const f=await fixture({recurring:true});f.type('title','Mine');const source=f.boards[0].sections[0],dest=f.boards[0].sections[1];dest.tasks.push(source.tasks.shift());f.submit();await tick();if(f.saves[0])f.saves[0].resolve();await tick();assert.equal(dest.tasks[0].recurrence.exceptions[f.task.date]?.override?.title,undefined);assert.equal(f.field('title').value,'Mine')});
+
+test('a recurring rule changed before submission cannot be replaced by the old form rule',async()=>{const f=await fixture({recurring:true,scopeChooser:async()=>'series'});f.type('title','Mine');f.task.recurrence.interval=2;f.submit();await tick();if(f.saves[0])f.saves[0].resolve();await tick();assert.equal(f.task.recurrence.interval,2);assert.equal(f.field('title').value,'Mine')});
+
+test('interrupted Complete has explicit retry independent of live status and retains the original identity',async()=>{
+ const f=await fixture();f.document.querySelector('[data-complete]').click();await tick();
+ const first=f.saves[0];first.reject(Error('Response lost'));await tick();f.task.completed=true;
+ const retry=f.document.querySelector('[data-inspector-retry]');assert.ok(retry,'An interrupted action needs a direct retained-command retry');retry.click();await tick();
+ assert.equal(f.saves.length,2);assert.deepEqual(f.saves[1].command,first.command);assert.deepEqual(f.saves[1].identity,first.identity);
+});
+test('clearing an interrupted inspector action preserves draft fields and permits another action',async()=>{
+ const f=await fixture();f.type('notes','Keep these notes');f.document.querySelector('[data-complete]').click();await tick();f.saves[0].reject(Error('Offline'));await tick();
+ const clear=f.document.querySelector('[data-inspector-clear]');assert.ok(clear);clear.click();await tick();
+ assert.equal(f.field('notes').value,'Keep these notes');f.document.querySelector('[data-unschedule]').click();await tick();assert.equal(f.saves.length,2);assert.equal(f.saves[1].command.type,'schedule_change');
+});
+
+test('global acknowledgement releases inspector recovery while preserving edits made after the failed save',async()=>{
+ const f=await fixture();f.type('notes','Submitted notes');f.submit();await tick();const original=f.saves[0];original.reject(Error('Response lost'));await tick();f.type('title','Newer draft');f.task.notes='Submitted notes';
+ f.window.__kairosScheduleMutationResolved(original.identity,'saved');await tick();assert.equal(f.document.querySelector('[data-inspector-recovery]'),null);assert.equal(f.field('title').value,'Newer draft');
+ f.submit();await tick();assert.equal(f.saves.length,2);assert.equal(f.saves[1].command.changes.title,'Newer draft');assert.equal(Object.hasOwn(f.saves[1].command.changes,'notes'),false);f.saves[1].resolve();await tick();assert.equal(f.task.title,'Newer draft');
+});
+
+test('recurring global acknowledgement only advances submitted fields and preserves an unrelated remote title',async()=>{
+ const f=await fixture({recurring:true});f.type('notes','Submitted notes');f.submit();await tick();const original=f.saves[0];original.reject(Error('Response lost'));await tick();
+ f.type('priority','high');const date=f.ws.state.selected.occurrenceDate;f.task.recurrence.exceptions[date]={override:{notes:'Submitted notes'}};f.task.title='Remote title';
+ f.window.__kairosScheduleMutationResolved(original.identity,'saved');await tick();f.submit();await tick();assert.equal(f.saves.length,2);
+ assert.deepEqual(JSON.parse(JSON.stringify(f.saves[1].command.changes)),{priority:'high'});f.saves[1].resolve();await tick();
+ const occurrence=recurrence.generateTaskOccurrences(f.task,date,date,{today:date})[0];assert.equal(occurrence.task.title,'Remote title');assert.equal(occurrence.task.notes,'Submitted notes');assert.equal(occurrence.task.priority,'high');
+});
+
+test('recurring global acknowledgement preserves newer edits to the submitted field and its conflict baseline',async()=>{
+ const f=await fixture({recurring:true});f.type('notes','Submitted notes');f.submit();await tick();const original=f.saves[0];original.reject(Error('Response lost'));await tick();
+ f.type('notes','Newer notes');const date=f.ws.state.selected.occurrenceDate;f.task.recurrence.exceptions[date]={override:{notes:'Remote notes'}};
+ f.window.__kairosScheduleMutationResolved(original.identity,'saved');await tick();assert.equal(f.field('notes').value,'Newer notes');f.submit();await tick();
+ assert.equal(f.saves.length,1,'a later remote edit of the acknowledged field still conflicts');assert.equal(f.field('notes').value,'Newer notes');assert.equal(f.task.recurrence.exceptions[date].override.notes,'Remote notes');
+});
+
+test('recurring global acknowledgement retains the repeat-rule guard against a later remote rule',async()=>{
+ const f=await fixture({recurring:true,scopeChooser:async()=>'series'});f.type('notes','Submitted notes');f.submit();await tick();const original=f.saves[0];original.reject(Error('Response lost'));await tick();
+ f.type('priority','high');f.task.notes='Submitted notes';f.task.recurrence.interval=2;f.window.__kairosScheduleMutationResolved(original.identity,'saved');await tick();f.submit();await tick();
+ assert.equal(f.saves.length,1,'the old visible recurrence controls cannot reset the remote rule');assert.equal(f.task.recurrence.interval,2);assert.equal(f.field('priority').value,'high');
+});
+
+test('recurring global acknowledgement saves a newer draft of the submitted field without erasing it',async()=>{
+ const f=await fixture({recurring:true});f.type('notes','Submitted notes');f.submit();await tick();const original=f.saves[0];original.reject(Error('Response lost'));await tick();
+ f.type('notes','Newer notes');const date=f.ws.state.selected.occurrenceDate;f.task.recurrence.exceptions[date]={override:{notes:'Submitted notes'}};
+ f.window.__kairosScheduleMutationResolved(original.identity,'saved');await tick();assert.equal(f.field('notes').value,'Newer notes');f.submit();await tick();
+ assert.equal(f.saves.length,2);assert.deepEqual(JSON.parse(JSON.stringify(f.saves[1].command.changes)),{notes:'Newer notes'});f.saves[1].resolve();await tick();assert.equal(f.task.recurrence.exceptions[date].override.notes,'Newer notes');
 });

@@ -7,6 +7,7 @@ import {archiveMarkup,buildRestoreCommand} from '../../planner-archive.js';
 import {plannerChanges,undoPlannerChanges,plannerChangeRows} from '../../planner-changes.js';
 import {createPlannerBackup} from '../../planner-backup.js';
 import {mountAiUndo} from '../../ai-undo-view.js';
+import {runSharedSaveJourney} from './shared-save-journey.mjs';
 
 const identity={ownerId:'browser-test',planId:'fixture'},today='2026-10-25';
 const seed=()=>({boards:[{id:'b',title:'School',archived:false,sections:[{id:'s',title:'This week',archived:false,tasks:[
@@ -72,6 +73,7 @@ async function run(){
   document.querySelector('[data-ai-undo-apply]').click();await wait(()=>!document.querySelector('.ai-undo-dialog').hasAttribute('open'));
   check(data.boards[0].sections[0].tasks.find(t=>t.id==='maths').date===null,'Reviewed Undo must restore the date.');
   const backup=createPlannerBackup({...identity,plan:data});check(backup.schemaVersion===1&&backup.planner.boards.length===1,'Backup must include versioned planner data.');
+  await runSharedSaveJourney(check);
   data=seed();view.sync();status.dataset.result='passed';status.textContent='Passed: Quick Add → Today → interrupted save → retry → Archive → restore → reviewed Undo → backup.';
  }catch(error){status.dataset.result='failed';status.textContent='Failed: '+error.message;console.error(error);}
 }

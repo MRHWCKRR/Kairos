@@ -205,3 +205,8 @@ test('opening capture reveals an offscreen input without scrolling a visible one
   await f.workspace.addTask({boardId:'b',sectionId:'s'});assert.equal(calls,1);top=200;
   await f.workspace.addTask({boardId:'b',sectionId:'s'});assert.equal(calls,1);
 });
+
+test('global recovery clear retains the quick capture draft and releases its pending identity',async()=>{
+ const f=await fixture({persist:async()=>{throw Error('Offline')}});await f.workspace.openSection({boardId:'b',sectionId:'s'});f.type('Keep capture');await f.workspace.submit();
+ f.workspace.resolveRecovery(f.calls[0].identity,'discarded');assert.equal(f.root.querySelector('[data-quick-title]').value,'Keep capture');assert.equal(f.root.querySelector('[data-quick-title]').disabled,false);assert.equal(f.workspace.hasPendingCapture(),false);f.workspace.dispose();
+});

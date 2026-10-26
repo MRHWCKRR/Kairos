@@ -1,5 +1,5 @@
 import {mountDialogWindow} from './dialog-window.js?v=1';
-import {applyTaskListCommand} from './task-list-model.js?v=18';
+import {applyTaskListCommand} from './task-list-model.js?v=20';
 
 export function mountTaskCapture({document=globalThis.document,window=globalThis.window,getIdentity,getState,getDefaults=()=>({}),commit,confirmClear=async()=>false,storage,uuid=()=>window.crypto.randomUUID(),now=Date.now}={}) {
     if(!storage)try{storage=window.localStorage}catch{}
@@ -138,7 +138,7 @@ export function mountTaskCapture({document=globalThis.document,window=globalThis
         const confirmation=pending.command.type==='undo_create_task'?'This Undo may already have archived the task. Check Archive and Routines & Tasks before clearing recovery. Clearing does not change saved tasks. Continue?':'This task may already have saved. Check Routines & Tasks before clearing recovery. Clearing does not delete a saved task. Continue?';
         if(!await confirmClear(confirmation))return;
         if(disposed||ticket!==generation||scope()!==identity||pending?.identity.operationId!==id)return;
-        try{if(read()?.identity?.operationId===id)storage.removeItem(key());pending=null;undoSource=null;draft=retainedDraft;message='Recovery cleared. Existing tasks were not changed.'}catch{message='Recovery could not be cleared. Try again.'}render();
+        try{commit.discard?.(pending.identity);if(read()?.identity?.operationId===id)storage.removeItem(key());pending=null;undoSource=null;draft=retainedDraft;message='Recovery cleared. Existing tasks were not changed.'}catch{message='Recovery could not be cleared. Try again.'}render();
     }
     const onInput=event=>{const name=event.target.name;if(!busy&&!pending&&Object.hasOwn(draft,name))draft[name]=event.target.value};
     const onChange=event=>{onInput(event);if(event.target===field('boardId')&&!pending){draft.sectionId='';render()}};
@@ -148,5 +148,11 @@ export function mountTaskCapture({document=globalThis.document,window=globalThis
     find('form').addEventListener('submit',onSubmit);dialog.addEventListener('input',onInput);dialog.addEventListener('change',onChange);dialog.addEventListener('cancel',onCancel);
     find('[data-capture-close]').addEventListener('click',()=>close());find('[data-capture-clear]').addEventListener('click',()=>void clearRecovery());find('[data-capture-undo]').addEventListener('click',()=>void undo());document.addEventListener('click',onClick);
     sync();
-    return {open,close,sync,submit,undo,dispose(){disposed=true;generation++;busy=false;dialogWindow.dispose();dialog.remove();document.removeEventListener('click',onClick)}};
+    function resolveRecovery(resolved,status){
+        const actor=getIdentity();
+        if(status!=='discarded'||busy||disposed||resolved.ownerId!==actor?.ownerId||resolved.planId!==actor?.planId||pending?.identity.operationId!==resolved.operationId||pending.identity.createdAt!==resolved.createdAt)return;
+        try{if(read()?.identity?.operationId===resolved.operationId)storage?.removeItem(key())}catch{};
+        pending=null;undoSource=null;message='Recovery cleared. Your draft is still here.';if(visible())render();
+    }
+    return {open,close,sync,submit,undo,resolveRecovery,dispose(){disposed=true;generation++;busy=false;dialogWindow.dispose();dialog.remove();document.removeEventListener('click',onClick)}};
 }

@@ -32,6 +32,7 @@ test('Schedule task creator supports placement and rich task metadata before per
   assert.match(creator,/name="preference"/);
   assert.match(creator,/name="color"/);
   assert.match(creator,/name="notes"/);
-  assert.match(creator,/targetSection\.tasks\.push\(task\)/);
-  assert.match(creator,/persistPlan/);
+  assert.match(creator,/buildScheduleCreate/);
+  assert.match(creator,/commitScheduleCommand/);
+  assert.doesNotMatch(creator,/persistPlan|targetSection\.tasks\.push/);
 });

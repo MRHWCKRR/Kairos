@@ -1,4 +1,4 @@
-import {buildToday,todayTaskCommand} from './today-model.js?v=1';
+import {buildToday,todayTaskCommand} from './today-model.js?v=3';
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 export function mountMutationFeedback({root,session,window=globalThis.window,confirmClear=async()=>false}={}){
  if(!root)return {sync(){},dispose(){}};
@@ -11,10 +11,11 @@ export function mountMutationFeedback({root,session,window=globalThis.window,con
   root.hidden=!state.message&&!offline;root.setAttribute('aria-busy',String(state.busy));
  };
  const retry=()=>void session.retry();
- const clear=async()=>{const actor=JSON.stringify(session.state().identity);if(await confirmClear('This change may already have saved. Check the planner before clearing recovery. Clearing does not undo saved work.')&&JSON.stringify(session.state().identity)===actor)session.discard();};
+ const clear=async()=>{const state=session.state(),actor=JSON.stringify(state.identity),pendingIdentity=state.pendingIdentity;if(await confirmClear('This change may already have saved. Check the planner before clearing recovery. Clearing does not undo saved work.')&&JSON.stringify(session.state().identity)===actor)session.discard(pendingIdentity);};
  root.querySelector('[data-mutation-retry]').addEventListener('click',retry);root.querySelector('[data-mutation-clear]').addEventListener('click',clear);
- const unsub=session.subscribe(sync);window?.addEventListener('online',sync);window?.addEventListener('offline',sync);sync();
- return {sync,dispose(){unsub();window?.removeEventListener('online',sync);window?.removeEventListener('offline',sync);root.replaceChildren();}};
+ const storageChanged=event=>{if(event.key===null||event.key?.startsWith('kairos-mutation:'))session.sync();};
+ const unsub=session.subscribe(sync);window?.addEventListener('storage',storageChanged);window?.addEventListener('online',sync);window?.addEventListener('offline',sync);sync();
+ return {sync,dispose(){unsub();window?.removeEventListener('storage',storageChanged);window?.removeEventListener('online',sync);window?.removeEventListener('offline',sync);root.replaceChildren();}};
 }
 export function mountTodayView({root,document=globalThis.document,window=globalThis.window,getState,getIdentity,getToday,session,onOpen=()=>{},onCapture=()=>{},confirmClear}={}){
  if(!root)return {sync(){},dispose(){}};

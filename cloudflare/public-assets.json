@@ -1,5 +1,6 @@
 {
   "files": [
+    "schedule-entry-commands.js",
     "planning-undo.js",
     "planning-alternatives.js",
     "planning-preferences.js",
@@ -22,6 +23,9 @@
     "getting-started.js",
     "getting-started.css",
     "settings-recovery.js",
+    "settings-sync.js",
+    "notification-center.js",
+    "dashboard-controller.js",
     "schedule-inspector-session.js",
     "task-checklist-editor.js",
     "ui-context-menu.js",
@@ -90,6 +94,7 @@
     "schedule-ai.js",
     "schedule-inspector.css",
     "schedule-inspector.js",
+    "schedule-inspector-commands.js",
     "schedule-interactions.css",
     "schedule-interactions.js",
     "schedule-change-model.js",

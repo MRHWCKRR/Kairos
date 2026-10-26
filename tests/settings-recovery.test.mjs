@@ -1,3 +1,4 @@
+import {createSettingsSync} from '../settings-sync.js';
 import {normalisePlanningPreferences} from '../planning-preferences.js';
 import {normaliseShortcuts} from '../shortcut-model.js';
 import test from 'node:test';
@@ -15,7 +16,7 @@ async function fixture({cache=new Map(),cloud={appearance:{mode:'dark'},profile:
  let stored=structuredClone(cloud),offline=fail,gate=null,writes=0,owner='one',saveClick,cancelClick;
  const save=document.getElementById('settings-save-btn'),cancel=document.getElementById('settings-cancel-btn');save.addEventListener=(_event,fn)=>saveClick=fn;cancel.addEventListener=(_event,fn)=>cancelClick=fn;
  const defaults=()=>({appearance:{mode:'dark'},profile:{displayName:'Original'},accessibility:{shortcuts:normaliseShortcuts()}});
- const context=vm.createContext({...helper,normaliseShortcuts,normalisePlanningPreferences,normaliseWeeklyAvailability,document,window,Event:window.Event,localStorage:storage,auth:{get currentUser(){return owner?{uid:owner}:null}},db:{},doc:(_db,_collection,id)=>id,
+ const context=vm.createContext({...helper,createSettingsSync,normaliseShortcuts,normalisePlanningPreferences,normaliseWeeklyAvailability,document,window,Event:window.Event,localStorage:storage,auth:{get currentUser(){return owner?{uid:owner}:null}},db:{},doc:(_db,_collection,id)=>id,
   taskDetails:null,userSettings:defaults(),pendingSettings:defaults(),settingsCloudSnapshot:defaults(),settingsPendingRecord:null,settingsSaveTicket:null,settingsLoadRevision:0,
   settingsRecovery:helper.createSettingsRecovery?.(storage),defaultSettings:defaults,cloneDeep:structuredClone,deepMerge:(base,value)=>({...base,...value}),console:{error(){}},tr:key=>key,
   triggerMiscAchievement(){},applyAllSettings(){},previewLive(){},invalidateKairosContext(){},renderUserProfileMenu(){},populateSettingsForm(){},setupNotificationBell(){},markInitialLoadComplete(){},showNotice(){},
@@ -23,11 +24,13 @@ async function fixture({cache=new Map(),cloud={appearance:{mode:'dark'},profile:
   setDoc:async(_ref,value)=>{if(gate)await gate;if(offline)throw Error('Offline');stored=structuredClone(value.settings);writes++},
   runTransaction:async(_db,fn)=>{if(gate)await gate;if(offline)throw Error('Offline');let next;const result=await fn({get:async()=>({exists:()=>true,data:()=>({settings:structuredClone(stored)})}),set:(_ref,value)=>next=value.settings});if(next){stored=structuredClone(next);writes++}return result}
  });
- const functions=app.slice(app.indexOf('    function cacheAppliedSettings(')>=0?app.indexOf('    function cacheAppliedSettings('):app.indexOf('    async function loadUserSettingsFromFirestore('),app.indexOf('    function renderUserProfileMenu('));
+ const functions=app.slice(app.indexOf('    function loadUserSettingsFromFirestore('),app.indexOf('    function renderUserProfileMenu('));
  const dirty=app.slice(app.indexOf('    function checkDirty()'),app.indexOf('    function renderConfigOptions()'));
  const enter=app.slice(app.indexOf('    function enterSettingsPage()'),app.indexOf('    function setActiveTile('));
  const actions=app.slice(app.indexOf("    const settingsSaveBtn = document.getElementById('settings-save-btn');"),app.indexOf('    // Settings tab switching'));
- vm.runInContext(functions+'\n'+dirty+'\n'+enter+'\n'+actions,context);
+ const setup=app.slice(app.indexOf('    const settingsSync=createSettingsSync('),app.indexOf('    let gettingStarted=null;'));
+ vm.runInContext(setup+'\nglobalThis.settingsSync=settingsSync;\n'+functions+'\n'+dirty+'\n'+enter+'\n'+actions,context);
+ for(const [key,field] of [['settingsCloudSnapshot','cloud'],['settingsPendingRecord','pending'],['settingsSaveTicket','saving']])Object.defineProperty(context,key,{get:()=>context.settingsSync.state()[field],configurable:true});
  await context.loadUserSettingsFromFirestore({uid:'one'});
  return {context,document,cache,save,cancel,clickSave:()=>saveClick(),clickCancel:()=>cancelClick(),stored:()=>stored,writes:()=>writes,setOffline:value=>offline=value,setOwner:value=>owner=value,setCloud:value=>stored=structuredClone(value),block:value=>gate=value};
 }

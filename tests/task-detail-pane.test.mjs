@@ -232,3 +232,10 @@ test('deadline editor gives draft feedback, waits for save and protects unsaved 
 test('Start focus keeps unsaved task notes and does not mark the task complete',async()=>{const f=await fixture();await f.open();f.input('notes','Keep unsaved notes');const button=f.root.querySelector('[data-task-focus-start]');assert.ok(button);button.click();assert.deepEqual(f.focusStarts,['t']);assert.equal(f.root.querySelector('[name="notes"]').value,'Keep unsaved notes');assert.equal(f.calls.length,0);assert.equal(f.data().boards[0].sections[0].tasks[0].completed,undefined);f.pane.dispose()});
 
 test('dated recurring details start focus for exactly that occurrence',async()=>{const f=await fixture(),date='2026-10-19';f.data().boards[0].sections[0].tasks[0].recurrence={enabled:true,frequency:'daily',startDate:date,interval:1,mode:'flexible'};await f.pane.open({taskId:'t',occurrenceDate:date});const button=f.root.querySelector('[data-task-focus-start]');assert.ok(button);button.click();assert.deepEqual(f.focusTargets,[{id:'t',occurrenceDate:date}]);assert.equal(f.calls.length,0);f.pane.dispose()});
+
+test('global recovery clear releases matching detail pending while retaining its draft',async()=>{
+ const f=await fixture();await f.open();f.input('notes','Keep draft');f.setFail(true);await f.pane.save();const identity=f.calls[0].identity;
+ f.pane.resolveRecovery({...identity,operationId:'different'},'discarded');assert.equal(f.root.querySelector('[name="notes"]').disabled,true);
+ f.pane.resolveRecovery(identity,'discarded');assert.equal(f.root.querySelector('[name="notes"]').disabled,false);assert.equal(f.root.querySelector('[name="notes"]').value,'Keep draft');
+ f.setFail(false);assert.equal(await f.pane.save(),true);assert.notEqual(f.calls[1].identity.operationId,identity.operationId);f.pane.dispose();
+});

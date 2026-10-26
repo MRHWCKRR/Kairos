@@ -62,3 +62,8 @@ test('clearing a rejected Undo recovery preserves the next unsaved task draft',a
  f.controller.open();f.input('title','Read');await f.controller.submit();f.input('title','Next draft');await f.controller.undo();f.document.querySelector('[data-capture-clear]').click();await tick();
  assert.equal(f.document.querySelector('[name="title"]').value,'Next draft');assert.equal(f.memory.size,0);assert.equal(f.data.boards[0].sections[0].tasks[0].archived,false);
 });
+
+test('global recovery clear retains the global capture draft and releases its pending identity',async()=>{
+ const f=fixture({commit:async()=>{throw Error('Offline')}});f.controller.open();f.input('title','Keep capture');await f.controller.submit();
+ f.controller.resolveRecovery(f.calls[0][2],'discarded');assert.equal(f.document.querySelector('[name="title"]').value,'Keep capture');assert.equal(f.document.querySelector('[name="title"]').disabled,false);assert.equal(f.memory.size,0);f.controller.dispose();
+});

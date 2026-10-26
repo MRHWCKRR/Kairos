@@ -2,6 +2,7 @@ import {normalizeRecurrence,preserveOccurrenceOnSeriesEdit,projectStoredOccurren
 import {completedScheduleChanges} from './schedule-policy.js?v=1';
 
 export function applyRecurringEdit(task,date,{scope,changes={},recurrence,newTaskId='preview-series'}={}){
+ if(scope!=='occurrence'&&Object.hasOwn(changes,'durationMinutes')&&!(Object.hasOwn(changes,'startTime')?changes.startTime:task.startTime))changes={...changes,estimatedMinutes:changes.durationMinutes};
  if(scope==='occurrence')return [applyOccurrenceOverride(task,date,changes)];
  if(scope==='future'){const split=splitRecurringSeries(task,date,{...changes,recurrence},newTaskId,{preserveMoved:true});
   const details=Object.fromEntries(Object.entries(changes).filter(([key])=>!['date','startTime','endTime','durationMinutes','recurrence'].includes(key)));

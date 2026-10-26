@@ -225,3 +225,9 @@ test('a preview never crosses account or planner boundaries',async()=>{
   const saving=f.interactions.execute({type:'complete_task',target:{taskId:'a'},value:true},{boardId:'b',sectionId:'s',value:false});await tick();
   f.setPlan('replacement');assert.equal(f.interactions.getDisplayState().boards[0].sections[0].tasks[0].completed,false);f.setPlan('plan');f.setOwner('other');assert.equal(f.interactions.getDisplayState().boards[0].sections[0].tasks[0].completed,false);f.interactions.sync();f.setFail(true);release();await saving;assert.equal(f.confirmations.length,0);f.interactions.dispose();
 });
+
+test('global recovery clear releases matching task interactions without replaying',async()=>{
+ const f=await fixture();f.setFail(true);await f.interactions.runTaskAction('complete',{taskId:'a'});const identity=f.calls[0].identity;
+ f.interactions.resolveRecovery({...identity,planId:'other'},'discarded');assert.equal(f.interactions.getActionState({taskId:'a'}).pending,true);
+ f.interactions.resolveRecovery(identity,'discarded');assert.equal(f.interactions.getActionState({taskId:'a'}).pending,false);assert.equal(f.data().boards[0].sections[0].tasks[0].completed,false);assert.equal(f.calls.length,1);f.interactions.dispose();
+});

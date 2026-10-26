@@ -1,9 +1,10 @@
-import {mountTodayView,mountMutationFeedback} from './today-view.js?v=1';
-import {createMutationSession} from './mutation-session.js?v=1';
+import {createDashboardController} from './dashboard-controller.js?v=1';
+import {createNotificationCenter} from './notification-center.js?v=1';
+import {createSettingsSync} from './settings-sync.js?v=1';
+import {createMutationSession} from './mutation-session.js?v=3';
 import {archiveMarkup,buildRestoreCommand} from './planner-archive.js?v=1';
 import {createPlannerBackup,downloadPlannerBackup} from './planner-backup.js?v=1';
-import {mountAiUndo} from './ai-undo-view.js?v=1';
-import {loadActionUndoPreview} from './plan-store.js?v=19';
+import {loadActionUndoPreview} from './plan-store.js?v=20';
 import {calendarDate,shiftCalendarMonth,monthTaskEntries,calendarMonthMarkup,calendarTaskMarkup} from './schedule-month.js?v=2';
 import {taskWorkCheckin} from './remaining-work.js?v=2';
 import {promptFocusCheckin} from './focus-checkin.js?v=1';
@@ -11,9 +12,7 @@ import {mountFocusTimer} from './focus-timer.js?v=6';
 import {persistFocusLog,persistFocusCorrection,loadFocusHistory} from './focus-store.js?v=5';
 import {mountFocusHistory} from './focus-history.js?v=3';
 import {taskFocusTarget} from './task-focus.js?v=3';
-import {normalisePlanningPreferences} from './planning-preferences.js?v=3';
 import {mountPlanningPreferencesEditor} from './planning-preferences-editor.js?v=3';
-import {normaliseWeeklyAvailability} from './weekly-availability.js';
 import {mountWeeklyAvailabilityEditor} from './weekly-availability-editor.js';
 import { showNotice, confirmDialog, promptDialog } from './ui-dialogs.js?v=1';
 import { aiFetch, aiErrorMessage } from './ai-client.js?v=2';
@@ -21,7 +20,7 @@ import { requestBilling } from './billing-client.js?v=2';
 import { mountPlanUsage } from './plan-usage.js?v=6';
 import {assignmentProgressIndex,assignmentProgressMarkup} from './assignment-progress.js?v=4';
 import {planningClock} from './planning-model.js?v=1';
-import { createPageLoader } from './page-loader.js?v=70';
+import { createPageLoader } from './page-loader.js?v=71';
 import { mountPageRouter } from './page-router.js?v=3';
 import { createPageRenderCache } from './page-render-cache.js?v=1';
 import './boards-recurrence.js?v=11';
@@ -50,15 +49,14 @@ import { LANGUAGES, applyTranslations, getLocale, getLanguageName, t, ACHIEVEMEN
 import { invalidateKairosContext } from './ai-context.js?v=16';
 import { dueTaskReminders, dueBedtimeReminders, reminderDeliveryStatus } from './task-reminders.js?v=3';
 import { deliverTaskReminder, deliverBedtimeReminder, saveNotificationEdits, escapeNotificationText } from './reminder-notifications.js?v=3';
-import { savePlannerEdits, persistTaskListCommand,loadPlanningUndoPreview } from './plan-store.js?v=19';
-import { resolveTaskDetail, taskListSection } from './task-list-model.js?v=18';
+import { savePlannerEdits, persistTaskListCommand,loadPlanningUndoPreview } from './plan-store.js?v=20';
+import { resolveTaskDetail, taskListSection } from './task-list-model.js?v=20';
 import { mergePlanEdits, planState } from './plan-merge.js';
-import {createSettingsRecovery,overlaySettingsEdits} from './settings-recovery.js?v=1';
 import {mountGettingStarted,openGettingStartedDestination} from './getting-started.js?v=3';
 import {createGettingStartedStore} from './getting-started-store.js?v=1';
 import {mountFocusBreakdown} from './focus-breakdown.js?v=1';
 import {mountGlobalSearch} from './global-search.js?v=4';
-import {mountTaskCapture} from './task-capture.js?v=5';
+import {mountTaskCapture} from './task-capture.js?v=6';
 import {normaliseShortcuts,describeShortcut} from './shortcut-model.js?v=1';
 import {mountShortcutSettings} from './shortcut-settings.js?v=1';
 import {mountSidebarIcons} from './sidebar-icons.js?v=2';
@@ -351,15 +349,25 @@ function bootApp() {
         if (cached && auth.currentUser?.uid === localStorage.getItem('kairos_settings_cache_uid')) userSettings = deepMerge(defaultSettings(), cached);
     } catch (e) { /* ignore malformed cache */ }
     let pendingSettings = cloneDeep(userSettings);
-    const settingsRecovery=createSettingsRecovery();
-    let settingsCloudSnapshot=cloneDeep(userSettings),settingsPendingRecord=null,settingsSaveTicket=null,settingsLoadRevision=0;
+    const settingsSync=createSettingsSync({storage:localStorage,
+        getOwnerId:()=>auth.currentUser?.uid||null,getDraft:()=>pendingSettings,setDraft:value=>{pendingSettings=value;},getApplied:()=>userSettings,setApplied:value=>{userSettings=value;},defaults:defaultSettings,mergeDefaults:value=>deepMerge(defaultSettings(),value),
+        readRemote:async owner=>{const snap=await getDoc(doc(db,'users',owner));return {settings:snap.exists()?snap.data().settings||{}:{},confirmed:!snap.metadata?.fromCache&&!snap.metadata?.hasPendingWrites};},
+        writeRemote:(owner,merge)=>runTransaction(db,async transaction=>{const ref=doc(db,'users',owner),snapshot=await transaction.get(ref),next=merge(snapshot.exists()?snapshot.data().settings||{}:{});transaction.set(ref,{settings:next},{merge:true});return next;}),
+        onApply:applyAllSettings,onSettled:()=>renderUserProfileMenu(auth.currentUser),onStatus:updateSaveBarVisibility,onLoadComplete:markInitialLoadComplete,
+        onLoaded:()=>{invalidateKairosContext();populateSettingsForm();document.dispatchEvent(new Event('kairos-controls-refresh'));renderUserProfileMenu(auth.currentUser);setupNotificationBell();},
+        onSaved:({hasDraft})=>{window.__kairosScheduleWorkspace?.invalidate();taskDetails?.sync();populateSettingsForm();if(hasDraft)previewLive();if(userSettings.appearance.mode==='light')triggerMiscAchievement('light_mode');invalidateKairosContext();void window.__kairosTaskReminders?.check();},
+        onError:(phase,error,record)=>{if(phase==='validation')showNotice(error.message);else if(phase==='save')showNotice(record.persisted?'Could not sync your settings. Your changes are saved on this device; use Retry save when you are ready.':'Could not sync or store these settings locally. Keep this tab open and retry saving.');if(phase!=='validation')console.error('Error '+phase+' user settings:',error);}
+    });
     let gettingStarted=null;
     let confettiEnabled = userSettings.appearance.confetti;
 
     // --- Notifications state ---
-    let notificationsData = [];
-    let notificationsSnapshot = [], notificationsOwner = null, taskReminderChecking = false, taskReminderQueued = false;
-    let unsubscribeNotifications = null;
+    let taskReminderChecking = false, taskReminderQueued = false;
+    const notificationCenter=createNotificationCenter({document,getOwnerId:()=>auth.currentUser?.uid||null,
+        subscribe:(owner,next,error)=>onSnapshot(doc(db,'users',owner),snap=>next(snap.exists()?snap.data():null),error),persist:saveNotificationEdits,escapeText:escapeNotificationText,translate:tr,showBrowserNotification,
+        onUserData:data=>{gettingStarted?.hydrate(data);if(data?.achievements){achievementsData=deepMerge(defaultAchievementsData(),data.achievements);renderAchievementsPage();renderMiniAchievementsWidget();}if(data?.focusData){focusData=deepMerge(defaultFocusData(),data.focusData);renderFocusTimerWidget();renderStatisticsPage();}}
+    });
+    window.addEventListener('pagehide',event=>{if(!event.persisted){notificationCenter.dispose();settingsSync.dispose();}});
 
     let pendingInitialLoads = 0;
 
@@ -449,7 +457,8 @@ function bootApp() {
     onAuthStateChanged(auth, async (user) => {
         globalThis.window?.__kairosScheduleInteractions?.sync();
         searchPlannerOwnerId = null;
-        globalSearchController?.sync();taskCaptureController?.sync();plannerMutations?.sync();aiUndoView?.sync();todayView?.sync();
+        globalSearchController?.sync();taskCaptureController?.sync();plannerMutations?.sync();dashboardController?.sync();
+        settingsSync.reset();notificationCenter.reset();
         focusTimerController?.sync();
         focusHistoryController?.sync();
         gettingStarted?.sync();
@@ -472,7 +481,7 @@ function bootApp() {
             }
 
             console.log("No user detected. Redirecting to login...");
-            if (unsubscribeNotifications) { unsubscribeNotifications(); unsubscribeNotifications = null; }
+            notificationCenter.reset();
             window.location.replace("login.html");
             return;
         }
@@ -493,7 +502,7 @@ function bootApp() {
 
         if (!auth.currentUser?.emailVerified) {
             console.log("User email is not verified. Redirecting to verification...");
-            if (unsubscribeNotifications) { unsubscribeNotifications(); unsubscribeNotifications = null; }
+            notificationCenter.reset();
             clearTimeout(loadingFallback);
             const emailParam = auth.currentUser?.email ? "?email=" + encodeURIComponent(auth.currentUser.email) : "";
             window.location.replace("verify-email.html" + emailParam);
@@ -530,8 +539,13 @@ function bootApp() {
 
     let aiPageAutoCollapsed = false;
     let sidebarManuallyToggledOnAI = false;
-    let taskDetails=null,taskWorkspace=null,taskInteractions=null,taskMenus=null,taskSelection=null,taskShortcuts=null,focusBreakdownView=null,globalSearchController=null,taskCaptureController=null,todayView=null,plannerMutations=null,aiUndoView=null;
+    let taskDetails=null,taskWorkspace=null,taskInteractions=null,taskMenus=null,taskSelection=null,taskShortcuts=null,focusBreakdownView=null,globalSearchController=null,taskCaptureController=null,dashboardController=null,plannerMutations=null;
     async function commitTaskDetails(command,expected,identity){
+        if(!plannerMutations)throw new Error('Planner saving is still loading. Your edits are retained.');
+        return plannerMutations.submit(command,expected,identity);
+    }
+    commitTaskDetails.discard=identity=>identity&&plannerMutations?.discard(identity);
+    async function persistTaskDetails(command,expected,identity){
         const user=auth.currentUser;
         if(!user||identity.ownerId!==user.uid||identity.planId!==currentPlanDocId)throw new Error('The signed-in account or planner changed.');
         planEditRevision++;planLoadRevision++;
@@ -569,7 +583,7 @@ function bootApp() {
     }
     const pageLoader = createPageLoader({scheduleEnabled:!!document.getElementById('schedule-calendar'),taskDetailsEnabled:true,setupTaskDetails:module=>{
         taskDetails=module.mountTaskDetailPane({root:document.getElementById('tasks-page'),getShortcuts:()=>userSettings.accessibility.shortcuts,getOwnerId:()=>auth.currentUser?.uid||null,getPlanId:()=>currentPlanDocId,
-            getState:()=>({boards:boardsData}),getAllowCompletedReschedule:()=>settingsCloudSnapshot.planning?.rescheduleCompleted===true,getToday:()=>planningClock(Date.now(),userSettings.profile.timezone).date,resolveTarget:target=>resolveTaskDetail({boards:boardsData},target),commit:commitTaskDetails,onStartFocus:startTaskFocus,openSchedule:openTaskDetailsInSchedule});
+            getState:()=>({boards:boardsData}),getAllowCompletedReschedule:()=>settingsSync.state().cloud.planning?.rescheduleCompleted===true,getToday:()=>planningClock(Date.now(),userSettings.profile.timezone).date,resolveTarget:target=>resolveTaskDetail({boards:boardsData},target),commit:commitTaskDetails,onStartFocus:startTaskFocus,openSchedule:openTaskDetailsInSchedule});
     },setupTaskWorkspace:module=>{
         taskWorkspace=module.mountTaskListWorkspace({root:document.getElementById('tasks-page'),overview:document.getElementById('tasks-manager-container'),
             getToday:()=>planningClock(Date.now(),userSettings.profile.timezone).date,getState:()=>taskInteractions?.getDisplayState()||({boards:boardsData}),getOwnerId:()=>auth.currentUser?.uid||null,getPlanId:()=>currentPlanDocId,commit:commitTaskDetails,
@@ -577,7 +591,7 @@ function bootApp() {
             isMutationBlocked:()=>{const state=taskInteractions?.getActionState({taskId:''});return !!(state?.busy||state?.pending)},requestCloseDetails:()=>taskDetails?.requestClose()??true,renderOverview:renderBoardsGrid,onRender:()=>{taskInteractions?.decorate();taskSelection?.sync();taskMenus?.sync();taskShortcuts?.sync()}});
         renderBoardsGrid();
     },setupTaskInteractions:module=>{
-        taskInteractions=module.mountTaskListInteractions({getAllowCompletedReschedule:()=>settingsCloudSnapshot.planning?.rescheduleCompleted===true,root:document.getElementById('tasks-page'),getState:()=>({boards:boardsData}),getOwnerId:()=>auth.currentUser?.uid||null,getPlanId:()=>currentPlanDocId,
+        taskInteractions=module.mountTaskListInteractions({getAllowCompletedReschedule:()=>settingsSync.state().cloud.planning?.rescheduleCompleted===true,root:document.getElementById('tasks-page'),getState:()=>({boards:boardsData}),getOwnerId:()=>auth.currentUser?.uid||null,getPlanId:()=>currentPlanDocId,
             getViewKey:()=>taskWorkspace?.getViewKey(),getSelectedTaskIds:()=>taskSelection?.ids()||[],commit:commitTaskDetails,refresh:renderBoardsGrid,onConfirmed:(command,result)=>{taskWorkspace?.sectionMoved(command);recordTaskListCompletion(command,result)},sectionBlocked:()=>taskWorkspace?.hasPendingCapture()||false,requestCloseDetails:()=>taskDetails?.requestClose()??true,
             ensurePlan:async()=>{const owner=auth.currentUser?.uid,expectedPlan=currentPlanDocId||'plan-'+owner;if(!owner)return false;if(!currentPlanDocId&&!await updatePlanInFirestore())return false;return auth.currentUser?.uid===owner&&currentPlanDocId===expectedPlan?expectedPlan:false}});
     },setupTaskSelection:module=>{
@@ -698,7 +712,7 @@ function bootApp() {
                 <input type="text" class="task-text" data-section="${sectionId}" data-task="${task.id}" value="${escapeNotificationText(task.title)}" style="text-decoration: ${task.completed ? 'line-through' : 'none'};">
                 ${task.startTime ? `<span class="task-scheduled-time">${task.startTime}${task.endTime ? '–' + task.endTime : ''}</span>` : ''}
                 ${task.checklist?.length?`<span class="task-checklist-count">${task.recurrence?.enabled?'0':task.checklist.filter(item=>item.completed).length}/${task.checklist.length}</span>`:''}
-                ${showDatePicker ? `<input type="date" class="task-date-input" data-section="${sectionId}" data-task="${task.id}" value="${task.date || ''}" ${task.completed&&settingsCloudSnapshot.planning?.rescheduleCompleted!==true?'disabled':''} title="Schedule this task on the calendar">` : ''}
+                ${showDatePicker ? `<input type="date" class="task-date-input" data-section="${sectionId}" data-task="${task.id}" value="${task.date || ''}" ${task.completed&&settingsSync.state().cloud.planning?.rescheduleCompleted!==true?'disabled':''} title="Schedule this task on the calendar">` : ''}
                 ${showDatePicker ? `<button type="button" class="task-delete-btn" data-section="${sectionId}" data-task="${task.id}" title="${tr('delete_task')}">✕</button>` : ''}
                 ${showDatePicker ? `<button type="button" class="task-detail-open" data-task-detail="${escapeNotificationText(task.id)}" aria-label="${escapeNotificationText(tr('task_detail_open'))}">${tr('task_detail_heading')}</button>` : ''}
             </li>
@@ -734,7 +748,7 @@ function bootApp() {
         return null;
     }
 
-    function renderFocusMode() { if(pageRenders.defer('home-page',renderFocusMode))return;todayView?.sync(); }
+    function renderFocusMode() { if(pageRenders.defer('home-page',renderFocusMode))return;dashboardController?.sync(); }
 
     function renderSectionBlockHTML(board, section) {
         const visibleTasks = section.tasks.filter(t => !t.archived);
@@ -919,10 +933,7 @@ function bootApp() {
         const notifDeleteBtn = e.target.closest('.notif-delete-btn');
         if (notifDeleteBtn) {
             const notifId = notifDeleteBtn.getAttribute('data-notif-id');
-            notificationsData = notificationsData.filter(n => n.id !== notifId);
-            saveNotificationsToFirestore();
-            renderNotifPanel();
-            updateNotifBadge();
+            void notificationCenter.remove(notifId);
             return;
         }
 
@@ -1968,39 +1979,7 @@ function bootApp() {
         });
     }
 
-    function cacheAppliedSettings(owner,settings) {
-        try { localStorage.setItem('kairos_settings_cache',JSON.stringify(settings));localStorage.setItem('kairos_settings_cache_uid',owner); } catch { /* Recovery status reports storage failures separately. */ }
-    }
-
-    async function loadUserSettingsFromFirestore(user) {
-        const revision=++settingsLoadRevision;
-        let loaded=defaultSettings(),cloudConfirmed=false;
-        try { if(localStorage.getItem('kairos_settings_cache_uid')===user.uid)loaded=deepMerge(defaultSettings(),JSON.parse(localStorage.getItem('kairos_settings_cache')||'{}')); } catch {}
-        try { const snap=await getDoc(doc(db,'users',user.uid));loaded=deepMerge(defaultSettings(),snap.exists()?snap.data().settings||{}:{});cloudConfirmed=!snap.metadata?.fromCache&&!snap.metadata?.hasPendingWrites; }
-        catch(error){console.error('Error loading user settings:',error);}
-        if(auth.currentUser?.uid!==user.uid||revision!==settingsLoadRevision){markInitialLoadComplete();return;}
-        if(!cloudConfirmed){const staged=settingsRecovery.read(user.uid);if(staged)loaded=deepMerge(defaultSettings(),staged.base);}
-        settingsCloudSnapshot=cloneDeep(loaded);
-        const recovered=settingsRecovery.restore(user.uid,loaded,{confirmed:cloudConfirmed});settingsPendingRecord=recovered.pending;
-        userSettings=cloneDeep(recovered.settings);pendingSettings=cloneDeep(userSettings);cacheAppliedSettings(user.uid,userSettings);
-        invalidateKairosContext();applyAllSettings();populateSettingsForm();updateSaveBarVisibility();
-        document.dispatchEvent(new Event('kairos-controls-refresh'));renderUserProfileMenu(user);setupNotificationBell();markInitialLoadComplete();
-    }
-
-    async function saveUserSettingsToFirestore(settings,base,record) {
-        const owner=record.ownerId;if(auth.currentUser?.uid!==owner)return false;
-        try {
-            const defaults=defaultSettings(),ref=doc(db,'users',owner);
-            const saved=await runTransaction(db,async transaction=>{
-                const snapshot=await transaction.get(ref),remote=deepMerge(defaults,snapshot.exists()?snapshot.data().settings||{}:{});
-                const next=overlaySettingsEdits(base,settings,remote);next.accessibility.shortcuts=normaliseShortcuts(next.accessibility.shortcuts);if(next.planning){next.planning.weeklyAvailability=normaliseWeeklyAvailability(next.planning.weeklyAvailability);Object.assign(next.planning,normalisePlanningPreferences(next.planning));}transaction.set(ref,{settings:next},{merge:true});return next;
-            });
-            return auth.currentUser?.uid===owner?saved:false;
-        } catch(error) {
-            if(auth.currentUser?.uid===owner)showNotice(record.persisted?'Could not sync your settings. Your changes are saved on this device; use Retry save when you are ready.':'Could not sync or store these settings locally. Keep this tab open and retry saving.');
-            console.error('Error saving user settings:',error);return false;
-        }
-    }
+    function loadUserSettingsFromFirestore(user) { return settingsSync.load(user.uid); }
 
     function renderUserProfileMenu(user) {
         const authContainer = document.getElementById('user-auth-container');
@@ -2067,7 +2046,7 @@ function bootApp() {
     }
 
     function enterSettingsPage() {
-        pendingSettings = cloneDeep(settingsPendingRecord?.ownerId===auth.currentUser?.uid?settingsPendingRecord.settings:userSettings);
+        pendingSettings = cloneDeep(settingsSync.state().pending?.ownerId===auth.currentUser?.uid?settingsSync.state().pending.settings:userSettings);
         populateSettingsForm();
         document.dispatchEvent(new Event('kairos-controls-refresh'));
         updateSaveBarVisibility(false);
@@ -2204,19 +2183,17 @@ function bootApp() {
     }
 
     function checkDirty() {
-        const owner=auth.currentUser?.uid;
-        if(owner&&settingsPendingRecord?.ownerId===owner)settingsPendingRecord=settingsRecovery.stage(owner,settingsCloudSnapshot,pendingSettings);
-        updateSaveBarVisibility();
+        settingsSync.dirty();
     }
 
     function updateSaveBarVisibility(forceState) {
         const bar=document.getElementById('settings-save-bar');if(!bar)return;
-        const owner=auth.currentUser?.uid,pending=settingsPendingRecord?.ownerId===owner?settingsPendingRecord:null,saving=settingsSaveTicket?.ownerId===owner;
+        const owner=auth.currentUser?.uid,pending=settingsSync.state().pending?.ownerId===owner?settingsSync.state().pending:null,saving=settingsSync.state().saving?.ownerId===owner;
         const dirty=!!pending||(forceState!==undefined?forceState:JSON.stringify(pendingSettings)!==JSON.stringify(userSettings));
         bar.classList.toggle('active',dirty||saving);
         const status=bar.querySelector('span');if(status){status.setAttribute('role','status');status.setAttribute('aria-live','polite');status.textContent=saving?'Saving changes…':pending?(pending.persisted?'Saved on this device. Cloud sync pending.':'Not synced or stored locally. Keep this tab open and retry.'):tr('unsaved_changes');if(pending||saving)status.removeAttribute('data-i18n');else status.dataset.i18n='unsaved_changes';}
         const save=document.getElementById('settings-save-btn'),cancel=document.getElementById('settings-cancel-btn');
-        if(save){save.disabled=!!saving;save.textContent=saving?tr('saving_ellipsis'):pending?'Retry save':tr('save_changes');if(pending||saving)save.removeAttribute('data-i18n');else save.dataset.i18n='save_changes';}
+        if(save){save.disabled=!!saving||!settingsSync.state().ready;save.textContent=saving?tr('saving_ellipsis'):pending?'Retry save':tr('save_changes');if(pending||saving)save.removeAttribute('data-i18n');else save.dataset.i18n='save_changes';}
         if(cancel){cancel.disabled=!!saving;cancel.textContent=pending?'Discard local changes':tr('cancel');if(pending)cancel.removeAttribute('data-i18n');else cancel.dataset.i18n='cancel';}
     }
 
@@ -2511,40 +2488,12 @@ function bootApp() {
 
     // Save / Cancel bar
     const settingsSaveBtn = document.getElementById('settings-save-btn');
-    if(settingsSaveBtn)settingsSaveBtn.addEventListener('click',async()=>{
-        const owner=auth.currentUser?.uid;if(!owner||settingsSaveTicket?.ownerId===owner)return;
-        const submitted=cloneDeep(pendingSettings),base=cloneDeep(settingsCloudSnapshot),ticket={ownerId:owner};
-        submitted.accessibility.shortcuts=normaliseShortcuts(submitted.accessibility.shortcuts);
-        try{if(submitted.planning){submitted.planning.weeklyAvailability=normaliseWeeklyAvailability(submitted.planning.weeklyAvailability);Object.assign(submitted.planning,normalisePlanningPreferences(submitted.planning));}}catch(error){showNotice(error.message);return;}
-        pendingSettings=cloneDeep(submitted);
-        settingsSaveTicket=ticket;settingsLoadRevision++;
-        const record=settingsRecovery.stage(owner,base,submitted);settingsPendingRecord=record;
-        userSettings=cloneDeep(submitted);cacheAppliedSettings(owner,userSettings);applyAllSettings();updateSaveBarVisibility();
-        try{
-            const saved=await saveUserSettingsToFirestore(submitted,base,record);
-            if(auth.currentUser?.uid!==owner||settingsSaveTicket!==ticket)return;
-            if(saved){
-                settingsRecovery.clear(owner,record);settingsCloudSnapshot=cloneDeep(saved);window.__kairosScheduleWorkspace?.invalidate();taskDetails?.sync();
-                pendingSettings=overlaySettingsEdits(submitted,pendingSettings,saved);userSettings=cloneDeep(saved);settingsPendingRecord=null;
-                if(JSON.stringify(pendingSettings)!==JSON.stringify(saved))settingsPendingRecord=settingsRecovery.stage(owner,saved,pendingSettings);
-                cacheAppliedSettings(owner,settingsPendingRecord?pendingSettings:userSettings);applyAllSettings();populateSettingsForm();
-                if(JSON.stringify(pendingSettings)!==JSON.stringify(userSettings))previewLive();
-                if(userSettings.appearance.mode==='light')triggerMiscAchievement('light_mode');
-                invalidateKairosContext();void window.__kairosTaskReminders?.check();
-            }else{
-                settingsPendingRecord=settingsRecovery.stage(owner,settingsCloudSnapshot,pendingSettings);cacheAppliedSettings(owner,pendingSettings);
-            }
-            renderUserProfileMenu(auth.currentUser);
-        }finally{
-            if(settingsSaveTicket===ticket){settingsSaveTicket=null;if(auth.currentUser?.uid===owner)updateSaveBarVisibility();}
-        }
-    });
+    if(settingsSaveBtn)settingsSaveBtn.addEventListener('click',()=>settingsSync.save());
 
     const settingsCancelBtn = document.getElementById('settings-cancel-btn');
     if(settingsCancelBtn)settingsCancelBtn.addEventListener('click',()=>{
-        const owner=auth.currentUser?.uid;if(settingsSaveTicket?.ownerId===owner)return;
-        if(settingsPendingRecord?.ownerId===owner){settingsRecovery.clear(owner,settingsPendingRecord);settingsPendingRecord=null;userSettings=cloneDeep(settingsCloudSnapshot);cacheAppliedSettings(owner,userSettings);}
-        pendingSettings=cloneDeep(userSettings);applyAllSettings();populateSettingsForm();document.dispatchEvent(new Event('kairos-controls-refresh'));updateSaveBarVisibility(false);
+        if(!settingsSync.cancel())return;
+        populateSettingsForm();document.dispatchEvent(new Event('kairos-controls-refresh'));updateSaveBarVisibility(false);
     });
 
     document.getElementById('settings-reschedule-completed')?.addEventListener('change',event=>{pendingSettings.planning={...(pendingSettings.planning||{}),rescheduleCompleted:event.target.checked};checkDirty()});
@@ -2737,7 +2686,7 @@ function bootApp() {
                 try { sessionStorage.setItem(accountDeletionPendingKey, '1'); } catch (e) {}
                 await deleteUser(user);
 
-                settingsRecovery.clear(user.uid);
+                settingsSync.clear(user.uid);
                 localStorage.removeItem('kairos_settings_cache');
                 localStorage.removeItem('kairos_settings_cache_uid');
                 localStorage.removeItem('kairos_bedtime_fired');
@@ -2782,167 +2731,10 @@ function bootApp() {
 
     // --- 12 Notifications Engine (Firestore-synced) ---
 
-    function setupNotificationsSync(user) {
-        if (notificationsOwner !== user.uid) { notificationsData = []; notificationsSnapshot = []; }
-        notificationsOwner = user.uid;
-        if (unsubscribeNotifications) unsubscribeNotifications();
-
-        const ref = doc(db, 'users', user.uid);
-        unsubscribeNotifications = onSnapshot(ref, (snap) => {
-            if (auth.currentUser?.uid !== user.uid) return;
-            const data = snap.exists() ? snap.data() : null;
-
-            gettingStarted?.hydrate(data);
-
-            if (data && Array.isArray(data.notifications)) {
-                notificationsData = data.notifications;
-                notificationsSnapshot = structuredClone(data.notifications);
-            } else if (!data || data.notifications === undefined) {
-                if (notificationsData.length === 0) {
-                    notificationsData = [{
-                        id: 'notif-welcome',
-                        title: 'Welcome to Kairos! 👋',
-                        message: 'Set up your first routine or paste a syllabus into AI Helper to get going.',
-                        time: Date.now(),
-                        read: false
-                    }];
-                    saveNotificationsToFirestore();
-                }
-            }
-
-            if (data && data.achievements) {
-                achievementsData = deepMerge(defaultAchievementsData(), data.achievements);
-                renderAchievementsPage();
-                renderMiniAchievementsWidget();
-            }
-            if (data && data.focusData) {
-                focusData = deepMerge(defaultFocusData(), data.focusData);
-                renderFocusTimerWidget();
-                renderStatisticsPage();
-            }
-
-            updateNotifBadge();
-            renderNotifPanel();
-        }, (error) => {
-            console.error('Notifications sync error:', error);
-        });
-    }
-
-    async function saveNotificationsToFirestore() {
-        const user = auth.currentUser;
-        if (!user || notificationsOwner !== user.uid) return;
-        const local = structuredClone(notificationsData);
-        try {
-            const merged = await saveNotificationEdits(user.uid, structuredClone(notificationsSnapshot), local);
-            if (auth.currentUser?.uid !== user.uid) return;
-            notificationsSnapshot = merged;
-        } catch (error) { console.error('Error saving notifications:', error); }
-    }
-
-    function pushNotification(title, message) {
-        notificationsData = [
-            {
-                id: 'notif-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7),
-                title, message,
-                time: Date.now(),
-                read: false
-            },
-            ...notificationsData
-        ].slice(0, 50);
-
-        saveNotificationsToFirestore();
-        showBrowserNotification(title, message);
-    }
-
-    function unreadNotifCount() {
-        return notificationsData.filter(n => !n.read).length;
-    }
-
-    function updateNotifBadge() {
-        const badge = document.getElementById('notif-badge');
-        if (!badge) return;
-        const count = unreadNotifCount();
-        if (count > 0) {
-            badge.textContent = count > 9 ? '9+' : String(count);
-            badge.style.display = 'flex';
-        } else {
-            badge.style.display = 'none';
-        }
-    }
-
-    function notifTimeAgo(ts) {
-        const diffMs = Math.max(0, Date.now() - ts);
-        const mins = Math.floor(diffMs / 60000);
-        if (mins < 1) return 'Just now';
-        if (mins < 60) return `${mins}m ago`;
-        const hrs = Math.floor(mins / 60);
-        if (hrs < 24) return `${hrs}h ago`;
-        const days = Math.floor(hrs / 24);
-        return `${days}d ago`;
-    }
-
-    function renderNotifPanel() {
-        const list = document.getElementById('notif-panel-list');
-        if (!list) return;
-
-        if (!notificationsData.length) {
-            list.innerHTML = `<p class="notif-empty text-muted">${tr('no_notifications_yet')}</p>`;
-            return;
-        }
-
-        list.innerHTML = notificationsData.map(n => `
-            <div class="notif-item ${n.read ? '' : 'unread'}" data-notif-id="${escapeNotificationText(n.id)}">
-                <div class="notif-item-dot"></div>
-                <div class="notif-item-body">
-                    <p class="notif-item-title">${escapeNotificationText(n.title)}</p>
-                    <p class="notif-item-message">${escapeNotificationText(n.message)}</p>
-                    <p class="notif-item-time">${notifTimeAgo(n.time)}</p>
-                </div>
-                <div class="dots-menu-wrapper notif-dots-wrapper">
-                    <button type="button" class="dots-menu-btn notif-dots-btn" title="Options">⋮</button>
-                    <div class="dots-menu notif-dots-menu">
-                        <button type="button" class="notif-delete-btn danger-option" data-notif-id="${escapeNotificationText(n.id)}">Delete</button>
-                    </div>
-                </div>
-            </div>
-        `).join('');
-    }
-
-    function setupNotificationBell() {
-        const bellBtn = document.getElementById('notif-bell-btn');
-        const wrapper = document.getElementById('notif-wrapper');
-        const panel = document.getElementById('notif-panel');
-        if (!bellBtn || !wrapper || !panel || bellBtn.dataset.bound) return;
-        bellBtn.dataset.bound = 'true';
-
-        renderNotifPanel();
-        updateNotifBadge();
-
-        bellBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const willOpen = !panel.classList.contains('active');
-
-            document.querySelectorAll('.notif-panel.active').forEach(p => p.classList.remove('active'));
-
-            if (willOpen) {
-                panel.classList.add('active');
-                if (unreadNotifCount() > 0) {
-                    setTimeout(() => {
-                        notificationsData = notificationsData.map(n => ({ ...n, read: true }));
-                        saveNotificationsToFirestore();
-                    }, 700);
-                }
-            } else {
-                panel.classList.remove('active');
-            }
-        });
-
-        document.addEventListener('click', (e) => {
-            if (!wrapper.contains(e.target)) {
-                panel.classList.remove('active');
-            }
-        });
-    }
+    function setupNotificationsSync(user) { notificationCenter.setup(user.uid); }
+    function pushNotification(title,message) { notificationCenter.push(title,message); }
+    function renderNotifPanel() { notificationCenter.render(); }
+    function setupNotificationBell() { notificationCenter.bindBell(); }
 
     // Notification settings toggles
     const notifEnabledInput = document.getElementById('settings-notif-enabled');
@@ -3788,20 +3580,14 @@ function bootApp() {
 
     appReady = true;
     globalSearchController=mountGlobalSearch({getLocale:()=>getLocale(userSettings.accessibility.language||'en'),getShortcuts:()=>userSettings.accessibility.shortcuts,getIdentity:globalSearchIdentity,getState:()=>({boards:boardsData}),getToday:()=>planningClock(Date.now(),userSettings.profile.timezone).date,onNavigate:openGlobalSearchResult});
-    plannerMutations=createMutationSession({getIdentity:globalSearchIdentity,commit:async(command,expected,identity)=>{const result=await commitTaskDetails(command,expected,identity);recordTaskListCompletion(command,result);return result;}});
-    mountMutationFeedback({root:document.getElementById('planner-mutation-feedback'),session:plannerMutations,confirmClear:message=>confirmDialog(message,{confirmText:'Clear recovery'})});
-    taskCaptureController=mountTaskCapture({getIdentity:globalSearchIdentity,getState:()=>({boards:boardsData}),getDefaults:()=>({...taskWorkspace?.getCurrentSection?.(),...(document.getElementById('home-page')?.classList.contains('active')?{date:planningClock(Date.now(),userSettings.profile.timezone).date}:document.getElementById('schedule-page')?.classList.contains('active')?{date:calendarFocusDate}:{})}),commit:commitTaskDetails,confirmClear:message=>confirmDialog(message,{confirmText:'Clear recovery'})});
-    todayView=mountTodayView({root:document.getElementById('dashboard-focus-container'),getIdentity:globalSearchIdentity,getState:()=>({boards:boardsData,scheduleEvents:scheduleData}),getToday:()=>planningClock(Date.now(),userSettings.profile.timezone).date,session:plannerMutations,onCapture:context=>taskCaptureController.open(context),confirmClear:message=>confirmDialog(message,{confirmText:'Clear recovery'}),onOpen:async(row,action,source)=>{
-        const owner=auth.currentUser?.uid,plan=currentPlanDocId;if(!owner||!plan)return false;
-        const current=()=>auth.currentUser?.uid===owner&&currentPlanDocId===plan;
-        if(action==='open'&&row.kind==='task'&&!row.occurrenceDate)return openTaskDetailsFromList(row.taskId,source);
-        if(!await (taskDetails?.requestClose?.()??true)||!current())return false;
-        await pageRouter.navigate('schedule-page');if(!current())return false;
-        window.__kairosScheduleBridge?.setScheduleDate(row.date||planningClock(Date.now(),userSettings.profile.timezone).date);
-        if(row.occurrenceDate)return window.__kairosScheduleWorkspace?.selectOccurrence?.({seriesId:row.taskId,occurrenceId:row.taskId+'::'+row.occurrenceDate,occurrenceDate:row.occurrenceDate});
-        return window.__kairosScheduleWorkspace?.selectItem?.(row.kind==='event'?'event':'task',row.taskId||row.id);
+    plannerMutations=createMutationSession({getIdentity:globalSearchIdentity,commit:async(command,expected,identity)=>{const result=await persistTaskDetails(command,expected,identity);recordTaskListCompletion(command,result);return result;},onResolve:(identity,status)=>{
+        taskDetails?.resolveRecovery?.(identity,status);taskWorkspace?.resolveRecovery?.(identity,status);taskInteractions?.resolveRecovery?.(identity,status);taskCaptureController?.resolveRecovery?.(identity,status);window.__kairosScheduleMutationResolved?.(identity,status);window.dispatchEvent(new CustomEvent('kairos-schedule-mutation-resolved',{detail:{identity,status}}));
     }});
-    aiUndoView=mountAiUndo({root:document.getElementById('ai-mutation-tools'),getIdentity:globalSearchIdentity,session:plannerMutations,loadPreview:loadActionUndoPreview});
+    taskCaptureController=mountTaskCapture({getIdentity:globalSearchIdentity,getState:()=>({boards:boardsData}),getDefaults:()=>({...taskWorkspace?.getCurrentSection?.(),...(document.getElementById('home-page')?.classList.contains('active')?{date:planningClock(Date.now(),userSettings.profile.timezone).date}:document.getElementById('schedule-page')?.classList.contains('active')?{date:calendarFocusDate}:{})}),commit:commitTaskDetails,confirmClear:message=>confirmDialog(message,{confirmText:'Clear recovery'})});
+    dashboardController=createDashboardController({document,window,getIdentity:globalSearchIdentity,getState:()=>({boards:boardsData,scheduleEvents:scheduleData}),getToday:()=>planningClock(Date.now(),userSettings.profile.timezone).date,session:plannerMutations,onCapture:context=>taskCaptureController.open(context),confirmClear:message=>confirmDialog(message,{confirmText:'Clear recovery'}),loadUndoPreview:loadActionUndoPreview,
+        openTask:openTaskDetailsFromList,requestClose:()=>taskDetails?.requestClose?.()??true,navigate:page=>pageRouter.navigate(page),setScheduleDate:date=>window.__kairosScheduleBridge?.setScheduleDate(date),selectOccurrence:target=>window.__kairosScheduleWorkspace?.selectOccurrence?.(target),selectItem:(kind,id)=>window.__kairosScheduleWorkspace?.selectItem?.(kind,id)
+    });
+    dashboardController.mount();
     renderApp();
     renderAchievementsPage();
     renderGoalSelects();
