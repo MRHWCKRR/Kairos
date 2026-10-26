@@ -7,7 +7,7 @@ import { db } from './firebase.js';
 import { doc, getDoc, runTransaction, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { mergePlanEdits, planState, stableStringify } from './plan-merge.js';
 import {validateAssignmentOrderChanges} from './assignment-order.js?v=1';
-import { applyTaskListCommand, taskListFingerprint } from './task-list-model.js?v=19';
+import { applyTaskListCommand, taskListFingerprint } from './task-list-model.js?v=20';
 import {completedScheduleChanges,assertCompletedScheduleChanges} from './schedule-policy.js?v=1';
 import {applyScheduleUndo} from './schedule-change-model.js?v=5';
 

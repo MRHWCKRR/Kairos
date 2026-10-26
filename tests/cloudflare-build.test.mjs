@@ -1,3 +1,4 @@
+import {createSettingsSync} from '../settings-sync.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
@@ -68,4 +69,25 @@ test('Cloudflare build refuses dangerous output targets and missing declared inp
   await assert.rejects(buildCloudflare({ ...fixture, outputDir: path.join(fixture.rootDir, '..') }), /output/i);
   await fs.unlink(path.join(fixture.rootDir, 'firebase.js')); await assert.rejects(buildCloudflare(fixture), /firebase\.js/);
   assert.equal(await fs.readFile(path.join(fixture.rootDir, 'server-tooling.js'), 'utf8'), 'secret fixture');
+});
+
+
+test('real packaged shell includes focused controllers and bridge reads the confirmed settings baseline',async t=>{
+ const fixture=await setup(t);
+ const files=['app.js','app.html','app-bootstrap.js','notification-center.js','settings-sync.js','dashboard-controller.js'];
+ for(const name of files)await fs.copyFile(path.join(repository,name),path.join(fixture.rootDir,name));
+ await buildCloudflare(fixture);
+ const app=await fs.readFile(path.join(fixture.outputDir,'app.js'),'utf8');
+ assert.equal((app.match(/window.__kairosScheduleBridge =/g)||[]).length,1);
+ assert.match(app,/notification-center\.js\?v=1/);assert.match(app,/settings-sync\.js\?v=1/);assert.match(app,/dashboard-controller\.js\?v=1/);
+ for(const name of files.slice(3))assert.equal(await fs.readFile(path.join(fixture.outputDir,name),'utf8'),await fs.readFile(path.join(repository,name),'utf8'));
+ assert.match(await fs.readFile(path.join(fixture.outputDir,'app-bootstrap.js'),'utf8'),/app\.js\?v=101/);
+ assert.match(await fs.readFile(path.join(fixture.outputDir,'app.html'),'utf8'),/app-bootstrap\.js\?v=62/);
+ let applied={planning:{rescheduleCompleted:true,dailyLimitMinutes:120,gapMinutes:10,weeklyAvailability:{1:[]}}},draft=applied;
+ const settingsSync=createSettingsSync({getOwnerId:()=> 'one',getApplied:()=>applied,setApplied:value=>applied=value,setDraft:value=>draft=value,defaults:()=>({}),mergeDefaults:value=>value,storage:{getItem:()=>null,setItem(){}},readRemote:async()=>({settings:{planning:{rescheduleCompleted:false,dailyLimitMinutes:60,gapMinutes:0}},confirmed:true})});
+ const window={dispatchEvent(){}};const start=app.indexOf('    // Schedule 3.0 bridge:');assert.ok(start>=0);
+ const bridge=app.slice(start,app.indexOf('    // --- 14 Bedtime Reminder Engine ---',start));
+ new Function('window','CustomEvent','settingsSync',bridge)(window,class{},settingsSync);
+ assert.equal(window.__kairosScheduleBridge.getAllowCompletedReschedule(),true);assert.deepEqual(window.__kairosScheduleBridge.getPlanningPreferences(),{dailyLimitMinutes:120,gapMinutes:10});assert.deepEqual(window.__kairosScheduleBridge.getWeeklyAvailability(),{1:[]});
+ await settingsSync.load('one');assert.equal(window.__kairosScheduleBridge.getAllowCompletedReschedule(),false);assert.equal(window.__kairosScheduleBridge.getPlanningPreferences().dailyLimitMinutes,60);settingsSync.dispose();
 });

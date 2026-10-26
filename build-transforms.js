@@ -17,7 +17,7 @@ const BRIDGE=`
         getBoards: () => boardsData,
         getOwnerId: () => auth.currentUser?.uid || null,
         getPlanId: () => currentPlanDocId || null,
-        getAllowCompletedReschedule: () => settingsCloudSnapshot.planning?.rescheduleCompleted === true,
+        getAllowCompletedReschedule: () => settingsSync.state().cloud.planning?.rescheduleCompleted === true,
         getScheduleView: () => new URL(window.location.href).searchParams.get('scheduleView'),
         setScheduleView: view => {const url=new URL(window.location.href);url.searchParams.set('scheduleView',view);window.history.replaceState(window.history.state,'',url.href);},
         getScheduleDate: () => calendarFocusDate,
@@ -34,8 +34,8 @@ const BRIDGE=`
             return currentPlanDocId;
         },
         startTaskFocus: (taskId,occurrenceDate) => startTaskFocus(taskId,occurrenceDate),
-        getPlanningPreferences: () => ({dailyLimitMinutes:settingsCloudSnapshot.planning?.dailyLimitMinutes??0,gapMinutes:settingsCloudSnapshot.planning?.gapMinutes??0}),
-        getWeeklyAvailability: () => settingsCloudSnapshot.planning?.weeklyAvailability ?? null,
+        getPlanningPreferences: () => ({dailyLimitMinutes:settingsSync.state().cloud.planning?.dailyLimitMinutes??0,gapMinutes:settingsSync.state().cloud.planning?.gapMinutes??0}),
+        getWeeklyAvailability: () => settingsSync.state().cloud.planning?.weeklyAvailability ?? null,
         getTimezone: () => userSettings.profile.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
         previewPlanningUndo: () => loadPlanningUndoPreview(currentPlanDocId,auth.currentUser?.uid,userSettings.profile.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'),
         commitTaskCommand: (command, expected, identity) => {

@@ -20,3 +20,13 @@ Task creation, ordinary completion and archiving reuse the task command model ac
 
 No Firestore collection migration or live billing configuration is introduced.
 
+
+## Shared save architecture
+
+Schedule inspector edits, recurrence status/scope changes, rich task creation and reviewed proposal batches now submit validated commands through the same retained mutation gateway as task details, Quick Add, bulk controls and Today. Creation of a default section and its task is atomic. Reviewed schedule batches recheck current saved availability and completed-task policy in the transaction. Scope selection never authorises replacing an arbitrary planner snapshot.
+
+The recovery gateway stores the exact command, expected baseline and caller operation identity before submission. Retry checks the original receipt even after a refresh; clearing recovery preserves the editor draft and only clears the operation shown by the confirmation. Account/plan switches invalidate pending UI completions, while recovery remains scoped to its original owner and planner. Changed payloads cannot reuse an operation ID.
+
+The shell delegates notification subscription/rendering to `notification-center.js`, settings baseline/recovery to `settings-sync.js`, and Today/Undo/navigation lifecycle to `dashboard-controller.js`. These controllers use injected persistence and UI adapters. Notification bindings follow replaced profile DOM and cancel detached read timers. Settings reset requires a fresh baseline before saving. No additional Firebase subscriptions are introduced.
+
+The browser journey additionally covers finite recurring-series split recovery across reload and account/plan changes during delayed acknowledgement. Real `plan-store` transaction fixtures separately verify receipt reuse, preserved remote progress and guarded AI Undo. These checks supplement, rather than replace, signed-in live Firebase testing.

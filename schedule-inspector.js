@@ -1,5 +1,5 @@
-import {taskDetailValues,buildScheduleChange,buildRecurringInspectorCommand,buildInspectorDelete} from './task-list-model.js?v=19';
-import {recurringEditPreview} from './recurrence-edit.js?v=1';
+import {taskDetailValues,buildScheduleChange,buildRecurringInspectorCommand,buildInspectorDelete} from './task-list-model.js?v=20';
+import {recurringEditPreview} from './recurrence-edit.js?v=2';
 import {bindTaskFocus} from './task-focus.js?v=3';
 import {bindDeadlineImpact} from './deadline-impact.js?v=3';
 import { confirmDialog } from './ui-dialogs.js?v=1';
@@ -7,7 +7,7 @@ import { normalizeTaskMetadata, scheduleFieldsFromDuration, taskDurationMinutes,
 import { recurrenceFieldsMarkup, bindRecurrenceFields, readRecurrenceFields, showRecurrenceScopeDialog } from './schedule-recurrence-ui.js?v=12';
 import { projectStoredOccurrence, generateTaskOccurrences, formatRecurrenceSummary } from './recurrence-utils.js?v=14';
 
-import {createScheduleInspectorSession} from './schedule-inspector-session.js?v=2';
+import {createScheduleInspectorSession} from './schedule-inspector-session.js?v=3';
 
 import {assignmentProgressIndex,assignmentProgressMarkup,refreshAssignmentProgress} from './assignment-progress.js?v=4';
 import {planningClock} from './planning-model.js?v=1';

@@ -1,5 +1,5 @@
-import {buildScheduleCreate as buildEntryCreate,applyScheduleCreate,buildReviewedSchedule as buildReviewedEntry,applyReviewedSchedule} from './schedule-entry-commands.js?v=1';
-import {applyRecurringInspectorCommand,applyInspectorDelete,buildRecurringInspectorCommand as buildRecurringCommand,buildInspectorDelete as buildDeleteCommand} from './schedule-inspector-commands.js?v=1';
+import {buildScheduleCreate as buildEntryCreate,applyScheduleCreate,buildReviewedSchedule as buildReviewedEntry,applyReviewedSchedule} from './schedule-entry-commands.js?v=2';
+import {applyRecurringInspectorCommand,applyInspectorDelete,buildRecurringInspectorCommand as buildRecurringCommand,buildInspectorDelete as buildDeleteCommand} from './schedule-inspector-commands.js?v=2';
 
 import {applyRestoreCommand} from './planner-archive.js?v=1';
 import {stableStringify,mergePlanEdits} from './plan-merge.js';

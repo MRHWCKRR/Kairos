@@ -1,6 +1,6 @@
 import {stableStringify} from './plan-merge.js';
 import {normalizeRecurrence,validateRecurrence,generateTaskOccurrences,projectStoredOccurrence,setOccurrenceStatus,splitRecurringSeries} from './recurrence-utils.js?v=14';
-import {applyRecurringEdit} from './recurrence-edit.js?v=1';
+import {applyRecurringEdit} from './recurrence-edit.js?v=2';
 import {assertCompletedScheduleChanges} from './schedule-policy.js?v=1';
 import {taskDurationMinutes} from './schedule-utils.js';
 const metadata=['title','notes','dueDate','estimatedMinutes','priority','color'];
