@@ -1,5 +1,5 @@
-import {makeManualFocusEntry} from './manual-focus-model.js?v=1';
-import {manualFocusMarkup,readManualFocusForm} from './manual-focus-form.js?v=1';
+import {makeManualFocusEntry} from './manual-focus-model.js?v=2';
+import {manualFocusMarkup,readManualFocusForm} from './manual-focus-form.js?v=2';
 import {planningClock} from './planning-model.js?v=1';
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const duration=s=>Math.floor(s/60)+'m '+s%60+'s';

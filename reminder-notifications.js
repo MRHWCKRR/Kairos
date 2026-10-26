@@ -1,7 +1,7 @@
-import { db } from './firebase.js';
+import { db } from './firebase.js?v=1';
 import { doc, runTransaction } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { dueTaskReminders,dueBedtimeReminders } from './task-reminders.js?v=3';
-import { mergePlanEdits, planState } from './plan-merge.js';
+import { mergePlanEdits, planState } from './plan-merge.js?v=1';
 
 export function escapeNotificationText(value) {
     return String(value??'').replace(/[&<>'"]/g,character=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[character]));

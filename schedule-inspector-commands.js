@@ -1,8 +1,8 @@
-import {stableStringify} from './plan-merge.js';
+import {stableStringify} from './plan-merge.js?v=1';
 import {normalizeRecurrence,validateRecurrence,generateTaskOccurrences,projectStoredOccurrence,setOccurrenceStatus,splitRecurringSeries} from './recurrence-utils.js?v=14';
-import {applyRecurringEdit} from './recurrence-edit.js?v=2';
-import {assertCompletedScheduleChanges} from './schedule-policy.js?v=1';
-import {taskDurationMinutes} from './schedule-utils.js';
+import {applyRecurringEdit} from './recurrence-edit.js?v=3';
+import {assertCompletedScheduleChanges} from './schedule-policy.js?v=2';
+import {taskDurationMinutes} from './schedule-utils.js?v=3';
 const metadata=['title','notes','dueDate','estimatedMinutes','priority','color'];
 const schedule=['date','startTime','endTime','durationMinutes'];
 const ruleKeys=['enabled','frequency','interval','weekdays','monthlyMode','monthDay','weekdayPosition','weekday','month','startDate','endType','endDate','count','mode','exceptions'];

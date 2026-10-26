@@ -1,4 +1,4 @@
-import {stableStringify} from './plan-merge.js';
+import {stableStringify} from './plan-merge.js?v=1';
 
 const object=value=>value&&typeof value==='object'&&!Array.isArray(value);
 

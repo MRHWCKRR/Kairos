@@ -7,6 +7,7 @@ import { invokeHandler, jsonResponse } from './http-adapter.js';
 import { createBillingHandlers } from '../server/billing.js';
 import { createStripeClient } from '../server/stripe-client.js';
 import { handleStripeWebhook } from '../server/billing-webhook.js';
+import {createCalendarFeedHandler} from '../server/calendar-feed.js';
 
 export function createWorker({ createServices = createFirebaseServices, fetchImpl = fetch } = {}) {
   return {
@@ -26,6 +27,7 @@ export function createWorker({ createServices = createFirebaseServices, fetchImp
       };
       const adminAuth = { verifyIdToken(token) { return createServices(env).adminAuth.verifyIdToken(token); } };
       const appCheck = { verifyToken(token) { return createServices(env).appCheck.verifyToken(token); } };
+      if (path === '/api/calendar-feed') return createCalendarFeedHandler({adminAuth,appCheck,rateLimiter:env.AI_RATE_LIMITER,fetchImpl})(request);
       if (path.startsWith('/api/billing/')) {
         try {
           const store = { scope: env.AI_BUDGET_SCOPE || 'production' };

@@ -1,5 +1,5 @@
 import {generateTaskOccurrences,normalizeRecurrence} from './recurrence-utils.js?v=14';
-import {stableStringify} from './plan-merge.js';
+import {stableStringify} from './plan-merge.js?v=1';
 
 export function validFocusDate(value){return typeof value==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(value)&&Number.isFinite(Date.parse(value+'T12:00:00Z'))&&new Date(value+'T12:00:00Z').toISOString().slice(0,10)===value}
 export function focusRecurrenceSignature(task){const rule=normalizeRecurrence(task,task.date);delete rule.exceptions;return stableStringify(rule)}

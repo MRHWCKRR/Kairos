@@ -1,4 +1,4 @@
-import {validFocusDate} from './occurrence-focus.js?v=1';
+import {validFocusDate} from './occurrence-focus.js?v=2';
 import {generateTaskOccurrences} from './recurrence-utils.js?v=14';
 const norm=value=>String(value??'').normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase().replace(/\s+/g,' ').trim();
 const shiftDate=(date,days)=>new Date(Date.parse(date+'T12:00:00Z')+days*86400000).toISOString().slice(0,10);

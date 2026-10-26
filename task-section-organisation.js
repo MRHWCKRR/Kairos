@@ -1,4 +1,4 @@
-import {sectionBoard,sectionOrder} from './task-section-model.js';
+import {sectionBoard,sectionOrder} from './task-section-model.js?v=1';
 
 // All writes use the task interaction host's durable operation and recovery path.
 export function mountSectionOrganisation({root,getState,getIdentity,getViewKey,blocked,execute,reportError,scrollElement,document=root.ownerDocument,window=document.defaultView,requestFrame=fn=>window.requestAnimationFrame(fn),cancelFrame=id=>window.cancelAnimationFrame(id)}){

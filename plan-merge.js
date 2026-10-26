@@ -50,6 +50,6 @@ export function planState(data) {
                 tasks: (section.tasks || []).map(task => ({ ...task, archived: task.archived ?? false }))
             }))
         })),
-        dayInsights: data.dayInsights || {}, scheduleEvents: data.scheduleEvents || []
+        dayInsights: data.dayInsights || {}, scheduleEvents: data.scheduleEvents || [], calendarSources: data.calendarSources || []
     });
 }

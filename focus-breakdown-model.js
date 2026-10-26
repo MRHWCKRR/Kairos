@@ -1,6 +1,6 @@
-import {validFocusDate} from './occurrence-focus.js?v=1';
+import {validFocusDate} from './occurrence-focus.js?v=2';
 import {generateTaskOccurrences} from './recurrence-utils.js?v=14';
-import {parseTime,taskDurationMinutes} from './schedule-utils.js';
+import {parseTime,taskDurationMinutes} from './schedule-utils.js?v=3';
 const seconds=task=>Number.isSafeInteger(task?.focusLoggedSeconds)&&task.focusLoggedSeconds>0?task.focusLoggedSeconds:0;
 const sum=rows=>rows.reduce((total,row)=>total+row.loggedSeconds,0);
 const sumMinutes=(rows,key)=>rows.some(row=>row[key]===null)?null:rows.reduce((total,row)=>total+row[key],0);

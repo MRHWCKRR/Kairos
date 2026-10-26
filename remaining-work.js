@@ -1,6 +1,6 @@
-import {focusOccurrence} from './occurrence-focus.js?v=1';
-import {taskDurationMinutes} from './schedule-utils.js';
-import {stableStringify} from './plan-merge.js';
+import {focusOccurrence} from './occurrence-focus.js?v=2';
+import {taskDurationMinutes} from './schedule-utils.js?v=3';
+import {stableStringify} from './plan-merge.js?v=1';
 
 export function taskRemainingMinutes(task){
  return Number.isInteger(task?.remainingMinutes)&&task.remainingMinutes>=1&&task.remainingMinutes<=1440?task.remainingMinutes:taskDurationMinutes(task);

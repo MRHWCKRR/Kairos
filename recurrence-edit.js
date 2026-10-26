@@ -1,5 +1,5 @@
 import {normalizeRecurrence,preserveOccurrenceOnSeriesEdit,projectStoredOccurrence,generateTaskOccurrences,applyOccurrenceOverride,splitRecurringSeries} from './recurrence-utils.js?v=14';
-import {completedScheduleChanges} from './schedule-policy.js?v=1';
+import {completedScheduleChanges} from './schedule-policy.js?v=2';
 
 export function applyRecurringEdit(task,date,{scope,changes={},recurrence,newTaskId='preview-series'}={}){
  if(scope!=='occurrence'&&Object.hasOwn(changes,'durationMinutes')&&!(Object.hasOwn(changes,'startTime')?changes.startTime:task.startTime))changes={...changes,estimatedMinutes:changes.durationMinutes};

@@ -1,15 +1,15 @@
-import {taskDetailValues,buildScheduleChange,buildRecurringInspectorCommand,buildInspectorDelete} from './task-list-model.js?v=20';
-import {recurringEditPreview} from './recurrence-edit.js?v=2';
-import {bindTaskFocus} from './task-focus.js?v=3';
-import {bindDeadlineImpact} from './deadline-impact.js?v=3';
+import {taskDetailValues,buildScheduleChange,buildRecurringInspectorCommand,buildInspectorDelete} from './task-list-model.js?v=21';
+import {recurringEditPreview} from './recurrence-edit.js?v=3';
+import {bindTaskFocus} from './task-focus.js?v=4';
+import {bindDeadlineImpact} from './deadline-impact.js?v=4';
 import { confirmDialog } from './ui-dialogs.js?v=1';
-import { normalizeTaskMetadata, scheduleFieldsFromDuration, taskDurationMinutes, toDateKey } from './schedule-utils.js';
+import { normalizeTaskMetadata, scheduleFieldsFromDuration, taskDurationMinutes, toDateKey } from './schedule-utils.js?v=3';
 import { recurrenceFieldsMarkup, bindRecurrenceFields, readRecurrenceFields, showRecurrenceScopeDialog } from './schedule-recurrence-ui.js?v=12';
 import { projectStoredOccurrence, generateTaskOccurrences, formatRecurrenceSummary } from './recurrence-utils.js?v=14';
 
 import {createScheduleInspectorSession} from './schedule-inspector-session.js?v=3';
 
-import {assignmentProgressIndex,assignmentProgressMarkup,refreshAssignmentProgress} from './assignment-progress.js?v=4';
+import {assignmentProgressIndex,assignmentProgressMarkup,refreshAssignmentProgress} from './assignment-progress.js?v=5';
 import {planningClock} from './planning-model.js?v=1';
 let session;
 const bridge=()=>window.__kairosScheduleBridge;

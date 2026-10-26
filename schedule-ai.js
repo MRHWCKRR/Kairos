@@ -1,11 +1,11 @@
-import {buildReviewedSchedule} from './task-list-model.js?v=20';
-import {schedulePlanningAvailability,schedulePlanningClock,sameScheduleAvailability,scheduleProposalFits,scheduleAvailabilityText} from './schedule-planning-availability.js?v=1';
+import {buildReviewedSchedule} from './task-list-model.js?v=21';
+import {schedulePlanningAvailability,schedulePlanningClock,sameScheduleAvailability,scheduleProposalFits,scheduleAvailabilityText} from './schedule-planning-availability.js?v=2';
 import {shiftPlanningDate} from './planning-model.js?v=1';
-import { validateScheduleProposals, parseTime, formatTime, taskDurationMinutes, toDateKey, getVisibleDates, blockGeometry, addDays } from './schedule-utils.js?v=2';
+import { validateScheduleProposals, parseTime, formatTime, taskDurationMinutes, toDateKey, getVisibleDates, blockGeometry, addDays } from './schedule-utils.js?v=3';
 import { generateTaskOccurrences, generateTaskOccurrencesThrough } from './recurrence-utils.js?v=14';
 import { aiErrorMessage } from './ai-request.js';
-import {dayChangeCandidates,prepareDayChange,proposalStillMatches} from './schedule-day-change.js?v=2';
-import {mountDayChange} from './schedule-day-change-ui.js?v=3';
+import {dayChangeCandidates,prepareDayChange,proposalStillMatches} from './schedule-day-change.js?v=3';
+import {mountDayChange} from './schedule-day-change-ui.js?v=4';
 
 const bridge=()=>window.__kairosScheduleBridge;
 const workspace=()=>window.__kairosScheduleWorkspace;
@@ -153,7 +153,7 @@ function buildContext(target=null,change=null){
   scheduledCommitments.push(...pending.filter(item=>(item.mode==='fixed'||!!item.startTime)&&item.occurrenceId!==targetOccurrenceId&&!recurringCandidates.some(candidate=>candidate.occurrenceId===item.occurrenceId)).map(item=>({id:item.occurrenceId,seriesId:item.seriesId,occurrenceId:item.occurrenceId,occurrenceDate:item.occurrenceDate,title:String(item.task.title||''),date:item.displayDate,startTime:item.startTime,endTime:item.endTime,mode:item.mode})));
   const ordinaryTasks=eligible.map(({task,board,section})=>({id:String(task.id),title:String(task.title||''),notes:String(task.notes||''),board:String(board.title||''),section:String(section.title||''),dueDate:task.dueDate||null,estimatedMinutes:task.estimatedMinutes||null,lastScheduledMinutes:task.lastScheduledMinutes||null,plannedMinutes:taskDurationMinutes(task),priority:task.priority||null,schedulingPreference:task.schedulingPreference||null,date:task.date||null,startTime:task.startTime||null,endTime:task.endTime||null,scheduleLocked:!!task.scheduleLocked,color:task.color||null}));
   const recurringTasks=recurringCandidates.map(item=>({id:item.occurrenceId,taskId:item.occurrenceId,seriesId:item.seriesId,occurrenceId:item.occurrenceId,occurrenceDate:item.occurrenceDate,title:String(item.task.title||''),notes:String(item.task.notes||''),board:String(item.board?.title||''),section:String(item.section?.title||''),dueDate:null,estimatedMinutes:item.task.estimatedMinutes||null,lastScheduledMinutes:item.task.lastScheduledMinutes||null,plannedMinutes:item.durationMinutes,priority:item.task.priority||null,schedulingPreference:item.task.schedulingPreference||null,date:item.occurrenceDate,startTime:item.startTime,endTime:item.endTime,scheduleLocked:false,color:item.task.color||null,isOverdue:item.isOverdue,mode:item.mode}));
-  return {mode:change?'replan-day':'plan',dayChange:change||null,availability,currentDate,currentTime:current.time,visibleRange:{start:toDateKey(dates[0]),end:toDateKey(dates.at(-1))},planningHorizonDays:PLANNING_HORIZON_DAYS,targetTaskId:targetOccurrenceId||targetTaskId||null,targetOccurrenceId:targetOccurrenceId||null,tasks:[...ordinaryTasks,...recurringTasks],scheduledCommitments,fixedCommitments:(bridge()?.getScheduleEvents?.()||[]).map(ev=>({id:String(ev.id),title:String(ev.title||''),day:Number(ev.day),start:ev.start,end:ev.end,category:ev.category||'other'}))};
+  return {mode:change?'replan-day':'plan',dayChange:change||null,availability,currentDate,currentTime:current.time,visibleRange:{start:toDateKey(dates[0]),end:toDateKey(dates.at(-1))},planningHorizonDays:PLANNING_HORIZON_DAYS,targetTaskId:targetOccurrenceId||targetTaskId||null,targetOccurrenceId:targetOccurrenceId||null,tasks:[...ordinaryTasks,...recurringTasks],scheduledCommitments,fixedCommitments:(bridge()?.getScheduleEvents?.()||[]).filter(ev=>!ev.archived&&!ev.transparent).map(ev=>({id:String(ev.id),title:String(ev.title||''),...(ev.date?{date:ev.date}:{day:Number(ev.day)}),start:ev.start,end:ev.end,category:ev.category||'other'}))};
 }
 
 function visibleProposalCount(){return proposals.filter(p=>document.querySelector(`.ks-day-column[data-date="${CSS.escape(p.to.date)}"]`)).length}

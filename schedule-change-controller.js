@@ -1,4 +1,4 @@
-import {buildScheduleChange} from './schedule-change-model.js?v=5';
+import {buildScheduleChange} from './schedule-change-model.js?v=6';
 
 // Owns only feedback and operation identities; the shared command store owns data.
 export function createScheduleChangeController({document=globalThis.document,getScope,getState,ensurePlan,commit,getAllowCompleted=()=>false,isEditorBlocked=()=>false,now=Date.now,idFactory=()=>globalThis.crypto.randomUUID()}){
