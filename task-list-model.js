@@ -1,3 +1,4 @@
+import {buildScheduleCreate as buildEntryCreate,applyScheduleCreate,buildReviewedSchedule as buildReviewedEntry,applyReviewedSchedule} from './schedule-entry-commands.js?v=1';
 import {applyRecurringInspectorCommand,applyInspectorDelete,buildRecurringInspectorCommand as buildRecurringCommand,buildInspectorDelete as buildDeleteCommand} from './schedule-inspector-commands.js?v=1';
 
 import {applyRestoreCommand} from './planner-archive.js?v=1';
@@ -158,7 +159,11 @@ export function buildTaskTool(state,action,ids,options={}){batchIds(ids);return 
 const inspectorHelpers=()=>({resolve:taskListLocation,values:taskDetailValues,apply:applyTaskListCommand});
 export function buildRecurringInspectorCommand(state,target,intent){return buildRecurringCommand(state,target,intent,inspectorHelpers())}
 export function buildInspectorDelete(state,taskId){return buildDeleteCommand(state,taskId,inspectorHelpers())}
+export function buildScheduleCreate(state,target,task,options){return buildEntryCreate(state,target,task,options,inspectorHelpers())}
+export function buildReviewedSchedule(state,items,options,{now=Date.now()}={}){return buildReviewedEntry(state,items,options,{now,...inspectorHelpers()})}
 export function applyTaskListCommand(state,command,expected,{now=Date.now(),allowCompleted=false}={}){
+    if(command?.type==='schedule_create')return applyScheduleCreate(state,command,expected,inspectorHelpers());
+    if(command?.type==='reviewed_schedule')return applyReviewedSchedule(state,command,expected,{now,...inspectorHelpers()});
     if(command?.type==='recurring_inspector')return applyRecurringInspectorCommand(state,command,expected,{allowCompleted,...inspectorHelpers()});
     if(command?.type==='delete_task')return applyInspectorDelete(state,command,expected,inspectorHelpers());
     if(command?.type==='restore_entity')return applyRestoreCommand(state,command,expected);
@@ -215,7 +220,7 @@ export function applyTaskListCommand(state,command,expected,{now=Date.now(),allo
         if((next.boards||[]).some(board=>(board.sections||[]).some(section=>(section.tasks||[]).some(task=>task.id===item.id))))throw new Error('This task ID already exists. Reconcile the original save.');
         if(item.startTime!=null||item.endTime!=null){
             const start=parseTime(item.startTime),end=parseTime(item.endTime);
-            if(!item.date||typeof item.startTime!=='string'||typeof item.endTime!=='string'||!/^([01]\d|2[0-3]):[0-5]\d$/.test(item.startTime)||!/^([01]\d|2[0-3]):[0-5]\d$/.test(item.endTime)||start===null||end===null||end<=start)throw Error('Choose a valid date and time range for this task.');
+            if(!item.date||typeof item.startTime!=='string'||typeof item.endTime!=='string'||!/^([01]\d|2[0-3]):[0-5]\d$/.test(item.startTime)||!/^([01]\d|2[0-3]):[0-5]\d$/.test(item.endTime)||start===null||end===null||end!==0&&end<=start)throw Error('Choose a valid date and time range for this task.');
         }
         const {board,section}=matches[0],task={id:item.id,title:item.title.trim(),completed:false,date:item.date??null,archived:false};
         for(const field of ['dueDate','estimatedMinutes','startTime','endTime'])if(Object.hasOwn(item,field))task[field]=item[field];

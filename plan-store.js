@@ -7,7 +7,7 @@ import { db } from './firebase.js';
 import { doc, getDoc, runTransaction, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { mergePlanEdits, planState, stableStringify } from './plan-merge.js';
 import {validateAssignmentOrderChanges} from './assignment-order.js?v=1';
-import { applyTaskListCommand, taskListFingerprint } from './task-list-model.js?v=18';
+import { applyTaskListCommand, taskListFingerprint } from './task-list-model.js?v=19';
 import {completedScheduleChanges,assertCompletedScheduleChanges} from './schedule-policy.js?v=1';
 import {applyScheduleUndo} from './schedule-change-model.js?v=5';
 
@@ -39,7 +39,7 @@ export async function persistTaskListCommand(planId, uid, command, expected, ope
         const applied=applyTaskListCommand(plan.data,command,expected,{allowCompleted:plan.allowCompleted});
         Object.assign(plan.data,applied.next);
         return applied.result;
-    },{manualScheduling:['recurring_inspector','schedule_change','schedule_undo','edit_task','task_tool','undo_task_list','action_undo'].includes(command.type),legacyFingerprint:stableStringify({command,expected}),findTimeOptions:command.type==='schedule_change'?command.placement?.options:null,planningOptions:command.type==='planning_batch'?command.options:null,...(command.type==='planning_undo'?{undoSourceOperationId:command.sourceOperationId,undoTimezone:command.options?.timezone}:{})});
+    },{scheduleAvailability:command.type==='reviewed_schedule'?command.options?.availability:null,manualScheduling:['reviewed_schedule','schedule_create','recurring_inspector','schedule_change','schedule_undo','edit_task','task_tool','undo_task_list','action_undo'].includes(command.type),legacyFingerprint:stableStringify({command,expected}),findTimeOptions:command.type==='schedule_change'?command.placement?.options:null,planningOptions:command.type==='planning_batch'?command.options:null,...(command.type==='planning_undo'?{undoSourceOperationId:command.sourceOperationId,undoTimezone:command.options?.timezone}:{})});
 }
 
 export function applyStoredPlanningUndo(plan,command,expected){
@@ -125,6 +125,7 @@ export async function persistAiPlanAction(planId, uid, action, operationId, crea
         if(options.planningOptions?.availabilitySource==='saved'){const userSnapshot=await transaction.get(doc(db,'users',uid));assertSavedAvailability(options.planningOptions,userSnapshot.exists()?userSnapshot.data():{});}
         if(options.undoSourceOperationId){const source=planningUndoSource(data,options.undoSourceOperationId),userSnapshot=await transaction.get(doc(db,'users',uid)),timezone=userSnapshot.data()?.settings?.profile?.timezone||options.undoTimezone;if(timezone!==source.result.planningUndo.timezone||options.undoTimezone!==timezone)throw Error('Your timezone changed. Review the previous placements manually.');}
         if(options.findTimeOptions){const userSnapshot=await transaction.get(doc(db,'users',uid));assertFindTimeSettings(options.findTimeOptions,userSnapshot.exists()?userSnapshot.data():{});}
+        if(options.scheduleAvailability){const userSnapshot=await transaction.get(doc(db,'users',uid));assertScheduleAvailability(options.scheduleAvailability,userSnapshot.exists()?userSnapshot.data():{});}
         let allowCompleted=false;
         if(options.manualScheduling){const userSnapshot=await transaction.get(doc(db,'users',uid));allowCompleted=userSnapshot.data()?.settings?.planning?.rescheduleCompleted===true;}
         const next = planState(data);

@@ -1,6 +1,6 @@
 import {validFocusDate} from './occurrence-focus.js?v=1';
 import {generateTaskOccurrencesThrough} from './recurrence-utils.js?v=14';
-import {resolveTaskDetail,taskDetailValues} from './task-list-model.js?v=18';
+import {resolveTaskDetail,taskDetailValues} from './task-list-model.js?v=19';
 
 export function buildToday(state={},today) {
  if(!validFocusDate(today))throw Error('A valid Today date is required.');

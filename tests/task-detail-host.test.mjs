@@ -1,3 +1,4 @@
+import {createMutationSession} from '../mutation-session.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -15,6 +16,8 @@ async function fixture(empty=false){
   vm.runInContext('let taskDetails={open:async target=>({planId:currentPlanDocId,target})};const pageLoader={prepare:async()=>{}};const pageRouter={navigate:async()=>{}};',f.context);
   const opening=source.indexOf('    async function openTaskDetailsFromList(');
   if(opening>=0)vm.runInContext(source.slice(opening,source.indexOf("    document.getElementById('tasks-page')?.addEventListener('click'",opening)),f.context);
+  const memory=new Map();
+  f.context.plannerMutations=createMutationSession({getIdentity:()=>({ownerId:f.context.auth.currentUser?.uid,planId:vm.runInContext('currentPlanDocId',f.context)}),storage:{getItem:k=>memory.get(k)||null,setItem:(k,v)=>memory.set(k,v),removeItem:k=>memory.delete(k)},commit:(...args)=>f.context.persistTaskDetails(...args)});
   return f;
 }
 const command={type:'edit_task',target:{taskId:'t'},changes:{notes:'New'}};

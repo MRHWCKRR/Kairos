@@ -1,3 +1,4 @@
+import {buildReviewedSchedule,applyTaskListCommand} from '../task-list-model.js';
 import * as availability from '../schedule-planning-availability.js';
 import {shiftPlanningDate} from '../planning-model.js';
 import test from 'node:test';
@@ -17,13 +18,13 @@ function setup({planner,persist}={}) {
   const {document,window}=parseHTML('<div id="schedule-page"><div id="schedule-toolbar"><button data-plan>Plan</button></div><div class="schedule-workspace-shell"><aside id="schedule-inspector" hidden></aside></div><div id="schedule-ai-review" hidden></div></div>');
   Object.defineProperty(document,'readyState',{value:'loading'});
   const tasks=[{id:'a',title:'Revision',date:'2026-10-13',startTime:'15:00',endTime:'16:00'},{id:'keep',title:'Lunch',date:'2026-10-13',startTime:'12:00',endTime:'13:00',scheduleLocked:true}];
-  const boards=[{title:'Study',sections:[{tasks}]}],events=[];let saves=0,owner='one',sentContext;
+  const boards=[{id:'board',title:'Study',sections:[{id:'section',tasks}]}],events=[];let saves=0,owner='one',sentContext;
   window.__kairosScheduleBridge={getBoards:()=>boards,getScheduleEvents:()=>events,getTimeFormat:()=> '24',getOwnerId:()=>owner,getPlanId:()=> 'plan',
     requestAiPlan:async context=>{sentContext=context;return planner?planner(context):[{taskId:'a',to:{date:'2026-10-13',startTime:'16:00',endTime:'17:00'},reason:'After the appointment.'}];},
-    persistPlan:async()=>{saves++;if(persist)await persist();},refreshAppViews:()=>{}};
+    commitScheduleCommand:async(command,expected)=>{const result=applyTaskListCommand({boards,scheduleEvents:events},command,expected,{now:epoch});saves++;if(persist)await persist();tasks.splice(0,tasks.length,...result.next.boards[0].sections[0].tasks)},refreshAppViews:()=>{}};
   window.__kairosScheduleWorkspace={state:{anchor:new Clock(),view:'day',selected:{type:null,id:null}},render:()=>{},focusDateTime:()=>{}};
   const context=vm.createContext({document,window,Date:Clock,console:{error:()=>{}},CSS:{escape:String},requestAnimationFrame:fn=>fn(),setTimeout:()=>1,structuredClone,
-    ...utils,...recurrence,...changes,...availability,shiftPlanningDate,schedulePlanningClock:(bridge,now=epoch)=>availability.schedulePlanningClock(bridge,now),aiErrorMessage,mountDayChange:()=>({setBusy:()=>{}})});
+    ...utils,...recurrence,...changes,...availability,shiftPlanningDate,buildReviewedSchedule:(s,i,o)=>buildReviewedSchedule(s,i,o,{now:epoch}),schedulePlanningClock:(bridge,now=epoch)=>availability.schedulePlanningClock(bridge,now),aiErrorMessage,mountDayChange:()=>({setBusy:()=>{}})});
   vm.runInContext(source,context);
   return {document,context,tasks,events,boards,saves:()=>saves,sent:()=>sentContext,advance:time=>epoch=Date.parse('2026-10-13T'+time),switchOwner:()=>owner='two',
     preview:(taskId='a')=>{context.selectedTaskIds=Array.isArray(taskId)?taskId:[taskId];return vm.runInContext("requestPlan(null,{description:'Appointment changed',currentDate:'2026-10-13',taskIds:selectedTaskIds,blockedWindows:[{date:'2026-10-13',startTime:'15:00',endTime:'16:00'}]})",context);},
@@ -49,7 +50,7 @@ test('blocked time, other dates and tasks outside the selected scope cannot ente
     const f=setup({planner:()=>[proposal]});assert.equal((await f.preview()).ok,false);assert.equal(f.saves(),0);
   }
 });
-test('failed persistence rolls back the task and retains the proposal for retry',async()=>{
+test('failed persistence leaves the task untouched and retains the proposal for retry',async()=>{
   const f=setup({persist:async()=>{throw Error('offline');}});await f.preview();await f.apply();
   assert.equal(f.tasks[0].startTime,'15:00');assert.equal(f.tasks[0].endTime,'16:00');
   assert.equal(vm.runInContext('proposals.length',f.context),1);

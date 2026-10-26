@@ -1,5 +1,6 @@
 {
   "files": [
+    "schedule-entry-commands.js",
     "planning-undo.js",
     "planning-alternatives.js",
     "planning-preferences.js",

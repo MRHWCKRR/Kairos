@@ -1,8 +1,12 @@
-import { scheduleFieldsFromDuration } from './schedule-utils.js';
+import {buildScheduleCreate} from './task-list-model.js?v=19';
+import { scheduleFieldsFromDuration, parseTime } from './schedule-utils.js';
 import { recurrenceFieldsMarkup, bindRecurrenceFields, readRecurrenceFields } from './schedule-recurrence-ui.js?v=12';
 
 const bridge=()=>window.__kairosScheduleBridge;
 const workspace=()=>window.__kairosScheduleWorkspace;
+let activeCreator=null;
+const sameCreatorScope=form=>form?.__scope?.ownerId===bridge()?.getOwnerId?.()&&form?.__scope?.planId===bridge()?.getPlanId?.();
+const sameOperation=(a,b)=>a?.ownerId===b?.ownerId&&a?.planId===b?.planId&&a?.operationId===b?.operationId&&a?.createdAt===b?.createdAt;
 const esc=value=>String(value??'').replace(/[&<>'"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[ch]));
 const validTaskColor=value=>/^#[0-9a-f]{6}$/i.test(String(value||''))?String(value):null;
 const makeId=prefix=>`${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,7)}`;
@@ -46,7 +50,7 @@ async function openCreator(){
     <div class="ks-inspector-actions ks-inspector-primary"><button type="submit" class="ks-primary" ${boards.length?'':'disabled'}>Create task</button><button type="button" data-create-cancel>Cancel</button></div>
   </form>`;
   const form=inspector.querySelector('[data-ks-create-task]');if(!form)return;
-  form.dataset.colorCustom='0';bindRecurrenceFields(form);
+  form.dataset.colorCustom='0';form.__scope={ownerId:actor[0],planId:actor[1]};activeCreator=form;bindRecurrenceFields(form);
   inspector.querySelector('[data-create-close]')?.addEventListener('click',closeCreator);
   inspector.querySelector('[data-create-cancel]')?.addEventListener('click',closeCreator);
   form.elements.board?.addEventListener('change',()=>{
@@ -59,44 +63,37 @@ async function openCreator(){
   requestAnimationFrame(()=>form.elements.title?.focus());
 }
 
+function creatorValues(form){return JSON.stringify([...form.querySelectorAll('[name]')].map(input=>[input.name,input.type==='checkbox'?input.checked:input.value]).concat([['colorCustom',form.dataset.colorCustom]]))}
+function creatorConfirmed(form,saved){
+  if(form.__pendingCreate!==saved||!form.isConnected||!sameCreatorScope(form))return;
+  form.__pendingCreate=null;form.querySelector('[data-create-recovery]')?.remove();bridge()?.refreshAppViews?.();showToast('Task created.');
+  if(creatorValues(form)===saved.draft){if(saved.command.task.date&&saved.command.task.startTime)workspace()?.focusDateTime?.(saved.command.task.date,saved.command.task.startTime);workspace()?.selectItem?.('task',saved.command.task.id)}
+}
+window.addEventListener('kairos-schedule-mutation-resolved',event=>{
+  const form=activeCreator,saved=form?.__pendingCreate;
+  if(!saved||!form.isConnected||!sameCreatorScope(form)||!sameOperation(saved.identity,event.detail?.identity))return;
+  if(event.detail.status==='discarded'){form.__pendingCreate=null;form.querySelector('[data-create-recovery]')?.remove()}
+  else if(event.detail.status==='saved'&&!form.__creating)creatorConfirmed(form,saved);
+});
 async function createTask(form){
-  const boards=activeBoards(),targetBoard=boards.find(board=>String(board.id)===String(form.elements.board.value));
-  if(!targetBoard){showToast('Choose a board first.');return}
-  let targetSection=activeSections(targetBoard).find(section=>String(section.id)===String(form.elements.section.value));
-  let createdSection=false;
-  if(!targetSection){
-    targetSection={id:makeId('section'),title:'General',archived:false,tasks:[]};
-    targetBoard.sections=Array.isArray(targetBoard.sections)?targetBoard.sections:[];targetBoard.sections.push(targetSection);createdSection=true;
-  }
-  const title=form.elements.title.value.trim();if(!title){showToast('Enter a task title.');return}
-  const date=form.elements.date.value||'',start=form.elements.start.value||'',duration=Math.max(1,Math.round(Number(form.elements.duration.value)||60));
-  if(start&&!date){showToast('Choose a date when setting a start time.');return}
-  const schedule=scheduleFieldsFromDuration(date,start,duration),estimateValue=form.elements.estimate.value||'',recurrence=readRecurrenceFields(form,date||null);
-  if(recurrence?.mode==='fixed'&&!start){showToast('Fixed recurring tasks need a start time.');return}
-  const task={
-    id:makeId('task'),title,completed:false,archived:false,
-    ...schedule,
-    dueDate:form.elements.dueDate.value||null,
-    estimatedMinutes:estimateValue?Math.max(1,Math.round(Number(estimateValue)||1)):(!start?duration:null),
-    lastScheduledMinutes:null,
-    priority:form.elements.priority.value||null,
-    notes:form.elements.notes.value.trim(),
-    reminderMinutes:form.elements.reminder.value?Number(form.elements.reminder.value):null,
-    scheduleLocked:form.elements.locked.checked,
-    schedulingPreference:form.elements.preference.value||null,
-    color:form.dataset.colorCustom==='1'?validTaskColor(form.elements.color.value):null,
-    recurrence:recurrence||null
-  };
-  targetSection.tasks=Array.isArray(targetSection.tasks)?targetSection.tasks:[];targetSection.tasks.push(task);workspace()?.render?.();
+  if(form.__creating)return false;
+  if(!sameCreatorScope(form)){showToast('The signed-in account or planner changed. Your draft is still here.');return false}
   try{
-    await bridge()?.persistPlan?.();bridge()?.refreshAppViews?.();showToast('Task created.');
-    if(task.date&&task.startTime)workspace()?.focusDateTime?.(task.date,task.startTime);
-    workspace()?.selectItem?.('task',task.id);
+    if(!form.__pendingCreate){
+      const date=form.elements.date.value||null,start=form.elements.start.value||null,duration=Number(form.elements.duration.value||60),estimate=form.elements.estimate.value||'';
+      if(!Number.isInteger(duration)||duration<1||duration>1440||start&&(!date||parseTime(start)===null||parseTime(start)+duration>1440))throw Error('Choose a valid date and duration that ends by midnight.');
+      const task={id:makeId('task'),title:form.elements.title.value.trim(),...scheduleFieldsFromDuration(date,start,duration),dueDate:form.elements.dueDate.value||null,estimatedMinutes:estimate?Number(estimate):(!start?duration:null),priority:form.elements.priority.value||null,notes:form.elements.notes.value.trim(),reminderMinutes:form.elements.reminder.value?Number(form.elements.reminder.value):null,scheduleLocked:form.elements.locked.checked===true,schedulingPreference:form.elements.preference.value||null,color:form.dataset.colorCustom==='1'?validTaskColor(form.elements.color.value):null,recurrence:readRecurrenceFields(form,date)||null};
+      const op=buildScheduleCreate({boards:bridge()?.getBoards?.()||[]},{boardId:form.elements.board.value,sectionId:form.elements.section.value||null},task,{defaultSectionId:makeId('section')});
+      form.__pendingCreate={...structuredClone(op),draft:creatorValues(form),identity:{...form.__scope,operationId:makeId('schedule-create'),createdAt:Date.now()}};
+    }
+    const saved=form.__pendingCreate;form.__creating=true;form.querySelector('[type=submit]').disabled=true;
+    if(typeof bridge()?.commitScheduleCommand!=='function')throw Error('Schedule saving is unavailable.');
+    await bridge().commitScheduleCommand(saved.command,saved.expected,saved.identity);
+    if(!sameCreatorScope(form))return false;creatorConfirmed(form,saved);return true;
   }catch(error){
-    targetSection.tasks=targetSection.tasks.filter(item=>item!==task);
-    if(createdSection&&targetSection.tasks.length===0)targetBoard.sections=targetBoard.sections.filter(section=>section!==targetSection);
-    workspace()?.render?.();openCreator();showToast("Couldn't create the task. Restored your schedule.");console.error('[Kairos Schedule] Task creation failed.',error);
-  }
+    if(sameCreatorScope(form)&&form.isConnected){if(form.__pendingCreate&&!form.querySelector('[data-create-recovery]')){const feedback=document.createElement('p');feedback.dataset.createRecovery='';feedback.setAttribute('role','status');feedback.textContent='This create is unconfirmed. Press Create task to retry the original save, or use Clear recovery to keep editing.';form.appendChild(feedback)}showToast(error.message||"Couldn't create the task. Your draft is still here.")}
+    console.error('[Kairos Schedule] Task creation failed.',error);return false;
+  }finally{form.__creating=false;const submit=form.querySelector('[type=submit]');if(submit)submit.disabled=false}
 }
 
 function decorateToolbar(){

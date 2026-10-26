@@ -1,6 +1,6 @@
 import {applyAiTaskMutation} from './ai-task-commands.js?v=1';
 import {plannerChangeRows} from './planner-changes.js?v=1';
-import {applyTaskListCommand} from './task-list-model.js?v=18';
+import {applyTaskListCommand} from './task-list-model.js?v=19';
 import {planningUndoPreview} from './planning-undo.js?v=3';
 import {savedPlanningPreferences,planningPreferencesText} from './planning-preferences.js?v=3';
 import {savedWeeklyAvailability} from './weekly-availability.js';

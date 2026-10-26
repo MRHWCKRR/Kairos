@@ -51,7 +51,7 @@ import { invalidateKairosContext } from './ai-context.js?v=16';
 import { dueTaskReminders, dueBedtimeReminders, reminderDeliveryStatus } from './task-reminders.js?v=3';
 import { deliverTaskReminder, deliverBedtimeReminder, saveNotificationEdits, escapeNotificationText } from './reminder-notifications.js?v=3';
 import { savePlannerEdits, persistTaskListCommand,loadPlanningUndoPreview } from './plan-store.js?v=19';
-import { resolveTaskDetail, taskListSection } from './task-list-model.js?v=18';
+import { resolveTaskDetail, taskListSection } from './task-list-model.js?v=19';
 import { mergePlanEdits, planState } from './plan-merge.js';
 import {createSettingsRecovery,overlaySettingsEdits} from './settings-recovery.js?v=1';
 import {mountGettingStarted,openGettingStartedDestination} from './getting-started.js?v=3';
@@ -3794,7 +3794,7 @@ function bootApp() {
     appReady = true;
     globalSearchController=mountGlobalSearch({getLocale:()=>getLocale(userSettings.accessibility.language||'en'),getShortcuts:()=>userSettings.accessibility.shortcuts,getIdentity:globalSearchIdentity,getState:()=>({boards:boardsData}),getToday:()=>planningClock(Date.now(),userSettings.profile.timezone).date,onNavigate:openGlobalSearchResult});
     plannerMutations=createMutationSession({getIdentity:globalSearchIdentity,commit:async(command,expected,identity)=>{const result=await persistTaskDetails(command,expected,identity);recordTaskListCompletion(command,result);return result;},onResolve:(identity,status)=>{
-        taskDetails?.resolveRecovery?.(identity,status);taskWorkspace?.resolveRecovery?.(identity,status);taskInteractions?.resolveRecovery?.(identity,status);taskCaptureController?.resolveRecovery?.(identity,status);window.__kairosScheduleMutationResolved?.(identity,status);
+        taskDetails?.resolveRecovery?.(identity,status);taskWorkspace?.resolveRecovery?.(identity,status);taskInteractions?.resolveRecovery?.(identity,status);taskCaptureController?.resolveRecovery?.(identity,status);window.__kairosScheduleMutationResolved?.(identity,status);window.dispatchEvent(new CustomEvent('kairos-schedule-mutation-resolved',{detail:{identity,status}}));
     }});
     mountMutationFeedback({root:document.getElementById('planner-mutation-feedback'),session:plannerMutations,confirmClear:message=>confirmDialog(message,{confirmText:'Clear recovery'})});
     taskCaptureController=mountTaskCapture({getIdentity:globalSearchIdentity,getState:()=>({boards:boardsData}),getDefaults:()=>({...taskWorkspace?.getCurrentSection?.(),...(document.getElementById('home-page')?.classList.contains('active')?{date:planningClock(Date.now(),userSettings.profile.timezone).date}:document.getElementById('schedule-page')?.classList.contains('active')?{date:calendarFocusDate}:{})}),commit:commitTaskDetails,confirmClear:message=>confirmDialog(message,{confirmText:'Clear recovery'})});

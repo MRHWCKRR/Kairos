@@ -1,7 +1,8 @@
+import {buildReviewedSchedule} from './task-list-model.js?v=19';
 import {schedulePlanningAvailability,schedulePlanningClock,sameScheduleAvailability,scheduleProposalFits,scheduleAvailabilityText} from './schedule-planning-availability.js?v=1';
 import {shiftPlanningDate} from './planning-model.js?v=1';
 import { validateScheduleProposals, parseTime, formatTime, taskDurationMinutes, toDateKey, getVisibleDates, blockGeometry, addDays } from './schedule-utils.js?v=2';
-import { generateTaskOccurrences, generateTaskOccurrencesThrough, applyOccurrenceOverride } from './recurrence-utils.js?v=14';
+import { generateTaskOccurrences, generateTaskOccurrencesThrough } from './recurrence-utils.js?v=14';
 import { aiErrorMessage } from './ai-request.js';
 import {dayChangeCandidates,prepareDayChange,proposalStillMatches} from './schedule-day-change.js?v=2';
 import {mountDayChange} from './schedule-day-change-ui.js?v=3';
@@ -14,6 +15,9 @@ let planning=false;
 let applying=false;
 let dayChange=null;
 let proposalIdentity=null;
+let proposalSourceState=null;
+let proposalDate=null;
+let retainedApply=null;
 let proposalAvailability=null;
 let dayChangeUi=null;
 let syncQueued=false;
@@ -144,13 +148,13 @@ function renderProposalInspector(index){
 async function focusProposal(index){if(applying||!proposals.length)return;const actor=identity(),pendingProposals=proposals;if(!await (workspace()?.inspectorSession?.requestLeave()??true)||!sameIdentity(actor)||pendingProposals!==proposals||applying||!proposals.length)return;const safeIndex=Math.max(0,Math.min(proposals.length-1,Number(index)||0)),proposal=proposals[safeIndex],ws=workspace();reviewIndex=safeIndex;if(ws?.state)ws.state.selected={type:null,id:null};ws?.focusDateTime?.(proposal.to.date,proposal.to.startTime);renderProposalOverlays();renderProposalInspector(safeIndex);markReviewedProposal();requestAnimationFrame(()=>document.querySelector(`.ks-proposal-block[data-proposal-index="${safeIndex}"]`)?.focus({preventScroll:true}))}
 function proposalEditState(form){if(!form)return '';const theme=form.querySelector('[data-proposal-theme-color]')?.checked;return JSON.stringify({date:form.querySelector('[data-proposal-date]')?.value||'',start:form.querySelector('[data-proposal-start]')?.value||'',duration:form.querySelector('[data-proposal-duration]')?.value||'',priority:form.querySelector('[data-proposal-priority]')?.value||'',estimate:form.querySelector('[data-proposal-estimate]')?.value||'',preference:form.querySelector('[data-proposal-preference]')?.value||'',color:theme?'theme':(form.querySelector('[data-proposal-color]')?.value||'')})}
 function changeProposal(index){
-  if(applying)return;
+  if(applying||retainedApply)return;
   const proposal=proposals[index],entry=proposalEntry(proposal?.taskId),inspector=document.getElementById('schedule-inspector');if(!proposal||!entry||!inspector)return;reviewIndex=index;const metadata=proposalMetadata(proposal,entry.task),duration=proposalDurationMinutes(proposal,entry.task),color=validTaskColor(metadata.color)||'#a855f7',customColor=!!validTaskColor(metadata.color);
   inspector.innerHTML=`<div class="ks-inspector-head"><span>Change proposal</span><button type="button" data-close aria-label="Close proposal">×</button></div><form class="ks-proposal-inspector ks-proposal-edit" data-proposal-edit>${proposalNavMarkup(index)}<h3>${escapeHtml(entry.task.title)}</h3><div class="ks-proposal-edit-grid"><label>Date<input type="date" data-proposal-date value="${escapeHtml(proposal.to.date)}"></label><label>Start<input type="time" step="60" data-proposal-start value="${escapeHtml(proposal.to.startTime)}"></label><label>Duration (min)<input type="number" min="1" step="1" data-proposal-duration value="${duration}"></label><label>Importance<select data-proposal-priority><option value="" ${!metadata.priority?'selected':''}>None</option><option value="low" ${metadata.priority==='low'?'selected':''}>Low</option><option value="medium" ${metadata.priority==='medium'?'selected':''}>Medium</option><option value="high" ${metadata.priority==='high'?'selected':''}>High</option></select></label><label>Estimate (min)<input type="number" min="1" step="1" data-proposal-estimate value="${metadata.estimatedMinutes??''}" placeholder="None"></label><label>Preferred time<select data-proposal-preference><option value="" ${!metadata.schedulingPreference?'selected':''}>No preference</option><option value="morning" ${metadata.schedulingPreference==='morning'?'selected':''}>Morning</option><option value="afternoon" ${metadata.schedulingPreference==='afternoon'?'selected':''}>Afternoon</option><option value="evening" ${metadata.schedulingPreference==='evening'?'selected':''}>Evening</option></select></label></div><label>Task color<div class="ks-proposal-color-row"><input type="color" data-proposal-color value="${color}" aria-label="Task color"><label class="ks-proposal-theme-color"><input type="checkbox" data-proposal-theme-color ${customColor?'':'checked'}> Use theme color</label></div></label>${hoursMarkup()}<p class="ks-proposal-edit-note">These changes stay in this proposal until you press Apply.</p><div class="ks-inspector-actions"><button type="submit" class="ks-primary" data-save-proposal-change disabled>Save change</button><button type="button" data-cancel-proposal-change>Cancel</button></div></form>`;
   const form=inspector.querySelector('[data-proposal-edit]'),saveButton=inspector.querySelector('[data-save-proposal-change]'),initialProposalEditState=proposalEditState(form),syncProposalSaveState=()=>{if(saveButton)saveButton.disabled=proposalEditState(form)===initialProposalEditState};inspector.querySelector('[data-close]').onclick=closeProposalInspector;inspector.querySelector('[data-cancel-proposal-change]').onclick=()=>renderProposalInspector(index);bindProposalNavigation(inspector,index);form?.addEventListener('input',syncProposalSaveState);form?.addEventListener('change',syncProposalSaveState);form?.addEventListener('submit',event=>{event.preventDefault();if(saveButton?.disabled)return;saveProposalChange(index)});syncProposalSaveState();
 }
 function saveProposalChange(index){
-  if(applying)return;
+  if(applying||retainedApply)return;
   const proposal=proposals[index],entry=proposalEntry(proposal?.taskId),inspector=document.getElementById('schedule-inspector');if(!proposal||!entry||!inspector)return;const date=inspector.querySelector('[data-proposal-date]')?.value||'',startTime=inspector.querySelector('[data-proposal-start]')?.value||'',start=parseTime(startTime),duration=Math.max(1,Math.round(Number(inspector.querySelector('[data-proposal-duration]')?.value)||proposalDurationMinutes(proposal,entry.task))),estimateValue=inspector.querySelector('[data-proposal-estimate]')?.value||'',estimate=estimateValue?Math.max(1,Math.round(Number(estimateValue)||1)):null;if(!date||start===null||start+duration>1440){showToast('Choose a valid time and duration that fit before midnight.');return}
   const metadata={priority:inspector.querySelector('[data-proposal-priority]')?.value||null,estimatedMinutes:estimate,schedulingPreference:inspector.querySelector('[data-proposal-preference]')?.value||null,color:inspector.querySelector('[data-proposal-theme-color]')?.checked?null:validTaskColor(inspector.querySelector('[data-proposal-color]')?.value)},candidate={...proposal,to:{date,startTime:formatTime(start,false),endTime:formatTime(start+duration,false)},metadata,reason:proposal.reason},raw=proposals.map((item,i)=>i===index?candidate:item),valid=validateProposalDrafts(raw);if(!valid){showToast('That time does not fit the reviewed work hours or current commitments. If settings changed, dismiss and preview again.');return}proposals=valid;if(workspace()?.state)workspace().state.proposals=[...valid];workspace()?.render?.();syncUi();focusProposal(Math.min(index,proposals.length-1));
 }
@@ -162,14 +166,14 @@ function queueSync(){if(syncQueued)return;syncQueued=true;requestAnimationFrame(
 function identity(){return {owner:bridge()?.getOwnerId?.()??null,plan:bridge()?.getPlanId?.()??null};}
 function sameIdentity(value){const current=identity();return current.owner===value?.owner&&current.plan===value?.plan;}
 async function requestPlan(target=null,change=null){
-  if(planning||applying)return {ok:false,message:'Finish the current schedule operation first.'};planning=true;syncPlanButton();
+  if(planning||applying||retainedApply)return {ok:false,message:'Finish the current schedule operation first.'};planning=true;syncPlanButton();
   try{
     const requestIdentity=identity(),current=schedulePlanningClock(bridge());
     if(change){
       if(change.currentDate!==current.date)throw Error('The day has changed. Reopen My day changed.');
       change=prepareDayChange({...change,blockedFrom:change.blockedWindows?.[0]?.startTime,blockedUntil:change.blockedWindows?.[0]?.endTime},dayChangeCandidates(bridge()?.getBoards?.()||[],current.date,current.time),current.date);
     }
-    const context=buildContext(target,change);
+    const context=buildContext(target,change),sourceState=structuredClone({boards:bridge()?.getBoards?.()||[],scheduleEvents:bridge()?.getScheduleEvents?.()||[]});
     if(!context.tasks.length){const message=change?'No selected tasks are still available to move.':target?'That task cannot be automatically planned.':'No unscheduled flexible tasks are available to plan.';if(!change)showToast(message);return {ok:false,message};}
     const raw=await bridge()?.requestAiPlan?.(context);
     if(!availabilityMatches(context.availability))return {ok:false,message:'Your saved work hours or timezone changed while planning. Preview again.'};
@@ -178,7 +182,7 @@ async function requestPlan(target=null,change=null){
     if(context.tasks.some(task=>!proposalStillMatches({from:task},latest.get(String(task.id)))))return {ok:false,message:'Tasks changed while planning. Preview again.'};
     const valid=validateGeneratedProposals(raw,context).filter(p=>['date','startTime','endTime'].some(key=>(p.from?.[key]??null)!==(p.to?.[key]??null)));
     if(!valid.length){const message='No safe future changes were found. Try a different time window or task selection.';if(!change)showToast(message);return {ok:false,message};}
-    dayChange=change;proposalIdentity=requestIdentity;proposalAvailability=context.availability;
+    dayChange=change;proposalIdentity=requestIdentity;proposalSourceState=sourceState;proposalDate=context.currentDate;proposalAvailability=context.availability;
     proposals=valid.sort((a,b)=>a.to.date.localeCompare(b.to.date)||String(a.to.startTime).localeCompare(String(b.to.startTime)));reviewIndex=null;
     if(workspace()?.state)workspace().state.proposals=[...proposals];
     if(change&&workspace()?.state){workspace().state.anchor=dateFromKey(current.date);workspace().state.view='day';}
@@ -187,33 +191,40 @@ async function requestPlan(target=null,change=null){
   }catch(error){console.error('[Kairos Schedule] AI planning failed.',error);const message=error.code==='ai-protection'?aiErrorMessage(error):error.message?.startsWith('The day')||error.message?.startsWith('A selected')||/availability|work window|weekly/i.test(error.message||'')?error.message:'Kairos could not create a schedule proposal right now.';if(!change)showToast(message);return {ok:false,message};}
   finally{planning=false;syncPlanButton()}
 }
-function snapshotsFor(items){
-  const map=new Map();items.forEach(p=>{if(splitOccurrenceId(p.taskId))return;const task=findTask(p.taskId)?.task;if(!task||map.has(String(task.id)))return;map.set(String(task.id),{task,before:{date:task.date??null,startTime:task.startTime??null,endTime:task.endTime??null,priority:task.priority??null,estimatedMinutes:task.estimatedMinutes??null,schedulingPreference:task.schedulingPreference??null,color:task.color??null}})});return map;
+function applyScope(saved){return saved&&sameIdentity(saved.scope)}
+function finishApplied(saved){
+  if(retainedApply!==saved||!applyScope(saved))return;
+  const applied=new Set(saved.items.map(p=>p.taskId));retainedApply=null;proposals=proposals.filter(p=>!applied.has(p.taskId));
+  if(workspace()?.state)workspace().state.proposals=[...proposals];bridge()?.refreshAppViews?.();workspace()?.render?.();
+  if(!proposals.length)dismissAll();else{reviewIndex=null;closeProposalInspector();syncUi()}
 }
-function persistOccurrenceProposal(proposal,snapshots){
-  const identity=splitOccurrenceId(proposal?.taskId);if(!identity)return false;const entry=findTask(identity.seriesId);if(!entry)return false;const key=identity.seriesId,index=entry.section.tasks.indexOf(entry.task);if(index<0)return false;if(!snapshots.has(key))snapshots.set(key,{section:entry.section,index,before:structuredClone(entry.task)});const updated=applyOccurrenceOverride(entry.task,identity.occurrenceDate,{...proposal.to,...(proposal.metadata||{})});entry.section.tasks[index]=updated;return true;
-}
+window.addEventListener('kairos-schedule-mutation-resolved',event=>{
+ const saved=retainedApply,id=event.detail?.identity;
+ if(!saved||!applyScope(saved)||!id||['ownerId','planId','operationId','createdAt'].some(k=>id[k]!==saved.identity[k]))return;
+ if(event.detail.status==='discarded'){retainedApply=null;syncUi()}
+ else if(event.detail.status==='saved'&&!applying){finishApplied(saved);showToast('Schedule changes applied.')}
+});
 async function applySet(items){
   if(applying||planning)return false;
-  if(!availabilityMatches(proposalAvailability)){showToast('Your saved work hours or timezone changed. Dismiss this preview and plan again.');return false;}
-  if(!sameIdentity(proposalIdentity)||dayChange&&dayChange.currentDate!==planningConstraints().minDate||items.some(p=>!proposalStillMatches(p,validationTaskMap(items).get(String(p.taskId))))){showToast('The schedule changed since this preview. Dismiss it and preview again.');return false;}
-  if(dayChange){const allowed=new Set(dayChangeCandidates(bridge()?.getBoards?.()||[],planningConstraints().minDate,planningConstraints().minTime).map(t=>t.id));if(items.some(p=>!allowed.has(String(p.taskId)))){showToast('A task is now underway or unavailable to move. Preview again.');return false;}}
-  const valid=validateProposalDrafts(items);
-  if(!valid||valid.length!==items.length){
-    const depends=items.length===1&&proposals.length>1&&validateProposalDrafts(proposals)&&proposals.every(p=>proposalStillMatches(p,validationTaskMap(proposals).get(String(p.taskId))));
-    showToast(depends?'This change needs another proposed move. Apply them together or choose another time.':'These changes no longer fit the current schedule. Preview again.');return false;
-  }
-  const controls=[...document.querySelectorAll('#schedule-ai-review button,#schedule-inspector button')].map(button=>({button,disabled:button.disabled}));
-  applying=true;syncPlanButton();controls.forEach(({button})=>button.disabled=true);
-  const snapshots=snapshotsFor(items),occurrenceSnapshots=new Map();
-  items.forEach(p=>{if(splitOccurrenceId(p.taskId)){persistOccurrenceProposal(p,occurrenceSnapshots);return}const task=findTask(p.taskId)?.task;if(task)Object.assign(task,p.to,p.metadata||{})});workspace()?.render?.();
-  try{if(!bridge()?.persistPlan)throw Error('Plan storage is unavailable.');await bridge().persistPlan({scheduleAvailability:proposalAvailability});proposalIdentity=identity();bridge()?.refreshAppViews?.();return true}
-  catch(error){snapshots.forEach(s=>Object.assign(s.task,s.before));occurrenceSnapshots.forEach(s=>{s.section.tasks[s.index]=s.before});workspace()?.render?.();console.error('[Kairos Schedule] Proposal apply failed.',error);showToast("Couldn't apply the proposed schedule. Restored the previous values.");return false}
-  finally{applying=false;syncPlanButton();controls.forEach(({button,disabled})=>{if(button.isConnected)button.disabled=disabled;});document.querySelectorAll('#schedule-ai-review button').forEach(button=>button.disabled=false);if(reviewIndex!==null&&proposals[reviewIndex]&&document.querySelector('#schedule-inspector [data-apply]'))renderProposalInspector(reviewIndex);}
+  if(!sameIdentity(proposalIdentity)){showToast('The workspace changed. Your reviewed proposals are still here.');return false}
+  try{
+    if(!retainedApply){
+      if(!availabilityMatches(proposalAvailability))throw Error('Your saved work hours or timezone changed. Preview again.');
+      const op=buildReviewedSchedule(proposalSourceState,items,{availability:proposalAvailability,currentDate:proposalDate,dayChange:dayChange?{currentDate:dayChange.currentDate,taskIds:dayChange.taskIds,blockedWindows:dayChange.blockedWindows}:null});
+      retainedApply={...structuredClone(op),items:structuredClone(items),scope:identity(),identity:{ownerId:proposalIdentity.owner,planId:proposalIdentity.plan,operationId:'schedule-proposal-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,9),createdAt:Date.now()}};
+    }else if(JSON.stringify(items.map(p=>p.taskId))!==JSON.stringify(retainedApply.items.map(p=>p.taskId)))throw Error('Retry the original batch or clear its recovery before applying another change.');
+    const saved=retainedApply;if(!applyScope(saved))return false;
+    applying=true;syncUi();
+    if(typeof bridge()?.commitScheduleCommand!=='function')throw Error('Schedule saving is unavailable.');
+    await bridge().commitScheduleCommand(saved.command,saved.expected,saved.identity);
+    if(!applyScope(saved))return false;finishApplied(saved);showToast('Schedule changes applied.');return true;
+  }catch(error){if(sameIdentity(proposalIdentity)){showToast((error.message||"Couldn't apply the proposed schedule.")+' Your review is retained. Retry Apply or use Clear recovery.');}console.error('[Kairos Schedule] Proposal apply failed.',error);return false}
+  finally{applying=false;syncUi();document.querySelectorAll('#schedule-ai-review button,#schedule-inspector button').forEach(button=>button.disabled=false);if(reviewIndex!==null&&proposals[reviewIndex]&&document.querySelector('#schedule-inspector [data-apply]'))renderProposalInspector(reviewIndex)}
 }
-async function applyAll(){if(!proposals.length)return;if(await applySet(proposals)){showToast(`Applied ${proposals.length} schedule change${proposals.length===1?'':'s'}.`);dismissAll()}}
-async function applyOne(index){const proposal=proposals[index];if(!proposal)return;if(await applySet([proposal])){proposals.splice(index,1);if(workspace()?.state)workspace().state.proposals=[...proposals];workspace()?.render?.();syncUi();showToast('Schedule change applied.');if(proposals.length)focusProposal(Math.min(index,proposals.length-1));else closeProposalInspector()}}
-function dismissAll(){if(applying)return;dayChange=null;proposalIdentity=null;proposalAvailability=null;proposals=[];reviewIndex=null;if(workspace()?.state)workspace().state.proposals=[];document.querySelectorAll('.ks-proposal-block').forEach(el=>el.remove());closeProposalInspector();renderReview()}
+async function applyAll(){if(proposals.length)await applySet(proposals)}
+async function applyOne(index){const proposal=proposals[index];if(proposal)await applySet([proposal])}
+
+function dismissAll(){if(retainedApply)return;dayChange=null;proposalIdentity=null;proposalAvailability=null;proposals=[];reviewIndex=null;if(workspace()?.state)workspace().state.proposals=[];document.querySelectorAll('.ks-proposal-block').forEach(el=>el.remove());closeProposalInspector();renderReview()}
 
 function boot(){
   if(window.__kairosScheduleAiBooted||!bridge()||!workspace())return;window.__kairosScheduleAiBooted=true;dayChangeUi=mountDayChange({document,window,getBoards:()=>bridge()?.getBoards?.()||[],getTimeFormat:()=>bridge()?.getTimeFormat?.()||'24',getPlanningContext:()=>({...schedulePlanningClock(bridge()),availability:schedulePlanningAvailability(bridge()),scope:identity(),description:scheduleAvailabilityText(schedulePlanningAvailability(bridge()))}),isBusy:()=>planning||applying,onSubmit:change=>requestPlan(null,change),onPreviewReady:()=>focusProposal(0)});const root=document.getElementById('schedule-page');if(root)new MutationObserver(queueSync).observe(root,{subtree:true,childList:true});document.addEventListener('click',event=>{if(event.target.closest?.('#schedule-toolbar [data-plan]')){event.preventDefault();void requestPlan()}},true);window.addEventListener('kairos-schedule-ai-task',event=>void requestPlan(event.detail||event.detail?.taskId||null));syncPlanButton();
