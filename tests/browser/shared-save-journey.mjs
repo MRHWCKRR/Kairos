@@ -29,7 +29,8 @@ export async function runSharedSaveJourney(check){
  const command={type:'edit_task',target:{taskId:'split'},changes:{notes:'Inspector note'}},expected={boardId:'b',sectionId:'s',fields:{notes:taskDetailValues(tasks[1]).notes}};
  const applied=new Promise(resolve=>arrived=resolve),saving=session.submit(command,expected,{...actor,operationId:'browser-delayed',createdAt:Date.now()});
  await applied;const resolvedBefore=outcomes.length;actor={ownerId:'two',planId:'other'};session.sync();release();
- try{await saving;throw Error('Old account acknowledgement must reject');}catch(error){check(/account|planner/.test(error.message),'Old acknowledgement must be scoped');}
+ let scopeError;try{await saving;}catch(error){scopeError=error;}
+ check(scopeError&&/account|planner/.test(scopeError.message),'Old acknowledgement must reject after switching scope');
  check(!session.state().pending&&outcomes.length===resolvedBefore,'Late success must not publish into the new account');
  actor={ownerId:'one',planId:'plan'};arrived=null;session.sync();await session.retry();
  check(writes===2&&!session.state().pending,'Returning to original account must reconcile its receipt once');
