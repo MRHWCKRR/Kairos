@@ -1,12 +1,12 @@
-import {planningAlternatives,choosePlanningAlternative,planningAlternativesText,planningHoursText,planningReportText} from './planning-alternatives.js?v=6';
-import {resolvePlanningPreferences} from './planning-preferences.js?v=5';
-import {planningDefaults,weeklyAvailabilityText} from './weekly-availability.js?v=1';
-import {combinedPlanning} from './combined-planning.js?v=7';
-import {assignmentFeasibility,feasibilityAssignments,FEASIBILITY_LIMIT} from './deadline-feasibility.js?v=9';
-import {assignmentReadiness} from './assignment-order.js?v=2';
+import {planningAlternatives,choosePlanningAlternative,planningAlternativesText,planningHoursText,planningReportText} from './planning-alternatives.js?v=7';
+import {resolvePlanningPreferences} from './planning-preferences.js?v=6';
+import {planningDefaults,weeklyAvailabilityText} from './weekly-availability.js?v=2';
+import {combinedPlanning} from './combined-planning.js?v=8';
+import {assignmentFeasibility,feasibilityAssignments,FEASIBILITY_LIMIT} from './deadline-feasibility.js?v=10';
+import {assignmentReadiness} from './assignment-order.js?v=3';
 import {planningTasks,planningClock,weeklyReview,deadlineSummary} from './planning-model.js?v=1';
-import {planningConflicts,planningGapText,planningDailyLimitText} from './planning-slots.js?v=6';
-import {previewSessions,previewCarryover} from './planning-commands.js?v=11';
+import {planningConflicts,planningGapText,planningDailyLimitText} from './planning-slots.js?v=7';
+import {previewSessions,previewCarryover} from './planning-commands.js?v=12';
 
 export function resolveAiPlanningTimezone(userData,ownerId,storage=globalThis.localStorage) {
  const clean=value=>typeof value==='string'?value.trim().slice(0,80):'';

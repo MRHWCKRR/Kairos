@@ -1,9 +1,9 @@
-import {taskRemainingMinutes} from './remaining-work.js?v=3';
-import {assertAssignmentOrder} from './assignment-order.js?v=2';
+import {taskRemainingMinutes} from './remaining-work.js?v=4';
+import {assertAssignmentOrder} from './assignment-order.js?v=3';
 import {planningTasks,validPlanningDate,shiftPlanningDate} from './planning-model.js?v=1';
-import {planningAvailability,planningWindows,planningOccupancy,planningBlockValid,intervalsOverlap,planningDailyWork,planningDailyRemaining,planningDailyLimit} from './planning-slots.js?v=6';
-import {previewCarryover} from './planning-commands.js?v=11';
-import {parseTime,taskDurationMinutes} from './schedule-utils.js?v=3';
+import {planningAvailability,planningWindows,planningOccupancy,planningBlockValid,intervalsOverlap,planningDailyWork,planningDailyRemaining,planningDailyLimit} from './planning-slots.js?v=7';
+import {previewCarryover} from './planning-commands.js?v=12';
+import {parseTime,taskDurationMinutes} from './schedule-utils.js?v=4';
 
 // Capacity is an upper bound: gaps may be too short, restricted by preferences,
 // or invalid across DST. Only a complete validated preview earns "fits".

@@ -1,5 +1,5 @@
 import {planningTasks,validPlanningDate} from './planning-model.js?v=1';
-import {parseTime,taskDurationMinutes} from './schedule-utils.js?v=3';
+import {parseTime,taskDurationMinutes} from './schedule-utils.js?v=4';
 
 const active=state=>planningTasks(state).map(entry=>entry.task);
 const ordered=task=>task?.sessionOrder==='sequential';

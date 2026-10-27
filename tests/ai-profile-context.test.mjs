@@ -100,3 +100,5 @@ test('settings loading binds its cache to the account and invalidates AI context
     assert.equal(invalidated, 1);
   }
 });
+
+test('AI context discloses bounded original-date exceptions without copying private metadata',async()=>{const f=fixture();f.context.getDocs=async()=>({docs:[{id:'plan',data:()=>({userID:'one',boards:[],scheduleEvents:[{id:'e',title:'Class',day:5,start:'09:00',end:'10:00',exceptions:{'2026-10-30':{skipped:true},'2026-11-06':{override:{date:'2026-11-05',start:'11:00',end:'12:00',notes:'private note'}}}}]})}]});const text=await f.context.getKairosContext();assert.match(text,/occurrenceDate.*2026-10-30/);assert.match(text,/2026-11-06/);assert.match(text,/2026-11-05/);assert.doesNotMatch(text,/private note/);});

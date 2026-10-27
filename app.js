@@ -1,28 +1,28 @@
 import {createCalendarFeedRequester} from './calendar-feed-client.js?v=1';
-import {eventSegmentsForDate} from './schedule-events.js?v=1';
-import {createDashboardController} from './dashboard-controller.js?v=5';
+import {eventSegmentsForDate,eventCommitmentsForRange} from './schedule-events.js?v=2';
+import {createDashboardController} from './dashboard-controller.js?v=6';
 import {createNotificationCenter} from './notification-center.js?v=2';
-import {createSettingsSync} from './settings-sync.js?v=3';
+import {createSettingsSync} from './settings-sync.js?v=4';
 import {createMutationSession} from './mutation-session.js?v=4';
 import {archiveMarkup,buildRestoreCommand} from './planner-archive.js?v=2';
 import {createPlannerBackup,downloadPlannerBackup} from './planner-backup.js?v=2';
-import {loadActionUndoPreview} from './plan-store.js?v=24';
-import {calendarDate,shiftCalendarMonth,monthTaskEntries,monthEventEntries,calendarEventMarkup,calendarMonthMarkup,calendarTaskMarkup} from './schedule-month.js?v=3';
-import {taskWorkCheckin} from './remaining-work.js?v=3';
+import {loadActionUndoPreview} from './plan-store.js?v=25';
+import {calendarDate,shiftCalendarMonth,monthTaskEntries,monthEventEntries,calendarEventMarkup,calendarMonthMarkup,calendarTaskMarkup} from './schedule-month.js?v=4';
+import {taskWorkCheckin} from './remaining-work.js?v=4';
 import {promptFocusCheckin} from './focus-checkin.js?v=1';
-import {mountFocusTimer} from './focus-timer.js?v=7';
-import {persistFocusLog,persistFocusCorrection,loadFocusHistory} from './focus-store.js?v=6';
-import {mountFocusHistory} from './focus-history.js?v=4';
-import {taskFocusTarget} from './task-focus.js?v=4';
-import {mountPlanningPreferencesEditor} from './planning-preferences-editor.js?v=5';
-import {mountWeeklyAvailabilityEditor} from './weekly-availability-editor.js?v=1';
+import {mountFocusTimer} from './focus-timer.js?v=8';
+import {persistFocusLog,persistFocusCorrection,loadFocusHistory} from './focus-store.js?v=7';
+import {mountFocusHistory} from './focus-history.js?v=5';
+import {taskFocusTarget} from './task-focus.js?v=5';
+import {mountPlanningPreferencesEditor} from './planning-preferences-editor.js?v=6';
+import {mountWeeklyAvailabilityEditor} from './weekly-availability-editor.js?v=2';
 import { showNotice, confirmDialog, promptDialog } from './ui-dialogs.js?v=1';
 import { aiFetch, aiErrorMessage } from './ai-client.js?v=2';
 import { requestBilling } from './billing-client.js?v=2';
 import { mountPlanUsage } from './plan-usage.js?v=6';
-import {assignmentProgressIndex,assignmentProgressMarkup} from './assignment-progress.js?v=5';
+import {assignmentProgressIndex,assignmentProgressMarkup} from './assignment-progress.js?v=6';
 import {planningClock} from './planning-model.js?v=1';
-import { createPageLoader } from './page-loader.js?v=75';
+import { createPageLoader } from './page-loader.js?v=76';
 import { mountPageRouter } from './page-router.js?v=3';
 import { createPageRenderCache } from './page-render-cache.js?v=1';
 import './boards-recurrence.js?v=11';
@@ -48,17 +48,17 @@ import {
     query, where, orderBy, limit, getDocs, updateDoc, deleteDoc, runTransaction
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { LANGUAGES, applyTranslations, getLocale, getLanguageName, t, ACHIEVEMENT_I18N } from './i18n.js';
-import { invalidateKairosContext } from './ai-context.js?v=19';
-import { dueTaskReminders, dueBedtimeReminders, reminderDeliveryStatus } from './task-reminders.js?v=4';
-import { deliverTaskReminder, deliverBedtimeReminder, saveNotificationEdits, escapeNotificationText } from './reminder-notifications.js?v=5';
-import { savePlannerEdits, persistTaskListCommand,loadPlanningUndoPreview } from './plan-store.js?v=24';
-import { resolveTaskDetail, taskListSection } from './task-list-model.js?v=23';
+import { invalidateKairosContext } from './ai-context.js?v=20';
+import { dueTaskReminders, dueBedtimeReminders, reminderDeliveryStatus } from './task-reminders.js?v=5';
+import { deliverTaskReminder, deliverBedtimeReminder, saveNotificationEdits, escapeNotificationText } from './reminder-notifications.js?v=6';
+import { savePlannerEdits, persistTaskListCommand,loadPlanningUndoPreview } from './plan-store.js?v=25';
+import { resolveTaskDetail, taskListSection } from './task-list-model.js?v=24';
 import { mergePlanEdits, planState } from './plan-merge.js?v=1';
 import {mountGettingStarted,openGettingStartedDestination} from './getting-started.js?v=3';
 import {createGettingStartedStore} from './getting-started-store.js?v=1';
-import {mountFocusBreakdown} from './focus-breakdown.js?v=2';
+import {mountFocusBreakdown} from './focus-breakdown.js?v=3';
 import {mountGlobalSearch} from './global-search.js?v=5';
-import {mountTaskCapture} from './task-capture.js?v=9';
+import {mountTaskCapture} from './task-capture.js?v=10';
 import {normaliseShortcuts,describeShortcut} from './shortcut-model.js?v=1';
 import {mountShortcutSettings} from './shortcut-settings.js?v=1';
 import {mountSidebarIcons} from './sidebar-icons.js?v=2';
@@ -528,7 +528,7 @@ function bootApp() {
         Promise.resolve().then(() => loadUserProgressFromFirestore(user)).catch(err => console.error("Failed to load user progress:", err));
         // AI chat state is owned by ai-workspace.js; do not load the legacy single-chat history here.
     });
-    
+
     // --- 1 UI Nav & Clock ---
     const sidebar = document.getElementById("sidebar");
     const sidebarToggle = document.getElementById("sidebar-toggle");
@@ -549,7 +549,7 @@ function bootApp() {
         const owner=auth.currentUser?.uid;if(!owner||!auth.currentUser.emailVerified)return false;
         if(currentPlanDocId&&searchPlannerOwnerId!==owner){showNotice('Your planner is loading. Try again in a moment.');return false;}
         if(!calendarImportLoading)calendarImportLoading=(async()=>{
-            const [{mountCalendarImport},{mountCalendarConflictReview},{loadPageStyle}]=await Promise.all([import('./calendar-import.js?v=2'),import('./calendar-conflict-review.js?v=2'),import('./page-loader.js?v=75')]);
+            const [{mountCalendarImport},{mountCalendarConflictReview},{loadPageStyle}]=await Promise.all([import('./calendar-import.js?v=3'),import('./calendar-conflict-review.js?v=3'),import('./page-loader.js?v=76')]);
             await loadPageStyle('calendar-import.css?v=2');
             const fetchFeed=createCalendarFeedRequester({getUser:()=>auth.currentUser,getAppToken:async()=>{const check=await appCheckReady;if(!check)throw Error('Security verification is unavailable. Refresh Kairos.');return (await getAppCheckToken(check,false)).token;}});
             const conflictReview=mountCalendarConflictReview({getIdentity:globalSearchIdentity,getState:()=>({boards:boardsData,scheduleEvents:scheduleData,calendarSources:calendarSourcesData}),getSettings:()=>({timezone:userSettings.profile.timezone||'UTC',weeklyAvailability:settingsSync.state().cloud.planning?.weeklyAvailability??null,...window.__kairosScheduleBridge.getPlanningPreferences()}),commit:commitTaskDetails,session:plannerMutations});
@@ -872,7 +872,7 @@ function bootApp() {
                     } else {
                         item.classList.remove('completed');
                     }
-                    
+
                     const textInput = item.querySelector('.task-text');
                     if (textInput) {
                         textInput.style.textDecoration = isNowChecked ? 'line-through' : 'none';
@@ -1193,7 +1193,7 @@ function bootApp() {
             container.querySelector('.complete-next-btn').addEventListener('click', (e) => {
                 const taskId = e.target.getAttribute('data-task-id');
                 const sectionId = e.target.getAttribute('data-section-id');
-                triggerTaskCompletion(sectionId, taskId); 
+                triggerTaskCompletion(sectionId, taskId);
             });
         } else {
             container.innerHTML = `
@@ -1219,7 +1219,7 @@ function bootApp() {
                     checkTaskAchievements();
                     saveAchievementsToFirestore();
                 }
-                
+
                 const matchingCheckboxes = document.querySelectorAll(`input[type='checkbox'][data-task='${taskId}']`);
                 matchingCheckboxes.forEach(checkbox => {
                     checkbox.checked = true;
@@ -1230,7 +1230,7 @@ function bootApp() {
                         if (textInput) textInput.style.textDecoration = 'line-through';
                     }
                 });
-                
+
                 updateRoutineStats();
                 updatePlanInFirestore();
                 updateWhatsNextWidget();
@@ -1304,7 +1304,7 @@ function bootApp() {
             const q = query(plansColRef, where("userID", "==", user.uid));
             const querySnapshot = await getDocs(q);
             if (auth.currentUser?.uid !== user.uid || loadRevision !== planLoadRevision || editRevision !== planEditRevision) return;
-            
+
             if (!querySnapshot.empty) {
                 const plans = querySnapshot.docs.map(doc => ({
                     docId: doc.id,
@@ -1316,7 +1316,7 @@ function bootApp() {
                     const timeB = b.createdAt?.seconds || 0;
                     return timeB - timeA;
                 });
-                
+
                 const latestPlan = plans[0];
                 const previousSnapshot = currentPlanDocId === latestPlan.docId ? planSnapshot : null;
                 currentPlanDocId = latestPlan.docId;
@@ -1697,7 +1697,7 @@ function bootApp() {
         const actor=auth.currentUser?.uid,plan=currentPlanDocId,workspace=window.__kairosScheduleWorkspace;
         if(!await workspace?.setView('day')||auth.currentUser?.uid!==actor||currentPlanDocId!==plan)return;
         if(!await workspace.setDate(button.dataset.calendarDate)||auth.currentUser?.uid!==actor||currentPlanDocId!==plan)return;
-        await workspace.selectItem('event',button.dataset.calendarEvent);if(auth.currentUser?.uid===actor&&currentPlanDocId===plan)closeDayPanel();
+        await workspace.selectItem('event',button.dataset.calendarEvent,{occurrenceDate:button.dataset.eventOccurrence||null});if(auth.currentUser?.uid===actor&&currentPlanDocId===plan)closeDayPanel();
     }
     calendarGrid?.addEventListener('click',async event=>{
         const fixed=event.target.closest('[data-calendar-event]');if(fixed){await openCalendarEvent(fixed);return;}
@@ -1828,7 +1828,7 @@ function bootApp() {
         });
     }
 
-    //  11 Settings  
+    //  11 Settings
 
     function getAccentColor() {
         return getComputedStyle(document.body).getPropertyValue('--accent-glow').trim() || '#a855f7';
@@ -1955,7 +1955,7 @@ function bootApp() {
                 player.playVideo();
             };
             start();
-            
+
             setTimeout(() => {
                 if (player.getPlayerState && player.getPlayerState() !== 1) {
                     const resume = () => { start(); document.removeEventListener('click', resume); };
@@ -2840,21 +2840,8 @@ function bootApp() {
 
     function buildScheduleSummaryForAI() {
         if (!scheduleData.length) return '';
-
-        const byDay = getScheduleDayLabels().map((label, dayIndex) => {
-            const events = scheduleData
-                .filter(ev => !ev.date&&!ev.archived&&!ev.transparent&&ev.day === dayIndex)
-                .map(ev => {
-                    const cat = SCHEDULE_CATEGORIES[ev.category] || SCHEDULE_CATEGORIES.other;
-                    return `${ev.title} (${cat.label}, ${scheduleMinutesToLabel(scheduleTimeToMinutes(ev.start))}–${scheduleMinutesToLabel(scheduleTimeToMinutes(ev.end))})`;
-                });
-            return events.length ? `${label}: ${events.join('; ')}` : null;
-        }).filter(Boolean);
-
-        const dated=scheduleData.filter(event=>event.date&&!event.archived&&!event.transparent).map(event=>`${event.date}: ${event.title} (${event.allDay?'all day':event.start+'–'+event.end}; ${event.readOnly||event.calendarSourceId?'read-only calendar':'native event'})`).slice(0,120);
-        const imported=dated.length?'\n\nBusy commitments on specific dates:\n'+dated.join('\n'):'';
-        if (!byDay.length) return imported;
-        return `\n\nThe user has these recurring weekly commitments — do NOT schedule study tasks during these times, and take sleep hours into account when suggesting a healthy pace:\n${byDay.join('\n')}`+imported;
+        const zone=typeof userSettings==='undefined'?'UTC':userSettings.profile?.timezone||'UTC',from=planningClock(Date.now(),zone).date,to=new Date(Date.parse(from+'T12:00:00Z')+30*86400000).toISOString().slice(0,10),rows=eventCommitmentsForRange(scheduleData,from,to);
+        return '\n\nBusy commitments on specific dates ('+from+' through '+to+' in '+zone+'); do not overlap these segments. Weekly exceptions are included; later dates are not checked:\n'+rows.map(event=>event.date+': '+event.title+' ('+(event.allDay?'all day':event.start+'-'+event.end)+(event.continued?'; continued from previous day':'')+'; '+(event.readOnly?'read-only calendar':'native event')+(event.occurrenceDate?'; original occurrence '+event.occurrenceDate:'')+')').join('\n');
     }
 
     function isDuplicateScheduleEvent(ev) {
@@ -2985,7 +2972,7 @@ function bootApp() {
         const isTask=item.kind==='task';
         const category=SCHEDULE_CATEGORIES[item.category]||SCHEDULE_CATEGORIES.other;
         const color=isTask?'var(--accent-glow,#7c84ff)':category.color;
-        const attrs=isTask?'data-task-id="'+scheduleEscape(item.id)+'" draggable="true"':'data-event-id="'+scheduleEscape(item.id)+'"';
+        const attrs=isTask?'data-task-id="'+scheduleEscape(item.id)+'" draggable="true"':'data-event-id="'+scheduleEscape(item.id)+'" data-event-occurrence="'+scheduleEscape(item.occurrenceDate||'')+'"';
         return '<div class="schedule-v2-block '+(isTask?'schedule-v2-task':'')+'" '+attrs+' style="top:'+top+'px;height:'+height+'px;--event-color:'+color+'" title="'+scheduleEscape(item.title)+'"><strong>'+scheduleEscape(item.title)+'</strong><small>'+scheduleEscape(start)+(end?' – '+scheduleEscape(end):'')+'</small></div>';
     }
     function renderScheduleToday(){
@@ -2997,7 +2984,7 @@ function bootApp() {
           '<div class="schedule-v2-today-columns"><section class="schedule-v2-agenda"><h3>Timeline</h3>'+
           (ordered.length?ordered.map(item=>'<div class="schedule-v2-agenda-row"><time>'+scheduleEscape(item.start||'Anytime')+'</time><div class="schedule-v2-agenda-card '+(item.kind==='task'?'is-task':'')+'" '+(item.kind==='task'?'data-task-id="'+scheduleEscape(item.id)+'"':'data-event-id="'+scheduleEscape(item.id)+'"')+'><strong>'+scheduleEscape(item.title)+'</strong><span>'+(item.kind==='task'?(item.completed?'Completed':'Task'):'Repeats weekly')+(item.end?' · '+scheduleEscape(item.end):'')+'</span></div></div>').join(''):'<p class="schedule-empty-agenda">A clear day. Drag a task into the week view or add a recurring commitment.</p>')+
           '</section><aside class="schedule-v2-focus"><h3>Tasks for today</h3>'+(tasks.length?tasks.map(t=>'<div class="schedule-v2-focus-task"><span class="'+(t.completed?'done':'')+'">'+scheduleEscape(t.title)+'</span><small>'+scheduleEscape(t.startTime||'Unscheduled')+'</small></div>').join(''):'<p>No tasks dated today.</p>')+'</aside></div>';
-        panel.querySelectorAll('[data-event-id]').forEach(el=>el.addEventListener('click',()=>openScheduleModal(el.dataset.eventId)));
+        panel.querySelectorAll('[data-event-id]').forEach(el=>el.addEventListener('click',()=>openScheduleModal(el.dataset.eventId,el.dataset.eventOccurrence||null)));
     }
     function renderScheduleView(){
         const today=document.getElementById('schedule-today-container'),week=document.getElementById('schedule-week-container');
@@ -3045,16 +3032,16 @@ function bootApp() {
         }
     }
 
-    async function openScheduleModal(eventId=null) {
+    async function openScheduleModal(eventId=null,occurrenceDate=null) {
         const owner=auth.currentUser?.uid,openedPlan=currentPlanDocId;if(!owner||!auth.currentUser.emailVerified)return false;
         if(currentPlanDocId&&searchPlannerOwnerId!==owner){showNotice('Your planner is loading. Try again in a moment.');return false;}
         if(!nativeEventLoading)nativeEventLoading=(async()=>{
-            const [{mountNativeEventEditor},{loadPageStyle}]=await Promise.all([import('./native-event-editor.js?v=1'),import('./page-loader.js?v=75')]);
-            await Promise.all([loadPageStyle('calendar-import.css?v=2'),loadPageStyle('native-event-editor.css?v=1')]);
+            const [{mountNativeEventEditor},{loadPageStyle}]=await Promise.all([import('./native-event-editor.js?v=2'),import('./page-loader.js?v=76')]);
+            await Promise.all([loadPageStyle('calendar-import.css?v=2'),loadPageStyle('native-event-editor.css?v=2')]);
             nativeEventEditor=mountNativeEventEditor({getIdentity:globalSearchIdentity,getState:()=>({boards:boardsData,dayInsights,scheduleEvents:scheduleData,calendarSources:calendarSourcesData}),getTimezone:()=>userSettings.profile.timezone||'UTC',getToday:()=>planningClock(Date.now(),userSettings.profile.timezone||'UTC').date,ensurePlan:()=>window.__kairosScheduleBridge.ensureSchedulePlan(),commit:commitTaskDetails,session:plannerMutations,confirmDiscard:message=>confirmDialog(message,{confirmText:'Discard changes'})});
             window.__kairosNativeEventEditor=nativeEventEditor;window.addEventListener('pagehide',event=>{if(!event.persisted)nativeEventEditor.dispose();});
         })().catch(error=>{nativeEventLoading=null;throw error;});
-        try{await nativeEventLoading;if(auth.currentUser?.uid!==owner||openedPlan&&currentPlanDocId!==openedPlan)return false;return nativeEventEditor.open(eventId,window.__kairosScheduleWorkspace?.state?.focusDate||selectedCalendarDate||planningClock(Date.now(),userSettings.profile.timezone||'UTC').date);}catch(error){showNotice('Could not open this event. '+error.message);return false;}
+        try{await nativeEventLoading;if(auth.currentUser?.uid!==owner||openedPlan&&currentPlanDocId!==openedPlan)return false;return nativeEventEditor.open(eventId,window.__kairosScheduleWorkspace?.state?.focusDate||selectedCalendarDate||planningClock(Date.now(),userSettings.profile.timezone||'UTC').date,occurrenceDate);}catch(error){showNotice('Could not open this event. '+error.message);return false;}
     }
     document.getElementById('add-schedule-event-btn')?.addEventListener('click',()=>void openScheduleModal());
 
@@ -3300,7 +3287,7 @@ function bootApp() {
             `;
         }).join('');
     }
-    
+
 
     function renderGoalSelects() {
         const container = document.getElementById('achievement-goal-selects');

@@ -1,11 +1,11 @@
 import {planningTasks,planningClock,validPlanningDate,shiftPlanningDate} from './planning-model.js?v=1';
-import {planningWindows,planningPlacementOccupancy,planningIntervalsConflict,planningBlockValid,planningDailyWork,planningDailyRemaining,validatePlanningRange} from './planning-slots.js?v=6';
-import {parseTime,formatTime,taskDurationMinutes} from './schedule-utils.js?v=3';
+import {planningWindows,planningPlacementOccupancy,planningIntervalsConflict,planningBlockValid,planningDailyWork,planningDailyRemaining,validatePlanningRange} from './planning-slots.js?v=7';
+import {parseTime,formatTime,taskDurationMinutes} from './schedule-utils.js?v=4';
 import {generateTaskOccurrences,projectStoredOccurrence} from './recurrence-utils.js?v=14';
 import {stableStringify} from './plan-merge.js?v=1';
-import {savedPlanningPreferences} from './planning-preferences.js?v=5';
-import {savedWeeklyAvailability,normaliseWeeklyAvailability} from './weekly-availability.js?v=1';
-import {taskOverdueState} from './schedule-overdue.js?v=2';
+import {savedPlanningPreferences} from './planning-preferences.js?v=6';
+import {savedWeeklyAvailability,normaliseWeeklyAvailability} from './weekly-availability.js?v=2';
+import {taskOverdueState} from './schedule-overdue.js?v=3';
 
 export function findTimeTask(state,target,{recovery=false,clock}={}){
  const entries=planningTasks(state).filter(({task})=>String(task.id)===String(target?.taskId));

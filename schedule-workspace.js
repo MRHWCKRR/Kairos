@@ -1,10 +1,11 @@
+import {eventOccurrence} from './event-occurrences.js?v=1';
 import {
   getVisibleDates, shiftAnchor, toDateKey, parseTime, formatTime, addDays,
   taskDurationMinutes, layoutOverlaps, findConflicts, splitOvernightInterval, blockGeometry, eventSegmentsForDate
-} from './schedule-utils.js?v=3';
+} from './schedule-utils.js?v=4';
 import { projectStoredOccurrence, generateTaskOccurrences, generateTaskOccurrencesThrough } from './recurrence-utils.js?v=14';
 import {planningClock} from './planning-model.js?v=1';
-import {scheduleBacklogItems} from './schedule-overdue.js?v=2';
+import {scheduleBacklogItems} from './schedule-overdue.js?v=3';
 
 const HOUR_HEIGHT = 56;
 const DAY_MINUTES = 1440;
@@ -120,7 +121,7 @@ export function initScheduleWorkspace(options){
   }
 
   function recurringSegmentsForDate(date){
-    return eventSegmentsForDate(events(),toDateKey(date)).map(({event:ev,startMin,endMin,continued})=>({kind:'event',id:'event-'+ev.id+'-'+(continued?'end':'start'),sourceId:ev.id,title:ev.title,startMin,endMin,category:ev.category,fixed:true,continued,dated:!!ev.date,allDay:ev.allDay===true,readOnly:ev.readOnly===true||!!ev.calendarSourceId,transparent:ev.transparent===true}));
+    return eventSegmentsForDate(events(),toDateKey(date)).map(({event:ev,startMin,endMin,continued})=>({kind:'event',occurrenceDate:ev.occurrenceDate,id:'event-'+ev.id+'-'+(ev.occurrenceDate||'')+'-'+(continued?'end':'start'),sourceId:ev.id,title:ev.title,startMin,endMin,category:ev.category,fixed:true,continued,dated:!!ev.date,allDay:ev.allDay===true,readOnly:ev.readOnly===true||!!ev.calendarSourceId,transparent:ev.transparent===true}));
   }
 
   function taskSegmentsForDate(date){
@@ -147,8 +148,8 @@ export function initScheduleWorkspace(options){
       const selected=state.selected.type==='occurrence'&&state.selected.occurrenceId===item.occurrenceId,color=validTaskColor(item.task.color),label=`${item.title}, ${displayClock(item.startMin)} to ${displayClock(item.endMin)}, recurring task${item.isOverdue?', overdue':''}${item.conflicts.length?', conflicts with fixed commitment':''}`;
       return `<button type="button" class="ks-block ks-task-block ks-recurring ${compact?'is-compact':''} ${selected?'is-selected':''} ${item.isOverdue?'is-overdue':''} ${item.conflicts.length?'is-conflicting':''}" data-occurrence-id="${esc(item.occurrenceId)}" data-series-id="${esc(item.seriesId)}" data-occurrence-date="${esc(item.occurrenceDate)}" data-date="${dateKey}" aria-label="${esc(label)}" style="${color?`--ks-task-color:${color};`:''}top:${geometry.topPx}px;height:${geometry.heightPx}px;left:calc(${left}% + 3px);width:calc(${width}% - 6px)"><span class="ks-block-title"><span class="ks-recurring-mark" aria-hidden="true">↻</span> ${esc(item.title)}</span><span class="ks-block-time">${esc(displayClock(item.startMin))}–${esc(displayClock(item.endMin))}</span>${item.conflicts.length?'<span class="ks-conflict-mark" aria-hidden="true">!</span>':''}</button>`;
     }
-    const selected=state.selected.type==='event'&&String(state.selected.id)===String(item.sourceId),category=categories()[item.category]||{color:'#64748b'};
-    return `<button type="button" class="ks-block ks-fixed-block ${compact?'is-compact':''} ${selected?'is-selected':''}" data-event-id="${esc(item.sourceId)}" aria-label="${esc(`${item.title}, ${displayClock(item.startMin)} to ${displayClock(item.endMin)}, ${item.dated?'dated event':'fixed recurring event'}${item.transparent?', free time':''}`)}" style="--ks-event:${esc(category.color||'#64748b')};top:${geometry.topPx}px;height:${geometry.heightPx}px;left:calc(${left}% + 3px);width:calc(${width}% - 6px)"><span class="ks-block-title">${esc(item.title)}${item.continued?' · continued':''}</span><span class="ks-block-time">${esc(displayClock(item.startMin))}–${esc(displayClock(item.endMin))}</span></button>`;
+    const selected=state.selected.type==='event'&&String(state.selected.id)===String(item.sourceId)&&(!item.occurrenceDate||state.selected.occurrenceDate===item.occurrenceDate),category=categories()[item.category]||{color:'#64748b'};
+    return `<button type="button" class="ks-block ks-fixed-block ${compact?'is-compact':''} ${selected?'is-selected':''}" data-event-id="${esc(item.sourceId)}" data-event-occurrence="${esc(item.occurrenceDate||'')}" data-date="${dateKey}" aria-label="${esc(`${item.title}, ${displayClock(item.startMin)} to ${displayClock(item.endMin)}, ${item.dated?'dated event':'fixed recurring event'}${item.transparent?', free time':''}`)}" style="--ks-event:${esc(category.color||'#64748b')};top:${geometry.topPx}px;height:${geometry.heightPx}px;left:calc(${left}% + 3px);width:calc(${width}% - 6px)"><span class="ks-block-title">${esc(item.title)}${item.continued?' · continued':''}</span><span class="ks-block-time">${esc(displayClock(item.startMin))}–${esc(displayClock(item.endMin))}</span></button>`;
   }
 
   function deadlineMarkup(date){
@@ -164,7 +165,7 @@ export function initScheduleWorkspace(options){
     calendar.innerHTML=`<div class="ks-calendar-frame"><div class="ks-timeline-scroll"><div class="ks-calendar-content" style="--ks-days:${dates.length}"><div class="ks-calendar-head"><div class="ks-time-head"></div>${headers}</div><div class="ks-calendar-body"><div class="ks-time-rail" style="height:${24*HOUR_HEIGHT}px">${hours}</div><div class="ks-days">${cols}</div></div></div></div></div>`;
     calendar.querySelectorAll('[data-task-id]').forEach(el=>el.addEventListener('click',e=>{e.stopPropagation();selectItem('task',el.dataset.taskId)}));
     calendar.querySelectorAll('[data-occurrence-id]').forEach(el=>el.addEventListener('click',e=>{e.stopPropagation();selectOccurrence(el.dataset)}));
-    calendar.querySelectorAll('[data-event-id]').forEach(el=>el.addEventListener('click',e=>{e.stopPropagation();selectItem('event',el.dataset.eventId)}));
+    calendar.querySelectorAll('[data-event-id]').forEach(el=>el.addEventListener('click',e=>{e.stopPropagation();selectItem('event',el.dataset.eventId,{occurrenceDate:el.dataset.eventOccurrence||null})}));
     calendar.querySelectorAll('.ks-day-grid').forEach(el=>el.addEventListener('click',()=>clearSelection()));updateNowLine();
     const scroller=calendar.querySelector('.ks-timeline-scroll');scroller?.addEventListener('scroll',()=>{state.scrollTop=scroller.scrollTop},{passive:true});requestAnimationFrame(()=>{if(!scroller)return;if(Number.isFinite(state.scrollTop))scroller.scrollTop=state.scrollTop;else{state.scrollTop=7*HOUR_HEIGHT;scroller.scrollTop=state.scrollTop}});
   }
@@ -180,7 +181,7 @@ export function initScheduleWorkspace(options){
       const found=findTask(id); if(!found){clearSelection();return}const {task,board,section}=found;
       inspector.innerHTML=`<div class="ks-inspector-head"><span>Task</span><button type="button" data-close aria-label="Close inspector">×</button></div><div class="ks-inspector-body"><h3>${esc(task.title)}</h3><p>${esc([board.title,section.title].filter(Boolean).join(' / '))}</p><dl><div><dt>Scheduled</dt><dd>${task.date?esc(task.date):'Unscheduled'}${task.startTime?` · ${esc(task.startTime)}${task.endTime?`–${esc(task.endTime)}`:''}`:''}</dd></div><div><dt>Duration</dt><dd>${task.startTime?`${taskDurationMinutes(task)} min`:(task.estimatedMinutes?`${task.estimatedMinutes} min`:'Not estimated')}</dd></div><div><dt>Due</dt><dd>${esc(task.dueDate||'No deadline')}</dd></div></dl><div class="ks-inspector-actions"><button type="button" data-complete>${task.completed?'Mark incomplete':'Complete'}</button><button type="button" data-reschedule>Reschedule</button><button type="button" data-ask-ai>Ask AI</button></div></div>`;
     }else{
-      const ev=findEvent(id); if(!ev){clearSelection();return}const calendarSource=options.getCalendarSources?.().find(source=>source.id===ev.calendarSourceId),staleTimezone=calendarSource&&calendarSource.timezone!==options.getTimezone?.();inspector.innerHTML=`<div class="ks-inspector-head"><span>Fixed event</span><button type="button" data-close aria-label="Close inspector">×</button></div><div class="ks-inspector-body"><h3>${esc(ev.title)}</h3><p>${ev.date?esc(ev.date):'Repeats weekly'} · ${ev.allDay?'All day':esc(ev.start)+'–'+esc(ev.end)}</p>${ev.readOnly||ev.calendarSourceId?'<p>Imported calendar · Read-only'+(ev.transparent?' · Free time':' · Busy')+'</p>'+(calendarSource?'<p>'+esc(calendarSource.name)+' · Imported in '+esc(calendarSource.timezone)+'.</p>':'')+(staleTimezone?'<p>Your timezone changed. Refresh this calendar in Calendars before planning.</p>':''):'<div class="ks-inspector-actions"><button type="button" data-edit-event>Edit event</button></div>'}</div>`;inspector.querySelector('[data-edit-event]')?.addEventListener('click',()=>options.openRecurringEventEditor?.(ev.id));
+      const source=findEvent(id),ev=state.selected.occurrenceDate?eventOccurrence(source,state.selected.occurrenceDate):source; if(!ev){clearSelection();return}const calendarSource=options.getCalendarSources?.().find(source=>source.id===ev.calendarSourceId),staleTimezone=calendarSource&&calendarSource.timezone!==options.getTimezone?.();inspector.innerHTML=`<div class="ks-inspector-head"><span>Fixed event</span><button type="button" data-close aria-label="Close inspector">×</button></div><div class="ks-inspector-body"><h3>${esc(ev.title)}</h3><p>${ev.occurrenceDate?'Occurrence '+esc(ev.occurrenceDate)+' · ':''}${ev.date?esc(ev.date):'Repeats weekly'} · ${ev.allDay?'All day':esc(ev.start)+'–'+esc(ev.end)}</p>${ev.readOnly||ev.calendarSourceId?'<p>Imported calendar · Read-only'+(ev.transparent?' · Free time':' · Busy')+'</p>'+(calendarSource?'<p>'+esc(calendarSource.name)+' · Imported in '+esc(calendarSource.timezone)+'.</p>':'')+(staleTimezone?'<p>Your timezone changed. Refresh this calendar in Calendars before planning.</p>':''):'<div class="ks-inspector-actions"><button type="button" data-edit-event>Edit event</button></div>'}</div>`;inspector.querySelector('[data-edit-event]')?.addEventListener('click',()=>options.openRecurringEventEditor?.(ev.id,state.selected.occurrenceDate));
     }
     inspector.querySelector('[data-close]')?.addEventListener('click',clearSelection);
   }
@@ -189,10 +190,10 @@ export function initScheduleWorkspace(options){
     const apply=()=>{occurrenceCache=null;const entry=next.type==='task'?findTask(next.id):next.type==='occurrence'?findTask(next.seriesId):null;const effective=next.type==='occurrence'&&entry?projectStoredOccurrence(entry.task,next.occurrenceDate)?.task:entry?.task;if(!next.keepDate&&parsedDate(effective?.date)){state.focusDate=effective.date;options.setScheduleDate?.(state.focusDate);}state.selected=next;state.inspectorOpen=!!next.type;renderBacklog();renderCalendar();renderInspector();return true};
     const ticket=++selectionRevision,actor=JSON.stringify([options.getOwnerId?.(),options.getPlanId?.()]);
     if(!inspectorSession)return apply();
-    if(state.selected.type===next.type&&String(state.selected.id)===String(next.id))return true;
+    if(state.selected.type===next.type&&String(state.selected.id)===String(next.id)&&state.selected.occurrenceDate===next.occurrenceDate)return true;
     return inspectorSession.requestLeave().then(allowed=>allowed&&ticket===selectionRevision&&actor===JSON.stringify([options.getOwnerId?.(),options.getPlanId?.()])?apply():false);
   }
-  function selectItem(type,id,{keepDate=false}={}){return state.monthView?setView('day').then(allowed=>allowed?changeSelection({type,id,keepDate}):false):changeSelection({type,id,keepDate})}
+  function selectItem(type,id,{keepDate=false,occurrenceDate=null}={}){return state.monthView?setView('day').then(allowed=>allowed?changeSelection({type,id,keepDate,occurrenceDate}):false):changeSelection({type,id,keepDate,occurrenceDate})}
   function selectOccurrence(data){
     if(state.monthView)return setView('day').then(allowed=>allowed?selectOccurrence(data):false);
     const occurrenceId=data.occurrenceId||data.id,seriesId=data.seriesId,occurrenceDate=data.occurrenceDate;
@@ -256,3 +257,4 @@ window.addEventListener('kairos-schedule-bridge-ready',boot);
 window.addEventListener('kairos-data-changed',()=>setTimeout(()=>window.__kairosScheduleWorkspace?.invalidate(),25));
 window.addEventListener('kairos-page-ready',event=>{if(event.detail?.page==='schedule-page')window.__kairosScheduleWorkspace?.activate();});
 if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot,{once:true}); else boot();
+

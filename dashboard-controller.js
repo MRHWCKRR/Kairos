@@ -1,5 +1,5 @@
-import {mountTodayView,mountMutationFeedback} from './today-view.js?v=6';
-import {mountAiUndo} from './ai-undo-view.js?v=2';
+import {mountTodayView,mountMutationFeedback} from './today-view.js?v=7';
+import {mountAiUndo} from './ai-undo-view.js?v=3';
 
 export function createDashboardController({document=globalThis.document,window=globalThis.window,getIdentity,getState,getToday,session,onCapture,confirmClear,loadUndoPreview,openTask,requestClose,navigate,setScheduleDate,selectOccurrence,selectItem}={}){
     let today=null,feedback=null,undo=null,mounted=false,disposed=false,generation=0,actor=JSON.stringify(getIdentity());
@@ -10,6 +10,7 @@ export function createDashboardController({document=globalThis.document,window=g
         if(!await requestClose()||!current())return false;
         await navigate('schedule-page');if(!current())return false;
         setScheduleDate(row.date||getToday());
+        if(row.kind==='event')return selectItem('event',row.id,{occurrenceDate:row.occurrenceDate||null});
         if(row.occurrenceDate)return selectOccurrence({seriesId:row.taskId,occurrenceId:row.taskId+'::'+row.occurrenceDate,occurrenceDate:row.occurrenceDate});
         return selectItem(row.kind==='event'?'event':'task',row.taskId||row.id);
     }

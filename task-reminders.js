@@ -1,3 +1,4 @@
+import {eventOccurrencesForDate} from './event-occurrences.js?v=1';
 import { generateTaskOccurrences } from './recurrence-utils.js?v=14';
 
 export function validReminderMinutes(value) {
@@ -73,12 +74,12 @@ export function dueBedtimeReminders(events,now=Date.now(),timeZone='UTC') {
     // Include tomorrow: a bedtime shortly after midnight has a reminder today.
     for(const date of [today,shiftDate(today,1)]){
         const day=new Date(date+'T12:00:00Z').getUTCDay();
-        for(const event of events||[]){
+        for(const event of (events||[]).flatMap(source=>eventOccurrencesForDate(source,date))){
             if(!event?.id||event.archived||event.transparent===true||event.allDay===true||event.category!=='sleep'||(event.date!=null?event.date!==date:event.day!==day))continue;
             const startsAt=zonedTaskStart(date,event.start,timeZone);
             if(startsAt===null)continue;
-            const dueAt=startsAt-15*60000,id='bedtime-reminder:'+event.id+':'+startsAt+':15';
-            if(dueAt<=now&&now<startsAt&&!due.some(item=>item.id===id))due.push({id,eventId:event.id,title:String(event.title||'Sleep'),date,startTime:event.start,minutesBefore:15,dueAt,startsAt});
+            const dueAt=startsAt-15*60000,id='bedtime-reminder:'+event.id+':'+(event.occurrenceDate?event.occurrenceDate+':':'')+startsAt+':15';
+            if(dueAt<=now&&now<startsAt&&!due.some(item=>item.id===id))due.push({id,eventId:event.id,...(event.occurrenceDate?{occurrenceDate:event.occurrenceDate}:{}),title:String(event.title||'Sleep'),date,startTime:event.start,minutesBefore:15,dueAt,startsAt});
         }
     }
     return due;

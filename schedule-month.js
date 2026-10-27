@@ -1,6 +1,6 @@
-import {eventSegmentsForDate} from './schedule-events.js?v=1';
+import {eventSegmentsForDate} from './schedule-events.js?v=2';
 import {generateTaskOccurrencesThrough} from './recurrence-utils.js?v=14';
-import {toDateKey,parseTime,formatTime} from './schedule-utils.js?v=3';
+import {toDateKey,parseTime,formatTime} from './schedule-utils.js?v=4';
 
 const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 export function calendarDate(value){
@@ -25,13 +25,13 @@ export function monthEventEntries(events,start,end){
  if(!calendarDate(start)||!calendarDate(end)||end<start||(Date.parse(end)-Date.parse(start))/86400000>365)return [];
  const entries=[],clock=value=>String(Math.floor(value/60)%24).padStart(2,'0')+':'+String(value%60).padStart(2,'0');
  for(let date=start;date<=end;date=new Date(Date.parse(date+'T12:00:00Z')+86400000).toISOString().slice(0,10)){
-  for(const {event,startMin,endMin,continued} of eventSegmentsForDate(events,date))entries.push({kind:'event',id:event.id,eventId:event.id,title:String(event.title||'Event'),date,startTime:clock(startMin),endTime:clock(endMin),allDay:event.allDay===true,readOnly:event.readOnly===true||!!event.calendarSourceId,transparent:event.transparent===true,continued});
+  for(const {event,startMin,endMin,continued} of eventSegmentsForDate(events,date))entries.push({kind:'event',id:event.id,eventId:event.id,occurrenceDate:event.occurrenceDate,title:String(event.title||'Event'),date,startTime:clock(startMin),endTime:clock(endMin),allDay:event.allDay===true,readOnly:event.readOnly===true||!!event.calendarSourceId,transparent:event.transparent===true,continued});
  }
  return entries.sort((a,b)=>a.date.localeCompare(b.date)||a.startTime.localeCompare(b.startTime)||a.title.localeCompare(b.title));
 }
 export function calendarEventMarkup(event,{hour12=true,detail=false}={}){
  const minutes=parseTime(event.startTime),time=event.allDay?'All day':minutes===null?'':formatTime(minutes,hour12),label=[time,event.title,event.readOnly?'Read-only calendar':null,event.transparent?'Free time':null].filter(Boolean).join(' · ');
- return `<button type="button" class="calendar-task-preview calendar-event-preview${detail?' calendar-detail-occurrence':''}" data-calendar-event="${esc(event.eventId||event.id)}" data-calendar-date="${esc(event.date)}" title="${esc(label)}" aria-label="${esc(label)}">${time?`<span class="calendar-task-time">${esc(time)}</span>`:''}<span class="calendar-task-title">${esc(event.title)}</span>${detail?'<span class="calendar-task-status">'+(event.readOnly?'Read-only calendar':'Open event')+'</span>':''}</button>`;
+ return `<button type="button" class="calendar-task-preview calendar-event-preview${detail?' calendar-detail-occurrence':''}" data-calendar-event="${esc(event.eventId||event.id)}" data-calendar-date="${esc(event.date)}" data-event-occurrence="${esc(event.occurrenceDate||'')}" title="${esc(label)}" aria-label="${esc(label)}">${time?`<span class="calendar-task-time">${esc(time)}</span>`:''}<span class="calendar-task-title">${esc(event.title)}</span>${detail?'<span class="calendar-task-status">'+(event.readOnly?'Read-only calendar':'Open event')+'</span>':''}</button>`;
 }
 export function calendarTaskMarkup(task,{hour12=true,detail=false}={}){
  if(task.kind==='event')return calendarEventMarkup(task,{hour12,detail});

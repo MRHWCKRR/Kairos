@@ -1,6 +1,6 @@
-import {parseTime,formatTime,taskDurationMinutes} from './schedule-utils.js?v=3';
+import {parseTime,formatTime,taskDurationMinutes} from './schedule-utils.js?v=4';
 import {projectStoredOccurrence,generateTaskOccurrences} from './recurrence-utils.js?v=14';
-import {buildScheduleChange} from './schedule-change-model.js?v=7';
+import {buildScheduleChange} from './schedule-change-model.js?v=8';
 import {validPlanningDate} from './planning-model.js?v=1';
 
 export function keyboardScheduleStep(value,key,resizing=false){

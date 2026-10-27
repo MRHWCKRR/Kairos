@@ -1,5 +1,6 @@
 {
   "files": [
+    "event-occurrences.js",
     "ai-event-actions.js",
     "native-event-commands.js",
     "native-event-editor.js",

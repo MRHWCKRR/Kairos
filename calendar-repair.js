@@ -1,12 +1,12 @@
-import {calendarConflicts} from './calendar-conflicts.js?v=1';
+import {calendarConflicts} from './calendar-conflicts.js?v=2';
 import {planningClock,planningTasks,shiftPlanningDate,validPlanningDate} from './planning-model.js?v=1';
-import {findPlanningSlot,planningPlacementOccupancy,planningDailyWork,planningOccupancy,intervalsOverlap,planningBlockValid} from './planning-slots.js?v=6';
-import {planningSignature} from './planning-commands.js?v=11';
-import {buildScheduleChange,applyScheduleChange,applyScheduleUndo} from './schedule-change-model.js?v=7';
-import {parseTime,taskDurationMinutes} from './schedule-utils.js?v=3';
+import {findPlanningSlot,planningPlacementOccupancy,planningDailyWork,planningOccupancy,intervalsOverlap,planningBlockValid} from './planning-slots.js?v=7';
+import {planningSignature} from './planning-commands.js?v=12';
+import {buildScheduleChange,applyScheduleChange,applyScheduleUndo} from './schedule-change-model.js?v=8';
+import {parseTime,taskDurationMinutes} from './schedule-utils.js?v=4';
 import {projectStoredOccurrence} from './recurrence-utils.js?v=14';
 import {stableStringify} from './plan-merge.js?v=1';
-import {validateAssignmentOrderChanges,orderedSessionGroup,orderedPlacementClock} from './assignment-order.js?v=2';
+import {validateAssignmentOrderChanges,orderedSessionGroup,orderedPlacementClock} from './assignment-order.js?v=3';
 
 // Completed work remains occupied even when its display is hidden.
 function occupied(state){return {...state,boards:(state.boards||[]).map(b=>({...b,sections:(b.sections||[]).map(s=>({...s,tasks:(s.tasks||[]).map(t=>({...t,completed:false,...(t.recurrence?.enabled?{recurrence:{...t.recurrence,exceptions:Object.fromEntries(Object.entries(t.recurrence.exceptions||{}).map(([date,e])=>{const o=e.status==='completed'?projectStoredOccurrence(t,date):null;return [date,o?{...e,status:'pending',override:{...e.override,date:o.displayDate,startTime:o.startTime,endTime:o.endTime,durationMinutes:o.durationMinutes}}:e]}))}}:{})}))}))}))}}

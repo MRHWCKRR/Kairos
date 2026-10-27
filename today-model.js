@@ -1,7 +1,7 @@
-import {eventSegmentsForDate} from './schedule-events.js?v=1';
+import {eventSegmentsForDate} from './schedule-events.js?v=2';
 import {validFocusDate} from './occurrence-focus.js?v=2';
 import {generateTaskOccurrencesThrough} from './recurrence-utils.js?v=14';
-import {resolveTaskDetail,taskDetailValues} from './task-list-model.js?v=23';
+import {resolveTaskDetail,taskDetailValues} from './task-list-model.js?v=24';
 
 export function buildToday(state={},today) {
  if(!validFocusDate(today))throw Error('A valid Today date is required.');
@@ -27,7 +27,7 @@ export function buildToday(state={},today) {
  }
  for(const {event,startMin,endMin,continued} of eventSegmentsForDate(state.scheduleEvents,today)){
   const clock=value=>String(Math.floor(value/60)%24).padStart(2,'0')+':'+String(value%60).padStart(2,'0');
-  result.today.push({id:event.id,kind:'event',title:String(event.title||'Event'),path:event.calendarSourceId?'Imported calendar':'Schedule',date:today,start:clock(startMin),end:clock(endMin),allDay:event.allDay===true,continued,canComplete:false});
+  result.today.push({id:event.id,kind:'event',...(event.occurrenceDate?{occurrenceDate:event.occurrenceDate}:{}),title:String(event.title||'Event'),path:event.calendarSourceId?'Imported calendar':'Schedule',date:today,start:clock(startMin),end:clock(endMin),allDay:event.allDay===true,continued,canComplete:false});
  }
  result.today.sort((a,b)=>(a.start||'99:99').localeCompare(b.start||'99:99')||a.title.localeCompare(b.title));
  result.overdue.sort((a,b)=>(a.dueDate||a.date||'').localeCompare(b.dueDate||b.date||''));
