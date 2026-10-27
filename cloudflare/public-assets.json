@@ -1,5 +1,8 @@
 {
   "files": [
+    "native-event-commands.js",
+    "native-event-editor.js",
+    "native-event-editor.css",
     "calendar-conflicts.js",
     "calendar-repair.js",
     "calendar-conflict-review.js",

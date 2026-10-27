@@ -1,16 +1,16 @@
-import {applyAiTaskMutation} from './ai-task-commands.js?v=4';
+import {applyAiTaskMutation} from './ai-task-commands.js?v=5';
 import {plannerChangeRows} from './planner-changes.js?v=2';
-import {applyTaskListCommand} from './task-list-model.js?v=22';
-import {planningUndoPreview} from './planning-undo.js?v=4';
-import {savedPlanningPreferences,planningPreferencesText} from './planning-preferences.js?v=4';
+import {applyTaskListCommand} from './task-list-model.js?v=23';
+import {planningUndoPreview} from './planning-undo.js?v=5';
+import {savedPlanningPreferences,planningPreferencesText} from './planning-preferences.js?v=5';
 import {savedWeeklyAvailability} from './weekly-availability.js?v=1';
 import { auth, db } from './firebase.js?v=1';
-import { persistAiPlanAction, getConfirmedAiAction, applyStoredPlanningUndo } from './plan-store.js?v=22';
+import { persistAiPlanAction, getConfirmedAiAction, applyStoredPlanningUndo } from './plan-store.js?v=23';
 import { validateActionShape } from './ai-action-schema.js?v=11';
 import { stableStringify, planState } from './plan-merge.js?v=1';
-import {previewAiPlanning,resolveAiPlanningTimezone} from './ai-planning.js?v=14';
-import {planningConflicts,planningGapText,planningDailyLimitText} from './planning-slots.js?v=5';
-import {applyPlanningCommand} from './planning-commands.js?v=10';
+import {previewAiPlanning,resolveAiPlanningTimezone} from './ai-planning.js?v=15';
+import {planningConflicts,planningGapText,planningDailyLimitText} from './planning-slots.js?v=6';
+import {applyPlanningCommand} from './planning-commands.js?v=11';
 import {
     collection, getDocs, query, where, doc, getDoc
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";

@@ -1,10 +1,10 @@
 import {taskRemainingMinutes} from './remaining-work.js?v=3';
-import {capturePlanningUndo} from './planning-undo.js?v=4';
+import {capturePlanningUndo} from './planning-undo.js?v=5';
 import {normaliseWeeklyAvailability} from './weekly-availability.js?v=1';
 import {planningTasks,planningClock,validPlanningDate} from './planning-model.js?v=1';
-import {findPlanningSlot,planningAvailability,planningWindows,planningBlockValid,planningPlacementOccupancy,planningIntervalsConflict,planningDailyWork,planningDailyRemaining,addPlanningDailyWork,planningDailyLimitText} from './planning-slots.js?v=5';
+import {findPlanningSlot,planningAvailability,planningWindows,planningBlockValid,planningPlacementOccupancy,planningIntervalsConflict,planningDailyWork,planningDailyRemaining,addPlanningDailyWork,planningDailyLimitText} from './planning-slots.js?v=6';
 import {parseTime,taskDurationMinutes} from './schedule-utils.js?v=3';
-import {zonedTaskStart} from './task-reminders.js?v=3';
+import {zonedTaskStart} from './task-reminders.js?v=4';
 import {stableStringify} from './plan-merge.js?v=1';
 import {orderedSessionGroup,orderedPlacementClock,clockAfterSession,expandOrderedTaskIds,assertAssignmentOrder,validateAssignmentOrderChanges} from './assignment-order.js?v=2';
 

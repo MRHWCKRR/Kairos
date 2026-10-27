@@ -36,3 +36,6 @@ test('bedtime DST gaps do not fire and ambiguous starts use the earlier instant'
  assert.equal(due(items,'2026-04-04T15:15:00Z','Australia/Sydney').length,1);
  assert.equal(due(items,'2026-04-04T16:15:00Z','Australia/Sydney').length,0);
 });
+
+test('dated sleep events notify only on their saved date and never fall back to a weekday',()=>{const dated=[{id:'dated',title:'Early night',category:'sleep',date:'2026-10-16',start:'23:00',end:'07:00'}];assert.equal(due(dated,'2026-10-16T12:46:00Z').length,1);dated[0].day=5;assert.equal(due(dated,'2026-10-23T12:46:00Z').length,0);});
+test('free and all-day sleep events do not produce bedtime reminders',()=>{const free=events();free[0].transparent=true;assert.equal(due(free,'2026-10-16T12:46:00Z').length,0);const allDay=[{id:'day',title:'Rest day',category:'sleep',date:'2026-10-17',day:6,start:'00:00',end:'00:00',allDay:true}];assert.equal(due(allDay,'2026-10-16T13:50:00Z').length,0);});

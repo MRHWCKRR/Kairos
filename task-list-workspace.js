@@ -1,4 +1,4 @@
-import {applyTaskListCommand} from './task-list-model.js?v=22';
+import {applyTaskListCommand} from './task-list-model.js?v=23';
 import {t} from './i18n.js';
 import {assignmentProgressIndex,assignmentProgressMarkup} from './assignment-progress.js?v=5';
 import {planningClock} from './planning-model.js?v=1';

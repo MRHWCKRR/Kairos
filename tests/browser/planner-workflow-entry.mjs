@@ -1,3 +1,4 @@
+import {runNativeEventJourney} from './native-event-journey.mjs';
 import {runCalendarConflictJourney} from './calendar-conflict-journey.mjs';
 import {runCalendarImportJourney} from './calendar-import-journey.mjs';
 import {applyAiTaskMutation} from '../../ai-task-commands.js';
@@ -78,6 +79,7 @@ async function run(){
   await runSharedSaveJourney(check);
   await runCalendarImportJourney({document,window,getState:()=>data,getIdentity:()=>identity,commit,session,lostResponse:()=>{lost=true},wait,check});
   await runCalendarConflictJourney({document,window,wait,check});
+  await runNativeEventJourney({document,window,wait,check});
   data=seed();view.sync();status.dataset.result='passed';status.textContent='Passed: Quick Add → Today → interrupted save → retry → Archive → restore → reviewed Undo → backup.';
  }catch(error){status.dataset.result='failed';status.textContent='Failed: '+error.message;console.error(error);}
 }

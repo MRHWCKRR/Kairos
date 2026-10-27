@@ -762,50 +762,6 @@
     </div>
 
     <!-- Recurring schedule events --> 
-    <div id="schedule-event-modal" class="modal-overlay">
-        <div class="modal-content">
-            <span class="close-modal" id="close-schedule-event-modal">&times;</span>
-            <h2 id="schedule-event-modal-title">Add Recurring Event</h2>
-
-            <label class="settings-label">Title</label>
-            <input type="text" id="schedule-event-title" class="settings-input" placeholder="e.g. Sleep, Math Tutoring, Football Training">
-
-            <label class="settings-label">Category</label>
-            <select id="schedule-event-category" class="settings-input">
-                <option value="sleep" data-i18n="cat_sleep">Sleep</option>
-                <option value="class" data-i18n="cat_class">Class</option>
-                <option value="tutoring" data-i18n="cat_tutoring">Tutoring</option>
-                <option value="training" data-i18n="cat_training">Training</option>
-                <option value="other" data-i18n="cat_other">Other</option>
-            </select>
-
-            <label class="settings-label">Day of Week</label>
-            <select id="schedule-event-day" class="settings-input">
-                <option value="0" data-i18n="day_sunday">Sunday</option>
-                <option value="1" data-i18n="day_monday">Monday</option>
-                <option value="2" data-i18n="day_tuesday">Tuesday</option>
-                <option value="3" data-i18n="day_wednesday">Wednesday</option>
-                <option value="4" data-i18n="day_thursday">Thursday</option>
-                <option value="5" data-i18n="day_friday">Friday</option>
-                <option value="6" data-i18n="day_saturday">Saturday</option>
-            </select>
-
-            <div style="display:flex; gap:12px;">
-                <div style="flex:1;">
-                    <label class="settings-label">Start Time</label>
-                    <input type="time" id="schedule-event-start" class="settings-input">
-                </div>
-                <div style="flex:1;">
-                    <label class="settings-label">End Time</label>
-                    <input type="time" id="schedule-event-end" class="settings-input">
-                </div>
-            </div>
-
-            <button id="schedule-event-save-btn" class="action-btn" style="margin-top: 16px; width: 100%;">Save Event</button>
-            <button id="schedule-event-delete-btn" class="action-btn danger-btn" style="margin-top: 10px; width: 100%; display: none;">Delete Event</button>
-        </div>
-    </div>
-
     <!-- Delete account confirmation modal -->
     <div id="delete-account-modal" class="modal-overlay">
         <div class="modal-content delete-account-modal-content" role="dialog" aria-modal="true" aria-labelledby="delete-account-modal-title">
@@ -863,7 +819,7 @@
 
     <div id="achievement-toast-container" class="achievement-toast-container"></div>
     
-    <script type="module" src="app-bootstrap.js?v=64"></script>
+    <script type="module" src="app-bootstrap.js?v=65"></script>
 <script type="module" src="ui-bootstrap.js?v=2"></script>
 </body>
 </html>

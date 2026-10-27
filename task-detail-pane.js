@@ -1,12 +1,12 @@
 import {bindTaskFocus} from './task-focus.js?v=4';
 import {bindDeadlineImpact} from './deadline-impact.js?v=4';
 import {stableStringify} from './plan-merge.js?v=1';
-import {taskDetailValues,TASK_DETAIL_FIELDS,applyTaskListCommand} from './task-list-model.js?v=22';
+import {taskDetailValues,TASK_DETAIL_FIELDS,applyTaskListCommand} from './task-list-model.js?v=23';
 import {recurrenceFieldsMarkup,bindRecurrenceFields,readRecurrenceFields} from './schedule-recurrence-ui.js?v=12';
 import {t} from './i18n.js';
 import {assignmentProgressIndex,assignmentProgressMarkup,refreshAssignmentProgress} from './assignment-progress.js?v=5';
 import {planningClock} from './planning-model.js?v=1';
-import {mountTaskChecklistEditor} from './task-checklist-editor.js?v=10';
+import {mountTaskChecklistEditor} from './task-checklist-editor.js?v=11';
 import {matchesShortcut} from './shortcut-model.js?v=1';
 
 const esc=value=>String(value??'').replace(/[&<>'"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[ch]));
