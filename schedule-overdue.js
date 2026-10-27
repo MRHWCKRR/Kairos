@@ -1,5 +1,5 @@
 import {validPlanningDate,shiftPlanningDate} from './planning-model.js?v=1';
-import {parseTime,taskDurationMinutes} from './schedule-utils.js?v=3';
+import {parseTime,taskDurationMinutes} from './schedule-utils.js?v=4';
 
 export function taskOverdueState(task,clock,duration=taskDurationMinutes(task)){
  if(!task||task.completed||task.archived)return null;

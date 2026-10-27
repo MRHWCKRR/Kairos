@@ -1,5 +1,6 @@
-import {validateActionShape} from './ai-action-schema.js?v=12';
-import {buildNativeEventChange,applyNativeEventChange} from './native-event-commands.js?v=1';
+import {eventOccurrence} from './event-occurrences.js?v=1';
+import {validateActionShape} from './ai-action-schema.js?v=13';
+import {buildNativeEventChange,applyNativeEventChange} from './native-event-commands.js?v=2';
 import {stableStringify} from './plan-merge.js?v=1';
 import {plannerChangeRows} from './planner-changes.js?v=2';
 const types=['create_schedule_event','update_schedule_event','delete_schedule_event'];
@@ -13,10 +14,12 @@ function findEvent(state,args){
  if(event.readOnly||event.calendarSourceId)throw Error('Imported calendar events are read-only. Use Calendars to refresh or remove the source.');if(event.archived)throw Error('This event is archived. Review it in Schedule.');return event;
 }
 function proposal(state,action,{eventIdFactory}){
- const {type,args}=action,creating=type==='create_schedule_event',before=creating?null:findEvent(state,args),id=before?.id||eventIdFactory();
+ const {type,args}=action,creating=type==='create_schedule_event',series=creating?null:findEvent(state,args),before=args.occurrenceDate?eventOccurrence(series,args.occurrenceDate,{includeSkipped:true}):series,id=series?.id||eventIdFactory();
+ if(args.occurrenceDate&&!before)throw Error('Choose a valid original weekly occurrence date.');
+ const occurrence=args.occurrenceDate?{occurrenceDate:args.occurrenceDate,occurrenceOperation:args.restoreOccurrence?'restore':type==='delete_schedule_event'?'skip':'update'}:{};
  if(creating&&(state.scheduleEvents||[]).some(e=>e.id===id))throw Error('This new event identity is already in use. Review again.');
  const pinned={type,args:{...args,...(!creating?{eventId:id}:{})}};
- if(type==='delete_schedule_event')return {action:pinned,before,event:null,eventId:id};
+ if(type==='delete_schedule_event'||args.restoreOccurrence)return {action:pinned,before,event:null,eventId:id,...occurrence};
  const allDay=args.allDay??before?.allDay??false,transparent=args.transparent??before?.transparent??false;
  let start=args.start??before?.start,end=args.end??before?.end;
  if(allDay&&['start','end'].some(key=>args[key]!==undefined&&args[key]!=='00:00'))throw Error('An all-day event needs both times and allDay:false for a timed move.');
@@ -27,22 +30,22 @@ function proposal(state,action,{eventIdFactory}){
   const duration=(minutes(before.end)-minutes(before.start)+1440)%1440;if(!duration)throw Error('Choose both time boundaries for this event.');end=clock(minutes(start)+duration);
  }
  const cadence=args.date!==undefined?{date:args.date}:args.day!==undefined?{day:args.day}:before?.date?{date:before.date}:{day:before?.day};
- return {action:pinned,before,eventId:id,event:{id,title:args.newTitle??(creating?args.title:before.title),category:args.category??before?.category??'other',...cadence,start,end,allDay,transparent}};
+ return {action:pinned,before,eventId:id,...occurrence,event:{id,title:args.newTitle??(creating?args.title:before.title),category:args.category??before?.category??'other',...cadence,start,end,allDay,transparent}};
 }
 export function aiEventConflictSummary(conflicts){return {conflictCount:conflicts.length,omittedConflicts:Math.max(0,conflicts.length-50),conflicts:conflicts.slice(0,50).map(row=>({key:row.key,title:row.title,date:row.date,startTime:row.startTime,endTime:row.endTime}))};}
 export function previewAiEventChange(state,action,timezone,{now=Date.now(),eventIdFactory=()=> 'event-'+crypto.randomUUID()}={}){
- if(!isAiEventAction(action?.type))throw Error('Unsupported AI event action.');validateActionShape(action);const p=proposal(state,action,{eventIdFactory}),built=buildNativeEventChange(state,{eventId:p.eventId,event:p.event},timezone,now),applied=applyNativeEventChange(state,built.command,built.expected,{now});
- return {action:p.action,approval:{request:stableStringify(p.action),command:built.command,expected:built.expected},summary:{kind:'native-event',title:String((p.event||p.before).title),timezone,range:built.range,before:p.before,event:p.event,...aiEventConflictSummary(built.conflicts),rows:plannerChangeRows(state,applied.next)}};
+ if(!isAiEventAction(action?.type))throw Error('Unsupported AI event action.');validateActionShape(action);const p=proposal(state,action,{eventIdFactory}),built=buildNativeEventChange(state,p,timezone,now),applied=applyNativeEventChange(state,built.command,built.expected,{now});
+ return {action:p.action,approval:{request:stableStringify(p.action),command:built.command,expected:built.expected},summary:{kind:'native-event',title:String((p.event||p.before).title),timezone,range:built.range,before:built.beforeEvent,event:built.afterEvent,occurrenceDate:p.occurrenceDate,occurrenceOperation:p.occurrenceOperation,...aiEventConflictSummary(built.conflicts),rows:plannerChangeRows(state,applied.next)}};
 }
 export function applyAiEventChange(state,action,approval,{now=Date.now()}={}){
  if(isAiEventAction(action?.type)&&action.type!=='create_schedule_event')findEvent(state,action.args);
  if(!approval?.command||approval.command.type!=='native_event_change'||approval.request!==stableStringify(action))throw Error('A matching reviewed event preview is required.');
  const fresh=previewAiEventChange(state,action,approval.command.timezone,{now,eventIdFactory:()=>approval.command.eventId});
  if(!same(fresh.action,action)||!same(fresh.approval,approval))throw Error('The event or schedule changed. Review a new preview.');
- const out=applyNativeEventChange(state,approval.command,approval.expected,{now}),event=action.type==='delete_schedule_event'?fresh.summary.before:out.next.scheduleEvents.find(e=>e.id===approval.command.eventId);
- return {next:out.next,result:{...out.result,type:action.type,event}};
+ const out=applyNativeEventChange(state,approval.command,approval.expected,{now}),event=action.type==='delete_schedule_event'?fresh.summary.before||findEvent(state,action.args):approval.command.occurrenceDate?eventOccurrence(out.next.scheduleEvents.find(e=>e.id===approval.command.eventId),approval.command.occurrenceDate):out.next.scheduleEvents.find(e=>e.id===approval.command.eventId);
+ return {next:out.next,result:{...out.result,type:action.type,event,...(approval.command.occurrenceDate?{occurrenceDate:approval.command.occurrenceDate,occurrenceOperation:approval.command.occurrenceOperation}:{})}};
 }
 function describe(event){if(!event)return 'Removed';const date=event.date||'Every '+['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][event.day];return date+' · '+(event.allDay?'All day':event.start+'–'+event.end+(event.end<event.start?' (next day)':''))+' · '+(event.category||'other')+' · '+(event.transparent?'Free':'Busy');}
 export function aiEventPreviewMarkup(summary){
- return '<p>Times use '+esc(summary.timezone)+'. Review '+esc(summary.range.from)+' through '+esc(summary.range.to)+'.'+(!(summary.event||summary.before)?.date?' Later weekly conflicts are not checked.':'')+'</p><div class="ai-planning-preview ai-event-preview" tabindex="0" role="region" aria-label="Event changes"><table><caption>'+esc(summary.title)+'</caption><thead><tr><th>Before</th><th>After</th></tr></thead><tbody><tr><td>'+esc(summary.before?summary.before.title+' · '+describe(summary.before):'New event')+'</td><td>'+esc(summary.event?summary.event.title+' · '+describe(summary.event):'Delete event')+'</td></tr></tbody></table></div><p>Tasks are not moved automatically. '+(summary.conflictCount??summary.conflicts.length)+' unfinished task overlap'+((summary.conflictCount??summary.conflicts.length)===1?'':'s')+' in this range.</p>'+(summary.conflicts.length?'<ul class="ai-action-preview-list">'+summary.conflicts.map(row=>'<li><strong>'+esc(row.title)+'</strong> · '+esc(row.date+' '+row.startTime+'–'+row.endTime)+'</li>').join('')+'</ul>':'')+(summary.omittedConflicts?'<p>'+summary.omittedConflicts+' additional overlaps are not shown; showing the first 50. Review the full schedule for this range.</p>':'');
+ return (summary.occurrenceDate?'<p><strong>'+esc(summary.occurrenceOperation==='restore'?'Restore occurrence':summary.occurrenceOperation==='skip'?'Skip occurrence':'This occurrence')+'</strong> · Original date '+esc(summary.occurrenceDate)+'. Other weeks stay unchanged.</p>':'')+'<p>Times use '+esc(summary.timezone)+'. Review '+esc(summary.range.from)+' through '+esc(summary.range.to)+'.'+(!(summary.event||summary.before)?.date?' Later weekly conflicts are not checked.':'')+'</p><div class="ai-planning-preview ai-event-preview" tabindex="0" role="region" aria-label="Event changes"><table><caption>'+esc(summary.title)+'</caption><thead><tr><th>Before</th><th>After</th></tr></thead><tbody><tr><td>'+esc(summary.before?summary.before.title+' · '+describe(summary.before):'New event')+'</td><td>'+esc(summary.event?summary.event.title+' · '+describe(summary.event):summary.occurrenceDate?'Skip occurrence':'Delete event')+'</td></tr></tbody></table></div><p>Tasks are not moved automatically. '+(summary.conflictCount??summary.conflicts.length)+' unfinished task overlap'+((summary.conflictCount??summary.conflicts.length)===1?'':'s')+' in this range.</p>'+(summary.conflicts.length?'<ul class="ai-action-preview-list">'+summary.conflicts.map(row=>'<li><strong>'+esc(row.title)+'</strong> · '+esc(row.date+' '+row.startTime+'–'+row.endTime)+'</li>').join('')+'</ul>':'')+(summary.omittedConflicts?'<p>'+summary.omittedConflicts+' additional overlaps are not shown; showing the first 50. Review the full schedule for this range.</p>':'');
 }

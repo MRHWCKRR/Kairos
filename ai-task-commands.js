@@ -1,5 +1,5 @@
-import {applyTaskListCommand,taskDetailValues,taskListLocation,taskListSection} from './task-list-model.js?v=23';
-import {parseTime,taskDurationMinutes} from './schedule-utils.js?v=3';
+import {applyTaskListCommand,taskDetailValues,taskListLocation,taskListSection} from './task-list-model.js?v=24';
+import {parseTime,taskDurationMinutes} from './schedule-utils.js?v=4';
 
 const fields={
  update_task:['taskId','title','newTitle','boardId','board','sectionId','section','date','startTime','endTime','completed','archived'],

@@ -1,4 +1,4 @@
-import {taskRemainingMinutes} from './remaining-work.js?v=3';
+import {taskRemainingMinutes} from './remaining-work.js?v=4';
 import {planningTasks,validPlanningDate} from './planning-model.js?v=1';
 const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 export function deadlineImpact(state,parentId,dueDate){

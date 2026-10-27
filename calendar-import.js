@@ -1,4 +1,4 @@
-import {calendarConflicts} from './calendar-conflicts.js?v=1';
+import {calendarConflicts} from './calendar-conflicts.js?v=2';
 const escapeText=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 const shiftDate=(date,days)=>{const d=new Date(date+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+days);return d.toISOString().slice(0,10)};
 const scope=id=>id?.ownerId?JSON.stringify([id.ownerId,id.planId||null]):null;

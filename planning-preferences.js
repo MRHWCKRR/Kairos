@@ -1,4 +1,4 @@
-import {planningGapMinutes,planningDailyLimit} from './planning-slots.js?v=6';
+import {planningGapMinutes,planningDailyLimit} from './planning-slots.js?v=7';
 
 // Stored beside weeklyAvailability in users/{uid}.settings.planning. Missing
 // fields preserve the previous unlimited/back-to-back behavior; no migration.

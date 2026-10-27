@@ -1,4 +1,4 @@
-import {buildToday,todayTaskCommand} from './today-model.js?v=6';
+import {buildToday,todayTaskCommand} from './today-model.js?v=7';
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 export function mountMutationFeedback({root,session,window=globalThis.window,confirmClear=async()=>false}={}){
  if(!root)return {sync(){},dispose(){}};
@@ -33,7 +33,7 @@ export function mountTodayView({root,document=globalThis.document,window=globalT
   container.innerHTML=['overdue','today','unscheduled'].map(group=>{
    const label={overdue:'Needs attention',today:'On today',unscheduled:'To plan'}[group],items=view[group];
    return '<section class="today-group" aria-label="'+label+'"><h4>'+label+' <span>'+items.length+'</span></h4>'+(items.length?'<ul>'+items.slice(0,counts[group]).map(row=>{
-    const key=group+':'+row.id;rows.set(key,row);
+    const key=group+':'+row.id+(row.kind==='event'&&row.occurrenceDate?':'+row.occurrenceDate:'');rows.set(key,row);
     const when=(row.start?row.start+(row.end?'–'+row.end:''):row.dueDate===date?'Due today':row.dueDate?'Due '+row.dueDate:row.date||'No date');
     return '<li data-today-row="'+esc(key)+'"><div class="today-row-main"><button type="button" class="today-task-title" data-today-action="open" data-key="'+esc(key)+'">'+esc(row.title)+'</button><span class="today-task-meta">'+esc(row.path)+' · '+esc(when)+'</span></div><div class="today-row-actions">'+(row.canComplete?'<button type="button" data-today-action="complete" data-key="'+esc(key)+'" aria-label="Complete '+esc(row.title)+'">Complete</button>':'')+(row.kind==='task'&&!row.occurrenceDate&&row.date!==date?'<button type="button" data-today-action="plan" data-key="'+esc(key)+'">Plan today</button>':'')+'<button type="button" data-today-action="schedule" data-key="'+esc(key)+'">'+(row.occurrenceDate?'Open occurrence':'Schedule')+'</button></div></li>';
    }).join('')+'</ul>':'<p class="text-muted today-empty">'+({overdue:'No overdue work.',today:'No work or events planned for today.',unscheduled:'No unscheduled tasks.'})[group]+'</p>')+(items.length>counts[group]?'<button type="button" data-today-more="'+group+'">Show more</button>':'')+'</section>';

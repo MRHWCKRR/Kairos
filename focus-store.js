@@ -1,6 +1,6 @@
 import {db} from './firebase.js?v=1';
 import {doc,getDoc,runTransaction} from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
-import {applyFocusLog} from './focus-model.js?v=6';
+import {applyFocusLog} from './focus-model.js?v=7';
 import {applyFocusCorrection} from './focus-history-model.js?v=4';
 export async function loadFocusHistory(uid){if(!uid)throw Error('Sign in to view focus history.');const user=await getDoc(doc(db,'users',uid));return user.exists()?user.data().focusHistory||{sessions:[]}:{sessions:[]}}
 export function persistFocusLog(planId,uid,entry){return persistFocusChange(planId,uid,entry,applyFocusLog)}

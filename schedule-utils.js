@@ -1,5 +1,5 @@
-import {eventSegmentsForDate} from './schedule-events.js?v=1';
-export {eventSegmentsForDate};
+import {eventSegmentsForDate,eventCommitmentsForRange} from './schedule-events.js?v=2';
+export {eventSegmentsForDate,eventCommitmentsForRange};
 export function toDateKey(date){
   const y=date.getFullYear();
   const m=String(date.getMonth()+1).padStart(2,'0');
