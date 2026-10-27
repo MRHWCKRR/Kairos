@@ -78,3 +78,8 @@ test('calendar feed stream failures cannot smuggle provider messages through sta
  const stream=new ReadableStream({start(c){c.error(Object.assign(Error(feed),{status:418}));}}),f=setup({fetchImpl:async()=>new Response(stream)}),response=await f.handler(f.request());
  assert.equal(response.status,502);assert.doesNotMatch(await response.text(),/abc123|student|calendar\.google/);
 });
+
+test('published Outlook links accept mailbox addresses and consumer CID path segments',()=>{
+ assert.equal(module.normaliseCalendarFeedUrl('https://outlook.office365.com/owa/calendar/student@example.test/signed-token/calendar.ics'),'https://outlook.office365.com/owa/calendar/student@example.test/signed-token/calendar.ics');
+ assert.equal(module.normaliseCalendarFeedUrl('https://outlook.live.com/owa/calendar/key/signature/cid-0123456789/calendar.ics'),'https://outlook.live.com/owa/calendar/key/signature/cid-0123456789/calendar.ics');
+});

@@ -1,3 +1,4 @@
+import {monthEventEntries,calendarEventMarkup} from '../schedule-month.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -11,7 +12,7 @@ function setup(text) {
     const {document}=parseHTML('<div id="insight"></div>');
     const content=document.querySelector('#insight');
     let saves=0;
-    const context=vm.createContext({document,console,selectedCalendarDate:'2026-10-19',dayDetailOverlay:{},dayDetailDateTitle:null,dayDetailTaskList:null,
+    const context=vm.createContext({monthEventEntries,calendarEventMarkup,scheduleData:[],document,console,selectedCalendarDate:'2026-10-19',dayDetailOverlay:{},dayDetailDateTitle:null,dayDetailTaskList:null,
         dayDetailTotal:null,dayDetailCompleted:null,dayDetailAiContent:content,dayDetailAiBtn:{disabled:false},dayInsights:{'2026-10-19':text},userSettings:{accessibility:{}},
         getTasksForDate:()=>[{title:'Revision',completed:false}],getLanguageName:()=> 'English',buildScheduleSummaryForAI:()=>'',buildUserContextForAI:()=>'',
         aiFetch:async()=>({ok:true,json:async()=>({choices:[{message:{content:text}}]})}),updatePlanInFirestore:async()=>{saves++;},tr:key=>key});

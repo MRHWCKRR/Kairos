@@ -1,4 +1,4 @@
-import {ensureUiStyles} from './ui-styles.js?v=1';
+import {ensureUiStyles} from './ui-styles.js?v=2';
 
 // Owns the inspector's draft and in-flight operation, not planner data.
 export function createScheduleInspectorSession({inspector,getIdentity,getSelection,render,document=inspector.ownerDocument,storage}){

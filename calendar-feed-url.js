@@ -11,7 +11,7 @@ export function normaliseCalendarFeedUrl(value){
  if(url.username||url.password||url.port||url.search||url.hash)return invalid();
  const host=url.hostname,path=url.pathname;
  const google=host==='calendar.google.com'&&/^\/calendar\/ical\/[A-Za-z0-9_@%+.-]+\/(?:public|private-[A-Za-z0-9_-]+)\/basic\.ics$/.test(path);
- const outlook=['outlook.live.com','outlook.office365.com'].includes(host)&&/^\/owa\/calendar\/(?:[A-Za-z0-9_~%.-]+\/){1,2}calendar\.ics$/.test(path);
+ const outlook=['outlook.live.com','outlook.office365.com'].includes(host)&&/^\/owa\/calendar\/(?:[A-Za-z0-9_~%+.@-]+\/){1,3}calendar\.ics$/.test(path);
  const icloud=/^p\d{1,3}-caldav\.icloud\.com$/.test(host)&&/^\/published\/\d+\/[A-Za-z0-9_-]+$/.test(path);
  if(!google&&!outlook&&!icloud)return invalid();
  return url.href;

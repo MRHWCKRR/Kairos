@@ -1,4 +1,4 @@
-import {mountDialogWindow} from './dialog-window.js?v=1';
+import {mountDialogWindow} from './dialog-window.js?v=2';
 import {applyTaskListCommand} from './task-list-model.js?v=21';
 
 export function mountTaskCapture({document=globalThis.document,window=globalThis.window,getIdentity,getState,getDefaults=()=>({}),commit,confirmClear=async()=>false,storage,uuid=()=>window.crypto.randomUUID(),now=Date.now}={}) {

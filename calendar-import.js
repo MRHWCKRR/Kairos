@@ -34,7 +34,7 @@ export function mountCalendarImport({document=globalThis.document,window=globalT
   for(const input of dialog.querySelectorAll('input'))input.disabled=disabled;
   find('[data-calendar-preview]').disabled=disabled;find('[data-calendar-new]').disabled=disabled;
   find('[data-calendar-close]').disabled=false;
-  find('[data-calendar-form-title]').textContent=sourceId?'Refresh calendar':'Add a calendar';
+  find('[data-calendar-form-title]').textContent=sourceId&&(getState()?.calendarSources||[]).some(source=>source.id===sourceId)?'Refresh calendar':'Add a calendar';
   find('[data-calendar-new]').hidden=!sourceId;
   find('[data-calendar-range]').textContent='Dates use '+getTimezone()+'. Import up to 366 days at a time.';
   const sources=getState()?.calendarSources||[];
