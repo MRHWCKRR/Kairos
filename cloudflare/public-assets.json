@@ -1,5 +1,8 @@
 {
   "files": [
+    "calendar-conflicts.js",
+    "calendar-repair.js",
+    "calendar-conflict-review.js",
     "calendar-commands.js",
     "calendar-feed-client.js",
     "calendar-feed-url.js",

@@ -1,3 +1,4 @@
+import {applyCalendarRepair} from './calendar-repair.js?v=1';
 import {applyCalendarCommand} from './calendar-commands.js?v=1';
 import {buildScheduleCreate as buildEntryCreate,applyScheduleCreate,buildReviewedSchedule as buildReviewedEntry,applyReviewedSchedule} from './schedule-entry-commands.js?v=3';
 import {applyRecurringInspectorCommand,applyInspectorDelete,buildRecurringInspectorCommand as buildRecurringCommand,buildInspectorDelete as buildDeleteCommand} from './schedule-inspector-commands.js?v=3';
@@ -163,6 +164,7 @@ export function buildInspectorDelete(state,taskId){return buildDeleteCommand(sta
 export function buildScheduleCreate(state,target,task,options){return buildEntryCreate(state,target,task,options,inspectorHelpers())}
 export function buildReviewedSchedule(state,items,options,{now=Date.now()}={}){return buildReviewedEntry(state,items,options,{now,...inspectorHelpers()})}
 export function applyTaskListCommand(state,command,expected,{now=Date.now(),allowCompleted=false}={}){
+    if(command?.type==='calendar_repair')return applyCalendarRepair(state,command,expected,{now});
     if(['calendar_sync','calendar_remove'].includes(command?.type))return applyCalendarCommand(state,command,expected);
     if(command?.type==='schedule_create')return applyScheduleCreate(state,command,expected,inspectorHelpers());
     if(command?.type==='reviewed_schedule')return applyReviewedSchedule(state,command,expected,{now,...inspectorHelpers()});

@@ -1,4 +1,4 @@
-import {mountTodayView,mountMutationFeedback} from './today-view.js?v=4';
+import {mountTodayView,mountMutationFeedback} from './today-view.js?v=5';
 import {mountAiUndo} from './ai-undo-view.js?v=1';
 
 export function createDashboardController({document=globalThis.document,window=globalThis.window,getIdentity,getState,getToday,session,onCapture,confirmClear,loadUndoPreview,openTask,requestClose,navigate,setScheduleDate,selectOccurrence,selectItem}={}){
