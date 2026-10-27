@@ -1,4 +1,4 @@
-import {parseTime} from './schedule-utils.js';
+import {parseTime} from './schedule-utils.js?v=3';
 
 // Sunday is index 0, matching fixed commitments and the profile's local dates.
 export function normaliseWeeklyAvailability(value){

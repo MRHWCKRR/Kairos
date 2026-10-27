@@ -87,3 +87,11 @@ test('account changes during refresh never publish the previous owners plan to t
   await assert.rejects(f.context.commitTaskDetails(command,expected,identity()),/account/);
   assert.equal(vm.runInContext('boardsData[0].sections[0].tasks[0].notes',f.context),'Old');
 });
+
+test('host reload and ordinary task save retain imported source metadata',async()=>{
+ const f=await fixture(),source={id:'calendar',name:'Classes',kind:'file',timezone:'UTC',from:'2026-10-01',to:'2026-12-31',updatedAt:1000};
+ const remote=f.data();remote.calendarSources=[source];f.setData(remote);
+ await f.context.commitTaskDetails(command,expected,identity());
+ assert.equal(vm.runInContext('calendarSourcesData[0].name',f.context),'Classes');
+ assert.equal(await f.context.updatePlanInFirestore(),true);assert.deepEqual(f.data().calendarSources,[source]);
+});

@@ -1,4 +1,4 @@
-import {stableStringify} from './plan-merge.js';
+import {stableStringify} from './plan-merge.js?v=1';
 
 export const sectionOrder=board=>(board.sections||[]).map(section=>section.id);
 export function sectionBoard(state,id){

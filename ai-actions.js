@@ -1,16 +1,16 @@
-import {applyAiTaskMutation} from './ai-task-commands.js?v=2';
-import {plannerChangeRows} from './planner-changes.js?v=1';
-import {applyTaskListCommand} from './task-list-model.js?v=20';
-import {planningUndoPreview} from './planning-undo.js?v=3';
-import {savedPlanningPreferences,planningPreferencesText} from './planning-preferences.js?v=3';
-import {savedWeeklyAvailability} from './weekly-availability.js';
-import { auth, db } from './firebase.js';
-import { persistAiPlanAction, getConfirmedAiAction, applyStoredPlanningUndo } from './plan-store.js?v=20';
+import {applyAiTaskMutation} from './ai-task-commands.js?v=3';
+import {plannerChangeRows} from './planner-changes.js?v=2';
+import {applyTaskListCommand} from './task-list-model.js?v=21';
+import {planningUndoPreview} from './planning-undo.js?v=4';
+import {savedPlanningPreferences,planningPreferencesText} from './planning-preferences.js?v=4';
+import {savedWeeklyAvailability} from './weekly-availability.js?v=1';
+import { auth, db } from './firebase.js?v=1';
+import { persistAiPlanAction, getConfirmedAiAction, applyStoredPlanningUndo } from './plan-store.js?v=21';
 import { validateActionShape } from './ai-action-schema.js?v=11';
-import { stableStringify, planState } from './plan-merge.js';
-import {previewAiPlanning,resolveAiPlanningTimezone} from './ai-planning.js?v=13';
-import {planningConflicts,planningGapText,planningDailyLimitText} from './planning-slots.js?v=4';
-import {applyPlanningCommand} from './planning-commands.js?v=9';
+import { stableStringify, planState } from './plan-merge.js?v=1';
+import {previewAiPlanning,resolveAiPlanningTimezone} from './ai-planning.js?v=14';
+import {planningConflicts,planningGapText,planningDailyLimitText} from './planning-slots.js?v=5';
+import {applyPlanningCommand} from './planning-commands.js?v=10';
 import {
     collection, getDocs, query, where, doc, getDoc
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
@@ -73,13 +73,14 @@ function findTask(plan, args) {
 
 function findScheduleEvent(plan, args) {
     const events = Array.isArray(plan.scheduleEvents) ? plan.scheduleEvents : [];
-    const id = clean(args.eventId, 120);
+    const id = clean(args.eventId, 160);
     const title = clean(args.title, 120).toLowerCase();
     const matches = events.filter(ev =>
         id ? String(ev.id) === id :
         (title && clean(ev.title, 120).toLowerCase() === title)
     );
     if (matches.length !== 1) throw new Error(matches.length ? 'Multiple schedule events match. Please specify the event name more precisely.' : 'Schedule event not found.');
+    if(matches[0].readOnly===true||matches[0].calendarSourceId)throw new Error('Imported calendar events are read-only. Refresh or remove their calendar source.');
     return matches[0];
 }
 

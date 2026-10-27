@@ -30,7 +30,7 @@ test('saving a plan checks reminders immediately after persistence, with no chec
  const app=await readFile(new URL('../app.js',import.meta.url),'utf8'),source=app.slice(app.indexOf('    async function updatePlanInFirestore('),app.indexOf('    async function loadLatestPlanFromFirestore('));
  for(const fail of [false,true]){
   let resolveSave,rejectSave,checks=0;const stored=new Promise((resolve,reject)=>{resolveSave=resolve;rejectSave=reject});
-  const context=vm.createContext({globalSearchController:null,taskCaptureController:null,searchPlannerOwnerId:null,auth:{currentUser:{uid:'one'}},currentPlanDocId:'plan',planEditRevision:0,planSaveQueue:Promise.resolve(),planSnapshot:{},boardsData:[],dayInsights:{},scheduleData:[],planState:value=>value,savePlannerEdits:()=>stored,mergePlanEdits:(_base,_local,saved)=>saved,invalidateKairosContext(){},renderApp(){},showNotice(){},console:{error(){}},window:{__kairosTaskReminders:{check:()=>{checks++}}}});
+  const context=vm.createContext({globalSearchController:null,taskCaptureController:null,searchPlannerOwnerId:null,auth:{currentUser:{uid:'one'}},currentPlanDocId:'plan',planEditRevision:0,planSaveQueue:Promise.resolve(),planSnapshot:{},boardsData:[],dayInsights:{},scheduleData:[],calendarSourcesData:[],planState:value=>value,savePlannerEdits:()=>stored,mergePlanEdits:(_base,_local,saved)=>saved,invalidateKairosContext(){},renderApp(){},showNotice(){},console:{error(){}},window:{__kairosTaskReminders:{check:()=>{checks++}}}});
   vm.runInContext(source,context);const saving=context.updatePlanInFirestore();await tick();assert.equal(checks,0);if(fail)rejectSave(Error('Offline'));else resolveSave({boards:[],dayInsights:{},scheduleEvents:[]});await saving;assert.equal(checks,fail?0:1);
  }
 });

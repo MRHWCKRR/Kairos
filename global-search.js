@@ -1,5 +1,5 @@
-import {mountDialogWindow} from './dialog-window.js?v=1';
-import {buildSearchIndex,searchPlanner} from './global-search-model.js?v=2';
+import {mountDialogWindow} from './dialog-window.js?v=2';
+import {buildSearchIndex,searchPlanner} from './global-search-model.js?v=3';
 import {matchesShortcut} from './shortcut-model.js?v=1';
 const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 export function mountGlobalSearch({document=globalThis.document,window=globalThis.window,getIdentity,getState,getToday,onNavigate,getShortcuts=()=>undefined,getLocale=()=>undefined}={}){

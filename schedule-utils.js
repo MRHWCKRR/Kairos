@@ -1,3 +1,5 @@
+import {eventSegmentsForDate} from './schedule-events.js?v=1';
+export {eventSegmentsForDate};
 export function toDateKey(date){
   const y=date.getFullYear();
   const m=String(date.getMonth()+1).padStart(2,'0');
@@ -162,17 +164,7 @@ function validDateKey(value){
 
 function proposalConflictsWithRecurring(date,startMin,endMin,fixedEvents=[]){
   if(!validDateKey(date))return true;
-  const [y,m,d]=String(date).split('-').map(Number),day=new Date(y,m-1,d,12).getDay(),previous=(day+6)%7;
-  for(const event of fixedEvents){
-    const eventStart=parseTime(event?.start),eventEnd=parseTime(event?.end),eventDay=Number(event?.day);
-    if(eventStart===null||eventEnd===null||eventDay<0||eventDay>6)continue;
-    if(eventDay===day){
-      const interval=eventEnd>eventStart?{startMin:eventStart,endMin:eventEnd}:{startMin:eventStart,endMin:1440};
-      if(overlaps({startMin,endMin},interval))return true;
-    }
-    if(eventDay===previous&&eventEnd<=eventStart&&eventEnd>0&&overlaps({startMin,endMin},{startMin:0,endMin:eventEnd}))return true;
-  }
-  return false;
+  return eventSegmentsForDate(fixedEvents,date,{busyOnly:true}).some(interval=>overlaps({startMin,endMin},interval));
 }
 
 export function validateScheduleProposals(raw,tasksById,fixedEvents=[],constraints={}){

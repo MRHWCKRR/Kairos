@@ -1,4 +1,4 @@
-import {ensureUiStyles} from './ui-styles.js?v=1';
+import {ensureUiStyles} from './ui-styles.js?v=2';
 export function createAuthFeedback(document) {
   ensureUiStyles(document);
   const root=document.querySelector('.login-box');if(!root)return ()=>{};

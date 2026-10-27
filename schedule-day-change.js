@@ -1,4 +1,4 @@
-import {parseTime,taskDurationMinutes} from './schedule-utils.js?v=2';
+import {parseTime,taskDurationMinutes} from './schedule-utils.js?v=3';
 import {generateTaskOccurrences} from './recurrence-utils.js?v=14';
 
 export function dayChangeCandidates(boards,date,time) {

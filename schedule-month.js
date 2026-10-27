@@ -1,5 +1,6 @@
+import {eventSegmentsForDate} from './schedule-events.js?v=1';
 import {generateTaskOccurrencesThrough} from './recurrence-utils.js?v=14';
-import {toDateKey,parseTime,formatTime} from './schedule-utils.js';
+import {toDateKey,parseTime,formatTime} from './schedule-utils.js?v=3';
 
 const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 export function calendarDate(value){
@@ -20,7 +21,20 @@ export function monthTaskEntries(boards,start,end,{today=toDateKey(new Date())}=
  }}}
  return entries.sort((a,b)=>(a.startTime||'99:99').localeCompare(b.startTime||'99:99')||String(a.title||'').localeCompare(String(b.title||'')));
 }
+export function monthEventEntries(events,start,end){
+ if(!calendarDate(start)||!calendarDate(end)||end<start||(Date.parse(end)-Date.parse(start))/86400000>365)return [];
+ const entries=[],clock=value=>String(Math.floor(value/60)%24).padStart(2,'0')+':'+String(value%60).padStart(2,'0');
+ for(let date=start;date<=end;date=new Date(Date.parse(date+'T12:00:00Z')+86400000).toISOString().slice(0,10)){
+  for(const {event,startMin,endMin,continued} of eventSegmentsForDate(events,date))entries.push({kind:'event',id:event.id,eventId:event.id,title:String(event.title||'Event'),date,startTime:clock(startMin),endTime:clock(endMin),allDay:event.allDay===true,readOnly:event.readOnly===true||!!event.calendarSourceId,transparent:event.transparent===true,continued});
+ }
+ return entries.sort((a,b)=>a.date.localeCompare(b.date)||a.startTime.localeCompare(b.startTime)||a.title.localeCompare(b.title));
+}
+export function calendarEventMarkup(event,{hour12=true,detail=false}={}){
+ const minutes=parseTime(event.startTime),time=event.allDay?'All day':minutes===null?'':formatTime(minutes,hour12),label=[time,event.title,event.readOnly?'Read-only calendar':null,event.transparent?'Free time':null].filter(Boolean).join(' · ');
+ return `<button type="button" class="calendar-task-preview calendar-event-preview${detail?' calendar-detail-occurrence':''}" data-calendar-event="${esc(event.eventId||event.id)}" data-calendar-date="${esc(event.date)}" title="${esc(label)}" aria-label="${esc(label)}">${time?`<span class="calendar-task-time">${esc(time)}</span>`:''}<span class="calendar-task-title">${esc(event.title)}</span>${detail?'<span class="calendar-task-status">'+(event.readOnly?'Read-only calendar':'Open event')+'</span>':''}</button>`;
+}
 export function calendarTaskMarkup(task,{hour12=true,detail=false}={}){
+ if(task.kind==='event')return calendarEventMarkup(task,{hour12,detail});
  const minutes=parseTime(task.startTime),time=minutes===null?'':formatTime(minutes,hour12),label=[time,task.title,task.completed?'Completed':null].filter(Boolean).join(' · ');
  return `<button type="button" class="calendar-task-preview${task.completed?' is-completed':''}${detail?' calendar-detail-occurrence':''}" data-calendar-task="${esc(task.id)}" data-calendar-date="${esc(task.date)}" ${task.occurrenceDate?`data-calendar-occurrence="${esc(task.occurrenceDate)}"`:''} title="${esc(label)}" aria-label="${esc(label)}">${time?`<span class="calendar-task-time">${esc(time)}</span>`:''}<span class="calendar-task-title">${esc(task.title)}</span>${detail?'<span class="calendar-task-status">'+(task.completed?'Completed · ':'')+'Open details</span>':''}</button>`;
 }
@@ -31,7 +45,7 @@ export function calendarMonthMarkup(selectedDate,entries,{today=toDateKey(new Da
  for(let i=first-1;i>=0;i--)html+=`<div class="calendar-day outside-month"><span class="day-number">${previous-i}</span></div>`;
  for(let day=1;day<=days;day++){
   const key=toDateKey(new Date(year,month,day,12)),tasks=byDate.get(key)||[],label=labels.format(new Date(year,month,day,12));
-  html+=`<div class="calendar-day${key===today?' is-today':''}${key===selectedDate?' is-selected':''}" data-date="${key}"><button type="button" class="calendar-day-open day-number" data-calendar-day aria-label="${esc(label)}, ${tasks.length} ${tasks.length===1?'task':'tasks'}" aria-pressed="${key===selectedDate}">${day}</button>${tasks.length?`<span class="day-task-badge" aria-hidden="true">${tasks.length}</span><div class="calendar-task-previews">${tasks.slice(0,2).map(task=>calendarTaskMarkup(task,{hour12})).join('')}${tasks.length>2?`<button type="button" class="calendar-day-more" data-calendar-more aria-label="${tasks.length-2} more tasks on ${esc(label)}">+${tasks.length-2} more</button>`:''}</div>`:''}</div>`;
+  html+=`<div class="calendar-day${key===today?' is-today':''}${key===selectedDate?' is-selected':''}" data-date="${key}"><button type="button" class="calendar-day-open day-number" data-calendar-day aria-label="${esc(label)}, ${tasks.length} ${tasks.length===1?'item':'items'}" aria-pressed="${key===selectedDate}">${day}</button>${tasks.length?`<span class="day-task-badge" aria-hidden="true">${tasks.length}</span><div class="calendar-task-previews">${tasks.slice(0,2).map(task=>calendarTaskMarkup(task,{hour12})).join('')}${tasks.length>2?`<button type="button" class="calendar-day-more" data-calendar-more aria-label="${tasks.length-2} more items on ${esc(label)}">+${tasks.length-2} more</button>`:''}</div>`:''}</div>`;
  }
  for(let day=1;day<=(7-((first+days)%7))%7;day++)html+=`<div class="calendar-day outside-month"><span class="day-number">${day}</span></div>`;
  return html;

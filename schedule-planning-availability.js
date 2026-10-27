@@ -1,7 +1,7 @@
-import {normaliseWeeklyAvailability,savedWeeklyAvailability,weeklyAvailabilityText} from './weekly-availability.js';
+import {normaliseWeeklyAvailability,savedWeeklyAvailability,weeklyAvailabilityText} from './weekly-availability.js?v=1';
 import {planningClock,validPlanningDate} from './planning-model.js?v=1';
-import {planningWindows,planningBlockValid} from './planning-slots.js?v=4';
-import {parseTime} from './schedule-utils.js';
+import {planningWindows,planningBlockValid} from './planning-slots.js?v=5';
+import {parseTime} from './schedule-utils.js?v=3';
 
 export function schedulePlanningAvailability(bridge){
  const timezone=bridge?.getTimezone?.()||Intl.DateTimeFormat().resolvedOptions().timeZone||'UTC';

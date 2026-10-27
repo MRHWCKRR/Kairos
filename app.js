@@ -1,30 +1,32 @@
-import {createDashboardController} from './dashboard-controller.js?v=1';
-import {createNotificationCenter} from './notification-center.js?v=1';
-import {createSettingsSync} from './settings-sync.js?v=1';
-import {createMutationSession} from './mutation-session.js?v=3';
-import {archiveMarkup,buildRestoreCommand} from './planner-archive.js?v=1';
-import {createPlannerBackup,downloadPlannerBackup} from './planner-backup.js?v=1';
-import {loadActionUndoPreview} from './plan-store.js?v=20';
-import {calendarDate,shiftCalendarMonth,monthTaskEntries,calendarMonthMarkup,calendarTaskMarkup} from './schedule-month.js?v=2';
-import {taskWorkCheckin} from './remaining-work.js?v=2';
+import {createCalendarFeedRequester} from './calendar-feed-client.js?v=1';
+import {eventSegmentsForDate} from './schedule-events.js?v=1';
+import {createDashboardController} from './dashboard-controller.js?v=2';
+import {createNotificationCenter} from './notification-center.js?v=2';
+import {createSettingsSync} from './settings-sync.js?v=2';
+import {createMutationSession} from './mutation-session.js?v=4';
+import {archiveMarkup,buildRestoreCommand} from './planner-archive.js?v=2';
+import {createPlannerBackup,downloadPlannerBackup} from './planner-backup.js?v=2';
+import {loadActionUndoPreview} from './plan-store.js?v=21';
+import {calendarDate,shiftCalendarMonth,monthTaskEntries,monthEventEntries,calendarEventMarkup,calendarMonthMarkup,calendarTaskMarkup} from './schedule-month.js?v=3';
+import {taskWorkCheckin} from './remaining-work.js?v=3';
 import {promptFocusCheckin} from './focus-checkin.js?v=1';
-import {mountFocusTimer} from './focus-timer.js?v=6';
-import {persistFocusLog,persistFocusCorrection,loadFocusHistory} from './focus-store.js?v=5';
-import {mountFocusHistory} from './focus-history.js?v=3';
-import {taskFocusTarget} from './task-focus.js?v=3';
-import {mountPlanningPreferencesEditor} from './planning-preferences-editor.js?v=3';
-import {mountWeeklyAvailabilityEditor} from './weekly-availability-editor.js';
+import {mountFocusTimer} from './focus-timer.js?v=7';
+import {persistFocusLog,persistFocusCorrection,loadFocusHistory} from './focus-store.js?v=6';
+import {mountFocusHistory} from './focus-history.js?v=4';
+import {taskFocusTarget} from './task-focus.js?v=4';
+import {mountPlanningPreferencesEditor} from './planning-preferences-editor.js?v=4';
+import {mountWeeklyAvailabilityEditor} from './weekly-availability-editor.js?v=1';
 import { showNotice, confirmDialog, promptDialog } from './ui-dialogs.js?v=1';
 import { aiFetch, aiErrorMessage } from './ai-client.js?v=2';
 import { requestBilling } from './billing-client.js?v=2';
 import { mountPlanUsage } from './plan-usage.js?v=6';
-import {assignmentProgressIndex,assignmentProgressMarkup} from './assignment-progress.js?v=4';
+import {assignmentProgressIndex,assignmentProgressMarkup} from './assignment-progress.js?v=5';
 import {planningClock} from './planning-model.js?v=1';
-import { createPageLoader } from './page-loader.js?v=71';
+import { createPageLoader } from './page-loader.js?v=72';
 import { mountPageRouter } from './page-router.js?v=3';
 import { createPageRenderCache } from './page-render-cache.js?v=1';
 import './boards-recurrence.js?v=11';
-import { auth, db, appCheckReady } from './firebase.js';
+import { auth, db, appCheckReady } from './firebase.js?v=1';
 import {getToken as getAppCheckToken} from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app-check.js';
 import {createPlannerBootstrap} from './planner-bootstrap.js?v=1';
 const initializePlanner=createPlannerBootstrap({getUser:()=>auth.currentUser,projectId:auth.app.options.projectId,getAppToken:async()=>{const check=await appCheckReady;if(!check)throw Error('Security verification is unavailable. Refresh Kairos and try again.');return (await getAppCheckToken(check,false)).token;}});
@@ -46,17 +48,17 @@ import {
     query, where, orderBy, limit, getDocs, updateDoc, deleteDoc, runTransaction
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { LANGUAGES, applyTranslations, getLocale, getLanguageName, t, ACHIEVEMENT_I18N } from './i18n.js';
-import { invalidateKairosContext } from './ai-context.js?v=16';
+import { invalidateKairosContext } from './ai-context.js?v=17';
 import { dueTaskReminders, dueBedtimeReminders, reminderDeliveryStatus } from './task-reminders.js?v=3';
-import { deliverTaskReminder, deliverBedtimeReminder, saveNotificationEdits, escapeNotificationText } from './reminder-notifications.js?v=3';
-import { savePlannerEdits, persistTaskListCommand,loadPlanningUndoPreview } from './plan-store.js?v=20';
-import { resolveTaskDetail, taskListSection } from './task-list-model.js?v=20';
-import { mergePlanEdits, planState } from './plan-merge.js';
+import { deliverTaskReminder, deliverBedtimeReminder, saveNotificationEdits, escapeNotificationText } from './reminder-notifications.js?v=4';
+import { savePlannerEdits, persistTaskListCommand,loadPlanningUndoPreview } from './plan-store.js?v=21';
+import { resolveTaskDetail, taskListSection } from './task-list-model.js?v=21';
+import { mergePlanEdits, planState } from './plan-merge.js?v=1';
 import {mountGettingStarted,openGettingStartedDestination} from './getting-started.js?v=3';
 import {createGettingStartedStore} from './getting-started-store.js?v=1';
-import {mountFocusBreakdown} from './focus-breakdown.js?v=1';
-import {mountGlobalSearch} from './global-search.js?v=4';
-import {mountTaskCapture} from './task-capture.js?v=6';
+import {mountFocusBreakdown} from './focus-breakdown.js?v=2';
+import {mountGlobalSearch} from './global-search.js?v=5';
+import {mountTaskCapture} from './task-capture.js?v=7';
 import {normaliseShortcuts,describeShortcut} from './shortcut-model.js?v=1';
 import {mountShortcutSettings} from './shortcut-settings.js?v=1';
 import {mountSidebarIcons} from './sidebar-icons.js?v=2';
@@ -383,6 +385,8 @@ function bootApp() {
 
     // --- Schedule state ---
     let scheduleData = [];
+    let calendarSourcesData = [];
+    let calendarImportController=null,calendarImportLoading=null;
     let editingScheduleEventId = null;
 
     // --- Achievements / Focus Timer / Statistics state ---
@@ -459,6 +463,7 @@ function bootApp() {
         searchPlannerOwnerId = null;
         globalSearchController?.sync();taskCaptureController?.sync();plannerMutations?.sync();dashboardController?.sync();
         settingsSync.reset();notificationCenter.reset();
+        calendarSourcesData=[];globalThis.window?.__kairosCalendarImports?.sync();
         focusTimerController?.sync();
         focusHistoryController?.sync();
         gettingStarted?.sync();
@@ -540,6 +545,19 @@ function bootApp() {
     let aiPageAutoCollapsed = false;
     let sidebarManuallyToggledOnAI = false;
     let taskDetails=null,taskWorkspace=null,taskInteractions=null,taskMenus=null,taskSelection=null,taskShortcuts=null,focusBreakdownView=null,globalSearchController=null,taskCaptureController=null,dashboardController=null,plannerMutations=null;
+    async function openCalendarImports(){
+        const owner=auth.currentUser?.uid;if(!owner||!auth.currentUser.emailVerified)return false;
+        if(currentPlanDocId&&searchPlannerOwnerId!==owner){showNotice('Your planner is loading. Try again in a moment.');return false;}
+        if(!calendarImportLoading)calendarImportLoading=(async()=>{
+            const [{mountCalendarImport},{loadPageStyle}]=await Promise.all([import('./calendar-import.js?v=1'),import('./page-loader.js?v=72')]);
+            await loadPageStyle('calendar-import.css?v=1');
+            const fetchFeed=createCalendarFeedRequester({getUser:()=>auth.currentUser,getAppToken:async()=>{const check=await appCheckReady;if(!check)throw Error('Security verification is unavailable. Refresh Kairos.');return (await getAppCheckToken(check,false)).token;}});
+            calendarImportController=mountCalendarImport({getIdentity:globalSearchIdentity,getState:()=>({boards:boardsData,dayInsights,scheduleEvents:scheduleData,calendarSources:calendarSourcesData}),getTimezone:()=>userSettings.profile.timezone||'UTC',getToday:()=>planningClock(Date.now(),userSettings.profile.timezone).date,ensurePlan:()=>window.__kairosScheduleBridge.ensureSchedulePlan(),commit:commitTaskDetails,session:plannerMutations,fetchFeed,confirmRemove:message=>confirmDialog(message,{confirmText:'Remove calendar'})});
+            window.__kairosCalendarImports=calendarImportController;
+            window.addEventListener('pagehide',event=>{if(!event.persisted)calendarImportController.dispose();});
+        })().catch(error=>{calendarImportLoading=null;throw error;});
+        try{await calendarImportLoading;if(auth.currentUser?.uid!==owner)return false;return calendarImportController.open();}catch(error){showNotice('Could not open calendar import. '+error.message);return false;}
+    }
     async function commitTaskDetails(command,expected,identity){
         if(!plannerMutations)throw new Error('Planner saving is still loading. Your edits are retained.');
         return plannerMutations.submit(command,expected,identity);
@@ -551,14 +569,14 @@ function bootApp() {
         planEditRevision++;planLoadRevision++;
         const work=planSaveQueue.catch(()=>{}).then(async()=>{
             if(auth.currentUser?.uid!==user.uid||currentPlanDocId!==identity.planId)throw new Error('The signed-in account or planner changed.');
-            const before=planState({boards:boardsData,dayInsights,scheduleEvents:scheduleData});
+            const before=planState({boards:boardsData,dayInsights,scheduleEvents:scheduleData,calendarSources:calendarSourcesData});
             const result=await persistTaskListCommand(identity.planId,user.uid,command,expected,identity.operationId,identity.createdAt);
             const snapshot=await getDoc(doc(db,'study_plans',identity.planId));
             if(auth.currentUser?.uid!==user.uid||currentPlanDocId!==identity.planId)throw new Error('The signed-in account or planner changed.');
             if(!snapshot.exists()||snapshot.data().userID!==user.uid)throw new Error('The planner is no longer available.');
-            const saved=planState(snapshot.data()),live=planState({boards:boardsData,dayInsights,scheduleEvents:scheduleData});
+            const saved=planState(snapshot.data()),live=planState({boards:boardsData,dayInsights,scheduleEvents:scheduleData,calendarSources:calendarSourcesData});
             const rebased=mergePlanEdits(before,live,saved);
-            boardsData=rebased.boards;dayInsights=rebased.dayInsights;scheduleData=rebased.scheduleEvents;
+            boardsData=rebased.boards;dayInsights=rebased.dayInsights;scheduleData=rebased.scheduleEvents;calendarSourcesData=rebased.calendarSources;
             invalidateKairosContext({ownerId:user.uid,planId:identity.planId,before:planSnapshot,after:saved});planSnapshot=saved;
             renderApp();void window.__kairosTaskReminders?.check();return result;
         });
@@ -720,6 +738,7 @@ function bootApp() {
     }
 
     function renderApp() {
+        window.__kairosCalendarImports?.sync();
         taskMenus?.sync();taskShortcuts?.sync();
         taskInteractions?.sync();
         taskWorkspace?.sync();
@@ -1245,16 +1264,17 @@ function bootApp() {
         const work = planSaveQueue.catch(() => {}).then(async () => {
             if (auth.currentUser?.uid !== user.uid) throw new Error('The signed-in account changed.');
             const planId = currentPlanDocId || 'plan-' + user.uid;
-            const local = planState({ boards: boardsData, dayInsights, scheduleEvents: scheduleData });
+            const local = planState({ boards: boardsData, dayInsights, scheduleEvents: scheduleData, calendarSources:calendarSourcesData });
             if(!currentPlanDocId)await initializePlanner(user.uid);
             const saved = await savePlannerEdits(planId, user.uid, planSnapshot || planState({}), local, options);
             if (auth.currentUser?.uid !== user.uid) throw new Error('The signed-in account changed.');
-            const live = planState({ boards: boardsData, dayInsights, scheduleEvents: scheduleData });
+            const live = planState({ boards: boardsData, dayInsights, scheduleEvents: scheduleData, calendarSources:calendarSourcesData });
             const rebased = mergePlanEdits(local, live, saved);
             const remoteChanges = JSON.stringify(rebased) !== JSON.stringify(live);
             boardsData = rebased.boards;
             dayInsights = rebased.dayInsights;
             scheduleData = rebased.scheduleEvents;
+            calendarSourcesData = rebased.calendarSources;
             invalidateKairosContext({ownerId:user.uid,planId,before:planSnapshot,after:saved});
             planSnapshot = saved;
             currentPlanDocId = planId;
@@ -1304,7 +1324,8 @@ function bootApp() {
                 searchPlannerOwnerId = Array.isArray(migrated) ? user.uid : null;
                 dayInsights = latestPlan.dayInsights || {};
                 scheduleData = Array.isArray(latestPlan.scheduleEvents) ? latestPlan.scheduleEvents : [];
-                planSnapshot = planState({ boards: boardsData, dayInsights, scheduleEvents: scheduleData });
+                calendarSourcesData = Array.isArray(latestPlan.calendarSources) ? latestPlan.calendarSources : [];
+                planSnapshot = planState({ boards: boardsData, dayInsights, scheduleEvents: scheduleData, calendarSources:calendarSourcesData });
                 invalidateKairosContext({ownerId:user.uid,planId:currentPlanDocId,before:previousSnapshot,after:planSnapshot});
                 void window.__kairosTaskReminders?.check();
 
@@ -1660,7 +1681,7 @@ function bootApp() {
         const year=calendarViewDate.getFullYear(),month=calendarViewDate.getMonth(),locale=getLocale(userSettings.accessibility.language||'en');
         calendarMonthYear.textContent=new Intl.DateTimeFormat(locale,{month:'long',year:'numeric'}).format(calendarViewDate);
         const start=toDateKey(new Date(year,month,1,12)),end=toDateKey(new Date(year,month+1,0,12)),focus=calendarFocusDate.slice(0,7)===start.slice(0,7)?calendarFocusDate:start;
-        calendarGrid.innerHTML=calendarMonthMarkup(focus,monthTaskEntries(boardsData,start,end),{locale,today:toDateKey(new Date()),hour12:userSettings.accessibility.timeFormat!=='24'});
+        calendarGrid.innerHTML=calendarMonthMarkup(focus,[...monthTaskEntries(boardsData,start,end),...monthEventEntries(scheduleData,start,end)],{locale,today:toDateKey(new Date()),hour12:userSettings.accessibility.timeFormat!=='24'});
     }
 
     calendarPrevBtn?.addEventListener('click',()=>void window.__kairosScheduleWorkspace?.setDate(shiftCalendarMonth(calendarFocusDate,-1)));
@@ -1671,13 +1692,20 @@ function bootApp() {
         const opened=await window.__kairosScheduleWorkspace?.openTaskAt({taskId:button.dataset.calendarTask,...(button.dataset.calendarOccurrence?{occurrenceDate:button.dataset.calendarOccurrence}:{})});
         if(opened&&auth.currentUser?.uid===actor&&currentPlanDocId===plan)closeDayPanel();
     }
+    async function openCalendarEvent(button){
+        const actor=auth.currentUser?.uid,plan=currentPlanDocId,workspace=window.__kairosScheduleWorkspace;
+        if(!await workspace?.setView('day')||auth.currentUser?.uid!==actor||currentPlanDocId!==plan)return;
+        if(!await workspace.setDate(button.dataset.calendarDate)||auth.currentUser?.uid!==actor||currentPlanDocId!==plan)return;
+        await workspace.selectItem('event',button.dataset.calendarEvent);if(auth.currentUser?.uid===actor&&currentPlanDocId===plan)closeDayPanel();
+    }
     calendarGrid?.addEventListener('click',async event=>{
+        const fixed=event.target.closest('[data-calendar-event]');if(fixed){await openCalendarEvent(fixed);return;}
         const task=event.target.closest('[data-calendar-task]');if(task){await openCalendarTask(task);return;}
         const cell=event.target.closest('.calendar-day:not(.outside-month)');if(!cell)return;
         const date=cell.dataset.date,actor=auth.currentUser?.uid,plan=currentPlanDocId;
         if(await window.__kairosScheduleWorkspace?.setDate(date)&&auth.currentUser?.uid===actor&&currentPlanDocId===plan)openDayPanel(date);
     });
-    dayDetailTaskList?.addEventListener('click',event=>{const task=event.target.closest('[data-calendar-task]');if(task)void openCalendarTask(task)});
+    dayDetailTaskList?.addEventListener('click',event=>{const fixed=event.target.closest('[data-calendar-event]');if(fixed){void openCalendarEvent(fixed);return;}const task=event.target.closest('[data-calendar-task]');if(task)void openCalendarTask(task)});
 
     function openDayPanel(dateKey) {
         syncCalendarDate(dateKey);
@@ -1701,6 +1729,7 @@ function bootApp() {
         }
 
         const tasksForDay = getTasksForDate(selectedCalendarDate);
+        const calendarEventsForDay=monthEventEntries(scheduleData,selectedCalendarDate,selectedCalendarDate);
         const completedCount = tasksForDay.filter(t => t.completed).length;
         if(dayDetailTotal)dayDetailTotal.textContent=trFmt('day_detail_tasks',{n:tasksForDay.length});
         if(dayDetailCompleted)dayDetailCompleted.textContent=trFmt('day_detail_finished',{n:completedCount});
@@ -1709,6 +1738,7 @@ function bootApp() {
             dayDetailTaskList.innerHTML = tasksForDay.length
                 ? tasksForDay.map(task => task.occurrenceDate?calendarTaskMarkup(task,{hour12:userSettings.accessibility.timeFormat!=='24',detail:true}):createTaskHTML(task, task.sectionId)).join('')
                 : `<p class="text-muted">${tr('no_tasks_for_day')}</p>`;
+            dayDetailTaskList.innerHTML+=calendarEventsForDay.map(event=>calendarEventMarkup(event,{hour12:userSettings.accessibility.timeFormat!=='24',detail:true})).join('');
         }
 
         const cachedInsight = dayInsights[selectedCalendarDate];
@@ -2585,7 +2615,7 @@ function bootApp() {
     document.getElementById('privacy-export-btn')?.addEventListener('click',()=>{
         const identity=globalSearchIdentity();
         try{
-            downloadPlannerBackup(createPlannerBackup({...identity,plan:{boards:boardsData,dayInsights,scheduleEvents:scheduleData},settings:userSettings,achievements:achievementsData,focusData}));
+            downloadPlannerBackup(createPlannerBackup({...identity,plan:{boards:boardsData,dayInsights,scheduleEvents:scheduleData,calendarSources:calendarSourcesData},settings:userSettings,achievements:achievementsData,focusData}));
             showNotice('Backup download started. Archived items are included; restore deleted work from Archive.');
         }catch(error){showNotice('Could not export your data. '+error.message);}
     });
@@ -2820,8 +2850,10 @@ function bootApp() {
             return events.length ? `${label}: ${events.join('; ')}` : null;
         }).filter(Boolean);
 
-        if (!byDay.length) return '';
-        return `\n\nThe user has these recurring weekly commitments — do NOT schedule study tasks during these times, and take sleep hours into account when suggesting a healthy pace:\n${byDay.join('\n')}`;
+        const dated=scheduleData.filter(event=>event.date&&!event.archived&&!event.transparent).map(event=>`${event.date}: ${event.title} (${event.allDay?'all day':event.start+'–'+event.end})`).slice(0,120);
+        const imported=dated.length?'\n\nImported calendar commitments on these dates (read-only, busy):\n'+dated.join('\n'):'';
+        if (!byDay.length) return imported;
+        return `\n\nThe user has these recurring weekly commitments — do NOT schedule study tasks during these times, and take sleep hours into account when suggesting a healthy pace:\n${byDay.join('\n')}`+imported;
     }
 
     function isDuplicateScheduleEvent(ev) {
@@ -2930,9 +2962,9 @@ function bootApp() {
     const scheduleEntries = date => {
         const key=toDateKey(date),day=date.getDay();
         const tasks=getTasksForDate(key).map(t=>({...t,kind:'task',start:t.startTime||'',end:t.endTime||''}));
-        const events=scheduleData.filter(e=>e.day===day).map(e=>({...e,kind:'event'}));
-        const previous=scheduleData.filter(e=>e.day===(day+6)%7&&scheduleTimeToMinutes(e.end)<=scheduleTimeToMinutes(e.start)).map(e=>({...e,kind:'overflow',start:'00:00'}));
-        return [...events,...previous,...tasks];
+        const clock=minutes=>String(Math.floor(minutes/60)%24).padStart(2,'0')+':'+String(minutes%60).padStart(2,'0');
+        const events=eventSegmentsForDate(scheduleData,key).map(({event,startMin,endMin,continued})=>({...event,kind:continued?'overflow':'event',start:clock(startMin),end:clock(endMin)}));
+        return [...events,...tasks];
     };
     function scheduleMoveTask(id,date,start){
         const task=scheduleTask(id);if(!task)return;
@@ -3034,6 +3066,8 @@ function bootApp() {
     const addScheduleEventBtn = document.getElementById('add-schedule-event-btn');
 
     function openScheduleModal(eventId = null) {
+        const imported=eventId&&scheduleData.find(event=>event.id===eventId);
+        if(imported?.readOnly||imported?.calendarSourceId){showNotice('This event comes from an imported calendar. Refresh or remove its source in Calendars.');return;}
         editingScheduleEventId = eventId;
         if (eventId) {
             const ev = scheduleData.find(e => e.id === eventId);
@@ -3089,6 +3123,7 @@ function bootApp() {
 
             if (editingScheduleEventId) {
                 const ev = scheduleData.find(e => e.id === editingScheduleEventId);
+                if(ev?.readOnly||ev?.calendarSourceId){showNotice('Imported calendar events are read-only.');return;}
                 if (ev) { ev.title = title; ev.category = category; ev.day = day; ev.start = start; ev.end = end; }
             } else {
                 scheduleData.push({ id: 'sched-' + Date.now(), title, category, day, start, end });
@@ -3105,6 +3140,7 @@ function bootApp() {
             const eventId = editingScheduleEventId;
             if (!eventId) return;
             if (!await confirmAction('Delete this recurring event?')) return;
+            const event=scheduleData.find(item=>item.id===eventId);if(event?.readOnly||event?.calendarSourceId){showNotice('Imported calendar events are read-only.');return;}
             scheduleData = scheduleData.filter(e => e.id !== eventId);
             saveScheduleToFirestore();
             renderScheduleWeek();
@@ -3432,9 +3468,9 @@ function bootApp() {
         const uid=auth.currentUser?.uid;if(uid!==entry.ownerId||entry.planId&&entry.planId!==currentPlanDocId)throw Error('The signed-in account or planner changed.');
         const work=planSaveQueue.catch(()=>{}).then(async()=>{
             if(auth.currentUser?.uid!==uid||entry.planId&&entry.planId!==currentPlanDocId)throw Error('The signed-in account or planner changed.');
-            const before=planState({boards:boardsData,dayInsights,scheduleEvents:scheduleData}),result=await (correction?persistFocusCorrection:persistFocusLog)(entry.planId,uid,entry);
+            const before=planState({boards:boardsData,dayInsights,scheduleEvents:scheduleData,calendarSources:calendarSourcesData}),result=await (correction?persistFocusCorrection:persistFocusLog)(entry.planId,uid,entry);
             if(auth.currentUser?.uid!==uid||entry.planId&&entry.planId!==currentPlanDocId)throw Error('The signed-in account or planner changed.');
-            if(entry.planId){const snapshot=await getDoc(doc(db,'study_plans',entry.planId));if(auth.currentUser?.uid!==uid||currentPlanDocId!==entry.planId)throw Error('The signed-in account or planner changed.');if(snapshot.exists()&&snapshot.data().userID===uid){const saved=planState(snapshot.data()),live=planState({boards:boardsData,dayInsights,scheduleEvents:scheduleData}),rebased=mergePlanEdits(before,live,saved);boardsData=rebased.boards;dayInsights=rebased.dayInsights;scheduleData=rebased.scheduleEvents;invalidateKairosContext({ownerId:uid,planId:entry.planId,before:planSnapshot,after:saved});planSnapshot=saved;}}
+            if(entry.planId){const snapshot=await getDoc(doc(db,'study_plans',entry.planId));if(auth.currentUser?.uid!==uid||currentPlanDocId!==entry.planId)throw Error('The signed-in account or planner changed.');if(snapshot.exists()&&snapshot.data().userID===uid){const saved=planState(snapshot.data()),live=planState({boards:boardsData,dayInsights,scheduleEvents:scheduleData,calendarSources:calendarSourcesData}),rebased=mergePlanEdits(before,live,saved);boardsData=rebased.boards;dayInsights=rebased.dayInsights;scheduleData=rebased.scheduleEvents;calendarSourcesData=rebased.calendarSources;invalidateKairosContext({ownerId:uid,planId:entry.planId,before:planSnapshot,after:saved});planSnapshot=saved;}}
             focusData=deepMerge(defaultFocusData(),result.focusData||{});if(result.completedTaskIds?.length)recordTaskListCompletion({type:'complete_task',value:true},result);
             checkFocusAchievements();renderApp();renderStatisticsPage();void window.__kairosTaskReminders?.check();window.dispatchEvent(new CustomEvent('kairos-data-changed'));return result;
         });planSaveQueue=work;return work;
@@ -3584,7 +3620,7 @@ function bootApp() {
         taskDetails?.resolveRecovery?.(identity,status);taskWorkspace?.resolveRecovery?.(identity,status);taskInteractions?.resolveRecovery?.(identity,status);taskCaptureController?.resolveRecovery?.(identity,status);window.__kairosScheduleMutationResolved?.(identity,status);window.dispatchEvent(new CustomEvent('kairos-schedule-mutation-resolved',{detail:{identity,status}}));
     }});
     taskCaptureController=mountTaskCapture({getIdentity:globalSearchIdentity,getState:()=>({boards:boardsData}),getDefaults:()=>({...taskWorkspace?.getCurrentSection?.(),...(document.getElementById('home-page')?.classList.contains('active')?{date:planningClock(Date.now(),userSettings.profile.timezone).date}:document.getElementById('schedule-page')?.classList.contains('active')?{date:calendarFocusDate}:{})}),commit:commitTaskDetails,confirmClear:message=>confirmDialog(message,{confirmText:'Clear recovery'})});
-    dashboardController=createDashboardController({document,window,getIdentity:globalSearchIdentity,getState:()=>({boards:boardsData,scheduleEvents:scheduleData}),getToday:()=>planningClock(Date.now(),userSettings.profile.timezone).date,session:plannerMutations,onCapture:context=>taskCaptureController.open(context),confirmClear:message=>confirmDialog(message,{confirmText:'Clear recovery'}),loadUndoPreview:loadActionUndoPreview,
+    dashboardController=createDashboardController({document,window,getIdentity:globalSearchIdentity,getState:()=>({boards:boardsData,scheduleEvents:scheduleData,calendarSources:calendarSourcesData}),getToday:()=>planningClock(Date.now(),userSettings.profile.timezone).date,session:plannerMutations,onCapture:context=>taskCaptureController.open(context),confirmClear:message=>confirmDialog(message,{confirmText:'Clear recovery'}),loadUndoPreview:loadActionUndoPreview,
         openTask:openTaskDetailsFromList,requestClose:()=>taskDetails?.requestClose?.()??true,navigate:page=>pageRouter.navigate(page),setScheduleDate:date=>window.__kairosScheduleBridge?.setScheduleDate(date),selectOccurrence:target=>window.__kairosScheduleWorkspace?.selectOccurrence?.(target),selectItem:(kind,id)=>window.__kairosScheduleWorkspace?.selectItem?.(kind,id)
     });
     dashboardController.mount();

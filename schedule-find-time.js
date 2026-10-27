@@ -1,11 +1,11 @@
-import {findTaskTimes,assertFindTimePlacement,findTimeTask} from './schedule-find-time-model.js?v=2';
+import {findTaskTimes,assertFindTimePlacement,findTimeTask} from './schedule-find-time-model.js?v=3';
 import {planningClock} from './planning-model.js?v=1';
-import {planningDefaults} from './weekly-availability.js';
-import {normalisePlanningPreferences} from './planning-preferences.js?v=1';
-import {schedulePlanningAvailability} from './schedule-planning-availability.js?v=1';
-import {parseTime,formatTime} from './schedule-utils.js';
-import {stableStringify} from './plan-merge.js';
-import {taskOverdueState} from './schedule-overdue.js?v=1';
+import {planningDefaults} from './weekly-availability.js?v=1';
+import {normalisePlanningPreferences} from './planning-preferences.js?v=4';
+import {schedulePlanningAvailability} from './schedule-planning-availability.js?v=2';
+import {parseTime,formatTime} from './schedule-utils.js?v=3';
+import {stableStringify} from './plan-merge.js?v=1';
+import {taskOverdueState} from './schedule-overdue.js?v=2';
 import {generateTaskOccurrences} from './recurrence-utils.js?v=14';
 
 export function mountFindTime({root,getWorkspace,getBridge,getController,now=Date.now}={}){

@@ -79,10 +79,10 @@ test('real packaged shell includes focused controllers and bridge reads the conf
  await buildCloudflare(fixture);
  const app=await fs.readFile(path.join(fixture.outputDir,'app.js'),'utf8');
  assert.equal((app.match(/window.__kairosScheduleBridge =/g)||[]).length,1);
- assert.match(app,/notification-center\.js\?v=1/);assert.match(app,/settings-sync\.js\?v=1/);assert.match(app,/dashboard-controller\.js\?v=1/);
+ assert.match(app,/notification-center\.js\?v=\d+/);assert.match(app,/settings-sync\.js\?v=\d+/);assert.match(app,/dashboard-controller\.js\?v=\d+/);
  for(const name of files.slice(3))assert.equal(await fs.readFile(path.join(fixture.outputDir,name),'utf8'),await fs.readFile(path.join(repository,name),'utf8'));
- assert.match(await fs.readFile(path.join(fixture.outputDir,'app-bootstrap.js'),'utf8'),/app\.js\?v=101/);
- assert.match(await fs.readFile(path.join(fixture.outputDir,'app.html'),'utf8'),/app-bootstrap\.js\?v=62/);
+ assert.match(await fs.readFile(path.join(fixture.outputDir,'app-bootstrap.js'),'utf8'),/app\.js\?v=\d+/);
+ assert.match(await fs.readFile(path.join(fixture.outputDir,'app.html'),'utf8'),/app-bootstrap\.js\?v=\d+/);
  let applied={planning:{rescheduleCompleted:true,dailyLimitMinutes:120,gapMinutes:10,weeklyAvailability:{1:[]}}},draft=applied;
  const settingsSync=createSettingsSync({getOwnerId:()=> 'one',getApplied:()=>applied,setApplied:value=>applied=value,setDraft:value=>draft=value,defaults:()=>({}),mergeDefaults:value=>value,storage:{getItem:()=>null,setItem(){}},readRemote:async()=>({settings:{planning:{rescheduleCompleted:false,dailyLimitMinutes:60,gapMinutes:0}},confirmed:true})});
  const window={dispatchEvent(){}};const start=app.indexOf('    // Schedule 3.0 bridge:');assert.ok(start>=0);

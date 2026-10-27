@@ -1,7 +1,8 @@
+import {eventSegmentsForDate} from './schedule-events.js?v=1';
 import {planningTasks,planningOccurrences,validPlanningDate,shiftPlanningDate} from './planning-model.js?v=1';
-import {parseTime,formatTime,taskDurationMinutes} from './schedule-utils.js';
+import {parseTime,formatTime,taskDurationMinutes} from './schedule-utils.js?v=3';
 import {zonedTaskStart} from './task-reminders.js?v=3';
-import {normaliseWeeklyAvailability} from './weekly-availability.js';
+import {normaliseWeeklyAvailability} from './weekly-availability.js?v=1';
 
 export function validatePlanningRange(from,to){
  if(!validPlanningDate(from)||!validPlanningDate(to)||to<from||(Date.parse(to)-Date.parse(from))/86400000>=31)throw Error('Choose a valid date range of at most 31 days.');
@@ -83,11 +84,9 @@ export function planningOccupancy(state,from,to){
    }
   }else if(!task.completed)add(item,task.date,parseTime(task.startTime),taskDurationMinutes(task));
  }
- for(let date=shiftPlanningDate(from,-1);date<=to;date=shiftPlanningDate(date,1)){
-  const day=new Date(date+'T12:00:00Z').getUTCDay();
-  for(const event of state.scheduleEvents||[]){
-   if(event.archived||Number(event.day)!==day)continue;const start=parseTime(event.start),end=parseTime(event.end);
-   if(start!==null&&end!==null)add({id:String(event.id),taskId:null,title:String(event.title||'Fixed commitment'),kind:'event',locked:true},date,start,(end-start+1440)%1440||1440);
+ for(let date=from;date<=to;date=shiftPlanningDate(date,1)){
+  for(const {event,startMin,endMin} of eventSegmentsForDate(state.scheduleEvents,date,{busyOnly:true})){
+   out.push({id:String(event.id),taskId:null,title:String(event.title||'Fixed commitment'),kind:'event',locked:true,date,startMin,endMin});
   }
  }
  return out.sort((a,b)=>a.date.localeCompare(b.date)||a.startMin-b.startMin||String(a.id).localeCompare(String(b.id)));

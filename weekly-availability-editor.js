@@ -1,4 +1,4 @@
-import {normaliseWeeklyAvailability,AVAILABILITY_DAYS} from './weekly-availability.js';
+import {normaliseWeeklyAvailability,AVAILABILITY_DAYS} from './weekly-availability.js?v=1';
 const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 export function mountWeeklyAvailabilityEditor({root,getValue,onChange}){
  if(!root)return null;let draft=null;

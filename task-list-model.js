@@ -1,16 +1,17 @@
-import {buildScheduleCreate as buildEntryCreate,applyScheduleCreate,buildReviewedSchedule as buildReviewedEntry,applyReviewedSchedule} from './schedule-entry-commands.js?v=2';
-import {applyRecurringInspectorCommand,applyInspectorDelete,buildRecurringInspectorCommand as buildRecurringCommand,buildInspectorDelete as buildDeleteCommand} from './schedule-inspector-commands.js?v=2';
+import {applyCalendarCommand} from './calendar-commands.js?v=1';
+import {buildScheduleCreate as buildEntryCreate,applyScheduleCreate,buildReviewedSchedule as buildReviewedEntry,applyReviewedSchedule} from './schedule-entry-commands.js?v=3';
+import {applyRecurringInspectorCommand,applyInspectorDelete,buildRecurringInspectorCommand as buildRecurringCommand,buildInspectorDelete as buildDeleteCommand} from './schedule-inspector-commands.js?v=3';
 
-import {applyRestoreCommand} from './planner-archive.js?v=1';
-import {stableStringify,mergePlanEdits} from './plan-merge.js';
-import {applySectionCommand} from './task-section-model.js';
-import {buildTaskToolCommand,applyTaskToolCommand} from './task-tools-model.js';
-import {parseTime,formatTime,taskDurationMinutes} from './schedule-utils.js';
+import {applyRestoreCommand} from './planner-archive.js?v=2';
+import {stableStringify,mergePlanEdits} from './plan-merge.js?v=1';
+import {applySectionCommand} from './task-section-model.js?v=1';
+import {buildTaskToolCommand,applyTaskToolCommand} from './task-tools-model.js?v=1';
+import {parseTime,formatTime,taskDurationMinutes} from './schedule-utils.js?v=3';
 import {normalizeRecurrence,validateRecurrence,generateTaskOccurrences,applyOccurrenceOverride} from './recurrence-utils.js?v=14';
-import {applyPlanningCommand} from './planning-commands.js?v=9';
-import {assertCompletedScheduleChanges} from './schedule-policy.js?v=1';
-import {applyScheduleChange} from './schedule-change-model.js?v=5';
-export {buildScheduleChange,applyScheduleUndo} from './schedule-change-model.js?v=5';
+import {applyPlanningCommand} from './planning-commands.js?v=10';
+import {assertCompletedScheduleChanges} from './schedule-policy.js?v=2';
+import {applyScheduleChange} from './schedule-change-model.js?v=6';
+export {buildScheduleChange,applyScheduleUndo} from './schedule-change-model.js?v=6';
 
 export const TASK_DETAIL_FIELDS=['title','notes','date','startTime','dueDate','durationMinutes','estimatedMinutes','priority','reminderMinutes','scheduleLocked','schedulingPreference','color','recurrence','checklist'];
 const dateValid=value=>/^\d{4}-\d{2}-\d{2}$/.test(value)&&Number.isFinite(Date.parse(value+'T12:00:00Z'))&&new Date(value+'T12:00:00Z').toISOString().slice(0,10)===value;
@@ -162,6 +163,7 @@ export function buildInspectorDelete(state,taskId){return buildDeleteCommand(sta
 export function buildScheduleCreate(state,target,task,options){return buildEntryCreate(state,target,task,options,inspectorHelpers())}
 export function buildReviewedSchedule(state,items,options,{now=Date.now()}={}){return buildReviewedEntry(state,items,options,{now,...inspectorHelpers()})}
 export function applyTaskListCommand(state,command,expected,{now=Date.now(),allowCompleted=false}={}){
+    if(['calendar_sync','calendar_remove'].includes(command?.type))return applyCalendarCommand(state,command,expected);
     if(command?.type==='schedule_create')return applyScheduleCreate(state,command,expected,inspectorHelpers());
     if(command?.type==='reviewed_schedule')return applyReviewedSchedule(state,command,expected,{now,...inspectorHelpers()});
     if(command?.type==='recurring_inspector')return applyRecurringInspectorCommand(state,command,expected,{allowCompleted,...inspectorHelpers()});

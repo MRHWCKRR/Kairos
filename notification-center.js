@@ -1,4 +1,4 @@
-import {mergePlanEdits} from './plan-merge.js';
+import {mergePlanEdits} from './plan-merge.js?v=1';
 
 // The user-document listener is shared with progress widgets; this controller
 // owns its lifetime so signing out also invalidates delayed reads and writes.

@@ -1,4 +1,4 @@
-import {ensureUiStyles} from './ui-styles.js?v=1';
+import {ensureUiStyles} from './ui-styles.js?v=2';
 
 export function createDialogs({document,window}) {
   let queue=Promise.resolve(),sequence=0;

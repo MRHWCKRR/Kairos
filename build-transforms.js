@@ -49,6 +49,8 @@ const BRIDGE=`
             return opened;
         },
         getScheduleEvents: () => scheduleData,
+        getCalendarSources: () => calendarSourcesData,
+        openCalendars: () => openCalendarImports(),
         getScheduleCategories: () => SCHEDULE_CATEGORIES,
         getLocale: () => getLocale(userSettings.accessibility.language || 'en'),
         getTimeFormat: () => userSettings.accessibility.timeFormat,
@@ -98,7 +100,7 @@ const BRIDGE=`
             }
             const allowedIds = new Set((context?.tasks || []).map(item => String(item.id || item.taskId || item.occurrenceId || '')));
             const candidates = (Array.isArray(parsed?.proposals) ? parsed.proposals : []).filter(item => allowedIds.has(String(item?.taskId || '')));
-            const { validateScheduleProposals } = await import('./schedule-utils.js?v=2');
+            const { validateScheduleProposals } = await import('./schedule-utils.js?v=3');
             const tasksById = new Map();
             for (const item of context?.tasks || []) {
                 const id = String(item.id || item.taskId || item.occurrenceId || '');

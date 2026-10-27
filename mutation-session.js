@@ -1,4 +1,4 @@
-import {stableStringify} from './plan-merge.js';
+import {stableStringify} from './plan-merge.js?v=1';
 
 export function createMutationSession({getIdentity,commit,storage,uuid=()=>globalThis.crypto.randomUUID(),now=Date.now,onChange=()=>{},onResolve=()=>{}}={}){
  if(!storage)try{storage=globalThis.localStorage}catch{}

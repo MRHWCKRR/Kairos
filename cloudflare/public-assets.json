@@ -1,5 +1,15 @@
 {
   "files": [
+    "calendar-commands.js",
+    "calendar-feed-client.js",
+    "calendar-feed-url.js",
+    "calendar-import.js",
+    "calendar-import.css",
+    "calendar-policy.js",
+    "calendar-parser.js",
+    "calendar-ical.js",
+    "calendar-ical-LICENSE.txt",
+    "schedule-events.js",
     "schedule-entry-commands.js",
     "planning-undo.js",
     "planning-alternatives.js",

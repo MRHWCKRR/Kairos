@@ -1,15 +1,16 @@
-import {plannerChanges,undoPlannerChanges,plannerChangeRows} from './planner-changes.js?v=1';
-import {assertFindTimeSettings} from './schedule-find-time-model.js?v=2';
-import {planningUndoSource,planningUndoPreview,applyPlanningUndo} from './planning-undo.js?v=3';
-import {assertScheduleAvailability} from './schedule-planning-availability.js?v=1';
-import {assertSavedAvailability} from './weekly-availability.js';
-import { db } from './firebase.js';
+import {assertCalendarTimezones,assertCalendarImportTimezone} from './calendar-policy.js?v=1';
+import {plannerChanges,undoPlannerChanges,plannerChangeRows} from './planner-changes.js?v=2';
+import {assertFindTimeSettings} from './schedule-find-time-model.js?v=3';
+import {planningUndoSource,planningUndoPreview,applyPlanningUndo} from './planning-undo.js?v=4';
+import {assertScheduleAvailability} from './schedule-planning-availability.js?v=2';
+import {assertSavedAvailability} from './weekly-availability.js?v=1';
+import { db } from './firebase.js?v=1';
 import { doc, getDoc, runTransaction, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { mergePlanEdits, planState, stableStringify } from './plan-merge.js';
-import {validateAssignmentOrderChanges} from './assignment-order.js?v=1';
-import { applyTaskListCommand, taskListFingerprint } from './task-list-model.js?v=20';
-import {completedScheduleChanges,assertCompletedScheduleChanges} from './schedule-policy.js?v=1';
-import {applyScheduleUndo} from './schedule-change-model.js?v=5';
+import { mergePlanEdits, planState, stableStringify } from './plan-merge.js?v=1';
+import {validateAssignmentOrderChanges} from './assignment-order.js?v=2';
+import { applyTaskListCommand, taskListFingerprint } from './task-list-model.js?v=21';
+import {completedScheduleChanges,assertCompletedScheduleChanges} from './schedule-policy.js?v=2';
+import {applyScheduleUndo} from './schedule-change-model.js?v=6';
 
 export async function persistTaskListCommand(planId, uid, command, expected, operationId, createdAt) {
     if(typeof operationId!=='string'||!operationId||operationId.length>160||!Number.isFinite(createdAt)||createdAt<=0)throw new Error('Invalid operation identity.');
@@ -39,7 +40,7 @@ export async function persistTaskListCommand(planId, uid, command, expected, ope
         const applied=applyTaskListCommand(plan.data,command,expected,{allowCompleted:plan.allowCompleted});
         Object.assign(plan.data,applied.next);
         return applied.result;
-    },{scheduleAvailability:command.type==='reviewed_schedule'?command.options?.availability:null,manualScheduling:['reviewed_schedule','schedule_create','recurring_inspector','schedule_change','schedule_undo','edit_task','task_tool','undo_task_list','action_undo'].includes(command.type),legacyFingerprint:stableStringify({command,expected}),findTimeOptions:command.type==='schedule_change'?command.placement?.options:null,planningOptions:command.type==='planning_batch'?command.options:null,...(command.type==='planning_undo'?{undoSourceOperationId:command.sourceOperationId,undoTimezone:command.options?.timezone}:{})});
+    },{calendarTimezone:command.type==='calendar_sync'?command.source?.timezone:null,scheduleAvailability:command.type==='reviewed_schedule'?command.options?.availability:null,manualScheduling:['reviewed_schedule','schedule_create','recurring_inspector','schedule_change','schedule_undo','edit_task','task_tool','undo_task_list','action_undo'].includes(command.type),legacyFingerprint:stableStringify({command,expected}),findTimeOptions:command.type==='schedule_change'?command.placement?.options:null,planningOptions:command.type==='planning_batch'?command.options:null,...(command.type==='planning_undo'?{undoSourceOperationId:command.sourceOperationId,undoTimezone:command.options?.timezone}:{})});
 }
 
 export function applyStoredPlanningUndo(plan,command,expected){
@@ -69,6 +70,7 @@ export async function savePlannerEdits(planId, uid, base, local, options={}) {
         if(options.scheduleAvailability){const userSnapshot=await transaction.get(doc(db,'users',uid));assertScheduleAvailability(options.scheduleAvailability,userSnapshot.exists()?userSnapshot.data():{});}
         const merged = mergePlanEdits(planState(base), planState(local), planState(data));
         if(completedScheduleChanges(planState(data),merged)){const userSnapshot=await transaction.get(doc(db,'users',uid));assertCompletedScheduleChanges(planState(data),merged,userSnapshot.data()?.settings?.planning?.rescheduleCompleted===true);}
+        if((merged.calendarSources||[]).length){const userSnapshot=await transaction.get(doc(db,'users',uid));assertCalendarTimezones(planState(data),merged,userSnapshot.data()?.settings?.profile?.timezone);}
         validateAssignmentOrderChanges(planState(data),merged);
         transaction.set(ref, { ...(!snapshot.exists() ? data : {}), ...merged }, { merge: true });
         return merged;
@@ -137,6 +139,7 @@ export async function persistAiPlanAction(planId, uid, action, operationId, crea
         }
         if(options.manualScheduling)assertCompletedScheduleChanges(planState(data),next,allowCompleted);
         if(result.type==='planning_undo'&&result.undoneOperationId!==options.undoSourceOperationId)throw Error('A saved planning receipt is required for Undo.');
+        if(options.calendarTimezone||(next.calendarSources||[]).length){const userSnapshot=await transaction.get(doc(db,'users',uid)),timezone=userSnapshot.data()?.settings?.profile?.timezone;assertCalendarImportTimezone(options.calendarTimezone,timezone);assertCalendarTimezones(planState(data),next,timezone);}
         validateAssignmentOrderChanges(planState(data),next);
         const history=['planning_undo','undo_create_task','schedule_undo','action_undo'].includes(result.type)?receipts.map(receipt=>receipt.id===result.undoneOperationId?{...receipt,[result.type==='planning_undo'?'planningUndoUsedBy':result.type==='schedule_undo'?'scheduleUndoUsedBy':result.type==='action_undo'?'plannerUndoUsedBy':'creationUndoUsedBy']:operationId}:receipt):receipts;
         const updated = [...history, { id: operationId, createdAt, fingerprint, result }];

@@ -1,5 +1,5 @@
-import {taskFocusTarget} from './task-focus.js?v=3';
-import {validFocusDate} from './occurrence-focus.js?v=1';
+import {taskFocusTarget} from './task-focus.js?v=4';
+import {validFocusDate} from './occurrence-focus.js?v=2';
 import {planningClock} from './planning-model.js?v=1';
 
 export function manualFocusChoices(state){

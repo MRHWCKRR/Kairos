@@ -1,4 +1,4 @@
-import {stableStringify} from './plan-merge.js';
+import {stableStringify} from './plan-merge.js?v=1';
 
 const location=found=>({taskId:found.task.id,boardId:found.board.id,sectionId:found.section.id});
 export const TASK_TOOL_FIELDS=['date','dueDate','priority','durationMinutes','reminderMinutes','scheduleLocked'];

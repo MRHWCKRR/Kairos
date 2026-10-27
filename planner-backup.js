@@ -1,4 +1,4 @@
-import {planState} from './plan-merge.js';
+import {planState} from './plan-merge.js?v=1';
 export function createPlannerBackup({ownerId,planId,plan,settings={},achievements={},focusData={},now=Date.now()}={}){
  if(!ownerId||!planId||!plan||!Array.isArray(plan.boards))throw Error('Your planner is loading. Try exporting once it is ready.');
  const planner=planState(plan);

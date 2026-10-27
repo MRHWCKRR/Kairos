@@ -1,4 +1,4 @@
-import {stableStringify} from './plan-merge.js';
+import {stableStringify} from './plan-merge.js?v=1';
 const same=(a,b)=>stableStringify(a)===stableStringify(b);
 const object=v=>v&&typeof v==='object'&&!Array.isArray(v);
 const keyed=v=>Array.isArray(v)&&v.every(x=>object(x)&&typeof x.id==='string'&&x.id);

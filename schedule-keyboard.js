@@ -1,5 +1,5 @@
-import {keyboardScheduleStep,keyboardScheduleFields,readKeyboardSchedule} from './schedule-keyboard-model.js?v=2';
-import {formatTime,blockGeometry} from './schedule-utils.js';
+import {keyboardScheduleStep,keyboardScheduleFields,readKeyboardSchedule} from './schedule-keyboard-model.js?v=3';
+import {formatTime,blockGeometry} from './schedule-utils.js?v=3';
 
 const help='Up/Down: move 5 minutes. Shift+Up/Down: resize 5 minutes. Enter: confirm. Escape: cancel.';
 const editing=element=>!!element?.closest?.('input,textarea,select,[contenteditable]:not([contenteditable="false"]),[role="textbox"]');
