@@ -5,13 +5,13 @@ import {createMutationSession} from '../mutation-session.js';
 import {buildCalendarSync,buildCalendarRemove,applyCalendarCommand} from '../calendar-commands.js';
 const module=await import('../calendar-import.js').catch(error=>{if(error.code==='ERR_MODULE_NOT_FOUND')return {};throw error});
 const tick=()=>new Promise(setImmediate),defer=()=>{let resolve;const promise=new Promise(r=>resolve=r);return {promise,resolve}};
-function fixture({parse,fetchFeed,commit,confirmRemove=async()=>true,directCommit,ensurePlan}={}){
+function fixture({parse,fetchFeed,commit,confirmRemove=async()=>true,directCommit,ensurePlan,onReviewConflicts}={}){
  assert.equal(typeof module.mountCalendarImport,'function');
  const {document,window}=parseHTML('<html><body><button id="opener">Calendars</button></body></html>');
  let actor={ownerId:'one',planId:'plan'},data={boards:[],calendarSources:[],scheduleEvents:[]},serial=0,writes=[],outcomes=[],timezone='Australia/Brisbane';
  const map=new Map(),storage={getItem:k=>map.get(k)||null,setItem:(k,v)=>map.set(k,v),removeItem:k=>map.delete(k)};
  const session=createMutationSession({getIdentity:()=>actor,storage,commit:async(c,e,i)=>{writes.push({c,e,i});if(commit)return commit(c,e,i);const out=applyCalendarCommand(data,c,e);data=out.next;return out.result;}});
- const view=module.mountCalendarImport({document,window,getIdentity:()=>actor,getState:()=>data,getTimezone:()=>timezone,getToday:()=> '2026-10-26',ensurePlan:ensurePlan|| (async()=> 'plan'),commit:(...args)=>directCommit?directCommit(session,...args):session.submit(...args),session,fetchFeed:fetchFeed||(async()=>({calendar:'ICS',url:'https://calendar.google.com/calendar/ical/test/public/basic.ics'})),confirmRemove,uuid:()=>String(++serial),now:()=>1000,
+ const view=module.mountCalendarImport({document,window,getIdentity:()=>actor,getState:()=>data,getTimezone:()=>timezone,getToday:()=> '2026-10-26',ensurePlan:ensurePlan|| (async()=> 'plan'),commit:(...args)=>directCommit?directCommit(session,...args):session.submit(...args),session,onReviewConflicts,fetchFeed:fetchFeed||(async()=>({calendar:'ICS',url:'https://calendar.google.com/calendar/ical/test/public/basic.ics'})),confirmRemove,uuid:()=>String(++serial),now:()=>1000,
  parse:parse||(async()=>({name:'School',warnings:[],events:[{externalId:'a'.repeat(64),title:'<img src=x onerror=bad>',date:'2026-10-26',start:'09:00',end:'10:00',allDay:false,transparent:false}]})),
  buildSync:buildCalendarSync,buildRemove:buildCalendarRemove});
  const find=selector=>document.querySelector(selector),field=(name,value)=>{const input=find('[name="'+name+'"]');input.value=value;input.dispatchEvent(new window.Event('input',{bubbles:true}));};
@@ -76,3 +76,5 @@ test('disposal ignores pending fetch and detaches the dialog',async()=>{
 test('opening a newly initialized planner succeeds after its normal scope synchronization',async()=>{
  let f;f=fixture({ensurePlan:async()=>{f.setActor({ownerId:'one',planId:'new-plan'});return 'new-plan'}});f.setActor({ownerId:'one',planId:null});assert.equal(await f.view.open(),true);assert.equal(f.find('dialog').hasAttribute('open'),true);f.view.dispose();
 });
+
+test('saved calendar conflicts offer a review action without moving tasks',async()=>{let reviewed=null;const f=fixture({onReviewConflicts:id=>{reviewed=id}});f.setData({boards:[{id:'b',sections:[{id:'s',tasks:[{id:'t',title:'Essay',date:'2026-10-26',startTime:'09:30',endTime:'10:30',estimatedMinutes:60}]}]}],calendarSources:[],scheduleEvents:[]});await preview(f);f.find('[data-calendar-apply]').click();await tick();assert.match(f.find('[data-calendar-status]').textContent,/1.*conflict|conflict.*1/i);const source=f.data().calendarSources[0];f.find('[data-calendar-review="'+source.id+'"]').click();await tick();assert.equal(reviewed,source.id);assert.equal(f.find('dialog').hasAttribute('open'),false);assert.equal(f.data().boards[0].sections[0].tasks[0].startTime,'09:30');f.view.dispose();});

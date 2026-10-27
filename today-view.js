@@ -1,4 +1,4 @@
-import {buildToday,todayTaskCommand} from './today-model.js?v=4';
+import {buildToday,todayTaskCommand} from './today-model.js?v=5';
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 export function mountMutationFeedback({root,session,window=globalThis.window,confirmClear=async()=>false}={}){
  if(!root)return {sync(){},dispose(){}};

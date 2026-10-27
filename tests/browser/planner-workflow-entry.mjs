@@ -1,3 +1,4 @@
+import {runCalendarConflictJourney} from './calendar-conflict-journey.mjs';
 import {runCalendarImportJourney} from './calendar-import-journey.mjs';
 import {applyAiTaskMutation} from '../../ai-task-commands.js';
 import {mountTodayView} from '../../today-view.js';
@@ -76,6 +77,7 @@ async function run(){
   const backup=createPlannerBackup({...identity,plan:data});check(backup.schemaVersion===1&&backup.planner.boards.length===1,'Backup must include versioned planner data.');
   await runSharedSaveJourney(check);
   await runCalendarImportJourney({document,window,getState:()=>data,getIdentity:()=>identity,commit,session,lostResponse:()=>{lost=true},wait,check});
+  await runCalendarConflictJourney({document,window,wait,check});
   data=seed();view.sync();status.dataset.result='passed';status.textContent='Passed: Quick Add → Today → interrupted save → retry → Archive → restore → reviewed Undo → backup.';
  }catch(error){status.dataset.result='failed';status.textContent='Failed: '+error.message;console.error(error);}
 }
