@@ -1,0 +1,15 @@
+# Native Schedule events
+
+User authorised native event management: one-off appointments, all-day/overnight events, existing weekly commitments, task conflict previews, shared saves/recovery/Undo, imported events read-only. Keep vanilla JS/Firebase/Cloudflare and existing Kairos styling/mobile block.
+
+Replace the legacy weekly-only modal and direct array saves with one focused lazy dialog. Default new event to the Schedule selected date (profile today fallback); choose Once or Weekly, title/category, date or weekday, all-day, times and Busy. All-day is one full date/weekday with 00:00 boundaries; timed end before start means next day and is clearly labelled. Reject equal timed boundaries. Retain the existing eventSegmentsForDate representation and old weekly records. No multi-day series or new recurrence engine.
+
+Approaches considered: patch legacy modal/direct saves (keeps unreliable mutation path), create a parallel event editor (two competing writers), or replace it with a focused editor using shared commands/receipts. Choose replacement as implementation decision. Keep existing editor bridge entry point to preserve Schedule and legacy callers.
+
+Preview lists the event and unfinished-task overlaps using existing date/recurrence projection. A dated event checks its date and overnight continuation; a weekly event checks today through 30 days ahead and labels that finite range. Overlaps are allowed after explicit review because fixed appointments can be real; never move tasks automatically. Changed schedules/target/timezone invalidate the review and require a fresh preview. Edit/delete affects only the chosen native event. Imported/readOnly/source-owned events cannot be created, edited, deleted or restored through this path. Unknown legacy event metadata is preserved on edits, unrelated planner data stays intact. At most 500 native events and 700 KiB planner state for upserts/restores; cleanup deletion remains possible above budget.
+
+Command native_event_change handles upsert/delete with exact target baseline and scheduling signature. Native event Undo is tied to a one-use owned receipt, compares current event to saved after-state, previews restored conflicts and requires explicit Apply Undo. It preserves all other events/tasks and refuses newer edits or identity reuse. Lost acknowledgements retry exact operation identity; shared recovery and account/planner switching cannot apply or claim another operation. Editor inputs survive failures; clearing recovery requires a new preview. Native events use profile wall time; transaction verifies reviewed timezone. No work-hour restriction on appointments.
+
+Render dated/all-day/overnight events through existing views/planners. Dated sleep reminders fire only on the saved date (never weekly), and all-day/free sleep entries do not emit bedtime reminders. Existing weekly reminders retain behavior.
+
+Verify commands, UI, transactions/retries, recurring conflict evidence, projection and reminders, actual Chrome journey and full build/regression CI. Independent whole-branch review, fix substantive findings RED/GREEN, publish PR and hold merge/deploy.

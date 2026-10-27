@@ -1,12 +1,12 @@
 import {createCalendarFeedRequester} from './calendar-feed-client.js?v=1';
 import {eventSegmentsForDate} from './schedule-events.js?v=1';
-import {createDashboardController} from './dashboard-controller.js?v=3';
+import {createDashboardController} from './dashboard-controller.js?v=4';
 import {createNotificationCenter} from './notification-center.js?v=2';
-import {createSettingsSync} from './settings-sync.js?v=2';
+import {createSettingsSync} from './settings-sync.js?v=3';
 import {createMutationSession} from './mutation-session.js?v=4';
 import {archiveMarkup,buildRestoreCommand} from './planner-archive.js?v=2';
 import {createPlannerBackup,downloadPlannerBackup} from './planner-backup.js?v=2';
-import {loadActionUndoPreview} from './plan-store.js?v=22';
+import {loadActionUndoPreview} from './plan-store.js?v=23';
 import {calendarDate,shiftCalendarMonth,monthTaskEntries,monthEventEntries,calendarEventMarkup,calendarMonthMarkup,calendarTaskMarkup} from './schedule-month.js?v=3';
 import {taskWorkCheckin} from './remaining-work.js?v=3';
 import {promptFocusCheckin} from './focus-checkin.js?v=1';
@@ -14,7 +14,7 @@ import {mountFocusTimer} from './focus-timer.js?v=7';
 import {persistFocusLog,persistFocusCorrection,loadFocusHistory} from './focus-store.js?v=6';
 import {mountFocusHistory} from './focus-history.js?v=4';
 import {taskFocusTarget} from './task-focus.js?v=4';
-import {mountPlanningPreferencesEditor} from './planning-preferences-editor.js?v=4';
+import {mountPlanningPreferencesEditor} from './planning-preferences-editor.js?v=5';
 import {mountWeeklyAvailabilityEditor} from './weekly-availability-editor.js?v=1';
 import { showNotice, confirmDialog, promptDialog } from './ui-dialogs.js?v=1';
 import { aiFetch, aiErrorMessage } from './ai-client.js?v=2';
@@ -22,7 +22,7 @@ import { requestBilling } from './billing-client.js?v=2';
 import { mountPlanUsage } from './plan-usage.js?v=6';
 import {assignmentProgressIndex,assignmentProgressMarkup} from './assignment-progress.js?v=5';
 import {planningClock} from './planning-model.js?v=1';
-import { createPageLoader } from './page-loader.js?v=73';
+import { createPageLoader } from './page-loader.js?v=74';
 import { mountPageRouter } from './page-router.js?v=3';
 import { createPageRenderCache } from './page-render-cache.js?v=1';
 import './boards-recurrence.js?v=11';
@@ -48,17 +48,17 @@ import {
     query, where, orderBy, limit, getDocs, updateDoc, deleteDoc, runTransaction
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { LANGUAGES, applyTranslations, getLocale, getLanguageName, t, ACHIEVEMENT_I18N } from './i18n.js';
-import { invalidateKairosContext } from './ai-context.js?v=17';
-import { dueTaskReminders, dueBedtimeReminders, reminderDeliveryStatus } from './task-reminders.js?v=3';
-import { deliverTaskReminder, deliverBedtimeReminder, saveNotificationEdits, escapeNotificationText } from './reminder-notifications.js?v=4';
-import { savePlannerEdits, persistTaskListCommand,loadPlanningUndoPreview } from './plan-store.js?v=22';
-import { resolveTaskDetail, taskListSection } from './task-list-model.js?v=22';
+import { invalidateKairosContext } from './ai-context.js?v=18';
+import { dueTaskReminders, dueBedtimeReminders, reminderDeliveryStatus } from './task-reminders.js?v=4';
+import { deliverTaskReminder, deliverBedtimeReminder, saveNotificationEdits, escapeNotificationText } from './reminder-notifications.js?v=5';
+import { savePlannerEdits, persistTaskListCommand,loadPlanningUndoPreview } from './plan-store.js?v=23';
+import { resolveTaskDetail, taskListSection } from './task-list-model.js?v=23';
 import { mergePlanEdits, planState } from './plan-merge.js?v=1';
 import {mountGettingStarted,openGettingStartedDestination} from './getting-started.js?v=3';
 import {createGettingStartedStore} from './getting-started-store.js?v=1';
 import {mountFocusBreakdown} from './focus-breakdown.js?v=2';
 import {mountGlobalSearch} from './global-search.js?v=5';
-import {mountTaskCapture} from './task-capture.js?v=8';
+import {mountTaskCapture} from './task-capture.js?v=9';
 import {normaliseShortcuts,describeShortcut} from './shortcut-model.js?v=1';
 import {mountShortcutSettings} from './shortcut-settings.js?v=1';
 import {mountSidebarIcons} from './sidebar-icons.js?v=2';
@@ -387,7 +387,7 @@ function bootApp() {
     let scheduleData = [];
     let calendarSourcesData = [];
     let calendarImportController=null,calendarImportLoading=null;
-    let editingScheduleEventId = null;
+    let nativeEventEditor=null,nativeEventLoading=null;
 
     // --- Achievements / Focus Timer / Statistics state ---
     let achievementsData = defaultAchievementsData();
@@ -463,7 +463,7 @@ function bootApp() {
         searchPlannerOwnerId = null;
         globalSearchController?.sync();taskCaptureController?.sync();plannerMutations?.sync();dashboardController?.sync();
         settingsSync.reset();notificationCenter.reset();
-        calendarSourcesData=[];globalThis.window?.__kairosCalendarImports?.sync();globalThis.window?.__kairosCalendarConflictReview?.sync();
+        calendarSourcesData=[];globalThis.window?.__kairosCalendarImports?.sync();globalThis.window?.__kairosNativeEventEditor?.sync();globalThis.window?.__kairosCalendarConflictReview?.sync();
         focusTimerController?.sync();
         focusHistoryController?.sync();
         gettingStarted?.sync();
@@ -549,7 +549,7 @@ function bootApp() {
         const owner=auth.currentUser?.uid;if(!owner||!auth.currentUser.emailVerified)return false;
         if(currentPlanDocId&&searchPlannerOwnerId!==owner){showNotice('Your planner is loading. Try again in a moment.');return false;}
         if(!calendarImportLoading)calendarImportLoading=(async()=>{
-            const [{mountCalendarImport},{mountCalendarConflictReview},{loadPageStyle}]=await Promise.all([import('./calendar-import.js?v=2'),import('./calendar-conflict-review.js?v=1'),import('./page-loader.js?v=73')]);
+            const [{mountCalendarImport},{mountCalendarConflictReview},{loadPageStyle}]=await Promise.all([import('./calendar-import.js?v=2'),import('./calendar-conflict-review.js?v=2'),import('./page-loader.js?v=74')]);
             await loadPageStyle('calendar-import.css?v=2');
             const fetchFeed=createCalendarFeedRequester({getUser:()=>auth.currentUser,getAppToken:async()=>{const check=await appCheckReady;if(!check)throw Error('Security verification is unavailable. Refresh Kairos.');return (await getAppCheckToken(check,false)).token;}});
             const conflictReview=mountCalendarConflictReview({getIdentity:globalSearchIdentity,getState:()=>({boards:boardsData,scheduleEvents:scheduleData,calendarSources:calendarSourcesData}),getSettings:()=>({timezone:userSettings.profile.timezone||'UTC',weeklyAvailability:settingsSync.state().cloud.planning?.weeklyAvailability??null,...window.__kairosScheduleBridge.getPlanningPreferences()}),commit:commitTaskDetails,session:plannerMutations});
@@ -739,7 +739,7 @@ function bootApp() {
     }
 
     function renderApp() {
-        window.__kairosCalendarImports?.sync();window.__kairosCalendarConflictReview?.sync();
+        window.__kairosCalendarImports?.sync();window.__kairosNativeEventEditor?.sync();window.__kairosCalendarConflictReview?.sync();
         taskMenus?.sync();taskShortcuts?.sync();
         taskInteractions?.sync();
         taskWorkspace?.sync();
@@ -2843,7 +2843,7 @@ function bootApp() {
 
         const byDay = getScheduleDayLabels().map((label, dayIndex) => {
             const events = scheduleData
-                .filter(ev => ev.day === dayIndex)
+                .filter(ev => !ev.date&&!ev.archived&&!ev.transparent&&ev.day === dayIndex)
                 .map(ev => {
                     const cat = SCHEDULE_CATEGORIES[ev.category] || SCHEDULE_CATEGORIES.other;
                     return `${ev.title} (${cat.label}, ${scheduleMinutesToLabel(scheduleTimeToMinutes(ev.start))}–${scheduleMinutesToLabel(scheduleTimeToMinutes(ev.end))})`;
@@ -2851,8 +2851,8 @@ function bootApp() {
             return events.length ? `${label}: ${events.join('; ')}` : null;
         }).filter(Boolean);
 
-        const dated=scheduleData.filter(event=>event.date&&!event.archived&&!event.transparent).map(event=>`${event.date}: ${event.title} (${event.allDay?'all day':event.start+'–'+event.end})`).slice(0,120);
-        const imported=dated.length?'\n\nImported calendar commitments on these dates (read-only, busy):\n'+dated.join('\n'):'';
+        const dated=scheduleData.filter(event=>event.date&&!event.archived&&!event.transparent).map(event=>`${event.date}: ${event.title} (${event.allDay?'all day':event.start+'–'+event.end}; ${event.readOnly||event.calendarSourceId?'read-only calendar':'native event'})`).slice(0,120);
+        const imported=dated.length?'\n\nBusy commitments on specific dates:\n'+dated.join('\n'):'';
         if (!byDay.length) return imported;
         return `\n\nThe user has these recurring weekly commitments — do NOT schedule study tasks during these times, and take sleep hours into account when suggesting a healthy pace:\n${byDay.join('\n')}`+imported;
     }
@@ -3045,109 +3045,18 @@ function bootApp() {
         }
     }
 
-    function saveScheduleToFirestore() {
-        if (!currentPlanDocId) {
-            savePlanToFirestore(boardsData);
-        } else {
-            updatePlanInFirestore();
-        }
+    async function openScheduleModal(eventId=null) {
+        const owner=auth.currentUser?.uid,openedPlan=currentPlanDocId;if(!owner||!auth.currentUser.emailVerified)return false;
+        if(currentPlanDocId&&searchPlannerOwnerId!==owner){showNotice('Your planner is loading. Try again in a moment.');return false;}
+        if(!nativeEventLoading)nativeEventLoading=(async()=>{
+            const [{mountNativeEventEditor},{loadPageStyle}]=await Promise.all([import('./native-event-editor.js?v=1'),import('./page-loader.js?v=74')]);
+            await Promise.all([loadPageStyle('calendar-import.css?v=2'),loadPageStyle('native-event-editor.css?v=1')]);
+            nativeEventEditor=mountNativeEventEditor({getIdentity:globalSearchIdentity,getState:()=>({boards:boardsData,dayInsights,scheduleEvents:scheduleData,calendarSources:calendarSourcesData}),getTimezone:()=>userSettings.profile.timezone||'UTC',getToday:()=>planningClock(Date.now(),userSettings.profile.timezone||'UTC').date,ensurePlan:()=>window.__kairosScheduleBridge.ensureSchedulePlan(),commit:commitTaskDetails,session:plannerMutations,confirmDiscard:message=>confirmDialog(message,{confirmText:'Discard changes'})});
+            window.__kairosNativeEventEditor=nativeEventEditor;window.addEventListener('pagehide',event=>{if(!event.persisted)nativeEventEditor.dispose();});
+        })().catch(error=>{nativeEventLoading=null;throw error;});
+        try{await nativeEventLoading;if(auth.currentUser?.uid!==owner||openedPlan&&currentPlanDocId!==openedPlan)return false;return nativeEventEditor.open(eventId,window.__kairosScheduleWorkspace?.state?.focusDate||selectedCalendarDate||planningClock(Date.now(),userSettings.profile.timezone||'UTC').date);}catch(error){showNotice('Could not open this event. '+error.message);return false;}
     }
-
-    // --- Schedule event modal ---
-    const scheduleModal = document.getElementById('schedule-event-modal');
-    const scheduleModalTitle = document.getElementById('schedule-event-modal-title');
-    const scheduleTitleInput = document.getElementById('schedule-event-title');
-    const scheduleCategoryInput = document.getElementById('schedule-event-category');
-    const scheduleDayInput = document.getElementById('schedule-event-day');
-    const scheduleStartInput = document.getElementById('schedule-event-start');
-    const scheduleEndInput = document.getElementById('schedule-event-end');
-    const scheduleSaveBtn = document.getElementById('schedule-event-save-btn');
-    const scheduleDeleteBtn = document.getElementById('schedule-event-delete-btn');
-    const closeScheduleModalBtn = document.getElementById('close-schedule-event-modal');
-    const addScheduleEventBtn = document.getElementById('add-schedule-event-btn');
-
-    function openScheduleModal(eventId = null) {
-        const imported=eventId&&scheduleData.find(event=>event.id===eventId);
-        if(imported?.readOnly||imported?.calendarSourceId){showNotice('This event comes from an imported calendar. Refresh or remove its source in Calendars.');return;}
-        editingScheduleEventId = eventId;
-        if (eventId) {
-            const ev = scheduleData.find(e => e.id === eventId);
-            if (!ev) return;
-            if (scheduleModalTitle) scheduleModalTitle.textContent = 'Edit Recurring Event';
-            scheduleTitleInput.value = ev.title;
-            scheduleCategoryInput.value = ev.category;
-            scheduleDayInput.value = String(ev.day);
-            scheduleStartInput.value = ev.start;
-            scheduleEndInput.value = ev.end;
-            if (scheduleDeleteBtn) scheduleDeleteBtn.style.display = 'block';
-        } else {
-            if (scheduleModalTitle) scheduleModalTitle.textContent = 'Add Recurring Event';
-            scheduleTitleInput.value = '';
-            scheduleCategoryInput.value = 'class';
-            scheduleDayInput.value = '1';
-            scheduleStartInput.value = '';
-            scheduleEndInput.value = '';
-            if (scheduleDeleteBtn) scheduleDeleteBtn.style.display = 'none';
-        }
-        if (scheduleModal) scheduleModal.classList.add('active');
-    }
-
-    function closeScheduleModal() {
-        if (scheduleModal) scheduleModal.classList.remove('active');
-        editingScheduleEventId = null;
-    }
-
-    if (addScheduleEventBtn) addScheduleEventBtn.addEventListener('click', () => openScheduleModal());
-    if (closeScheduleModalBtn) closeScheduleModalBtn.addEventListener('click', closeScheduleModal);
-    if (scheduleModal) {
-        scheduleModal.addEventListener('click', (e) => {
-            if (e.target === scheduleModal) closeScheduleModal();
-        });
-    }
-
-    if (scheduleSaveBtn) {
-        scheduleSaveBtn.addEventListener('click', () => {
-            const title = scheduleTitleInput.value.trim();
-            const category = scheduleCategoryInput.value;
-            const day = parseInt(scheduleDayInput.value, 10);
-            const start = scheduleStartInput.value;
-            const end = scheduleEndInput.value;
-
-            if (!title || !start || !end) {
-                showNotice('Please fill in the title, start time, and end time.');
-                return;
-            }
-            if (start === end) {
-                showNotice("Start and end time can't be the same.");
-                return;
-            }
-
-            if (editingScheduleEventId) {
-                const ev = scheduleData.find(e => e.id === editingScheduleEventId);
-                if(ev?.readOnly||ev?.calendarSourceId){showNotice('Imported calendar events are read-only.');return;}
-                if (ev) { ev.title = title; ev.category = category; ev.day = day; ev.start = start; ev.end = end; }
-            } else {
-                scheduleData.push({ id: 'sched-' + Date.now(), title, category, day, start, end });
-            }
-
-            saveScheduleToFirestore();
-            renderScheduleWeek();
-            closeScheduleModal();
-        });
-    }
-
-    if (scheduleDeleteBtn) {
-        scheduleDeleteBtn.addEventListener('click', async () => {
-            const eventId = editingScheduleEventId;
-            if (!eventId) return;
-            if (!await confirmAction('Delete this recurring event?')) return;
-            const event=scheduleData.find(item=>item.id===eventId);if(event?.readOnly||event?.calendarSourceId){showNotice('Imported calendar events are read-only.');return;}
-            scheduleData = scheduleData.filter(e => e.id !== eventId);
-            saveScheduleToFirestore();
-            renderScheduleWeek();
-            closeScheduleModal();
-        });
-    }
+    document.getElementById('add-schedule-event-btn')?.addEventListener('click',()=>void openScheduleModal());
 
     // --- 14 Bedtime Reminder Engine ---
 

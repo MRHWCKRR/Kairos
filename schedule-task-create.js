@@ -1,4 +1,4 @@
-import {buildScheduleCreate} from './task-list-model.js?v=22';
+import {buildScheduleCreate} from './task-list-model.js?v=23';
 import { scheduleFieldsFromDuration, parseTime } from './schedule-utils.js?v=3';
 import { recurrenceFieldsMarkup, bindRecurrenceFields, readRecurrenceFields } from './schedule-recurrence-ui.js?v=12';
 

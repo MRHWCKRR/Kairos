@@ -1,8 +1,8 @@
 import {taskRemainingMinutes} from './remaining-work.js?v=3';
 import {planningTasks,validPlanningDate} from './planning-model.js?v=1';
-import {planningAvailability,planningOccupancy,planningBlockValid,intervalsOverlap,planningDailyWork,planningDailyLimit,addPlanningDailyWork} from './planning-slots.js?v=5';
-import {previewCarryover} from './planning-commands.js?v=10';
-import {freeMinutes} from './deadline-feasibility.js?v=8';
+import {planningAvailability,planningOccupancy,planningBlockValid,intervalsOverlap,planningDailyWork,planningDailyLimit,addPlanningDailyWork} from './planning-slots.js?v=6';
+import {previewCarryover} from './planning-commands.js?v=11';
+import {freeMinutes} from './deadline-feasibility.js?v=9';
 import {orderedSessionGroup,assertAssignmentOrder} from './assignment-order.js?v=2';
 import {parseTime,taskDurationMinutes} from './schedule-utils.js?v=3';
 

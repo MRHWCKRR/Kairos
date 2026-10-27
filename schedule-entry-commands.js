@@ -1,9 +1,9 @@
 import {stableStringify} from './plan-merge.js?v=1';
 import {parseTime,taskDurationMinutes,validateScheduleProposals} from './schedule-utils.js?v=3';
 import {normalizeRecurrence,validateRecurrence,generateTaskOccurrences,generateTaskOccurrencesThrough,applyOccurrenceOverride} from './recurrence-utils.js?v=14';
-import {buildScheduleChange,applyScheduleChange} from './schedule-change-model.js?v=6';
+import {buildScheduleChange,applyScheduleChange} from './schedule-change-model.js?v=7';
 import {planningClock,shiftPlanningDate,validPlanningDate} from './planning-model.js?v=1';
-import {scheduleProposalFits} from './schedule-planning-availability.js?v=2';
+import {scheduleProposalFits} from './schedule-planning-availability.js?v=3';
 const baseFields=['id','title','date','dueDate','estimatedMinutes','startTime','endTime'];
 const richFields=['notes','priority','reminderMinutes','scheduleLocked','schedulingPreference','color','recurrence'];
 const proposalFields=['priority','estimatedMinutes','schedulingPreference','color'];

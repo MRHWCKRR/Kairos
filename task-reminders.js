@@ -74,7 +74,7 @@ export function dueBedtimeReminders(events,now=Date.now(),timeZone='UTC') {
     for(const date of [today,shiftDate(today,1)]){
         const day=new Date(date+'T12:00:00Z').getUTCDay();
         for(const event of events||[]){
-            if(!event?.id||event.archived||event.category!=='sleep'||event.day!==day)continue;
+            if(!event?.id||event.archived||event.transparent===true||event.allDay===true||event.category!=='sleep'||(event.date!=null?event.date!==date:event.day!==day))continue;
             const startsAt=zonedTaskStart(date,event.start,timeZone);
             if(startsAt===null)continue;
             const dueAt=startsAt-15*60000,id='bedtime-reminder:'+event.id+':'+startsAt+':15';
