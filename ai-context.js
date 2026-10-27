@@ -236,7 +236,7 @@ async function loadContextData(user) {
 
     const scheduleEvents = Array.isArray(latestPlan?.scheduleEvents)
         ? latestPlan.scheduleEvents.filter(ev => ev && ev.title && !ev.archived).slice(0, 80).map(ev => ({
-            id: clean(ev.id, 120),
+            id: clean(ev.id, 160),
             title: clean(ev.title, 100),
             category: clean(ev.category, 30),
             ...(ev.date?{date:ev.date}:{day:Number(ev.day)}),

@@ -1,3 +1,4 @@
+import {isAiEventAction,aiEventPreviewMarkup} from '../ai-event-actions.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
@@ -21,7 +22,7 @@ function setup(data=workspace,{getDoc,aiFetch}={}) {
   window.history={state:null,pushState(_,__,url){window.location.href=url;},replaceState(_,__,url){window.location.href=url;}};
   const auth={currentUser:{uid:'fixture',emailVerified:true}};
   let saved=data;const activityEvents=[];
-  const context=vm.createContext({ACTION_TYPES,ACTION_INSTRUCTIONS,validateActionShape,explicitDurationIntent,document,window,auth,db:{},console,
+  const context=vm.createContext({isAiEventAction,aiEventPreviewMarkup,ACTION_TYPES,ACTION_INSTRUCTIONS,validateActionShape,explicitDurationIntent,document,window,auth,db:{},console,
     localStorage:{getItem:()=>null,setItem(){}},
     requestAnimationFrame:fn=>fn(),setTimeout,clearTimeout,
     onAuthStateChanged:(_,callback)=>void callback(auth.currentUser),

@@ -1,3 +1,4 @@
+import {isAiEventAction,previewAiEventChange,applyAiEventChange} from './ai-event-actions.js?v=1';
 import {applyAiTaskMutation} from './ai-task-commands.js?v=5';
 import {plannerChangeRows} from './planner-changes.js?v=2';
 import {applyTaskListCommand} from './task-list-model.js?v=23';
@@ -5,8 +6,8 @@ import {planningUndoPreview} from './planning-undo.js?v=5';
 import {savedPlanningPreferences,planningPreferencesText} from './planning-preferences.js?v=5';
 import {savedWeeklyAvailability} from './weekly-availability.js?v=1';
 import { auth, db } from './firebase.js?v=1';
-import { persistAiPlanAction, getConfirmedAiAction, applyStoredPlanningUndo } from './plan-store.js?v=23';
-import { validateActionShape } from './ai-action-schema.js?v=11';
+import { persistAiPlanAction, getConfirmedAiAction, applyStoredPlanningUndo } from './plan-store.js?v=24';
+import { validateActionShape } from './ai-action-schema.js?v=12';
 import { stableStringify, planState } from './plan-merge.js?v=1';
 import {previewAiPlanning,resolveAiPlanningTimezone} from './ai-planning.js?v=15';
 import {planningConflicts,planningGapText,planningDailyLimitText} from './planning-slots.js?v=6';
@@ -157,6 +158,7 @@ export async function previewKairosAction(action, options = {}) {
     if (!snapshot.exists()) throw new Error('Planner not found.');
     const data = snapshot.data();
     if (data.userID !== user.uid) throw new Error('This planner belongs to another account.');
+    if(isAiEventAction(action.type)){const timezone=await planningTimezone(user);return previewAiEventChange(planState(data),action,timezone);}
     if(action.type.startsWith('plan_')) {
         const preferences=await planningPreferences(user),timezone=preferences.timezone;
         if(action.type==='plan_undo'){const proposal=planningUndoPreview(data,null,timezone);return {action,approval:{request:stableStringify(action),command:proposal.command,expected:proposal.expected},summary:{kind:'planning-undo',title:'Undo last planning change',rows:proposal.rows,timezone,notice:proposal.notice}}}
@@ -232,6 +234,12 @@ export async function executeKairosAction(action, options = {}) {
     const createdAt = options.createdAt ?? Date.now();
     if (typeof operationId !== 'string' || !operationId || operationId.length > 160 || !Number.isFinite(createdAt) || createdAt <= 0) throw new Error('Invalid operation identity.');
     if(type==='plan_assignments'&&(args.checkOnly||args.compareAlternatives))throw Error('A check-only request cannot save planning changes.');
+    if(isAiEventAction(type)){
+        const confirmed=await getConfirmedAiAction(planId,user.uid,{type,args},operationId);
+        if(auth.currentUser?.uid!==user.uid)throw Error('The signed-in account changed.');
+        if(confirmed)return confirmed;
+        if(options.confirmation?.command&&options.confirmation.command.timezone!==await planningTimezone(user))throw Error('Your timezone changed. Review a new event preview.');
+    }
     if(type.startsWith('plan_')) {
         const confirmed=await getConfirmedAiAction(planId,user.uid,{type,args},operationId);
         if(confirmed)return aiActionResult(type,confirmed);
@@ -239,12 +247,13 @@ export async function executeKairosAction(action, options = {}) {
         if(!approval?.command || approval.request!==stableStringify({type,args}))throw Error('A reviewed planning preview is required.');
         if(approval.command.options?.timezone!==await planningTimezone(user))throw Error('Your timezone changed. Review a new preview.');
     }
-    const result = await persistAiPlanAction(planId, user.uid, { type, args }, operationId, createdAt, plan => applyKairosAction(plan, type, args, options),{manualScheduling:['update_task','resize_task'].includes(type),planningOptions:type.startsWith('plan_')?options.confirmation?.command?.options:null,...(type==='plan_undo'?{undoSourceOperationId:options.confirmation?.command?.sourceOperationId,undoTimezone:options.confirmation?.command?.options?.timezone}:{})});
+    const result = await persistAiPlanAction(planId, user.uid, { type, args }, operationId, createdAt, plan => applyKairosAction(plan, type, args, options),{nativeEventTimezone:isAiEventAction(type)?options.confirmation?.command?.timezone:null,manualScheduling:['update_task','resize_task'].includes(type),planningOptions:type.startsWith('plan_')?options.confirmation?.command?.options:null,...(type==='plan_undo'?{undoSourceOperationId:options.confirmation?.command?.sourceOperationId,undoTimezone:options.confirmation?.command?.options?.timezone}:{})});
     window.dispatchEvent(new CustomEvent('kairos-data-changed'));
     return aiActionResult(type,result);
 }
 
 function applyKairosAction(plan, type, args, options) {
+    if(isAiEventAction(type)){const applied=applyAiEventChange(plan.data,{type,args},options.confirmation);Object.assign(plan.data,applied.next);return applied.result;}
     if(options.confirmation?.reviewedState&&options.confirmation.reviewedState!==stableStringify(plan.data))throw Error('The planner changed after this preview. Review a fresh preview.');
     if(type==='plan_undo')return applyStoredPlanningUndo(plan,options.confirmation.command,options.confirmation.expected);
     if(type.startsWith('plan_')) {
@@ -350,41 +359,6 @@ function applyKairosAction(plan, type, args, options) {
         Object.assign(plan.data,applied.next);return {...applied.result,type};
     }
 
-    if (type === 'create_schedule_event') {
-        const title = clean(args.title, 120);
-        if (!title) throw new Error('A schedule event title is required.');
-        const event = {
-            id: makeId('event'),
-            title,
-            category: clean(args.category, 30) || 'other',
-            day: Number.isInteger(Number(args.day)) ? Number(args.day) : 0,
-            start: clean(args.start, 10),
-            end: clean(args.end, 10)
-        };
-        if (event.day < 0 || event.day > 6 || !event.start || !event.end) throw new Error('A valid day, start time, and end time are required.');
-        plan.data.scheduleEvents = Array.isArray(plan.data.scheduleEvents) ? plan.data.scheduleEvents : [];
-        plan.data.scheduleEvents.push(event);
-        return { type, event };
-    }
-
-    if (type === 'update_schedule_event') {
-        const event = findScheduleEvent(plan.data, args);
-        if (args.newTitle !== undefined) event.title = clean(args.newTitle, 120);
-        if (args.category !== undefined) event.category = clean(args.category, 30) || 'other';
-        if (args.day !== undefined) event.day = Number(args.day);
-        if (args.start !== undefined) event.start = clean(args.start, 10);
-        if (args.end !== undefined) event.end = clean(args.end, 10);
-        validateEvent(event);
-        if (event.day < 0 || event.day > 6 || !event.start || !event.end) throw new Error('Invalid schedule event details.');
-        return { type, event };
-    }
-
-    if (type === 'delete_schedule_event') {
-        const event = findScheduleEvent(plan.data, args);
-        plan.data.scheduleEvents = (plan.data.scheduleEvents || []).filter(item => item.id !== event.id);
-        return { type, event };
-    }
-
     throw new Error('Unsupported AI action: ' + type);
 }
 
@@ -402,15 +376,10 @@ function validateTaskSchedule(args) {
     if (hasStart !== hasEnd || ((hasStart || hasEnd) && !args.date)) throw new Error('Invalid task schedule: date and both times are required.');
     if (hasStart && timeMinutes(args.endTime) <= timeMinutes(args.startTime)) throw new Error('Invalid task schedule duration.');
 }
-function validateEvent(args) {
-    if (!Number.isInteger(Number(args.day)) || Number(args.day) < 0 || Number(args.day) > 6 || args.day === null || args.day === '') throw new Error('Invalid schedule event day.');
-    if (timeMinutes(args.end) <= timeMinutes(args.start)) throw new Error('Invalid schedule event duration.');
-}
 function validateActionArgs(type, args) {
     validateActionShape({ type, args });
     if (args.newTitle !== undefined && !clean(args.newTitle)) throw new Error('Invalid task or event title.');
     if (type === 'create_section' && args.boardId === undefined && !clean(args.board, 100)) throw new Error('A board is required.');
     if (type === 'resize_task' && args.endTime === undefined && args.durationMinutes === undefined) throw new Error('Invalid duration change.');
     if (type === 'create_task') validateTaskSchedule(args);
-    if (type === 'create_schedule_event') validateEvent(args);
 }

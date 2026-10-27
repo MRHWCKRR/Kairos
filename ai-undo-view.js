@@ -1,3 +1,4 @@
+import {aiEventPreviewMarkup} from './ai-event-actions.js?v=1';
 import {mountDialogWindow} from './dialog-window.js?v=2';
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 export function mountAiUndo({root,document=globalThis.document,window=globalThis.window,getIdentity,loadPreview,session}={}){
@@ -23,7 +24,7 @@ export function mountAiUndo({root,document=globalThis.document,window=globalThis
    const next=await loadPreview(id.planId,id.ownerId);
    if(disposed||ticket!==generation||JSON.stringify(getIdentity())!==actor)return;
    review=next;
-   dialog.querySelector('.ai-undo-review').innerHTML='<table><caption>Changes to reverse</caption><thead><tr><th>Item</th><th>Field</th><th>Current</th><th>Restored</th></tr></thead><tbody>'+next.rows.map(row=>'<tr><th scope="row">'+esc(row.title)+'</th><td>'+esc(row.field)+'</td><td>'+esc(row.before)+'</td><td>'+esc(row.after)+'</td></tr>').join('')+'</tbody></table>';
+   dialog.querySelector('.ai-undo-review').innerHTML=next.eventSummary?aiEventPreviewMarkup(next.eventSummary):'<table><caption>Changes to reverse</caption><thead><tr><th>Item</th><th>Field</th><th>Current</th><th>Restored</th></tr></thead><tbody>'+next.rows.map(row=>'<tr><th scope="row">'+esc(row.title)+'</th><td>'+esc(row.field)+'</td><td>'+esc(row.before)+'</td><td>'+esc(row.after)+'</td></tr>').join('')+'</tbody></table>';
    if(dialog.showModal)dialog.showModal();else dialog.setAttribute('open','');dialogWindow.reset();dialog.querySelector('[data-ai-undo-apply]').focus?.();message('');
   }catch(error){if(ticket===generation&&JSON.stringify(getIdentity())===actor)message(error.message);}
   finally{if(ticket===generation){busy=false;sync();}}

@@ -1,4 +1,5 @@
-import {applyNativeEventUndo} from './native-event-commands.js?v=1';
+import {aiEventConflictSummary} from './ai-event-actions.js?v=1';
+import {applyNativeEventUndo,buildNativeEventUndo} from './native-event-commands.js?v=1';
 import {applyCalendarRepairUndo} from './calendar-repair.js?v=2';
 import {assertCalendarTimezones,assertCalendarImportTimezone} from './calendar-policy.js?v=1';
 import {plannerChanges,undoPlannerChanges,plannerChangeRows} from './planner-changes.js?v=2';
@@ -20,7 +21,7 @@ export async function persistTaskListCommand(planId, uid, command, expected, ope
     return persistAiPlanAction(planId,uid,{type:'task_list',commandHash},operationId,createdAt,plan=>{
         if(command.type==='native_event_undo'){
             const source=plan.receipts.find(receipt=>receipt.id===command.sourceOperationId);
-            if(source?.result?.type!=='native_event_change'||!source.result.nativeEventUndo||source.nativeEventUndoUsedBy)throw Error('This event Undo is unavailable or already used.');
+            if(!['native_event_change','create_schedule_event','update_schedule_event','delete_schedule_event'].includes(source?.result?.type)||!source.result.nativeEventUndo||source.nativeEventUndoUsedBy)throw Error('This event Undo is unavailable or already used.');
             const applied=applyNativeEventUndo(plan.data,source.result.nativeEventUndo,command,expected);Object.assign(plan.data,applied.next);return {...applied.result,undoneOperationId:source.id};
         }
         if(command.type==='calendar_repair_undo'){
@@ -105,7 +106,7 @@ function receiptResult(result) {
     if(Array.isArray(result.taskIds)){compact.taskIds=structuredClone(result.taskIds);compact.completedTaskIds=structuredClone(result.completedTaskIds||[]);if(result.action!==undefined)compact.action=result.action;}
     for (const field of ['task', 'event', 'movedTask']) {
         const item = result[field];
-        if (item) compact[field] = Object.fromEntries(['id', 'title', 'date', 'startTime', 'endTime', 'completed', 'archived', 'day', 'start', 'end', 'estimatedMinutes', 'lastScheduledMinutes', 'reminderMinutes'].filter(key => item[key] !== undefined).map(key => [key, item[key]]));
+        if (item) compact[field] = Object.fromEntries(['id', 'title', 'date', 'startTime', 'endTime', 'completed', 'archived', 'day', 'start', 'end', 'category', 'allDay', 'transparent', 'estimatedMinutes', 'lastScheduledMinutes', 'reminderMinutes'].filter(key => item[key] !== undefined).map(key => [key, item[key]]));
     }
     if (result.board) compact.board = typeof result.board === 'string' ? result.board : { id: result.board.id, title: result.board.title, archived: result.board.archived ?? false };
     if (result.section) compact.section = typeof result.section === 'string' ? result.section : { id: result.section.id, title: result.section.title, archived: result.section.archived ?? false };
@@ -152,7 +153,7 @@ export async function persistAiPlanAction(planId, uid, action, operationId, crea
         if(options.manualScheduling){const userSnapshot=await transaction.get(doc(db,'users',uid));allowCompleted=userSnapshot.data()?.settings?.planning?.rescheduleCompleted===true;}
         const next = planState(data);
         const result = receiptResult(apply({ data: next,receipts,allowCompleted }));
-        if(action.type!=='task_list'&&!action.type.startsWith('plan_')){
+        if(action.type!=='task_list'&&!action.type.startsWith('plan_')&&!result.nativeEventUndo&&!result.nativeEventUndoUnavailable){
             const changes=plannerChanges(planState(data),next);
             if(changes.length&&changes.length<=250&&JSON.stringify(changes).length<=16384)result.plannerUndo=changes;
             else if(changes.length)result.plannerUndoUnavailable=true;
@@ -180,8 +181,13 @@ export async function persistAiPlanAction(planId, uid, action, operationId, crea
 
 export async function loadActionUndoPreview(planId,uid){
  const snapshot=await getDoc(doc(db,'study_plans',planId)),data=ownedPlan(snapshot,uid);
- const source=[...(data.aiActionReceipts||[])].reverse().find(receipt=>receipt.result?.plannerUndo&&!receipt.plannerUndoUsedBy);
+ const source=[...(data.aiActionReceipts||[])].reverse().find(receipt=>receipt.result?.plannerUndo&&!receipt.plannerUndoUsedBy||['create_schedule_event','update_schedule_event','delete_schedule_event'].includes(receipt.result?.type)&&receipt.result.nativeEventUndo&&!receipt.nativeEventUndoUsedBy);
  if(!source)throw Error('There is no supported AI change to undo. Deleted tasks and boards can also be restored from Archive.');
- const before=planState(data),after=undoPlannerChanges(before,source.result.plannerUndo);
+ const before=planState(data);
+ if(source.result.nativeEventUndo){
+  const userSnapshot=await getDoc(doc(db,'users',uid)),record=source.result.nativeEventUndo,timezone=userSnapshot.data()?.settings?.profile?.timezone||record.timezone,preview=buildNativeEventUndo(before,source.id,record,timezone),applied=applyNativeEventUndo(before,record,preview.command,preview.expected);
+  return {command:preview.command,expected:preview.expected,rows:plannerChangeRows(before,applied.next),eventSummary:{kind:'native-event',title:'Undo '+String((record.before||record.after).title),timezone,range:preview.range,before:record.after,event:record.before,...aiEventConflictSummary(preview.conflicts)}};
+ }
+ const after=undoPlannerChanges(before,source.result.plannerUndo);
  return {command:{type:'action_undo',sourceOperationId:source.id},expected:{sourceOperationId:source.id},rows:plannerChangeRows(before,after)};
 }
