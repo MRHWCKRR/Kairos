@@ -17,8 +17,8 @@ export const ACTION_FIELDS = {
     delete_task: ['taskId', 'title'],
     set_task_reminder: ['taskId', 'title', 'minutesBefore'],
     remove_task_reminder: ['taskId', 'title'],
-    create_schedule_event: ['title', 'category', 'day', 'start', 'end'],
-    update_schedule_event: ['eventId', 'title', 'newTitle', 'category', 'day', 'start', 'end'],
+    create_schedule_event: ['title', 'category', 'date', 'day', 'start', 'end', 'allDay', 'transparent'],
+    update_schedule_event: ['eventId', 'title', 'newTitle', 'category', 'date', 'day', 'start', 'end', 'allDay', 'transparent'],
     delete_schedule_event: ['eventId', 'title']
 };
 export const ACTION_TYPES = Object.keys(ACTION_FIELDS);
@@ -50,17 +50,28 @@ export function validateActionShape(action) {
             if (!Number.isInteger(value) || ![0,5,10,15].includes(value)) throw new Error('Invalid session gap.');
         } else if (['totalMinutes', 'sessionMinutes'].includes(key)) {
             if (!Number.isInteger(value) || value < 15 || value > (key === 'totalMinutes' ? 2400 : 120)) throw new Error('Invalid session effort.');
-        } else if (['completed', 'archived', 'ordered', 'checkOnly', 'compareAlternatives'].includes(key)) {
+        } else if (['completed', 'archived', 'ordered', 'checkOnly', 'compareAlternatives', 'allDay', 'transparent'].includes(key)) {
             if (typeof value !== 'boolean') throw new Error('Invalid task status.');
         } else if (key === 'minutesBefore') {
             if (!Number.isInteger(value) || value < 1 || value > 10080) throw new Error('Invalid reminder lead time.');
         } else if (key === 'durationMinutes') {
             if (!Number.isInteger(value) || value < 1 || value >= 1440) throw new Error('Invalid task duration.');
         } else if (key.endsWith('Id')) {
-            if (typeof value !== 'string' || !value.trim() || value.length > 120) throw new Error('Invalid entity ID.');
+            if (typeof value !== 'string' || !value.trim() || value.length > (key==='eventId'?160:120)) throw new Error('Invalid entity ID.');
         } else if (key === 'day') {
             if (!Number.isInteger(value) || value < 0 || value > 6) throw new Error('Invalid schedule event day.');
         } else if (value !== null && typeof value !== 'string') throw new Error('Invalid AI action value.');
+    }
+    if(['create_schedule_event','update_schedule_event','delete_schedule_event'].includes(action.type)){
+        const creating=action.type==='create_schedule_event';
+        if(args.date!==undefined&&args.day!==undefined)throw Error('Choose a single event date or a weekly weekday, not both.');
+        if(args.date!==undefined&&(typeof args.date!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(args.date)||!Number.isFinite(Date.parse(args.date+'T12:00:00Z'))||new Date(args.date+'T12:00:00Z').toISOString().slice(0,10)!==args.date))throw Error('Invalid event date.');
+        for(const key of ['start','end'])if(args[key]!==undefined&&(typeof args[key]!=='string'||!/^([01]\d|2[0-3]):[0-5]\d$/.test(args[key])))throw Error('Invalid event time.');
+        for(const key of ['title','newTitle','category'])if(args[key]!==undefined&&(typeof args[key]!=='string'||!args[key].trim()||args[key].length>(key==='category'?30:180)))throw Error('Invalid event title or category.');
+        if(args.allDay===true&&['start','end'].some(key=>args[key]!==undefined&&args[key]!=='00:00'))throw Error('All-day events use midnight boundaries.');
+        if(creating&&(!args.title||args.date===undefined&&args.day===undefined||args.allDay!==true&&(!args.start||!args.end)))throw Error('A title, date or weekday, and both times (or All day) are required.');
+        if(!creating&&!args.eventId&&!args.title)throw Error('An exact event ID or title is required.');
+        if(action.type==='update_schedule_event'&&!['newTitle','category','date','day','start','end','allDay','transparent'].some(key=>args[key]!==undefined))throw Error('Choose the event fields to change.');
     }
     if (action.type.startsWith('plan_') && action.type !== 'plan_undo') {
         for (const key of ['from', 'to', ...(args.week !== undefined ? ['week'] : [])]) {
@@ -96,4 +107,5 @@ export const ACTION_INSTRUCTIONS = 'Supported actions and allowed args: ' +
     'Ordinary task moves use update_task and preserve duration. Only use resize_task when the user explicitly changes the duration or end time, such as "end at 5pm" or "make it 90 minutes". ' +
     'resize_task requires endTime or durationMinutes (a positive whole number), and may provide date/startTime. An unscheduled task can have its duration set without inventing a schedule. Locked or recurring task schedules cannot be edited in chat. ' +
     'Task reminders use set_task_reminder with minutesBefore (whole minutes, 1 to 10080) or remove_task_reminder. When the last confirmed target kind is reminder, its ID is a taskId: implicit remove/delete/cancel requests remove the reminder, never the task. They use the task start time in the profile timezone and follow task rescheduling; do not create a separate event. For recurring tasks this changes the series reminder. Absolute reminder dates/times, unrelated standalone reminders, email/SMS and background delivery are unsupported; explain that and offer a relative task reminder. If the target or lead time is missing, ask a clarification with actions: []. Saving does not grant browser notification permission. ' +
+    'Native calendar events use create_schedule_event, update_schedule_event or delete_schedule_event and always require review. For a one-off appointment supply date: YYYY-MM-DD; for weekly commitments supply day: integer Sunday=0 through Saturday=6. Never supply both or default a missing date/weekday. Resolve relative dates from the current profile-local date/time supplied in context, never older conversation dates. Ask if the date or target is ambiguous. New timed events require both start and end in HH:MM; ask for the missing end time instead of inventing duration. All-day events use allDay:true and omit times (or use 00:00 for both). Timed ends earlier than starts mean next day; equal timed boundaries are invalid. transparent:true marks free time, false busy. Do not invent unrelated event fields. For updates, use exact eventId or an unambiguous full current title; newTitle renames it. A date-only move preserves times; a start-only timed move preserves duration including overnight. Supply an explicit end only when the user asks to resize. Changing all-day to timed requires allDay:false and both times. Supplying date converts to a one-off event; supplying day converts to weekly only on an explicit repeat request. Imported/read-only calendar events cannot be edited or deleted; explain how to refresh or remove their source in Calendars. Task overlaps are shown in the event preview; saving does not move tasks. Never claim success before confirmation and execution. ' +
     'If a target is unclear, ask a specific clarification with actions: []. Do not silently substitute a different entity.';

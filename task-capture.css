@@ -29,3 +29,6 @@
 .task-capture-dialog button:disabled, .task-capture-dialog input:disabled, .task-capture-dialog select:disabled { opacity: .6; cursor: default; }
 .task-capture-trigger:focus-visible, .task-capture-dialog :focus-visible { outline: 2px solid var(--accent-glow); outline-offset: 3px; }
 @media (max-width: 800px) { .task-capture-options { grid-template-columns: minmax(0,1fr); } }
+
+/* Shared AI event review: available in chat and Undo without loading another workspace. */
+.ai-chat-dialog.ai-event-dialog{width:min(640px,calc(100vw - 48px));max-height:85vh;overflow:auto;scrollbar-width:thin}.ai-event-dialog .close-modal{border:0;background:transparent;color:var(--text-muted);font:inherit;cursor:pointer;line-height:1}.ai-planning-preview.ai-event-preview{overflow:auto;scrollbar-width:thin}.ai-planning-preview.ai-event-preview table{width:100%;table-layout:fixed;min-width:0}.ai-planning-preview.ai-event-preview td,.ai-planning-preview.ai-event-preview th{white-space:normal;overflow-wrap:anywhere}
