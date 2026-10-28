@@ -1,4 +1,4 @@
-import {eventSegmentsForDate,eventCommitmentsForRange} from './schedule-events.js?v=2';
+import {eventSegmentsForDate,eventCommitmentsForRange} from './schedule-events.js?v=3';
 export {eventSegmentsForDate,eventCommitmentsForRange};
 export function toDateKey(date){
   const y=date.getFullYear();

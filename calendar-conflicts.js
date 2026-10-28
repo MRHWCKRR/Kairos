@@ -1,6 +1,6 @@
-import {eventSegmentsForDate} from './schedule-events.js?v=2';
+import {eventSegmentsForDate} from './schedule-events.js?v=3';
 import {planningTasks,planningOccurrences,validPlanningDate,shiftPlanningDate} from './planning-model.js?v=1';
-import {parseTime,taskDurationMinutes} from './schedule-utils.js?v=4';
+import {parseTime,taskDurationMinutes} from './schedule-utils.js?v=5';
 
 export function calendarConflicts(state,sourceId,clock){
  const source=(state.calendarSources||[]).find(s=>s.id===sourceId);if(!source)return [];

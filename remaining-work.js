@@ -1,5 +1,5 @@
 import {focusOccurrence} from './occurrence-focus.js?v=2';
-import {taskDurationMinutes} from './schedule-utils.js?v=4';
+import {taskDurationMinutes} from './schedule-utils.js?v=5';
 import {stableStringify} from './plan-merge.js?v=1';
 
 export function taskRemainingMinutes(task){

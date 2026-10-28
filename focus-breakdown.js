@@ -1,4 +1,4 @@
-import {focusBreakdown} from './focus-breakdown-model.js?v=3';
+import {focusBreakdown} from './focus-breakdown-model.js?v=4';
 const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 export function focusDuration(seconds){
  if(seconds===null)return '—';

@@ -1,5 +1,5 @@
-import {buildScheduleCreate} from './task-list-model.js?v=24';
-import { scheduleFieldsFromDuration, parseTime } from './schedule-utils.js?v=4';
+import {buildScheduleCreate} from './task-list-model.js?v=25';
+import { scheduleFieldsFromDuration, parseTime } from './schedule-utils.js?v=5';
 import { recurrenceFieldsMarkup, bindRecurrenceFields, readRecurrenceFields } from './schedule-recurrence-ui.js?v=12';
 
 const bridge=()=>window.__kairosScheduleBridge;

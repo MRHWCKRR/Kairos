@@ -1,7 +1,7 @@
-import {savedPlanningPreferences} from './planning-preferences.js?v=6';
-import {savedWeeklyAvailability} from './weekly-availability.js?v=2';
+import {savedPlanningPreferences} from './planning-preferences.js?v=7';
+import {savedWeeklyAvailability} from './weekly-availability.js?v=3';
 import { auth, db } from './firebase.js?v=1';
-import {aiPlanningSummary,resolveAiPlanningTimezone} from './ai-planning.js?v=16';
+import {aiPlanningSummary,resolveAiPlanningTimezone} from './ai-planning.js?v=17';
 import { collection, doc, getDoc, getDocs, query, where } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
 const PROFILE_CACHE_MS = 15000;
@@ -90,7 +90,7 @@ function recordScheduleChanges({ ownerId, planId, before, after } = {}) {
     }
     const events = plan => new Map((plan.scheduleEvents || []).filter(event => event?.id).map(event => [String(event.id), event]));
     const oldEvents = events(before), newEvents = events(after);
-    const eventState = event => event ? { day: event.day??null,start: event.start || null,end: event.end || null,date:event.date??null,transparent:event.transparent===true,...scheduleEventExceptions(event) } : null;
+    const eventState = event => event ? { day: event.day??null,start: event.start || null,end: event.end || null,date:event.date??null,startDate:event.startDate??null,endDate:event.endDate??null,transparent:event.transparent===true,...scheduleEventExceptions(event) } : null;
     for (const id of new Set([...oldEvents.keys(), ...newEvents.keys()])) add('event', id, newEvents.get(id)?.title || oldEvents.get(id)?.title, eventState(oldEvents.get(id)), eventState(newEvents.get(id)));
     const retained = recentScheduleChanges.ownerId === ownerId && recentScheduleChanges.planId === planId ? recentScheduleChanges.changes : [];
     recentScheduleChanges = { ownerId, planId, changes: [...retained, ...changes].slice(-20) };
@@ -238,7 +238,7 @@ async function loadContextData(user) {
         ? latestPlan.scheduleEvents.filter(ev => ev && ev.title && !ev.archived).slice(0, 80).map(ev => ({
             id: clean(ev.id, 160),
             title: clean(ev.title, 100),
-            category: clean(ev.category, 30),
+            category: clean(ev.category, 30),startDate:ev.startDate??null,endDate:ev.endDate??null,
             ...scheduleEventExceptions(ev),
             ...(ev.date?{date:ev.date}:{day:Number(ev.day)}),
             readOnly:ev.readOnly===true||!!ev.calendarSourceId,transparent:ev.transparent===true,allDay:ev.allDay===true,

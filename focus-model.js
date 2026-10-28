@@ -3,7 +3,7 @@ import {setOccurrenceStatus} from './recurrence-utils.js?v=14';
 import {stableStringify,planState} from './plan-merge.js?v=1';
 import {planningClock} from './planning-model.js?v=1';
 import {appendFocusHistory} from './focus-history-model.js?v=4';
-import {remainingWorkSnapshot,taskWorkCheckin} from './remaining-work.js?v=4';
+import {remainingWorkSnapshot,taskWorkCheckin} from './remaining-work.js?v=5';
 export const MAX_FOCUS_MS=86400000;
 const keys=(value,allowed)=>value&&typeof value==='object'&&!Array.isArray(value)&&Object.keys(value).every(k=>allowed.includes(k));
 const id=value=>typeof value==='string'&&value.length>0&&value.length<=160;

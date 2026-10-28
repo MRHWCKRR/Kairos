@@ -1,11 +1,11 @@
-import {eventOccurrence,isEventOccurrenceDate,validEventDate} from './event-occurrences.js?v=1';
-import {zonedTaskStart} from './task-reminders.js?v=5';
+import {eventOccurrence,isEventOccurrenceDate,validEventDate,withinEventDates} from './event-occurrences.js?v=2';
+import {zonedTaskStart} from './task-reminders.js?v=6';
 import {stableStringify} from './plan-merge.js?v=1';
-import {planningSignature} from './planning-commands.js?v=12';
+import {planningSignature} from './planning-commands.js?v=13';
 import {planningClock,validPlanningDate,shiftPlanningDate} from './planning-model.js?v=1';
-import {eventSegmentsForDate} from './schedule-events.js?v=2';
-import {calendarConflicts} from './calendar-conflicts.js?v=2';
-const fields=['id','title','category','date','day','start','end','allDay','transparent'];
+import {eventSegmentsForDate} from './schedule-events.js?v=3';
+import {calendarConflicts} from './calendar-conflicts.js?v=3';
+const fields=['id','title','category','date','day','start','end','allDay','transparent','startDate','endDate'];
 const same=(a,b)=>stableStringify(a)===stableStringify(b),object=v=>v&&typeof v==='object'&&!Array.isArray(v),validTime=v=>typeof v==='string'&&/^([01]\d|2[0-3]):[0-5]\d$/.test(v);
 const editable=event=>{if(event&&(event.readOnly||event.calendarSourceId))throw Error('Imported calendar events are read-only. Use Calendars to refresh or remove their source.');};
 const validId=id=>typeof id==='string'&&id.length>0&&id.length<=160&&!/[\u0000-\u001f]/.test(id);
@@ -14,6 +14,7 @@ function timezoneValid(timezone){if(typeof timezone!=='string'||!timezone||timez
 function inputEvent(value,id){
  if(!object(value)||Object.keys(value).some(k=>!fields.includes(k))||value.id!==id||typeof value.title!=='string'||!value.title.trim()||value.title.length>180||/[\u0000-\u001f]/.test(value.title)||typeof value.category!=='string'||!value.category.trim()||value.category.length>30||typeof value.allDay!=='boolean'||typeof value.transparent!=='boolean')throw Error('Invalid event fields, title or category.');
  const dated=Object.hasOwn(value,'date');if(dated?Object.hasOwn(value,'day')||!validPlanningDate(value.date)||value.date<'1900-01-01'||value.date>'2200-12-30':!Number.isInteger(value.day)||value.day<0||value.day>6)throw Error('Choose a valid event date or weekday.');
+ for(const k of ['startDate','endDate'])if(value[k]!=null&&(dated||!validEventDate(value[k])))throw Error('Choose valid first and last dates for a weekly series only.');if(value.startDate&&value.endDate&&value.startDate>value.endDate)throw Error('The last date must be on or after the first date.');
  if(!validTime(value.start)||!validTime(value.end)||(value.allDay?(value.start!=='00:00'||value.end!=='00:00'):value.start===value.end))throw Error('Choose valid event times; equal times need All day.');
  return {...value,title:value.title.trim(),category:value.category.trim()};
 }
@@ -32,15 +33,16 @@ export function nativeEventConflicts(state,event,range,timezone){
 }
 function replace(state,id,event){const next=structuredClone(state),events=next.scheduleEvents||[];next.scheduleEvents=event?events.some(e=>e.id===id)?events.map(e=>e.id===id?structuredClone(event):e):[...events,structuredClone(event)]:events.filter(e=>e.id!==id);return next;}
 function undoRecord(before,after,timezone){const record={version:1,eventId:(after||before).id,before,after,timezone};return JSON.stringify(record).length<=24000?record:null;}
+function exceptionDateImpact(before,after){return {inactiveExceptions:Object.keys(after?.exceptions||{}).filter(date=>withinEventDates(before||{},date)&&!withinEventDates(after,date)).map(date=>({occurrenceDate:date,date:after.exceptions[date]?.override?.date||date})),reactivatedExceptions:Object.keys(after?.exceptions||{}).filter(date=>!withinEventDates(before||{},date)&&withinEventDates(after,date)).map(date=>({occurrenceDate:date,date:after.exceptions[date]?.override?.date||date}))};}
 function checkedExceptions(event,timezone){
  if(event.exceptions==null)return;const entries=Object.entries(event.exceptions);if(!object(event.exceptions)||entries.length>200)throw Error('A weekly event supports at most 200 exceptions. Restore unused exceptions first.');
- for(const [date,value]of entries){if(!isEventOccurrenceDate(event,date)||!object(value))throw Error('Invalid weekly event exception.');if(value.skipped===true){if(Object.keys(value).length!==1)throw Error('Invalid skipped event exception.');}else{if(Object.keys(value).length!==1||!value.override||!validEventDate(value.override.date))throw Error('Invalid event override.');inputEvent(value.override,event.id);wallTimes(value.override,timezone);}}
+ for(const [date,value]of entries){if(!isEventOccurrenceDate({...event,startDate:null,endDate:null},date)||!object(value))throw Error('Invalid weekly event exception.');if(value.skipped===true){if(Object.keys(value).length!==1)throw Error('Invalid skipped event exception.');}else{if(Object.keys(value).length!==1||!value.override||!validEventDate(value.override.date))throw Error('Invalid event override.');inputEvent(value.override,event.id);wallTimes(value.override,timezone);}}
 }
 export function buildNativeEventChange(state,{eventId,event,occurrenceDate,occurrenceOperation},timezone,now=Date.now()){
  timezoneValid(timezone);const before=target(state,eventId);if(event===null&&!before)throw Error('This event is no longer available.');
  const scoped=occurrenceDate!==undefined||occurrenceOperation!==undefined;let normalized=null,after=null,beforeEvent=before,afterEvent=null;
  if(scoped){
-  if(!isEventOccurrenceDate(before,occurrenceDate)||before.archived||!['update','skip','restore'].includes(occurrenceOperation))throw Error('Choose an original weekly occurrence date and valid operation.');
+  if(!isEventOccurrenceDate(occurrenceOperation==='restore'&&Object.hasOwn(before?.exceptions||{},occurrenceDate)?{...before,startDate:null,endDate:null}:before,occurrenceDate)||before.archived||!['update','skip','restore'].includes(occurrenceOperation))throw Error('Choose an original weekly occurrence date and valid operation.');
   beforeEvent=eventOccurrence(before,occurrenceDate);after=structuredClone(before);const exceptions={...(before.exceptions||{})};
   if(occurrenceOperation==='update'){normalized=inputEvent(event,eventId);if(!normalized.date)throw Error('A single occurrence needs a date.');wallTimes(normalized,timezone);exceptions[occurrenceDate]={override:normalized};}
   else{if(event!==null)throw Error('Skip or restore does not accept event fields.');if(occurrenceOperation==='skip')exceptions[occurrenceDate]={skipped:true};else{if(!Object.hasOwn(exceptions,occurrenceDate))throw Error('This occurrence has no exception to restore.');delete exceptions[occurrenceDate];}}
@@ -48,12 +50,13 @@ export function buildNativeEventChange(state,{eventId,event,occurrenceDate,occur
   checkedExceptions(after,timezone);afterEvent=eventOccurrence(after,occurrenceDate);limits(replace(state,eventId,after));
  }else{
   normalized=event===null?null:inputEvent(event,eventId);after=normalized?{...(before||{}),...normalized}:null;
-  if(after){if(normalized.date)delete after.day;else delete after.date;if(Object.keys(before?.exceptions||{}).length&&(normalized.date||Number(normalized.day)!==Number(before.day)))throw Error('Restore weekly exceptions before changing the series weekday or repeat setting.');wallTimes(after,timezone);checkedExceptions(after,timezone);limits(replace(state,eventId,after));}afterEvent=after;
+  if(after){if(normalized.date){delete after.day;delete after.startDate;delete after.endDate;}else delete after.date;inputEvent(Object.fromEntries(fields.filter(k=>Object.hasOwn(after,k)).map(k=>[k,after[k]])),eventId);if(Object.keys(before?.exceptions||{}).length&&(normalized.date||Number(normalized.day)!==Number(before.day)))throw Error('Restore weekly exceptions before changing the series weekday or repeat setting.');wallTimes(after,timezone);checkedExceptions(after,timezone);limits(replace(state,eventId,after));}afterEvent=after;
  }
- const shown=afterEvent||beforeEvent||(scoped?eventOccurrence(before,occurrenceDate,{includeSkipped:true}):before),range=rangeFor(shown,timezone,now),record=undoRecord(before,after,timezone);
+ const shown=afterEvent||beforeEvent||(scoped?eventOccurrence(before,occurrenceDate,{includeSkipped:true,includeInactive:true}):before),range=rangeFor(shown,timezone,now),record=undoRecord(before,after,timezone);
  if(record&&scoped)record.occurrenceDate=occurrenceDate;
  const command={type:'native_event_change',eventId,event:normalized,...(scoped?{occurrenceDate,occurrenceOperation}:{}),timezone,range};
- return {command,expected:{before,signature:reviewSignature(state)},range,conflicts:nativeEventConflicts(state,afterEvent,range,timezone),undoRecord:record,nextEvent:after,beforeEvent,afterEvent};
+ const {inactiveExceptions,reactivatedExceptions}=exceptionDateImpact(before,after);
+ return {inactiveExceptions,reactivatedExceptions,command,expected:{before,signature:reviewSignature(state)},range,conflicts:nativeEventConflicts(state,afterEvent,range,timezone),undoRecord:record,nextEvent:after,beforeEvent,afterEvent};
 }
 
 export function applyNativeEventChange(state,command,expected,{now=Date.now()}={}){
@@ -65,7 +68,7 @@ export function applyNativeEventChange(state,command,expected,{now=Date.now()}={
 function checkRecord(state,record){if(record?.version!==1||!validId(record.eventId)||!object(record.before)&&record.before!==null||!object(record.after)&&record.after!==null||!record.before&&!record.after)throw Error('This event Undo is unavailable.');if(record.before&&record.before.id!==record.eventId||record.after&&record.after.id!==record.eventId)throw Error('Invalid event Undo identity.');editable(record.before);editable(record.after);if(!same(target(state,record.eventId),record.after))throw Error('This event changed after saving. Review its latest state.');if(record.before){restoredValid(record.before);checkedExceptions(record.before,record.timezone);limits(replace(state,record.eventId,record.before));}}
 export function buildNativeEventUndo(state,sourceOperationId,record,timezone,now=Date.now()){
  timezoneValid(timezone);if(typeof sourceOperationId!=='string'||!sourceOperationId||sourceOperationId.length>160)throw Error('Invalid event Undo receipt.');checkRecord(state,record);if(record.timezone!==timezone)throw Error('Your timezone changed. Review the event manually.');
- const beforeEvent=record.occurrenceDate?eventOccurrence(record.after,record.occurrenceDate):record.after,afterEvent=record.occurrenceDate?eventOccurrence(record.before,record.occurrenceDate):record.before;if(record.occurrenceDate&&!isEventOccurrenceDate(record.before||record.after,record.occurrenceDate))throw Error('Invalid occurrence Undo identity.');wallTimes(afterEvent,timezone);const shown=afterEvent||beforeEvent||(record.occurrenceDate?eventOccurrence(record.before||record.after,record.occurrenceDate,{includeSkipped:true}):record.before||record.after),range=rangeFor(shown,timezone,now);return {beforeEvent,afterEvent,command:{type:'native_event_undo',sourceOperationId,timezone,range},expected:{sourceOperationId,before:record.before,after:record.after,signature:reviewSignature(state)},range,conflicts:nativeEventConflicts(state,afterEvent,range,timezone),undoRecord:record};
+ const beforeEvent=record.occurrenceDate?eventOccurrence(record.after,record.occurrenceDate):record.after,afterEvent=record.occurrenceDate?eventOccurrence(record.before,record.occurrenceDate):record.before;if(record.occurrenceDate&&!isEventOccurrenceDate({...record.before||record.after,startDate:null,endDate:null},record.occurrenceDate))throw Error('Invalid occurrence Undo identity.');wallTimes(afterEvent,timezone);const shown=afterEvent||beforeEvent||(record.occurrenceDate?eventOccurrence(record.before||record.after,record.occurrenceDate,{includeSkipped:true,includeInactive:true}):record.before||record.after),range=rangeFor(shown,timezone,now);return {...exceptionDateImpact(record.after,record.before),beforeEvent,afterEvent,command:{type:'native_event_undo',sourceOperationId,timezone,range},expected:{sourceOperationId,before:record.before,after:record.after,signature:reviewSignature(state)},range,conflicts:nativeEventConflicts(state,afterEvent,range,timezone),undoRecord:record};
 }
 export function applyNativeEventUndo(state,record,command,expected,{now=Date.now()}={}){
  if(command?.type!=='native_event_undo'||Object.keys(command).some(k=>!['type','sourceOperationId','timezone','range'].includes(k)))throw Error('Invalid reviewed event Undo.');const fresh=buildNativeEventUndo(state,command.sourceOperationId,record,command.timezone,now);if(!same(fresh.command,command)||!same(fresh.expected,expected))throw Error('The schedule changed. Preview Undo again.');return {next:replace(state,record.eventId,record.before),result:{type:'native_event_undo',eventId:record.eventId}};

@@ -1,11 +1,11 @@
-import {eventOccurrence} from './event-occurrences.js?v=1';
+import {eventOccurrence} from './event-occurrences.js?v=2';
 import {
   getVisibleDates, shiftAnchor, toDateKey, parseTime, formatTime, addDays,
   taskDurationMinutes, layoutOverlaps, findConflicts, splitOvernightInterval, blockGeometry, eventSegmentsForDate
-} from './schedule-utils.js?v=4';
+} from './schedule-utils.js?v=5';
 import { projectStoredOccurrence, generateTaskOccurrences, generateTaskOccurrencesThrough } from './recurrence-utils.js?v=14';
 import {planningClock} from './planning-model.js?v=1';
-import {scheduleBacklogItems} from './schedule-overdue.js?v=3';
+import {scheduleBacklogItems} from './schedule-overdue.js?v=4';
 
 const HOUR_HEIGHT = 56;
 const DAY_MINUTES = 1440;
