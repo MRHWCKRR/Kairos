@@ -1,4 +1,4 @@
-import {buildCalendarExport,downloadCalendarExport} from './calendar-export.js?v=1';
+import {buildCalendarExport,downloadCalendarExport} from './calendar-export.js?v=2';
 import {stableStringify} from './plan-merge.js?v=1';
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const scope=v=>JSON.stringify([v?.ownerId||null,v?.planId||null]);

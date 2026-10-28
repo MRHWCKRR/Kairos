@@ -1,4 +1,4 @@
-import {validateChecklist} from './task-list-model.js?v=25';
+import {validateChecklist} from './task-list-model.js?v=26';
 import {mountChecklistReorder} from './task-checklist-reorder.js?v=2';
 
 const labels={step_hide_completed:'Hide completed',step_show_completed:'Show completed',step_drag:'Drag to reorder step (Alt+Up/Down)',step_moved:'Step moved to position',checklist:'Checklist',steps:'steps completed',step_title:'Step title',step_complete:'Complete step',step_add:'Add step',step_up:'Move step up',step_down:'Move step down',step_remove:'Remove step',step_required:'Enter a step title up to 180 characters.',step_limit:'A checklist supports up to 100 steps.',step_entry_hint:'Enter adds a step. Paste multiple lines to add several. Save applies your changes.',unsaved:'Unsaved changes'};

@@ -1,19 +1,19 @@
-import {aiEventConflictSummary} from './ai-event-actions.js?v=3';
-import {applyNativeEventUndo,buildNativeEventUndo} from './native-event-commands.js?v=3';
-import {applyCalendarRepairUndo} from './calendar-repair.js?v=4';
+import {aiEventConflictSummary} from './ai-event-actions.js?v=4';
+import {applyNativeEventUndo,buildNativeEventUndo} from './native-event-commands.js?v=4';
+import {applyCalendarRepairUndo} from './calendar-repair.js?v=5';
 import {assertCalendarTimezones,assertCalendarImportTimezone} from './calendar-policy.js?v=1';
 import {plannerChanges,undoPlannerChanges,plannerChangeRows} from './planner-changes.js?v=2';
-import {assertFindTimeSettings} from './schedule-find-time-model.js?v=6';
-import {planningUndoSource,planningUndoPreview,applyPlanningUndo} from './planning-undo.js?v=7';
-import {assertScheduleAvailability} from './schedule-planning-availability.js?v=5';
-import {assertSavedAvailability} from './weekly-availability.js?v=3';
+import {assertFindTimeSettings} from './schedule-find-time-model.js?v=7';
+import {planningUndoSource,planningUndoPreview,applyPlanningUndo} from './planning-undo.js?v=8';
+import {assertScheduleAvailability} from './schedule-planning-availability.js?v=6';
+import {assertSavedAvailability} from './weekly-availability.js?v=4';
 import { db } from './firebase.js?v=1';
 import { doc, getDoc, runTransaction, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { mergePlanEdits, planState, stableStringify } from './plan-merge.js?v=1';
-import {validateAssignmentOrderChanges} from './assignment-order.js?v=4';
-import { applyTaskListCommand, taskListFingerprint } from './task-list-model.js?v=25';
-import {completedScheduleChanges,assertCompletedScheduleChanges} from './schedule-policy.js?v=4';
-import {applyScheduleUndo} from './schedule-change-model.js?v=9';
+import {validateAssignmentOrderChanges} from './assignment-order.js?v=5';
+import { applyTaskListCommand, taskListFingerprint } from './task-list-model.js?v=26';
+import {completedScheduleChanges,assertCompletedScheduleChanges} from './schedule-policy.js?v=5';
+import {applyScheduleUndo} from './schedule-change-model.js?v=10';
 
 export async function persistTaskListCommand(planId, uid, command, expected, operationId, createdAt) {
     if(typeof operationId!=='string'||!operationId||operationId.length>160||!Number.isFinite(createdAt)||createdAt<=0)throw new Error('Invalid operation identity.');
@@ -107,7 +107,7 @@ function receiptResult(result) {
     if(Array.isArray(result.taskIds)){compact.taskIds=structuredClone(result.taskIds);compact.completedTaskIds=structuredClone(result.completedTaskIds||[]);if(result.action!==undefined)compact.action=result.action;}
     for (const field of ['task', 'event', 'movedTask']) {
         const item = result[field];
-        if (item) compact[field] = Object.fromEntries(['id', 'title', 'date', 'startTime', 'endTime', 'completed', 'archived', 'day', 'start', 'end', 'category', 'allDay', 'transparent', 'startDate', 'endDate', 'estimatedMinutes', 'lastScheduledMinutes', 'reminderMinutes'].filter(key => item[key] !== undefined).map(key => [key, item[key]]));
+        if (item) compact[field] = Object.fromEntries(['id', 'title', 'date', 'startTime', 'endTime', 'completed', 'archived', 'day', 'start', 'end', 'category', 'allDay', 'transparent', 'startDate', 'endDate', 'intervalWeeks', 'anchorDate', 'estimatedMinutes', 'lastScheduledMinutes', 'reminderMinutes'].filter(key => item[key] !== undefined).map(key => [key, item[key]]));
     }
     if (result.board) compact.board = typeof result.board === 'string' ? result.board : { id: result.board.id, title: result.board.title, archived: result.board.archived ?? false };
     if (result.section) compact.section = typeof result.section === 'string' ? result.section : { id: result.section.id, title: result.section.title, archived: result.section.archived ?? false };

@@ -1,4 +1,4 @@
-import {applyTaskListCommand,buildTaskBatch,buildTaskTool,taskDetailValues,taskListLocation,taskListSection} from './task-list-model.js?v=25';
+import {applyTaskListCommand,buildTaskBatch,buildTaskTool,taskDetailValues,taskListLocation,taskListSection} from './task-list-model.js?v=26';
 import {mountSectionOrganisation} from './task-section-organisation.js?v=1';
 import {openTaskFieldDialog} from './task-tools-dialog.js';
 import {t} from './i18n.js';

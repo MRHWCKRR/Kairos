@@ -1,4 +1,4 @@
-import {normalisePlanningPreferences} from './planning-preferences.js?v=7';
+import {normalisePlanningPreferences} from './planning-preferences.js?v=8';
 const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 export function mountPlanningPreferencesEditor({root,getValue,onChange}){
  if(!root)return null;let draft={};

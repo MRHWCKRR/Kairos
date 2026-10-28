@@ -1,5 +1,5 @@
-import {dayChangeCandidates,prepareDayChange} from './schedule-day-change.js?v=5';
-import {toDateKey,formatTime,parseTime} from './schedule-utils.js?v=5';
+import {dayChangeCandidates,prepareDayChange} from './schedule-day-change.js?v=6';
+import {toDateKey,formatTime,parseTime} from './schedule-utils.js?v=6';
 
 export function mountDayChange({document,window,getBoards,onSubmit,isBusy=()=>false,getTimeFormat=()=> '24',now=()=>new Date(),getPlanningContext,onPreviewReady=()=>{}}) {
   const toolbar=document.getElementById('schedule-toolbar');let dialog=null,pending=false,openedContext=null;

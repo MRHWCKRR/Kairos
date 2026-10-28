@@ -1,8 +1,8 @@
-import {monthTaskEntries} from './schedule-month.js?v=5';
-import {eventSegmentsForDate} from './schedule-events.js?v=3';
-import {taskDurationMinutes} from './schedule-utils.js?v=5';
-import {zonedTaskStart} from './task-reminders.js?v=6';
-import {validEventDate} from './event-occurrences.js?v=2';
+import {monthTaskEntries} from './schedule-month.js?v=6';
+import {eventSegmentsForDate} from './schedule-events.js?v=4';
+import {taskDurationMinutes} from './schedule-utils.js?v=6';
+import {zonedTaskStart} from './task-reminders.js?v=7';
+import {validEventDate} from './event-occurrences.js?v=3';
 const shift=(date,days)=>new Date(Date.parse(date+'T12:00:00Z')+days*86400000).toISOString().slice(0,10);
 const clock=n=>String(Math.floor(n/60)%24).padStart(2,'0')+':'+String(n%60).padStart(2,'0');
 const minutes=s=>typeof s==='string'&&/^([01]\d|2[0-3]):[0-5]\d$/.test(s)?Number(s.slice(0,2))*60+Number(s.slice(3)):null;

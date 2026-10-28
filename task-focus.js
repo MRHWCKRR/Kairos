@@ -1,6 +1,6 @@
 import {focusOccurrence,focusRecurrenceSignature} from './occurrence-focus.js?v=2';
-import {taskRemainingMinutes} from './remaining-work.js?v=5';
-import {taskDurationMinutes} from './schedule-utils.js?v=5';
+import {taskRemainingMinutes} from './remaining-work.js?v=6';
+import {taskDurationMinutes} from './schedule-utils.js?v=6';
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const entries=state=>(state.boards||[]).flatMap(board=>(board.sections||[]).flatMap(section=>(section.tasks||[]).map(task=>({board,section,task}))));
 const logged=task=>Number.isSafeInteger(task.focusLoggedSeconds)&&task.focusLoggedSeconds>0?task.focusLoggedSeconds:0;

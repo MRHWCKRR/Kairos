@@ -1,5 +1,5 @@
 import {stableStringify} from './plan-merge.js?v=1';
-import {taskDurationMinutes} from './schedule-utils.js?v=5';
+import {taskDurationMinutes} from './schedule-utils.js?v=6';
 import {projectStoredOccurrence} from './recurrence-utils.js?v=14';
 const tasks=state=>(state?.boards||[]).flatMap(b=>(b.sections||[]).flatMap(s=>s.tasks||[]));
 const fields=task=>task?{date:task.date??null,startTime:task.startTime??null,endTime:task.endTime??null,duration:taskDurationMinutes(task)}:null;

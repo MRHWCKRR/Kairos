@@ -1,8 +1,8 @@
-import {eventSegmentsForDate} from './schedule-events.js?v=3';
+import {eventSegmentsForDate} from './schedule-events.js?v=4';
 import {planningTasks,planningOccurrences,validPlanningDate,shiftPlanningDate} from './planning-model.js?v=1';
-import {parseTime,formatTime,taskDurationMinutes} from './schedule-utils.js?v=5';
-import {zonedTaskStart} from './task-reminders.js?v=6';
-import {normaliseWeeklyAvailability} from './weekly-availability.js?v=3';
+import {parseTime,formatTime,taskDurationMinutes} from './schedule-utils.js?v=6';
+import {zonedTaskStart} from './task-reminders.js?v=7';
+import {normaliseWeeklyAvailability} from './weekly-availability.js?v=4';
 
 export function validatePlanningRange(from,to){
  if(!validPlanningDate(from)||!validPlanningDate(to)||to<from||(Date.parse(to)-Date.parse(from))/86400000>=31)throw Error('Choose a valid date range of at most 31 days.');

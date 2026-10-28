@@ -1,7 +1,7 @@
-import {taskRemainingMinutes} from './remaining-work.js?v=5';
+import {taskRemainingMinutes} from './remaining-work.js?v=6';
 import {planningTasks,validPlanningDate} from './planning-model.js?v=1';
-import {taskDurationMinutes} from './schedule-utils.js?v=5';
-import {assignmentReadiness} from './assignment-order.js?v=4';
+import {taskDurationMinutes} from './schedule-utils.js?v=6';
+import {assignmentReadiness} from './assignment-order.js?v=5';
 const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 
 export function assignmentProgressIndex(state,today){
