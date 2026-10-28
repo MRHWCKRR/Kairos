@@ -34,8 +34,8 @@ export function mountPageRouter({document=globalThis.document,window=globalThis.
   async function navigate(page,{history='push'}={}) {
     if(page==='calendar-page')page='schedule-page';
     const root=document.getElementById(page);
-    if(!root||!Object.values(PAGE_ROUTES).includes(page))return;
-    if(current===page)return;
+    if(!root||!Object.values(PAGE_ROUTES).includes(page))return false;
+    if(current===page)return !root.inert&&!root.querySelector('.page-load-status');
     const ticket=++revision;current=page;
     if(history!=='none') {
       const url=pageUrl(window.location.href,page);
@@ -53,12 +53,14 @@ export function mountPageRouter({document=globalThis.document,window=globalThis.
     const feedback=window.setTimeout(()=>{if(ticket===revision)status(root,'Loading this page…');},120);
     try {
       await preparePage(page);
-      if(ticket!==revision)return;
+      if(ticket!==revision)return false;
       root.querySelector('.page-load-status')?.remove();root.inert=false;root.removeAttribute('aria-busy');
       window.dispatchEvent(new window.CustomEvent('kairos-page-ready',{detail:{page}}));
+      return ticket===revision;
     } catch(error) {
       report(error);
       if(ticket===revision)status(root,'This page could not load. Your work in other pages is still available.',true);
+      return false;
     } finally {window.clearTimeout(feedback);}
   }
 

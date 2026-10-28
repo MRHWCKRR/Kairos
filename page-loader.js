@@ -1,7 +1,7 @@
 // Keep each workspace alive once loaded: navigating never cancels AI requests,
 // recreates Firebase listeners, or resets an in-progress schedule edit.
 const scheduleStyles=['schedule-find-time.css','schedule-workspace.css','schedule-calendar.css','schedule-interactions.css','schedule-inspector.css','schedule-ai.css','schedule-day-change.css','planning-hub.css','assignment-progress.css','schedule-keyboard.css'];
-const scheduleModules=['schedule-interactions.js?v=26','schedule-inspector.js?v=29','schedule-responsive.js','schedule-task-create.js?v=21','schedule-ai.js?v=22','planning-hub.js?v=22','schedule-find-time.js?v=8','schedule-keyboard.js?v=8'];
+const scheduleModules=['schedule-interactions.js?v=26','schedule-inspector.js?v=29','schedule-responsive.js','schedule-task-create.js?v=22','schedule-ai.js?v=22','planning-hub.js?v=22','schedule-find-time.js?v=8','schedule-keyboard.js?v=8'];
 
 export function loadPageStyle(href, document=globalThis.document) {
   const existing=[...document.querySelectorAll('link[rel="stylesheet"]')].find(link=>link.getAttribute('href')===href);
@@ -46,7 +46,7 @@ export function createPageLoader({importModule=url=>import(url),loadStyle=loadPa
         await importModule('./schedule-workspace.js?v=21');
         // These modules inspect the workspace during boot. Preserve that order
         // even when network responses arrive out of order.
-        for(const name of scheduleModules)await importModule('./'+name+(name==='schedule-keyboard.js?v=8'?'?v=2':name==='schedule-find-time.js?v=8'?'?v=2':name==='planning-hub.js?v=22'?'?v=16':name==='schedule-interactions.js?v=26'?'?v=20':name==='schedule-inspector.js?v=29'?'?v=22':name==='schedule-ai.js?v=22'?'?v=15':name==='schedule-task-create.js?v=21'?'?v=14':'?v=11'));
+        for(const name of scheduleModules)await importModule('./'+name+(name==='schedule-keyboard.js?v=8'?'?v=2':name==='schedule-find-time.js?v=8'?'?v=2':name==='planning-hub.js?v=22'?'?v=16':name==='schedule-interactions.js?v=26'?'?v=20':name==='schedule-inspector.js?v=29'?'?v=22':name==='schedule-ai.js?v=22'?'?v=15':name==='schedule-task-create.js?v=22'?'?v=14':'?v=11'));
       }
     })();
     loaded.set(page,task);

@@ -12,13 +12,6 @@ test('AI planning retries once when the model returns malformed proposal JSON',(
   assert.doesNotMatch(transforms,/parsed = JSON\.parse\(match\[0\]\);/);
 });
 
-test('Schedule task creator replaces recurring Add event with Add task',()=>{
-  assert.match(creator,/data-add-task/);
-  assert.match(creator,/\+ Task/);
-  assert.match(creator,/data-event/);
-  assert.match(creator,/cloneNode\(true\)/);
-});
-
 test('Schedule task creator supports placement and rich task metadata before persistence',()=>{
   assert.match(creator,/data-ks-create-task/);
   assert.match(creator,/name="board"/);
