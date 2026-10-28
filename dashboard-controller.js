@@ -6,7 +6,11 @@ export function createDashboardController({document=globalThis.document,window=g
     async function open(row,action,source){
         const identity=getIdentity();if(disposed||!identity?.ownerId||!identity?.planId)return false;
         const ticket=generation,id=JSON.stringify(identity),current=()=>!disposed&&generation===ticket&&JSON.stringify(getIdentity())===id;
-        if(action==='open'&&row.kind==='task'&&!row.occurrenceDate)return openTask(row.taskId,source);
+        if(action==='open'&&row.kind==='task'&&!row.occurrenceDate){
+            if(!await requestClose()||!current())return false;
+            if(await navigate('tasks-page')===false||!current())return false;
+            return openTask(row.taskId,source);
+        }
         if(!await requestClose()||!current())return false;
         await navigate('schedule-page');if(!current())return false;
         setScheduleDate(row.date||getToday());

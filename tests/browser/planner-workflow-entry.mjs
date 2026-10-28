@@ -1,4 +1,5 @@
 import {runCalendarExportJourney} from './calendar-export-journey.mjs';
+import {runScheduleEntrypointJourney} from './schedule-entrypoint-journey.mjs';
 import {runWeeklyEventJourney} from './weekly-event-journey.mjs';
 import {runAiEventJourney} from './ai-event-journey.mjs';
 import {runNativeEventJourney} from './native-event-journey.mjs';
@@ -86,6 +87,8 @@ async function run(){
   await runAiEventJourney({document,window,wait,check});
   await runWeeklyEventJourney({document,window,wait,check});
   await runCalendarExportJourney({document,window,wait,check});
+  await runScheduleEntrypointJourney({document,window,wait,check});
+  await runScheduleEntrypointJourney({document,window,wait,check});
   data=seed();view.sync();status.dataset.result='passed';status.textContent='Passed: Quick Add → Today → interrupted save → retry → Archive → restore → reviewed Undo → backup.';
  }catch(error){status.dataset.result='failed';status.textContent='Failed: '+error.message;console.error(error);}
 }

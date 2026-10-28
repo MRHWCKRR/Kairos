@@ -98,9 +98,9 @@ async function createTask(form){
 
 function decorateToolbar(){
   const toolbar=document.getElementById('schedule-toolbar');if(!toolbar)return;
-  const existing=toolbar.querySelector('[data-event]');if(!existing)return;
-  const button=existing.cloneNode(true);button.removeAttribute('data-event');button.setAttribute('data-add-task','');button.textContent='+ Task';button.setAttribute('aria-label','Add task');
-  button.addEventListener('click',event=>{event.preventDefault();openCreator()});existing.replaceWith(button);
+  const existing=toolbar.querySelector('[data-event]');if(!existing||toolbar.querySelector('[data-add-task]'))return;
+  const button=document.createElement('button');button.type='button';button.className=existing.className;button.setAttribute('data-add-task','');button.textContent='+ Task';button.setAttribute('aria-label','Add task');
+  button.addEventListener('click',event=>{event.preventDefault();void openCreator()});existing.before(button);
 }
 
 function boot(){
