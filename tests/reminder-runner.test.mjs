@@ -7,10 +7,14 @@ async function fixture(){
  const app=await readFile(new URL('../app.js',import.meta.url),'utf8'),source=app.slice(app.indexOf('    async function checkTaskReminders()'),app.indexOf('    window.__kairosTaskReminders ='));
  const calls=[],shown=[],waiting=[];
  const delivery=async(planId,uid,candidate)=>{calls.push({planId,uid,id:candidate.id});return new Promise((resolve,reject)=>waiting.push({resolve,reject}))};
- const context=vm.createContext({globalSearchController:null,taskCaptureController:null,searchPlannerOwnerId:null,auth:{currentUser:{uid:'one'}},currentPlanDocId:'first',boardsData:[],scheduleData:[],userSettings:{profile:{timezone:'Australia/Brisbane'},notifications:{enabled:true,bedtimeReminders:true}},taskReminderChecking:false,taskReminderQueued:false,Date,Intl,console:{warn(){}},dueTaskReminders:()=>[{id:'t'},{id:'u'}],dueBedtimeReminders:()=>[{id:'sleep'}],deliverTaskReminder:(...args)=>delivery(...args),deliverBedtimeReminder:(...args)=>delivery(...args),showBrowserNotification:(title,message)=>shown.push({title,message})});
+ const context=vm.createContext({globalSearchController:null,taskCaptureController:null,searchPlannerOwnerId:null,auth:{currentUser:{uid:'one'}},currentPlanDocId:'first',boardsData:[],scheduleData:[],userSettings:{profile:{timezone:'Australia/Brisbane'},notifications:{enabled:true,bedtimeReminders:true}},taskReminderChecking:false,taskReminderQueued:false,Date,Intl,console:{warn(){}},dueEventReminders:()=>[],deliverEventReminder:(...args)=>delivery(...args),dueTaskReminders:()=>[{id:'t'},{id:'u'}],dueBedtimeReminders:()=>[{id:'sleep'}],deliverTaskReminder:(...args)=>delivery(...args),deliverBedtimeReminder:(...args)=>delivery(...args),showBrowserNotification:(title,message)=>shown.push({title,message})});
  vm.runInContext(source,context);return {context,calls,shown,waiting};
 }
 const tick=()=>new Promise(resolve=>setTimeout(resolve,0));
+
+test('runner delivers custom event candidates independently of bedtime setting and suppresses late account popups',async()=>{
+ for(const switched of [false,true]){const f=await fixture();f.context.dueTaskReminders=()=>[];f.context.dueBedtimeReminders=()=>[];f.context.dueEventReminders=()=>[{id:'event'}];f.context.userSettings.notifications.bedtimeReminders=false;const checking=f.context.checkTaskReminders();await tick();assert.equal(f.calls.length,1);assert.equal(f.calls[0].id,'event');if(switched)f.context.auth.currentUser={uid:'two'};f.waiting[0].resolve({delivered:true,title:'Event reminder'});await checking;assert.equal(f.shown.length,switched?0:1);}
+});
 
 test('a late delivery cannot notify or continue scanning the previous planner',async()=>{
  const f=await fixture(),checking=f.context.checkTaskReminders();await tick();f.context.currentPlanDocId='second';f.waiting[0].resolve({delivered:true,title:'Old planner'});await tick();assert.equal(f.shown.length,0);assert.equal(f.calls.length,1);await checking;

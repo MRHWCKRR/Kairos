@@ -1,4 +1,4 @@
-import {taskDetailValues,buildScheduleChange,buildRecurringInspectorCommand,buildInspectorDelete} from './task-list-model.js?v=26';
+import {taskDetailValues,buildScheduleChange,buildRecurringInspectorCommand,buildInspectorDelete} from './task-list-model.js?v=27';
 import {recurringEditPreview} from './recurrence-edit.js?v=6';
 import {bindTaskFocus} from './task-focus.js?v=7';
 import {bindDeadlineImpact} from './deadline-impact.js?v=7';

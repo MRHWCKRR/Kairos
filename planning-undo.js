@@ -1,8 +1,8 @@
 import {stableStringify} from './plan-merge.js?v=1';
 import {planningTasks,validPlanningDate,shiftPlanningDate} from './planning-model.js?v=1';
-import {planningOccupancy,intervalsOverlap} from './planning-slots.js?v=9';
+import {planningOccupancy,intervalsOverlap} from './planning-slots.js?v=10';
 import {parseTime,formatTime,taskDurationMinutes} from './schedule-utils.js?v=6';
-import {zonedTaskStart} from './task-reminders.js?v=7';
+import {zonedTaskStart} from './task-reminders.js?v=8';
 import {validateAssignmentOrderChanges} from './assignment-order.js?v=5';
 
 const FIELDS=['date','startTime','endTime','lastScheduledMinutes','estimatedMinutes','remainingMinutes','archived','sessionOrder'];

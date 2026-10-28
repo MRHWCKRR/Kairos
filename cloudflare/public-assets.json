@@ -1,5 +1,6 @@
 {
   "files": [
+    "event-reminders.js",
     "calendar-export-view.js",
     "calendar-export.js",
     "event-occurrences.js",

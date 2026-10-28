@@ -1,4 +1,4 @@
-import {aiEventPreviewMarkup} from './ai-event-actions.js?v=4';
+import {aiEventPreviewMarkup} from './ai-event-actions.js?v=5';
 import {mountDialogWindow} from './dialog-window.js?v=2';
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 export function mountAiUndo({root,document=globalThis.document,window=globalThis.window,getIdentity,loadPreview,session}={}){

@@ -1,17 +1,17 @@
-import {isAiEventAction,previewAiEventChange,applyAiEventChange} from './ai-event-actions.js?v=4';
-import {applyAiTaskMutation} from './ai-task-commands.js?v=8';
+import {isAiEventAction,previewAiEventChange,applyAiEventChange} from './ai-event-actions.js?v=5';
+import {applyAiTaskMutation} from './ai-task-commands.js?v=9';
 import {plannerChangeRows} from './planner-changes.js?v=2';
-import {applyTaskListCommand} from './task-list-model.js?v=26';
-import {planningUndoPreview} from './planning-undo.js?v=8';
-import {savedPlanningPreferences,planningPreferencesText} from './planning-preferences.js?v=8';
+import {applyTaskListCommand} from './task-list-model.js?v=27';
+import {planningUndoPreview} from './planning-undo.js?v=9';
+import {savedPlanningPreferences,planningPreferencesText} from './planning-preferences.js?v=9';
 import {savedWeeklyAvailability} from './weekly-availability.js?v=4';
 import { auth, db } from './firebase.js?v=1';
-import { persistAiPlanAction, getConfirmedAiAction, applyStoredPlanningUndo } from './plan-store.js?v=27';
-import { validateActionShape } from './ai-action-schema.js?v=15';
+import { persistAiPlanAction, getConfirmedAiAction, applyStoredPlanningUndo } from './plan-store.js?v=28';
+import { validateActionShape } from './ai-action-schema.js?v=16';
 import { stableStringify, planState } from './plan-merge.js?v=1';
-import {previewAiPlanning,resolveAiPlanningTimezone} from './ai-planning.js?v=18';
-import {planningConflicts,planningGapText,planningDailyLimitText} from './planning-slots.js?v=9';
-import {applyPlanningCommand} from './planning-commands.js?v=14';
+import {previewAiPlanning,resolveAiPlanningTimezone} from './ai-planning.js?v=19';
+import {planningConflicts,planningGapText,planningDailyLimitText} from './planning-slots.js?v=10';
+import {applyPlanningCommand} from './planning-commands.js?v=15';
 import {
     collection, getDocs, query, where, doc, getDoc
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";

@@ -1,17 +1,20 @@
 import {eventOccurrence,isEventOccurrenceDate,validEventDate,withinEventDates} from './event-occurrences.js?v=3';
-import {zonedTaskStart} from './task-reminders.js?v=7';
+import {validEventReminder} from './event-reminders.js?v=1';
+import {zonedTaskStart} from './task-reminders.js?v=8';
 import {stableStringify} from './plan-merge.js?v=1';
-import {planningSignature} from './planning-commands.js?v=14';
+import {planningSignature} from './planning-commands.js?v=15';
 import {planningClock,validPlanningDate,shiftPlanningDate} from './planning-model.js?v=1';
 import {eventSegmentsForDate} from './schedule-events.js?v=4';
 import {calendarConflicts} from './calendar-conflicts.js?v=4';
-const fields=['id','title','category','date','day','start','end','allDay','transparent','startDate','endDate','intervalWeeks','anchorDate'];
+const fields=['id','title','category','date','day','start','end','allDay','transparent','startDate','endDate','intervalWeeks','anchorDate','reminderMinutes'];
 const same=(a,b)=>stableStringify(a)===stableStringify(b),object=v=>v&&typeof v==='object'&&!Array.isArray(v),validTime=v=>typeof v==='string'&&/^([01]\d|2[0-3]):[0-5]\d$/.test(v);
 const editable=event=>{if(event&&(event.readOnly||event.calendarSourceId))throw Error('Imported calendar events are read-only. Use Calendars to refresh or remove their source.');};
 const validId=id=>typeof id==='string'&&id.length>0&&id.length<=160&&!/[\u0000-\u001f]/.test(id);
 function target(state,id){if(!validId(id))throw Error('Invalid event identity.');const found=(state.scheduleEvents||[]).filter(e=>e.id===id);if(found.length>1)throw Error('Duplicate event identity. Review this planner.');editable(found[0]);return structuredClone(found[0]||null);}
 function timezoneValid(timezone){if(typeof timezone!=='string'||!timezone||timezone.length>100)throw Error('Choose a valid timezone.');new Intl.DateTimeFormat('en',{timeZone:timezone});}
 function inputEvent(value,id){
+ if(!validEventReminder(value?.reminderMinutes))throw Error('Choose Off, Use default, or 5, 15, 30 or 60 minutes before.');
+ if(value?.allDay&&typeof value.reminderMinutes==='number')throw Error('Custom event reminders need a timed event; all-day events cannot have a custom lead.');
  if(!object(value)||Object.keys(value).some(k=>!fields.includes(k))||value.id!==id||typeof value.title!=='string'||!value.title.trim()||value.title.length>180||/[\u0000-\u001f]/.test(value.title)||typeof value.category!=='string'||!value.category.trim()||value.category.length>30||typeof value.allDay!=='boolean'||typeof value.transparent!=='boolean')throw Error('Invalid event fields, title or category.');
  const dated=Object.hasOwn(value,'date');if(dated?Object.hasOwn(value,'day')||!validPlanningDate(value.date)||value.date<'1900-01-01'||value.date>'2200-12-30':!Number.isInteger(value.day)||value.day<0||value.day>6)throw Error('Choose a valid event date or weekday.');
  for(const k of ['startDate','endDate'])if(value[k]!=null&&(dated||!validEventDate(value[k])))throw Error('Choose valid first and last dates for a weekly series only.');if(value.startDate&&value.endDate&&value.startDate>value.endDate)throw Error('The last date must be on or after the first date.');
@@ -53,7 +56,7 @@ export function buildNativeEventChange(state,{eventId,event,occurrenceDate,occur
   checkedExceptions(after,timezone);afterEvent=eventOccurrence(after,occurrenceDate);limits(replace(state,eventId,after));
  }else{
   normalized=event===null?null:inputEvent(event,eventId);after=normalized?{...(before||{}),...normalized}:null;
-  if(after){if(normalized.date){delete after.day;delete after.startDate;delete after.endDate;delete after.intervalWeeks;delete after.anchorDate;}else delete after.date;inputEvent(Object.fromEntries(fields.filter(k=>Object.hasOwn(after,k)).map(k=>[k,after[k]])),eventId);if(Object.keys(before?.exceptions||{}).length&&(normalized.date||Number(normalized.day)!==Number(before.day)||(after.intervalWeeks??1)!==(before.intervalWeeks??1)||(after.intervalWeeks===2||before.intervalWeeks===2)&&after.anchorDate!==before.anchorDate))throw Error('Restore weekly exceptions before changing the series weekday, repeat interval or reference date.');wallTimes(after,timezone);checkedExceptions(after,timezone);limits(replace(state,eventId,after));}afterEvent=after;
+  if(after){if(after.allDay&&typeof after.reminderMinutes==='number'&&normalized.reminderMinutes===undefined)after.reminderMinutes=null;if(normalized.date){delete after.day;delete after.startDate;delete after.endDate;delete after.intervalWeeks;delete after.anchorDate;}else delete after.date;inputEvent(Object.fromEntries(fields.filter(k=>Object.hasOwn(after,k)).map(k=>[k,after[k]])),eventId);if(Object.keys(before?.exceptions||{}).length&&(normalized.date||Number(normalized.day)!==Number(before.day)||(after.intervalWeeks??1)!==(before.intervalWeeks??1)||(after.intervalWeeks===2||before.intervalWeeks===2)&&after.anchorDate!==before.anchorDate))throw Error('Restore weekly exceptions before changing the series weekday, repeat interval or reference date.');wallTimes(after,timezone);checkedExceptions(after,timezone);limits(replace(state,eventId,after));}afterEvent=after;
  }
  const shown=afterEvent||beforeEvent||(scoped?eventOccurrence(before,occurrenceDate,{includeSkipped:true,includeInactive:true}):before),range=rangeFor(shown,timezone,now),record=undoRecord(before,after,timezone);
  if(record&&scoped)record.occurrenceDate=occurrenceDate;

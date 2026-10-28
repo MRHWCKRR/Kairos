@@ -24,6 +24,12 @@ async function fixture() {
   return {context,plan,events,userData};
 }
 
+test('AI context distinguishes default, Off and custom event reminders and records reminder-only changes',async()=>{
+ const {context,plan}=await fixture();for(const value of [30,null,'default']){plan.scheduleEvents[0].reminderMinutes=value;const data=await context.loadContextData(context.auth.currentUser);assert.equal(data.scheduleEvents[0].reminderMinutes,value);}
+ plan.scheduleEvents[0].exceptions={'2026-10-14':{override:{date:'2026-10-15',reminderMinutes:null}}};assert.equal((await context.loadContextData(context.auth.currentUser)).scheduleEvents[0].exceptions[0].override.reminderMinutes,null);
+ const before=structuredClone(plan);plan.scheduleEvents[0].reminderMinutes=15;context.invalidateKairosContext({ownerId:'one',planId:'plan-1',before,after:plan});const text=await context.getKairosContext(),history=text.slice(text.indexOf('Recent confirmed schedule changes'));assert.match(history,/"reminderMinutes":"default"/);assert.match(history,/"reminderMinutes":15/);
+});
+
 test('AI context and recent event changes retain fortnightly phase independently of term dates',async()=>{
  const {context,plan}=await fixture();Object.assign(plan.scheduleEvents[0],{day:5,intervalWeeks:2,anchorDate:'2026-10-30'});
  const data=await context.loadContextData(context.auth.currentUser);assert.equal(data.scheduleEvents[0].intervalWeeks,2);assert.equal(data.scheduleEvents[0].anchorDate,'2026-10-30');
