@@ -1,9 +1,9 @@
 import {planningTasks,planningClock,validPlanningDate,shiftPlanningDate} from './planning-model.js?v=1';
-import {planningWindows,planningPlacementOccupancy,planningIntervalsConflict,planningBlockValid,planningDailyWork,planningDailyRemaining,validatePlanningRange} from './planning-slots.js?v=9';
+import {planningWindows,planningPlacementOccupancy,planningIntervalsConflict,planningBlockValid,planningDailyWork,planningDailyRemaining,validatePlanningRange} from './planning-slots.js?v=10';
 import {parseTime,formatTime,taskDurationMinutes} from './schedule-utils.js?v=6';
 import {generateTaskOccurrences,projectStoredOccurrence} from './recurrence-utils.js?v=14';
 import {stableStringify} from './plan-merge.js?v=1';
-import {savedPlanningPreferences} from './planning-preferences.js?v=8';
+import {savedPlanningPreferences} from './planning-preferences.js?v=9';
 import {savedWeeklyAvailability,normaliseWeeklyAvailability} from './weekly-availability.js?v=4';
 import {taskOverdueState} from './schedule-overdue.js?v=5';
 

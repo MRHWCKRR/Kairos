@@ -1,6 +1,6 @@
 import {normaliseWeeklyAvailability,savedWeeklyAvailability,weeklyAvailabilityText} from './weekly-availability.js?v=4';
 import {planningClock,validPlanningDate} from './planning-model.js?v=1';
-import {planningWindows,planningBlockValid} from './planning-slots.js?v=9';
+import {planningWindows,planningBlockValid} from './planning-slots.js?v=10';
 import {parseTime} from './schedule-utils.js?v=6';
 
 export function schedulePlanningAvailability(bridge){

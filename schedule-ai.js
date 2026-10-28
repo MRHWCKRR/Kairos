@@ -1,5 +1,5 @@
-import {buildReviewedSchedule} from './task-list-model.js?v=26';
-import {schedulePlanningAvailability,schedulePlanningClock,sameScheduleAvailability,scheduleProposalFits,scheduleAvailabilityText} from './schedule-planning-availability.js?v=6';
+import {buildReviewedSchedule} from './task-list-model.js?v=27';
+import {schedulePlanningAvailability,schedulePlanningClock,sameScheduleAvailability,scheduleProposalFits,scheduleAvailabilityText} from './schedule-planning-availability.js?v=7';
 import {shiftPlanningDate} from './planning-model.js?v=1';
 import { eventCommitmentsForRange, validateScheduleProposals, parseTime, formatTime, taskDurationMinutes, toDateKey, getVisibleDates, blockGeometry, addDays } from './schedule-utils.js?v=6';
 import { generateTaskOccurrences, generateTaskOccurrencesThrough } from './recurrence-utils.js?v=14';

@@ -1,0 +1,13 @@
+# Native event reminders
+
+User approved configurable native event reminders (5/15/30/60 minutes), including one-off/weekly/fortnightly and moved/skipped occurrences, editable by UI and AI, delivered through the existing while-open notification system.
+
+Use optional event.reminderMinutes: integer 5,15,30,60 for custom; null for Off; 'default' (or legacy omission) for existing behavior (15-minute sleep reminder, otherwise none). This explicit default value allows restoring defaults through merged series edits and full occurrence overrides without losing inherited-series semantics. UI always writes a selected value; ordinary AI updates preserve the prior value. Single-occurrence edits can choose their own reminder; restore removes the exception. All-day events cannot have custom reminders; switching to all-day clears custom reminders to Off. Free timed events can have explicitly requested custom reminders. Imported events remain read-only and are excluded from custom delivery.
+
+Default sleep continues to respect the bedtimeReminders setting. Explicit custom sleep reminders use the main enabled notification setting, replace the automatic bedtime reminder, and are labelled Event reminder. Default/Off/custom semantics are disclosed in review and AI context. No duplicate is delivered when switching default sleep to the same custom 15-minute lead in the current window: normalize bedtime/event receipt identities when comparing receipts. Existing task identities and planner scoping remain unchanged.
+
+Projection reuses original logical occurrence identity. Scan today and tomorrow for a maximum 60-minute lead crossing midnight, convert with profile timezone, skip DST gaps, use earlier ambiguous instant, catch delayed checks until start, and stop at start. Archived/malformed/off-cadence/skipped/all-day/imported events do not generate custom candidates. Delivery transaction rechecks ownership, current event/cadence/time/reminder, timezone and settings before writing the existing notification list and shared durable receipts. Host runner preserves owner/planner switching and late-popup guards.
+
+Approaches: extend task reminders with event-specific branches, create a separate event reminder projection using shared timezone/occurrence helpers (chosen for separation), or create a background service (outside approved while-open scope). No new dependencies, server scheduling, browser permission grants, email/SMS, provider writes, exported alarms, task reminder changes or mobile web changes.
+
+Deliver tests across projection, transaction/receipt races, native commands/editor, AI/context/Undo, host runner and real Chrome. Build and full regression plus independent review, publish feature PR and await green CI; hold merge.

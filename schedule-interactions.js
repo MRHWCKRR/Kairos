@@ -1,6 +1,6 @@
 import { applyResize, snapMinutes, formatTime, parseTime, taskDurationMinutes, blockGeometry } from './schedule-utils.js?v=6';
 import { projectStoredOccurrence, generateTaskOccurrences } from './recurrence-utils.js?v=14';
-import {createScheduleChangeController} from './schedule-change-controller.js?v=9';
+import {createScheduleChangeController} from './schedule-change-controller.js?v=10';
 
 const DAY_MINUTES=1440;
 const HOUR_HEIGHT=56;

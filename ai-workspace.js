@@ -1,12 +1,12 @@
-import {isAiEventAction,aiEventPreviewMarkup} from './ai-event-actions.js?v=4';
+import {isAiEventAction,aiEventPreviewMarkup} from './ai-event-actions.js?v=5';
 import {weeklyAvailabilityText} from './weekly-availability.js?v=4';
 import { aiFetch, aiErrorMessage, aiConversationMessages } from './ai-client.js?v=2';
 import { auth, db } from './firebase.js?v=1';
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { getKairosContext } from './ai-context.js?v=22';
-import { actionNeedsConfirmation, executeKairosAction, getAiPlanId, previewKairosAction, confirmedKairosAction } from './ai-actions.js?v=29';
-import { ACTION_TYPES, ACTION_INSTRUCTIONS, explicitDurationIntent, validateActionShape } from './ai-action-schema.js?v=15';
+import { getKairosContext } from './ai-context.js?v=23';
+import { actionNeedsConfirmation, executeKairosAction, getAiPlanId, previewKairosAction, confirmedKairosAction } from './ai-actions.js?v=30';
+import { ACTION_TYPES, ACTION_INSTRUCTIONS, explicitDurationIntent, validateActionShape } from './ai-action-schema.js?v=16';
 import { appendPlanLimitActions } from './plan-usage.js';
 import {savedMessageCount} from './ai-usage.js?v=1';
 import {recordSentMessage,initializeMessageUsage} from './ai-usage-store.js?v=1';

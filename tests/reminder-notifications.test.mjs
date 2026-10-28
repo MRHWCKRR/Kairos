@@ -4,6 +4,8 @@ import vm from 'node:vm';
 import {readFile} from 'node:fs/promises';
 import * as reminderUtils from '../task-reminders.js';
 const {dueTaskReminders,dueBedtimeReminders}=reminderUtils;
+const eventReminderUtils=await import('../event-reminders.js').catch(e=>{if(e.code==='ERR_MODULE_NOT_FOUND')return {};throw e});
+const dueEventReminders=(...args)=>{assert.equal(typeof eventReminderUtils.dueEventReminders,'function');return eventReminderUtils.dueEventReminders(...args)};
 import {mergePlanEdits,planState} from '../plan-merge.js';
 
 async function fixture({failBeforeCommit=false,loseResponse=false,retryTransaction=false}={}){
@@ -24,11 +26,31 @@ async function fixture({failBeforeCommit=false,loseResponse=false,retryTransacti
       return result;
     });queue=work;return work;
   };
-  const reload=()=>{const context=vm.createContext({db:{},dueTaskReminders,dueBedtimeReminders,mergePlanEdits,planState,Date,structuredClone,doc:(_,collection,id)=>collection+'/'+id,runTransaction});vm.runInContext(source.replace(/^import[^\n]*\n/gm,'').replace(/^export /gm,''),context);return context};
+  const reload=()=>{const context=vm.createContext({db:{},dueTaskReminders,dueBedtimeReminders,dueEventReminders,mergePlanEdits,planState,Date,structuredClone,doc:(_,collection,id)=>collection+'/'+id,runTransaction});vm.runInContext(source.replace(/^import[^\n]*\n/gm,'').replace(/^export /gm,''),context);return context};
   const context=reload();
   assert.equal(typeof context.deliverTaskReminder,'function','notification delivery uses a durable transaction');
   return {context,reload,now,plan,user,records,candidate:dueTaskReminders(plan.boards,now,'Australia/Brisbane')[0]};
 }
+
+async function eventFixture(options={}){const f=await fixture(options);f.plan.scheduleEvents=[{id:'event',title:'Class <img>',category:'class',date:'2026-10-14',start:'13:00',end:'14:00',reminderMinutes:30}];f.eventCandidate=dueEventReminders(f.plan.scheduleEvents,f.now,'Australia/Brisbane')[0];assert.equal(typeof f.context.deliverEventReminder,'function');return f;}
+test('event delivery is durable once across concurrent tabs, reload and lost acknowledgement',async()=>{
+ const f=await eventFixture({retryTransaction:true}),results=await Promise.all([f.context.deliverEventReminder('plan','one',f.eventCandidate,{now:f.now}),f.reload().deliverEventReminder('plan','one',f.eventCandidate,{now:f.now})]);assert.equal(results.filter(r=>r.delivered).length,1);assert.equal(f.records.get('users/one').notifications.length,1);assert.equal(f.records.get('users/one').notifications[0].title,'Event reminder');
+ const lost=await eventFixture({loseResponse:true});await assert.rejects(lost.context.deliverEventReminder('plan','one',lost.eventCandidate,{now:lost.now}),/lost/i);assert.equal((await lost.reload().deliverEventReminder('plan','one',lost.eventCandidate,{now:lost.now})).delivered,false);
+});
+test('event transaction revalidates deletion, skip, settings, timezone and reminder edits after scan',async()=>{
+ for(const mode of ['removed','deleted','time','zone','disabled','imported','archived']){const f=await eventFixture();if(mode==='removed')f.plan.scheduleEvents[0].reminderMinutes=null;if(mode==='deleted')f.plan.scheduleEvents=[];if(mode==='time')f.plan.scheduleEvents[0].start='14:00';if(mode==='zone')f.user.settings.profile.timezone='UTC';if(mode==='disabled')f.user.settings.notifications.enabled=false;if(mode==='imported')f.plan.scheduleEvents[0].calendarSourceId='feed';if(mode==='archived')f.plan.scheduleEvents[0].archived=true;assert.equal((await f.context.deliverEventReminder('plan','one',f.eventCandidate,{now:f.now})).delivered,false,mode);assert.equal(f.records.get('users/one').notifications.length,0);}
+});
+test('changing default sleep to custom 15 minutes cannot replay the same delivered window',async()=>{
+ const f=await eventFixture();const e=f.plan.scheduleEvents[0];e.category='sleep';delete e.reminderMinutes;const now=f.now+15*60000,bed=dueBedtimeReminders([e],now,'Australia/Brisbane')[0];assert.equal((await f.context.deliverBedtimeReminder('plan','one',bed,{now})).delivered,true);
+ e.reminderMinutes=15;const custom=dueEventReminders([e],now,'Australia/Brisbane')[0];assert.equal((await f.context.deliverEventReminder('plan','one',custom,{now})).delivered,false);assert.equal(f.records.get('users/one').notifications.length,1);
+});
+test('custom sleep uses explicit reminder while default bedtime setting remains respected',async()=>{
+ const f=await eventFixture();f.plan.scheduleEvents[0].category='sleep';f.user.settings.notifications.bedtimeReminders=false;assert.equal((await f.context.deliverEventReminder('plan','one',f.eventCandidate,{now:f.now})).delivered,true);
+});
+test('event delivery rechecks skipped logical dates and scopes receipts to each owned planner',async()=>{
+ const f=await eventFixture(),e=f.plan.scheduleEvents[0];delete e.date;e.day=3;const candidate=dueEventReminders([e],f.now,'Australia/Brisbane')[0];e.exceptions={'2026-10-14':{skipped:true}};assert.equal((await f.context.deliverEventReminder('plan','one',candidate,{now:f.now})).delivered,false);delete e.exceptions;
+ assert.equal((await f.context.deliverEventReminder('plan','one',candidate,{now:f.now})).delivered,true);f.records.set('study_plans/second',structuredClone(f.plan));assert.equal((await f.context.deliverEventReminder('second','one',candidate,{now:f.now})).delivered,true);f.records.get('study_plans/second').userID='someone-else';await assert.rejects(f.context.deliverEventReminder('second','one',candidate,{now:f.now}),/another account/i);
+});
 test('a reminder is delivered once across repeated checks and receipt persistence',async()=>{
   const f=await fixture();
   const first=await f.context.deliverTaskReminder('plan','one',f.candidate,{now:f.now});

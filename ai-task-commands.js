@@ -1,4 +1,4 @@
-import {applyTaskListCommand,taskDetailValues,taskListLocation,taskListSection} from './task-list-model.js?v=26';
+import {applyTaskListCommand,taskDetailValues,taskListLocation,taskListSection} from './task-list-model.js?v=27';
 import {parseTime,taskDurationMinutes} from './schedule-utils.js?v=6';
 
 const fields={

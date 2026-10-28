@@ -1,6 +1,7 @@
 import { db } from './firebase.js?v=1';
 import { doc, runTransaction } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { dueTaskReminders,dueBedtimeReminders } from './task-reminders.js?v=7';
+import { dueTaskReminders,dueBedtimeReminders } from './task-reminders.js?v=8';
+import {dueEventReminders} from './event-reminders.js?v=1';
 import { mergePlanEdits, planState } from './plan-merge.js?v=1';
 
 export function escapeNotificationText(value) {
@@ -26,6 +27,10 @@ export async function deliverBedtimeReminder(planId,uid,candidate,options={}) {
     return deliverReminder('bedtime',planId,uid,candidate,options);
 }
 
+export async function deliverEventReminder(planId,uid,candidate,options={}) {
+    return deliverReminder('event',planId,uid,candidate,options);
+}
+
 async function deliverReminder(kind,planId,uid,candidate,options) {
     const planRef=doc(db,'study_plans',planId),userRef=doc(db,'users',uid);
     return runTransaction(db,async transaction=>{
@@ -36,7 +41,7 @@ async function deliverReminder(kind,planId,uid,candidate,options) {
         if(user.settings?.notifications?.enabled===false)return {delivered:false};
         if(kind==='bedtime'&&user.settings?.notifications?.bedtimeReminders===false)return {delivered:false};
         const now=options.now??Date.now(),zone=user.settings?.profile?.timezone||options.timeZone||'UTC';
-        const state=planState(plan),candidates=kind==='bedtime'?dueBedtimeReminders(state.scheduleEvents,now,zone):dueTaskReminders(state.boards,now,zone);
+        const state=planState(plan),candidates=kind==='event'?dueEventReminders(state.scheduleEvents,now,zone):kind==='bedtime'?dueBedtimeReminders(state.scheduleEvents,now,zone):dueTaskReminders(state.boards,now,zone);
         const fresh=candidates.find(item=>item.id===candidate.id);
         if(!fresh)return {delivered:false};
         // Keep every active delivery window, including bursts above 200 tasks.
@@ -44,8 +49,9 @@ async function deliverReminder(kind,planId,uid,candidate,options) {
         const receipts=(Array.isArray(user.taskReminderReceipts)?user.taskReminderReceipts:[])
             .filter(item=>(item.startsAt??item.dueAt+10080*60000)>now);
         // Receipts written before planner scoping continue to suppress replay.
-        if(receipts.some(item=>item.id===fresh.id&&(!item.planId||item.planId===planId)))return {delivered:false};
-        const title=kind==='bedtime'?'Bedtime coming up':'Task reminder',message='"'+fresh.title+'" starts at '+fresh.startTime+' on '+fresh.date+'.'+(kind==='bedtime'?' Start winding down.':'');
+        const receiptKey=id=>String(id).replace(/^bedtime-reminder:/,'event-reminder:');
+        if(receipts.some(item=>receiptKey(item.id)===receiptKey(fresh.id)&&(!item.planId||item.planId===planId)))return {delivered:false};
+        const title=kind==='event'?'Event reminder':kind==='bedtime'?'Bedtime coming up':'Task reminder',message='"'+fresh.title+'" starts at '+fresh.startTime+' on '+fresh.date+'.'+(kind==='bedtime'?' Start winding down.':'');
         const notifications=[{id:fresh.id+':plan:'+encodeURIComponent(planId),title,message,time:now,read:false},...(user.notifications||[])].slice(0,50);
         const updated=[...receipts,{id:fresh.id,planId,dueAt:fresh.dueAt,startsAt:fresh.startsAt}];
         transaction.set(userRef,{notifications,taskReminderReceipts:updated},{merge:true});
