@@ -1,4 +1,4 @@
-import {eventOccurrencesForDate} from './event-occurrences.js?v=1';
+import {eventOccurrencesForDate} from './event-occurrences.js?v=2';
 import { generateTaskOccurrences } from './recurrence-utils.js?v=14';
 
 export function validReminderMinutes(value) {

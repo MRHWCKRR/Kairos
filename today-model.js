@@ -1,7 +1,7 @@
-import {eventSegmentsForDate} from './schedule-events.js?v=2';
+import {eventSegmentsForDate} from './schedule-events.js?v=3';
 import {validFocusDate} from './occurrence-focus.js?v=2';
 import {generateTaskOccurrencesThrough} from './recurrence-utils.js?v=14';
-import {resolveTaskDetail,taskDetailValues} from './task-list-model.js?v=24';
+import {resolveTaskDetail,taskDetailValues} from './task-list-model.js?v=25';
 
 export function buildToday(state={},today) {
  if(!validFocusDate(today))throw Error('A valid Today date is required.');

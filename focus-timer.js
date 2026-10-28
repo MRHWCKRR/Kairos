@@ -1,4 +1,4 @@
-import {focusElapsedMs,recoverFocus,validFocusSession,MAX_FOCUS_MS} from './focus-model.js?v=7';
+import {focusElapsedMs,recoverFocus,validFocusSession,MAX_FOCUS_MS} from './focus-model.js?v=8';
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const format=ms=>{const s=Math.floor(ms/1000);return [Math.floor(s/3600),Math.floor(s%3600/60),s%60].map(n=>String(n).padStart(2,'0')).join(':')};
 export function mountFocusTimer({document=globalThis.document,window=globalThis.window,getIdentity,persist,chooseOutcome=null,getLongestSeconds=()=>0,confirmDiscard=async()=>false,storage,locks=window.navigator?.locks,now=()=>Date.now(),setInterval=window.setInterval.bind(window),clearInterval=window.clearInterval.bind(window)}={}){
