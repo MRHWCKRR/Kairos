@@ -1,4 +1,4 @@
-import {manualFocusChoices} from './manual-focus-model.js?v=4';
+import {manualFocusChoices} from './manual-focus-model.js?v=5';
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
 export function manualFocusMarkup(state,draft,{timezone,today}){

@@ -1,4 +1,4 @@
-import {taskFocusTarget} from './task-focus.js?v=6';
+import {taskFocusTarget} from './task-focus.js?v=7';
 import {validFocusDate} from './occurrence-focus.js?v=2';
 import {planningClock} from './planning-model.js?v=1';
 

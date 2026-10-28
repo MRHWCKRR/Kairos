@@ -1,7 +1,7 @@
 import {createSettingsRecovery,overlaySettingsEdits} from './settings-recovery.js?v=2';
 import {normaliseShortcuts} from './shortcut-model.js?v=1';
-import {normaliseWeeklyAvailability} from './weekly-availability.js?v=3';
-import {normalisePlanningPreferences} from './planning-preferences.js?v=7';
+import {normaliseWeeklyAvailability} from './weekly-availability.js?v=4';
+import {normalisePlanningPreferences} from './planning-preferences.js?v=8';
 
 export function normaliseSettings(settings){
     const next=structuredClone(settings);next.accessibility??={};next.accessibility.shortcuts=normaliseShortcuts(next.accessibility.shortcuts);

@@ -1,6 +1,6 @@
-import {eventSegmentsForDate} from './schedule-events.js?v=3';
+import {eventSegmentsForDate} from './schedule-events.js?v=4';
 import {generateTaskOccurrencesThrough} from './recurrence-utils.js?v=14';
-import {toDateKey,parseTime,formatTime} from './schedule-utils.js?v=5';
+import {toDateKey,parseTime,formatTime} from './schedule-utils.js?v=6';
 
 const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 export function calendarDate(value){

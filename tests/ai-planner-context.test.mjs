@@ -24,6 +24,13 @@ async function fixture() {
   return {context,plan,events,userData};
 }
 
+test('AI context and recent event changes retain fortnightly phase independently of term dates',async()=>{
+ const {context,plan}=await fixture();Object.assign(plan.scheduleEvents[0],{day:5,intervalWeeks:2,anchorDate:'2026-10-30'});
+ const data=await context.loadContextData(context.auth.currentUser);assert.equal(data.scheduleEvents[0].intervalWeeks,2);assert.equal(data.scheduleEvents[0].anchorDate,'2026-10-30');
+ const before=structuredClone(plan);plan.scheduleEvents[0].anchorDate='2026-11-06';context.invalidateKairosContext({ownerId:'one',planId:'plan-1',before,after:plan});
+ const text=await context.getKairosContext();assert.match(text,/anchorDate/);assert.match(text,/2026-11-06/);
+});
+
 test('AI context includes stable targets, schedule times, locks and recurrence',async()=>{
   const {context}=await fixture();
   const data=await context.loadContextData(context.auth.currentUser);

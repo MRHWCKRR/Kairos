@@ -1,11 +1,11 @@
-import {buildReviewedSchedule} from './task-list-model.js?v=25';
-import {schedulePlanningAvailability,schedulePlanningClock,sameScheduleAvailability,scheduleProposalFits,scheduleAvailabilityText} from './schedule-planning-availability.js?v=5';
+import {buildReviewedSchedule} from './task-list-model.js?v=26';
+import {schedulePlanningAvailability,schedulePlanningClock,sameScheduleAvailability,scheduleProposalFits,scheduleAvailabilityText} from './schedule-planning-availability.js?v=6';
 import {shiftPlanningDate} from './planning-model.js?v=1';
-import { eventCommitmentsForRange, validateScheduleProposals, parseTime, formatTime, taskDurationMinutes, toDateKey, getVisibleDates, blockGeometry, addDays } from './schedule-utils.js?v=5';
+import { eventCommitmentsForRange, validateScheduleProposals, parseTime, formatTime, taskDurationMinutes, toDateKey, getVisibleDates, blockGeometry, addDays } from './schedule-utils.js?v=6';
 import { generateTaskOccurrences, generateTaskOccurrencesThrough } from './recurrence-utils.js?v=14';
 import { aiErrorMessage } from './ai-request.js';
-import {dayChangeCandidates,prepareDayChange,proposalStillMatches} from './schedule-day-change.js?v=5';
-import {mountDayChange} from './schedule-day-change-ui.js?v=6';
+import {dayChangeCandidates,prepareDayChange,proposalStillMatches} from './schedule-day-change.js?v=6';
+import {mountDayChange} from './schedule-day-change-ui.js?v=7';
 
 const bridge=()=>window.__kairosScheduleBridge;
 const workspace=()=>window.__kairosScheduleWorkspace;

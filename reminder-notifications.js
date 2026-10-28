@@ -1,6 +1,6 @@
 import { db } from './firebase.js?v=1';
 import { doc, runTransaction } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { dueTaskReminders,dueBedtimeReminders } from './task-reminders.js?v=6';
+import { dueTaskReminders,dueBedtimeReminders } from './task-reminders.js?v=7';
 import { mergePlanEdits, planState } from './plan-merge.js?v=1';
 
 export function escapeNotificationText(value) {

@@ -1,19 +1,19 @@
-import {taskRemainingMinutes} from './remaining-work.js?v=5';
-import {capturePlanningUndo} from './planning-undo.js?v=7';
-import {normaliseWeeklyAvailability} from './weekly-availability.js?v=3';
+import {taskRemainingMinutes} from './remaining-work.js?v=6';
+import {capturePlanningUndo} from './planning-undo.js?v=8';
+import {normaliseWeeklyAvailability} from './weekly-availability.js?v=4';
 import {planningTasks,planningClock,validPlanningDate} from './planning-model.js?v=1';
-import {findPlanningSlot,planningAvailability,planningWindows,planningBlockValid,planningPlacementOccupancy,planningIntervalsConflict,planningDailyWork,planningDailyRemaining,addPlanningDailyWork,planningDailyLimitText} from './planning-slots.js?v=8';
-import {parseTime,taskDurationMinutes} from './schedule-utils.js?v=5';
-import {zonedTaskStart} from './task-reminders.js?v=6';
+import {findPlanningSlot,planningAvailability,planningWindows,planningBlockValid,planningPlacementOccupancy,planningIntervalsConflict,planningDailyWork,planningDailyRemaining,addPlanningDailyWork,planningDailyLimitText} from './planning-slots.js?v=9';
+import {parseTime,taskDurationMinutes} from './schedule-utils.js?v=6';
+import {zonedTaskStart} from './task-reminders.js?v=7';
 import {stableStringify} from './plan-merge.js?v=1';
-import {orderedSessionGroup,orderedPlacementClock,clockAfterSession,expandOrderedTaskIds,assertAssignmentOrder,validateAssignmentOrderChanges} from './assignment-order.js?v=4';
+import {orderedSessionGroup,orderedPlacementClock,clockAfterSession,expandOrderedTaskIds,assertAssignmentOrder,validateAssignmentOrderChanges} from './assignment-order.js?v=5';
 
 const allTasks=state=>(state.boards||[]).flatMap(board=>(board.sections||[]).flatMap(section=>section.tasks||[]));
 function locate(state,id){const entries=planningTasks(state).filter(entry=>entry.task.id===id);if(entries.length!==1||allTasks(state).filter(task=>task.id===id).length!==1)throw Error('A task is missing, archived, or has duplicate IDs.');return entries[0]}
 function eligible(state,id){const entry=locate(state,id),task=entry.task;if(task.completed||task.recurrence?.enabled||task.scheduleLocked)throw Error('Completed, recurring, or locked tasks cannot be moved by this planner.');return entry}
 const idValid=id=>typeof id==='string'&&id.length>0&&id.length<=160;
 function recurrenceSnapshot(rule){if(!rule?.enabled)return null;return {...rule,exceptions:Object.fromEntries(Object.entries(rule.exceptions||{}).map(([date,value])=>[date,{status:value.status||'pending',override:Object.fromEntries(['date','startTime','endTime','durationMinutes'].filter(key=>value.override?.[key]!==undefined).map(key=>[key,value.override[key]]))}]))}}
-export function planningSignature(state){return stableStringify({tasks:planningTasks(state).map(({board,section,task})=>({board:board.id,section:section.id,...Object.fromEntries(['id','date','startTime','endTime','dueDate','estimatedMinutes','remainingMinutes','lastScheduledMinutes','completed','scheduleLocked','schedulingPreference','assignmentId','sessionIndex','sessionOrder'].map(key=>[key,task[key]??null])),recurrence:recurrenceSnapshot(task.recurrence)})),events:(state.scheduleEvents||[]).map(event=>Object.fromEntries(['id','day','date','start','end','archived','transparent','allDay','exceptions','startDate','endDate'].map(key=>[key,event[key]??null])))})}
+export function planningSignature(state){return stableStringify({tasks:planningTasks(state).map(({board,section,task})=>({board:board.id,section:section.id,...Object.fromEntries(['id','date','startTime','endTime','dueDate','estimatedMinutes','remainingMinutes','lastScheduledMinutes','completed','scheduleLocked','schedulingPreference','assignmentId','sessionIndex','sessionOrder'].map(key=>[key,task[key]??null])),recurrence:recurrenceSnapshot(task.recurrence)})),events:(state.scheduleEvents||[]).map(event=>Object.fromEntries(['id','day','date','start','end','archived','transparent','allDay','exceptions','startDate','endDate','intervalWeeks','anchorDate'].map(key=>[key,event[key]??null])))})}
 const options=input=>({...(input.dailyLimitMinutes!==undefined?{dailyLimitMinutes:input.dailyLimitMinutes}:{}),from:input.from,to:input.to,...(input.dayStart!==undefined?{dayStart:input.dayStart}:{}),...(input.dayEnd!==undefined?{dayEnd:input.dayEnd}:{}),timezone:input.timezone||'UTC',...(input.gapMinutes!==undefined?{gapMinutes:input.gapMinutes}:{}),...(input.weeklyAvailability!=null?{weeklyAvailability:normaliseWeeklyAvailability(input.weeklyAvailability)}:{}),...(input.availabilitySource?{availabilitySource:input.availabilitySource}:{})});
 const interval=row=>({date:row.date,startMin:parseTime(row.startTime),endMin:parseTime(row.startTime)+row.minutes});
 function effectiveDeadline(state,task){
