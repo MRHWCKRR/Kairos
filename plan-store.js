@@ -1,4 +1,4 @@
-import {aiEventConflictSummary} from './ai-event-actions.js?v=6';
+import {aiEventConflictSummary} from './ai-event-actions.js?v=7';
 import {applyNativeEventUndo,buildNativeEventUndo} from './native-event-commands.js?v=6';
 import {applyCalendarRepairUndo} from './calendar-repair.js?v=7';
 import {assertCalendarTimezones,assertCalendarImportTimezone} from './calendar-policy.js?v=1';

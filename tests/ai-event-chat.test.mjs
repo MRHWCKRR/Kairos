@@ -1,5 +1,28 @@
 import test from 'node:test';import assert from 'node:assert/strict';import vm from 'node:vm';import {fixture} from './helpers/ai-workspace-fixture.mjs';
 const tick=()=>new Promise(setImmediate),action={type:'create_schedule_event',args:{title:'Dentist',date:'2026-10-28',start:'15:00',end:'16:00'}};
+
+test('one-off AI reminder review persists without undefined fields before confirmation and applies once',async()=>{
+ const f=await fixture({userData:{settings:{profile:{timezone:'UTC'}}}}),state=f.data();
+ state.scheduleEvents=[{id:'visit',title:'Dentist',category:'other',date:'2026-10-28',start:'15:00',end:'16:00',allDay:false,transparent:false,reminderMinutes:30}];
+ state.boards[0].sections[0].tasks=[{id:'legacy-overlap',title:'Study',date:'2026-10-28',startTime:'15:30',estimatedMinutes:60}];f.setData(state);
+ const write=f.context.setDoc;
+ function firestoreValue(value,path='workspace'){
+  if(value===undefined)throw Error('Unsupported field value: undefined at '+path);
+  if(value&&typeof value==='object')for(const [key,item]of Object.entries(value))firestoreValue(item,path+'.'+key);
+ }
+ f.context.setDoc=async(ref,value,...options)=>{firestoreValue(value);return write(ref,value,...options);};
+ f.context.ask=async()=>({reply:'I will change the reminder.',actions:[{type:'update_schedule_event',args:{eventId:'visit',reminderMinutes:5}}]});
+ f.input.value='Change only the dentist reminder to 5 minutes before';await f.context.send();
+ assert.equal(f.data().scheduleEvents[0].reminderMinutes,5);
+ assert.equal(f.writes.length,1);
+ const retained=f.workspaces.map(value=>value.aiWorkspace.chats[0].pendingActionBatch?.entries[0]?.preview).find(Boolean);
+ assert.ok(retained,'the reviewed preview is durably saved before execution');
+ assert.equal(Object.hasOwn(retained.summary,'occurrenceDate'),false);
+ assert.equal(Object.hasOwn(retained.summary,'occurrenceOperation'),false);
+ assert.deepEqual(JSON.parse(JSON.stringify(retained.summary.conflicts)),[{key:'legacy-overlap',title:'Study',date:'2026-10-28',startTime:'15:30',endTime:'16:30'}]);
+ assert.equal(f.chat().pendingActionBatch,null);
+ assert.equal(f.chat().lastActionTarget.id,'visit');
+});
 test('chat reviews native event semantics and escaped task overlaps before applying',async()=>{const f=await fixture({autoApprove:false,userData:{settings:{profile:{timezone:'UTC'}}}}),s=f.data();s.boards[0].sections[0].tasks.push({id:'t',title:'Essay <img>',date:'2026-10-28',startTime:'15:30',endTime:'16:30'});f.setData(s);f.context.ask=async()=>({reply:'I will propose the event.',actions:[structuredClone(action)]});const show=f.context.dialogBox;let shown;const ready=new Promise(r=>shown=r);f.context.dialogBox=html=>{const modal=show(html);shown(modal);return modal;};f.input.value='Add the dentist from 3 to 4 tomorrow';const sending=f.context.send(),modal=await ready;assert.match(modal.textContent,/Essay <img>/);assert.equal(modal.querySelector('img'),null);assert.equal(f.writes.length,0);assert.equal(f.chat().pendingActionBatch.entries[0].preview.approval.command.type,'native_event_change');assert.ok(f.workspaces.at(-1).aiWorkspace.chats[0].pendingActionBatch.entries[0].preview);modal.querySelector('[data-ok]').click();await sending;assert.equal(f.data().scheduleEvents.length,1);assert.doesNotMatch(f.chat().messages.at(-1).content,/recurring/i);assert.equal(f.chat().lastActionTarget.id,f.data().scheduleEvents[0].id);});
 test('an uncommitted event retry after reload reuses the exact native preview and operation',async()=>{const f=await fixture({userData:{settings:{profile:{timezone:'UTC'}}}});f.context.ask=async()=>({reply:'I will propose it.',actions:[structuredClone(action)]});const execute=f.context.executeKairosAction;let first=true,calls=[];f.context.executeKairosAction=async(a,o)=>{calls.push({action:structuredClone(a),options:structuredClone(o)});if(first){first=false;throw Error('Offline before save')}return execute(a,o);};f.input.value='Add the dentist tomorrow from 3 to 4';await f.context.send();const original=structuredClone(f.chat().pendingActionBatch.entries[0].preview);assert.ok(original);assert.equal(f.writes.length,0);vm.runInContext('chats=chats.map(norm);',f.context);let newPreviews=0;const preview=f.context.previewKairosAction;f.context.previewKairosAction=async(...args)=>{newPreviews++;return preview(...args)};f.input.value='retry';await f.context.send();assert.equal(newPreviews,0);assert.deepEqual(calls[1].options.confirmation,original.approval);assert.equal(calls[0].options.operationId,calls[1].options.operationId);assert.equal(f.data().scheduleEvents[0].id,original.approval.command.eventId);});
 test('a committed event lost response is reconciled after reload without another confirmation',async()=>{const f=await fixture({failAfterCommit:true,userData:{settings:{profile:{timezone:'UTC'}}}});f.context.ask=async()=>({reply:'I will propose it.',actions:[structuredClone(action)]});let dialogs=0;const show=f.context.dialogBox;f.context.dialogBox=html=>{dialogs++;return show(html)};f.input.value='Add dentist tomorrow from 3 to 4';await f.context.send();const id=f.data().scheduleEvents[0].id;assert.ok(f.chat().pendingActionBatch.entries[0].preview);vm.runInContext('chats=chats.map(norm);',f.context);f.input.value='retry';await f.context.send();assert.equal(dialogs,1);assert.equal(f.data().scheduleEvents.length,1);assert.equal(f.chat().lastActionTarget.id,id);assert.equal(f.chat().pendingActionBatch,null);});
