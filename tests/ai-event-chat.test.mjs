@@ -3,7 +3,8 @@ const tick=()=>new Promise(setImmediate),action={type:'create_schedule_event',ar
 
 test('one-off AI reminder review persists without undefined fields before confirmation and applies once',async()=>{
  const f=await fixture({userData:{settings:{profile:{timezone:'UTC'}}}}),state=f.data();
- state.scheduleEvents=[{id:'visit',title:'Dentist',category:'other',date:'2026-10-28',start:'15:00',end:'16:00',allDay:false,transparent:true,reminderMinutes:30}];f.setData(state);
+ state.scheduleEvents=[{id:'visit',title:'Dentist',category:'other',date:'2026-10-28',start:'15:00',end:'16:00',allDay:false,transparent:false,reminderMinutes:30}];
+ state.boards[0].sections[0].tasks=[{id:'legacy-overlap',title:'Study',date:'2026-10-28',startTime:'15:30',estimatedMinutes:60}];f.setData(state);
  const write=f.context.setDoc;
  function firestoreValue(value,path='workspace'){
   if(value===undefined)throw Error('Unsupported field value: undefined at '+path);
@@ -18,6 +19,7 @@ test('one-off AI reminder review persists without undefined fields before confir
  assert.ok(retained,'the reviewed preview is durably saved before execution');
  assert.equal(Object.hasOwn(retained.summary,'occurrenceDate'),false);
  assert.equal(Object.hasOwn(retained.summary,'occurrenceOperation'),false);
+ assert.deepEqual(JSON.parse(JSON.stringify(retained.summary.conflicts)),[{key:'legacy-overlap',title:'Study',date:'2026-10-28',startTime:'15:30',endTime:'16:30'}]);
  assert.equal(f.chat().pendingActionBatch,null);
  assert.equal(f.chat().lastActionTarget.id,'visit');
 });
