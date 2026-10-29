@@ -67,7 +67,13 @@ export function buildNativeEventChange(state,{eventId,event,occurrenceDate,occur
 
 export function applyNativeEventChange(state,command,expected,{now=Date.now()}={}){
  if(command?.type!=='native_event_change'||Object.keys(command).some(k=>!['type','eventId','event','timezone','range','occurrenceDate','occurrenceOperation'].includes(k)))throw Error('Invalid native event command.');
- const fresh=buildNativeEventChange(state,command,command.timezone,now);if(!same(fresh.command,command)||!same(fresh.expected,expected))throw Error('The schedule or event changed. Review a new preview.');
+ const fresh=buildNativeEventChange(state,command,command.timezone,now);
+ const mismatch={command:!same(fresh.command,command),event:!same(fresh.expected.before,expected?.before),schedule:fresh.expected.signature!==expected?.signature};
+ if(mismatch.command||!same(fresh.expected,expected)){
+  // Log only boundary flags, never task contents, identifiers or signatures.
+  console.warn('[Kairos] Native event review rejected.',mismatch);
+  throw Object.assign(Error('The schedule or event changed. Review a new preview.'),{code:'native-event-review-stale',reviewMismatch:mismatch});
+ }
  const next=replace(state,command.eventId,fresh.nextEvent);
  return {next,result:{type:'native_event_change',eventId:command.eventId,...(fresh.undoRecord?{nativeEventUndo:fresh.undoRecord}:{nativeEventUndoUnavailable:true})}};
 }
