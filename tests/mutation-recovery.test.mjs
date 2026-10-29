@@ -1,3 +1,4 @@
+import {createPlannerWrites} from '../app-planner-writes.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createMutationSession} from '../mutation-session.js';
@@ -73,7 +74,8 @@ test('the app gateway retains failed caller saves and retries through low-level 
  const x=await setup({failAfterCommit:true}),context=x.f.context;
  const source=await readFile(new URL('../app.js',import.meta.url),'utf8');
  const start=source.indexOf('    async function commitTaskDetails('),end=source.indexOf('    async function openTaskDetailsInSchedule(',start);
- Object.assign(context,{currentPlanDocId:'plan',boardsData:x.f.data().boards,dayInsights:{},scheduleData:[],planEditRevision:0,planLoadRevision:0,planSaveQueue:Promise.resolve(),planSnapshot:x.f.data(),renderApp(){}});
+ context.plannerWrites=createPlannerWrites();
+ Object.assign(context,{currentPlanDocId:'plan',boardsData:x.f.data().boards,dayInsights:{},scheduleData:[],renderApp(){}});
  vm.runInContext(source.slice(start,end),context);
  context.plannerMutations=createMutationSession({getIdentity:()=>({ownerId:'one',planId:'plan'}),storage:x.storage,commit:(...args)=>context.persistTaskDetails(...args)});
  const identity=id();await assert.rejects(context.commitTaskDetails(command,expected,identity),/response lost/);assert.equal(context.plannerMutations.state().pending,true);

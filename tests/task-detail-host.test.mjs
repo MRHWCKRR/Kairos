@@ -1,3 +1,4 @@
+import {createPlannerWrites} from '../app-planner-writes.js';
 import {createMutationSession} from '../mutation-session.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -8,8 +9,8 @@ import {applyTaskListCommand,buildTaskBatch} from '../task-list-model.js';
 
 async function fixture(empty=false){
   const data={userID:'one',boards:[{id:'b',sections:[{id:'s',tasks:[{id:'t',title:'Science',notes:'Old'}]}]}]};
-  const f=await plannerFixture(empty?null:data);f.context.applyTaskListCommand=applyTaskListCommand;
-  vm.runInContext(`let boardsData=${JSON.stringify(data.boards)},dayInsights={},scheduleData=[],planSnapshot=planState({boards:boardsData}),planEditRevision=0,planLoadRevision=0,currentPlanDocId='plan',planSaveQueue=Promise.resolve();function renderApp(){}`,f.context);
+  const f=await plannerFixture(empty?null:data);f.context.applyTaskListCommand=applyTaskListCommand;f.context.plannerWrites=createPlannerWrites();
+  vm.runInContext(`let boardsData=${JSON.stringify(data.boards)},dayInsights={},scheduleData=[],currentPlanDocId='plan';plannerWrites.snapshot=planState({boards:boardsData});function renderApp(){}`,f.context);
   const source=await readFile(new URL('../app.js',import.meta.url),'utf8');
   vm.runInContext(source.slice(source.indexOf('    async function commitTaskDetails('),source.indexOf('    const pageLoader =')),f.context);
   vm.runInContext(source.slice(source.indexOf('    async function updatePlanInFirestore('),source.indexOf('    async function loadLatestPlanFromFirestore(')),f.context);
@@ -71,12 +72,12 @@ test('More actions navigation retains the exact recurring occurrence target',asy
 });
 test('host reconciles normalized legacy metadata after a saved detail edit',async()=>{
   const f=await fixture();
-  vm.runInContext('delete planSnapshot.boards[0].sections[0].tasks[0].notes;boardsData[0].sections[0].tasks[0].notes="";',f.context);
+  vm.runInContext('delete plannerWrites.snapshot.boards[0].sections[0].tasks[0].notes;boardsData[0].sections[0].tasks[0].notes="";',f.context);
   await f.context.commitTaskDetails(command,expected,identity());
   assert.equal(vm.runInContext('boardsData[0].sections[0].tasks[0].notes',f.context),'New');
 });
 test('opening default task details creates the plan before capturing edit identity',async()=>{
-  const f=await fixture(true);vm.runInContext('currentPlanDocId=null;planSnapshot=null;',f.context);
+  const f=await fixture(true);vm.runInContext('currentPlanDocId=null;plannerWrites.snapshot=null;',f.context);
   assert.equal(typeof f.context.openTaskDetailsFromList,'function');
   const opened=await f.context.openTaskDetailsFromList('t',null);
   assert.equal(opened.planId,'plan-one');assert.equal(f.data().boards[0].sections[0].tasks[0].id,'t');

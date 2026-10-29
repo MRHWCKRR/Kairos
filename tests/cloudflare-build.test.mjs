@@ -14,7 +14,7 @@ async function setup(t) {
   t.after(() => fs.rm(rootDir, { recursive: true, force: true }));
   const manifest = JSON.parse(await fs.readFile(path.join(repository, 'cloudflare/public-assets.json'), 'utf8'));
   for (const name of manifest.files) {
-    const content = name.endsWith('.html') ? '<html><head></head><body><!-- Schedule Page: old --><div>legacy</div><!-- Calendar and Routines --></body></html>' : name.endsWith('.js') ? "import './recurrence-utils.js'; fetch('https://kairos.kirosapp.workers.dev');\n    // --- 14 Bedtime Reminder Engine ---" : 'fixture css';
+    const content = name.endsWith('.html') ? '<html><head></head><body><section id="schedule-calendar"></section><script type="module" src="app-bootstrap.js"></script></body></html>' : name.endsWith('.js') ? "import './recurrence-utils.js'; fetch('/api/ai');\n" + (name === 'app.js' ? 'window.__kairosScheduleBridge = {};' : '') : 'fixture css';
     await fs.writeFile(path.join(rootDir, name), content);
   }
   for (const directory of manifest.directories) {
@@ -33,15 +33,15 @@ async function tree(directory) {
   return result;
 }
 
-test('Cloudflare build preserves source, transforms app assets, and excludes backend material', async t => {
+test('Cloudflare build preserves source, versions explicit app assets, and excludes backend material', async t => {
   const fixture = await setup(t); const before = await tree(fixture.rootDir);
   await buildCloudflare(fixture);
   const app = await fs.readFile(path.join(fixture.outputDir, 'app.html'), 'utf8');
-  assert.match(app, /id="schedule-calendar"/); assert.match(app, /schedule-workspace\.js\?v=10/);
+  assert.match(app, /id="schedule-calendar"/); assert.match(app, /app-bootstrap\.js\?v=[a-f0-9]{16}/);
   assert.equal((app.match(/analytics-tracker\.js/g) || []).length, 1);
   assert.doesNotMatch(await fs.readFile(path.join(fixture.outputDir, 'analytics.html'), 'utf8'), /analytics-tracker/);
   const js = await fs.readFile(path.join(fixture.outputDir, 'app.js'), 'utf8'); assert.match(js, /__kairosScheduleBridge/); assert.match(js, /fetch\('\/api\/ai'/); assert.doesNotMatch(js, /kirosapp\.workers\.dev/);
-  assert.match(await fs.readFile(path.join(fixture.outputDir, 'schedule-ai.js'), 'utf8'), /recurrence-utils\.js\?v=14/);
+  assert.match(await fs.readFile(path.join(fixture.outputDir, 'schedule-ai.js'), 'utf8'), /recurrence-utils\.js\?v=[a-f0-9]{16}/);
   const output = await tree(fixture.outputDir); assert.equal(output[path.join('images', 'fixture.png')], Buffer.from('media fixture').toString('base64'));
   for (const [name, contents] of Object.entries(before)) assert.equal(await fs.readFile(path.join(fixture.rootDir, name), 'base64'), contents);
   assert.ok(!Object.keys(output).some(name => /api|server-tooling|\.env|\.dev.vars/.test(name)));
@@ -79,10 +79,11 @@ test('real packaged shell includes focused controllers and bridge reads the conf
  await buildCloudflare(fixture);
  const app=await fs.readFile(path.join(fixture.outputDir,'app.js'),'utf8');
  assert.equal((app.match(/window.__kairosScheduleBridge =/g)||[]).length,1);
- assert.match(app,/notification-center\.js\?v=\d+/);assert.match(app,/settings-sync\.js\?v=\d+/);assert.match(app,/dashboard-controller\.js\?v=\d+/);
- for(const name of files.slice(3))assert.equal(await fs.readFile(path.join(fixture.outputDir,name),'utf8'),await fs.readFile(path.join(repository,name),'utf8'));
- assert.match(await fs.readFile(path.join(fixture.outputDir,'app-bootstrap.js'),'utf8'),/app\.js\?v=\d+/);
- assert.match(await fs.readFile(path.join(fixture.outputDir,'app.html'),'utf8'),/app-bootstrap\.js\?v=\d+/);
+ assert.match(app,/notification-center\.js\?v=[a-f0-9]{16}/);assert.match(app,/settings-sync\.js\?v=[a-f0-9]{16}/);assert.match(app,/dashboard-controller\.js\?v=[a-f0-9]{16}/);
+ const withoutVersions=value=>value.replace(/\?v=[a-f0-9]+/g,'');
+ for(const name of files.slice(3))assert.equal(withoutVersions(await fs.readFile(path.join(fixture.outputDir,name),'utf8')),withoutVersions(await fs.readFile(path.join(repository,name),'utf8')));
+ assert.match(await fs.readFile(path.join(fixture.outputDir,'app-bootstrap.js'),'utf8'),/app\.js\?v=[a-f0-9]{16}/);
+ assert.match(await fs.readFile(path.join(fixture.outputDir,'app.html'),'utf8'),/app-bootstrap\.js\?v=[a-f0-9]{16}/);
  let applied={planning:{rescheduleCompleted:true,dailyLimitMinutes:120,gapMinutes:10,weeklyAvailability:{1:[]}}},draft=applied;
  const settingsSync=createSettingsSync({getOwnerId:()=> 'one',getApplied:()=>applied,setApplied:value=>applied=value,setDraft:value=>draft=value,defaults:()=>({}),mergeDefaults:value=>value,storage:{getItem:()=>null,setItem(){}},readRemote:async()=>({settings:{planning:{rescheduleCompleted:false,dailyLimitMinutes:60,gapMinutes:0}},confirmed:true})});
  const window={dispatchEvent(){}};const start=app.indexOf('    // Schedule 3.0 bridge:');assert.ok(start>=0);

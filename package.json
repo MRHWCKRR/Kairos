@@ -3,6 +3,9 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "lint": "node scripts/check-code.mjs",
+    "typecheck": "tsc -p jsconfig.check.json",
+    "check": "npm run lint && npm run typecheck",
     "build": "npm run test:pages && npm run test:recovery && npm run test:reminders && npm run test:schedule && node build.js",
     "test:schedule": "node --test tests/schedule-entry-commands.test.mjs tests/schedule-entry-lifecycle.test.mjs tests/schedule-inspector-lifecycle.test.mjs tests/schedule-utils.test.mjs tests/schedule-geometry.test.mjs tests/schedule-render-source.test.mjs tests/schedule-bugfixes.test.mjs tests/schedule-planning.test.mjs tests/schedule-ai-review-source.test.mjs tests/schedule-proposal-editor.test.mjs tests/schedule-ai-recovery-and-create.test.mjs tests/schedule-ai-parser.test.mjs tests/schedule-ai-availability.test.mjs tests/recurrence-utils.test.mjs tests/recurrence-mutations.test.mjs tests/schedule-recurrence-source.test.mjs tests/boards-recurrence-source.test.mjs tests/schedule-ai-recurrence-source.test.mjs tests/build-transforms.test.mjs",
     "test": "node --test tests/*.test.mjs",
@@ -24,8 +27,10 @@
     "stripe": "23.0.0"
   },
   "devDependencies": {
+    "esbuild": "0.28.2",
     "@cloudflare/workers-types": "^5.20261010.1",
     "linkedom": "0.18.13",
+    "typescript": "5.9.3",
     "wrangler": "^4.149.0"
   },
   "overrides": {

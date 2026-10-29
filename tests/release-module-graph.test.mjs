@@ -2,25 +2,33 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {createPageLoader} from '../page-loader.js';
+import {versionPublicAssets} from '../asset-versioning.js';
+import vm from 'node:vm';
 
-// These floors are the deployed URLs from before the workflow refactor. Each
-// changed child and its importing parents must request a genuinely fresh URL.
-const oldVersions={'plan-store.js':19,'task-list-model.js':19,'mutation-session.js':2,'recurrence-edit.js':1,'schedule-inspector-session.js':2,'schedule-entry-commands.js':1,'schedule-inspector-commands.js':1,'ai-task-commands.js':1,'ai-actions.js':21,'ai-workspace.js':51,'task-capture.js':5,'task-checklist-editor.js':7,'task-detail-pane.js':18,'task-list-workspace.js':15,'task-list-interactions.js':13,'today-model.js':2,'today-view.js':2,'page-loader.js':70,'app.js':100,'app-bootstrap.js':61};
-test('release module imports use fresh and consistent workflow URLs throughout the public graph',async()=>{
+test('every declared local JS/CSS reference uses one content-derived release version',async()=>{
  const manifest=JSON.parse(await readFile(new URL('../cloudflare/public-assets.json',import.meta.url),'utf8'));
- const versions=new Map();
- for(const file of manifest.files.filter(file=>/\.(js|html)$/.test(file))){
-  const source=await readFile(new URL('../'+file,import.meta.url),'utf8');
-  for(const match of source.matchAll(/([a-z0-9-]+\.js)\?v=(\d+)/g)){
-   const [,name,value]=match;if(!(name in oldVersions))continue;
-   const version=Number(value);assert.ok(version>oldVersions[name],file+' must load fresh '+name);
-   const seen=versions.get(name);if(seen!==undefined)assert.equal(version,seen,'all consumers must agree on '+name);versions.set(name,version);
+ const source=new Map(await Promise.all(manifest.files.map(async name=>[name,await readFile(new URL('../'+name,import.meta.url),'utf8')])));
+ const release=versionPublicAssets(source);let checked=0;
+ for(const [name,text] of release.files){
+  for(const match of text.matchAll(/(["'`])((?:\.\/|\/)?[a-z0-9-]+\.(?:js|css))(?:\?([^"'`<>\s]*))?\1/g)){
+   const target=match[2].replace(/^(?:\.\/|\/)/,'');if(!source.has(target))continue;
+   const query=new URLSearchParams((match[3]||'').replaceAll('&amp;','&'));
+   assert.equal(query.get('v'),release.version,name+' imports '+target);checked++;
   }
  }
- for(const name of Object.keys(oldVersions))assert.ok(versions.has(name),'release graph must reference '+name);
- const imported=[],loader=createPageLoader({scheduleEnabled:true,taskDetailsEnabled:true,loadStyle:async()=>{},importModule:async url=>{imported.push(url);return {}},setupTaskDetails(){},setupTaskWorkspace(){},setupTaskInteractions(){},waitForChat:async()=>{}});
- await loader.prepare('schedule-page');await loader.prepare('tasks-page');await loader.prepare('ai-page');
- for(const [name,old] of Object.entries({'schedule-inspector.js':21,'schedule-ai.js':14,'schedule-task-create.js':13,'task-detail-pane.js':18,'task-list-workspace.js':15,'task-list-interactions.js':13,'ai-workspace.js':51})){
-  const urls=imported.filter(url=>url.startsWith('./'+name+'?v='));assert.equal(urls.length,1,name+' must load once');assert.ok(Number(urls[0].split('?v=')[1])>old,name+' must bypass the previous cache');
- }
+ assert.ok(checked>200,'check the full public module graph');
+ const imports=[],loader=createPageLoader({scheduleEnabled:true,taskDetailsEnabled:true,loadStyle:async()=>{},importModule:async url=>{imports.push(url);return {}},setupTaskDetails(){},setupTaskWorkspace(){},setupTaskInteractions(){},waitForChat:async()=>{}});
+ assert.equal(imports.length,0,'features stay deferred');
+ await loader.prepare('schedule-page');await loader.prepare('tasks-page');await loader.prepare('ai-page');await loader.prepare('schedule-page');
+ for(const name of ['schedule-inspector.js','schedule-ai.js','schedule-task-create.js','task-detail-pane.js','task-list-workspace.js','task-list-interactions.js','ai-workspace.js'])assert.equal(imports.filter(url=>url.startsWith('./'+name+'?')).length,1,name+' loads once');
+});
+test('executing the generated lazy loader requests canonical URLs across Tasks and Schedule',async()=>{
+ const manifest=JSON.parse(await readFile(new URL('../cloudflare/public-assets.json',import.meta.url),'utf8'));
+ const source=new Map(await Promise.all(manifest.files.map(async name=>[name,await readFile(new URL('../'+name,import.meta.url),'utf8')])));
+ const release=versionPublicAssets(source),context={console},styles=[],modules=[];
+ vm.runInNewContext(release.files.get('page-loader.js').replace(/export /g,''),context);
+ const loader=context.createPageLoader({scheduleEnabled:true,taskDetailsEnabled:true,loadStyle:async url=>styles.push(url),importModule:async url=>{modules.push(url);return {}},setupTaskDetails(){}});
+ await loader.prepare('tasks-page');await loader.prepare('schedule-page');
+ for(const url of [...styles,...modules])assert.equal(new URL(url,'https://kairos.invalid/').searchParams.get('v'),release.version,url);
+ assert.equal(new Set(styles.filter(url=>url.startsWith('schedule-inspector.css'))).size,1,'shared stylesheet has one URL');
 });

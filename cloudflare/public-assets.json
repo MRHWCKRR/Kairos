@@ -204,7 +204,10 @@
     "planner-archive.js",
     "planner-backup.js",
     "ai-undo-view.js",
-    "ai-task-commands.js"
+    "ai-task-commands.js",
+    "app-settings-model.js",
+    "app-auth-session.js",
+    "app-planner-writes.js"
   ],
   "directories": [
     "images",

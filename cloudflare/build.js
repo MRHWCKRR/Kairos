@@ -1,13 +1,11 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { injectScheduleAssets, injectScheduleBridge, injectScheduleShell, rewriteRelaySource, rewriteScheduleRecurrenceImports } from '../build-transforms.js';
+import {versionPublicAssets} from '../asset-versioning.js';
 
 const repository = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const manifest = JSON.parse(await fs.readFile(new URL('./public-assets.json', import.meta.url), 'utf8'));
 const mediaExtensions = new Set(['.png', '.jpg', '.jpeg', '.svg', '.gif', '.webp', '.avif', '.ico', '.mp3', '.wav', '.ogg', '.mp4', '.webm']);
-const relayFiles = new Set(['app.js', 'ai-workspace.js', 'schedule-workspace.js']);
-const recurrenceFiles = new Set(['schedule-workspace.js', 'schedule-interactions.js', 'schedule-inspector.js', 'schedule-task-create.js', 'schedule-ai.js', 'schedule-recurrence-ui.js', 'boards-recurrence.js']);
 
 async function assertRegularInput(file, directory = false) {
   const stat = await fs.lstat(file);
@@ -35,6 +33,7 @@ export async function buildCloudflare({ rootDir = repository, outputDir = path.j
     if (existing.isSymbolicLink() || !existing.isDirectory()) throw new Error('Output must be a regular directory.');
   } catch (error) { if (error.code !== 'ENOENT') throw error; }
   // Validate all declared inputs before touching previously built output.
+  const prepared = new Map();
   for (const name of manifest.files) {
     if (path.basename(name) !== name) throw new Error('Public file manifest must contain root filenames.');
     await assertRegularInput(path.join(rootDir, name));
@@ -47,18 +46,16 @@ export async function buildCloudflare({ rootDir = repository, outputDir = path.j
   await fs.mkdir(outputDir, { recursive: true });
   for (const name of manifest.files) {
     let content = await fs.readFile(path.join(rootDir, name), 'utf8');
-    if (name === 'app.js') content = injectScheduleBridge(content);
-    if (relayFiles.has(name)) content = rewriteRelaySource(content);
-    if (recurrenceFiles.has(name)) content = rewriteScheduleRecurrenceImports(content);
     if (name.endsWith('.html')) {
-      if (name === 'app.html') content = injectScheduleAssets(injectScheduleShell(content));
       if (name !== 'analytics.html') {
         content = content.replace(/\s*<script src="analytics-tracker\.js"><\/script>/g, '');
         content = content.replace('</body>', '<script src="analytics-tracker.js"></script></body>');
       }
     }
-    await fs.writeFile(path.join(outputDir, name), content);
+    prepared.set(name, content);
   }
+  const release = versionPublicAssets(prepared);
+  for (const [name, content] of release.files) await fs.writeFile(path.join(outputDir, name), content);
   for (const directory of manifest.directories) await copyMedia(path.join(rootDir, directory), path.join(outputDir, directory));
   await fs.copyFile(new URL('./_headers', import.meta.url), path.join(outputDir, '_headers'));
 }

@@ -1,4 +1,5 @@
 import {runCalendarExportJourney} from './calendar-export-journey.mjs';
+import {runEventReleaseJourney} from './event-release-journey.mjs';
 import {runScheduleEntrypointJourney} from './schedule-entrypoint-journey.mjs';
 import {runWeeklyEventJourney} from './weekly-event-journey.mjs';
 import {runAiEventJourney} from './ai-event-journey.mjs';
@@ -84,6 +85,7 @@ async function run(){
   await runCalendarImportJourney({document,window,getState:()=>data,getIdentity:()=>identity,commit,session,lostResponse:()=>{lost=true},wait,check});
   await runCalendarConflictJourney({document,window,wait,check});
   await runNativeEventJourney({document,window,wait,check});
+  await runEventReleaseJourney({document,window,wait:async predicate=>{try{await wait(predicate);}catch(error){throw Error('Event release journey: '+error.message);}},check});
   await runAiEventJourney({document,window,wait,check});
   await runWeeklyEventJourney({document,window,wait,check});
   await runCalendarExportJourney({document,window,wait,check});
