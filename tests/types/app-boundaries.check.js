@@ -10,6 +10,8 @@ writes.enqueue(async()=>({saved:true})).then(result=>result.saved);
 writes.enqueue(()=>123);
 // @ts-expect-error load revision tickets require both revisions
 writes.isCurrentLoad({load:1});
+// @ts-expect-error account identities must be strings or null
+writes.setOwner(123);
 const settings=defaultSettings();
 // @ts-expect-error reminder preferences are booleans
 settings.notifications.browserPush='enabled';

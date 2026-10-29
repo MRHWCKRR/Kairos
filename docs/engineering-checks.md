@@ -20,6 +20,8 @@ Schedule markup and the shell bridge now live explicitly in `app.html` and `app.
 
 - `app-settings-model.js`: settings defaults and cloning/merge functions; each default is independent. UI drafts and cloud settings still belong to the existing settings controller.
 - `app-auth-session.js`: verification, redirects, loading fallback, independent initial loaders, and stale-session guards. The shell clears private views synchronously before invoking it.
-- `app-planner-writes.js`: one queue, cloud baseline, and edit/load revisions for ordinary saves, task commands, and focus logging. The shell continues to own live planner arrays.
+- `app-planner-writes.js`: one queue, cloud baseline, owner identity, and edit/load revisions for ordinary saves, task commands, and focus logging. Owner changes invalidate old reads and clear the baseline while retaining the queue. The shell clears old planner arrays, document identity, settings, and progress before controllers synchronize; empty reads also clear retained arrays. Same-owner refreshes preserve local state.
 
 The release browser journey uses real editor, mutation-session, event-command, AI-preview, and Undo modules with isolated serialized storage. It covers failure before save, reload recovery, legacy task defaults, lost acknowledgement after an AI reminder edit, one-use recovery, reviewed Undo, and account-switch cleanup. It does not replace live Firebase token-renewal or operating-system notification checks.
+
+The release graph regression also executes the generated lazy loader, checking its final requested URLs rather than only quoted literals. Account-isolation regressions execute the real host save/load functions and cover rejected stale reads, empty replacement planners, and subsequent saves without the old account's data.

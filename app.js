@@ -428,6 +428,7 @@ function bootApp() {
         onError:(phase,error)=>console.error('Failed to load '+phase+':',error)
     });
     onAuthStateChanged(auth, async (user) => {
+        resetPlannerForAccount(user?.uid || null);
         globalThis.window?.__kairosScheduleInteractions?.sync();
         searchPlannerOwnerId = null;
         globalSearchController?.sync();taskCaptureController?.sync();plannerMutations?.sync();dashboardController?.sync();
@@ -1177,7 +1178,29 @@ function bootApp() {
     }
 
     // --- 6 Cloud Sync Data Actions ---
-    const plannerWrites = createPlannerWrites();
+    const plannerWrites = createPlannerWrites(auth.currentUser?.uid || null);
+
+    function resetPlannerForAccount(ownerId) {
+        if (!plannerWrites.setOwner(ownerId)) return;
+        // Clear account-owned values before any controller observes the new user.
+        currentPlanDocId = null;
+        searchPlannerOwnerId = null;
+        boardsData = [];
+        dayInsights = {};
+        scheduleData = [];
+        calendarSourcesData = [];
+        achievementsData = defaultAchievementsData();
+        focusData = defaultFocusData();
+        userSettings = defaultSettings();
+        pendingSettings = cloneDeep(userSettings);
+        invalidateKairosContext();
+        if (appReady) {
+            applyAllSettings();
+            renderUserProfileMenu(auth.currentUser);
+            renderApp();
+            renderStatisticsPage();
+        }
+    }
 
     async function savePlanToFirestore(planData, options={}) {
         boardsData = planData;
@@ -1223,11 +1246,13 @@ function bootApp() {
     async function loadLatestPlanFromFirestore(user) {
         const loadRevision = plannerWrites.beginLoad();
         loadRevision.edit = await plannerWrites.idle();
+        const current = () => auth.currentUser?.uid === user.uid && plannerWrites.isCurrentLoad(loadRevision);
+        if (!current()) return;
         try {
             const plansColRef = collection(db, "study_plans");
             const q = query(plansColRef, where("userID", "==", user.uid));
             const querySnapshot = await getDocs(q);
-            if (auth.currentUser?.uid !== user.uid || !plannerWrites.isCurrentLoad(loadRevision)) return;
+            if (!current()) return;
 
             if (!querySnapshot.empty) {
                 const plans = querySnapshot.docs.map(doc => ({
@@ -1261,13 +1286,18 @@ function bootApp() {
                 currentPlanDocId = null;
                 searchPlannerOwnerId = null;
                 plannerWrites.snapshot = null;
+                boardsData = [];
+                dayInsights = {};
+                scheduleData = [];
+                calendarSourcesData = [];
                 renderApp();
             }
         } catch (error) {
+            if (!current()) return;
             console.error("Error loading plans from Firestore:", error);
             renderApp();
         } finally {
-            markInitialLoadComplete();
+            if (current()) markInitialLoadComplete();
         }
     }
 
