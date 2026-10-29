@@ -1,7 +1,7 @@
 import {eventReminderText,eventReminderNotice} from './event-reminders.js?v=1';
 import {eventOccurrence} from './event-occurrences.js?v=3';
 import {validateActionShape} from './ai-action-schema.js?v=16';
-import {buildNativeEventChange,applyNativeEventChange} from './native-event-commands.js?v=5';
+import {buildNativeEventChange,applyNativeEventChange} from './native-event-commands.js?v=6';
 import {stableStringify} from './plan-merge.js?v=1';
 import {plannerChangeRows} from './planner-changes.js?v=2';
 const types=['create_schedule_event','update_schedule_event','delete_schedule_event'];

@@ -1,12 +1,12 @@
-import {planningAlternatives,choosePlanningAlternative,planningAlternativesText,planningHoursText,planningReportText} from './planning-alternatives.js?v=10';
+import {planningAlternatives,choosePlanningAlternative,planningAlternativesText,planningHoursText,planningReportText} from './planning-alternatives.js?v=11';
 import {resolvePlanningPreferences} from './planning-preferences.js?v=9';
 import {planningDefaults,weeklyAvailabilityText} from './weekly-availability.js?v=4';
-import {combinedPlanning} from './combined-planning.js?v=11';
-import {assignmentFeasibility,feasibilityAssignments,FEASIBILITY_LIMIT} from './deadline-feasibility.js?v=13';
+import {combinedPlanning} from './combined-planning.js?v=12';
+import {assignmentFeasibility,feasibilityAssignments,FEASIBILITY_LIMIT} from './deadline-feasibility.js?v=14';
 import {assignmentReadiness} from './assignment-order.js?v=5';
 import {planningTasks,planningClock,weeklyReview,deadlineSummary} from './planning-model.js?v=1';
 import {planningConflicts,planningGapText,planningDailyLimitText} from './planning-slots.js?v=10';
-import {previewSessions,previewCarryover} from './planning-commands.js?v=15';
+import {previewSessions,previewCarryover} from './planning-commands.js?v=16';
 
 export function resolveAiPlanningTimezone(userData,ownerId,storage=globalThis.localStorage) {
  const clean=value=>typeof value==='string'?value.trim().slice(0,80):'';

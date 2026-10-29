@@ -1,13 +1,13 @@
 import {dueEventReminders} from './event-reminders.js?v=1';
 import {createCalendarFeedRequester} from './calendar-feed-client.js?v=1';
 import {eventSegmentsForDate,eventCommitmentsForRange} from './schedule-events.js?v=4';
-import {createDashboardController} from './dashboard-controller.js?v=10';
+import {createDashboardController} from './dashboard-controller.js?v=11';
 import {createNotificationCenter} from './notification-center.js?v=2';
 import {createSettingsSync} from './settings-sync.js?v=7';
 import {createMutationSession} from './mutation-session.js?v=4';
 import {archiveMarkup,buildRestoreCommand} from './planner-archive.js?v=2';
 import {createPlannerBackup,downloadPlannerBackup} from './planner-backup.js?v=2';
-import {loadActionUndoPreview} from './plan-store.js?v=28';
+import {loadActionUndoPreview} from './plan-store.js?v=29';
 import {calendarDate,shiftCalendarMonth,monthTaskEntries,monthEventEntries,calendarEventMarkup,calendarMonthMarkup,calendarTaskMarkup} from './schedule-month.js?v=6';
 import {taskWorkCheckin} from './remaining-work.js?v=6';
 import {promptFocusCheckin} from './focus-checkin.js?v=1';
@@ -23,7 +23,7 @@ import { requestBilling } from './billing-client.js?v=2';
 import { mountPlanUsage } from './plan-usage.js?v=6';
 import {assignmentProgressIndex,assignmentProgressMarkup} from './assignment-progress.js?v=8';
 import {planningClock} from './planning-model.js?v=1';
-import { createPageLoader } from './page-loader.js?v=80';
+import { createPageLoader } from './page-loader.js?v=81';
 import { mountPageRouter } from './page-router.js?v=4';
 import { createPageRenderCache } from './page-render-cache.js?v=1';
 import './boards-recurrence.js?v=11';
@@ -49,17 +49,17 @@ import {
     query, where, orderBy, limit, getDocs, updateDoc, deleteDoc, runTransaction
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { LANGUAGES, applyTranslations, getLocale, getLanguageName, t, ACHIEVEMENT_I18N } from './i18n.js';
-import { invalidateKairosContext } from './ai-context.js?v=23';
+import { invalidateKairosContext } from './ai-context.js?v=24';
 import { dueTaskReminders, dueBedtimeReminders, reminderDeliveryStatus } from './task-reminders.js?v=8';
 import { deliverTaskReminder, deliverBedtimeReminder, deliverEventReminder, saveNotificationEdits, escapeNotificationText } from './reminder-notifications.js?v=9';
-import { savePlannerEdits, persistTaskListCommand,loadPlanningUndoPreview } from './plan-store.js?v=28';
-import { resolveTaskDetail, taskListSection } from './task-list-model.js?v=27';
+import { savePlannerEdits, persistTaskListCommand,loadPlanningUndoPreview } from './plan-store.js?v=29';
+import { resolveTaskDetail, taskListSection } from './task-list-model.js?v=28';
 import { mergePlanEdits, planState } from './plan-merge.js?v=1';
 import {mountGettingStarted,openGettingStartedDestination} from './getting-started.js?v=3';
 import {createGettingStartedStore} from './getting-started-store.js?v=1';
 import {mountFocusBreakdown} from './focus-breakdown.js?v=5';
 import {mountGlobalSearch} from './global-search.js?v=5';
-import {mountTaskCapture} from './task-capture.js?v=13';
+import {mountTaskCapture} from './task-capture.js?v=14';
 import {normaliseShortcuts,describeShortcut} from './shortcut-model.js?v=1';
 import {mountShortcutSettings} from './shortcut-settings.js?v=1';
 import {mountSidebarIcons} from './sidebar-icons.js?v=2';
@@ -550,7 +550,7 @@ function bootApp() {
     async function openCalendarExport(){
         const owner=auth.currentUser?.uid,exportPlan=currentPlanDocId;if(!owner||!auth.currentUser.emailVerified||!exportPlan||searchPlannerOwnerId!==owner){showNotice('Your planner is loading. Try exporting once it is ready.');return false;}
         if(!calendarExportLoading)calendarExportLoading=(async()=>{
-            const [{mountCalendarExport},{loadPageStyle}]=await Promise.all([import('./calendar-export-view.js?v=3'),import('./page-loader.js?v=80')]);
+            const [{mountCalendarExport},{loadPageStyle}]=await Promise.all([import('./calendar-export-view.js?v=3'),import('./page-loader.js?v=81')]);
             await loadPageStyle('calendar-import.css?v=3');
             calendarExportView=mountCalendarExport({getIdentity:globalSearchIdentity,getState:()=>({boards:boardsData,scheduleEvents:scheduleData,calendarSources:calendarSourcesData}),getTimezone:()=>userSettings.profile.timezone||'UTC',getToday:()=>planningClock(Date.now(),userSettings.profile.timezone||'UTC').date});
             window.__kairosCalendarExport=calendarExportView;window.addEventListener('pagehide',event=>{if(!event.persisted)calendarExportView.dispose();});
@@ -561,7 +561,7 @@ function bootApp() {
         const owner=auth.currentUser?.uid;if(!owner||!auth.currentUser.emailVerified)return false;
         if(currentPlanDocId&&searchPlannerOwnerId!==owner){showNotice('Your planner is loading. Try again in a moment.');return false;}
         if(!calendarImportLoading)calendarImportLoading=(async()=>{
-            const [{mountCalendarImport},{mountCalendarConflictReview},{loadPageStyle}]=await Promise.all([import('./calendar-import.js?v=6'),import('./calendar-conflict-review.js?v=6'),import('./page-loader.js?v=80')]);
+            const [{mountCalendarImport},{mountCalendarConflictReview},{loadPageStyle}]=await Promise.all([import('./calendar-import.js?v=6'),import('./calendar-conflict-review.js?v=7'),import('./page-loader.js?v=81')]);
             await loadPageStyle('calendar-import.css?v=3');
             const fetchFeed=createCalendarFeedRequester({getUser:()=>auth.currentUser,getAppToken:async()=>{const check=await appCheckReady;if(!check)throw Error('Security verification is unavailable. Refresh Kairos.');return (await getAppCheckToken(check,false)).token;}});
             const conflictReview=mountCalendarConflictReview({getIdentity:globalSearchIdentity,getState:()=>({boards:boardsData,scheduleEvents:scheduleData,calendarSources:calendarSourcesData}),getSettings:()=>({timezone:userSettings.profile.timezone||'UTC',weeklyAvailability:settingsSync.state().cloud.planning?.weeklyAvailability??null,...window.__kairosScheduleBridge.getPlanningPreferences()}),commit:commitTaskDetails,session:plannerMutations});
@@ -3049,7 +3049,7 @@ function bootApp() {
         const owner=auth.currentUser?.uid,openedPlan=currentPlanDocId;if(!owner||!auth.currentUser.emailVerified)return false;
         if(currentPlanDocId&&searchPlannerOwnerId!==owner){showNotice('Your planner is loading. Try again in a moment.');return false;}
         if(!nativeEventLoading)nativeEventLoading=(async()=>{
-            const [{mountNativeEventEditor},{loadPageStyle}]=await Promise.all([import('./native-event-editor.js?v=5'),import('./page-loader.js?v=80')]);
+            const [{mountNativeEventEditor},{loadPageStyle}]=await Promise.all([import('./native-event-editor.js?v=6'),import('./page-loader.js?v=81')]);
             await Promise.all([loadPageStyle('calendar-import.css?v=3'),loadPageStyle('native-event-editor.css?v=2')]);
             nativeEventEditor=mountNativeEventEditor({getIdentity:globalSearchIdentity,getState:()=>({boards:boardsData,dayInsights,scheduleEvents:scheduleData,calendarSources:calendarSourcesData}),getTimezone:()=>userSettings.profile.timezone||'UTC',getToday:()=>planningClock(Date.now(),userSettings.profile.timezone||'UTC').date,ensurePlan:()=>window.__kairosScheduleBridge.ensureSchedulePlan(),commit:commitTaskDetails,session:plannerMutations,confirmDiscard:message=>confirmDialog(message,{confirmText:'Discard changes'})});
             window.__kairosNativeEventEditor=nativeEventEditor;window.addEventListener('pagehide',event=>{if(!event.persisted)nativeEventEditor.dispose();});

@@ -1,6 +1,6 @@
-import {aiEventConflictSummary} from './ai-event-actions.js?v=5';
-import {applyNativeEventUndo,buildNativeEventUndo} from './native-event-commands.js?v=5';
-import {applyCalendarRepairUndo} from './calendar-repair.js?v=6';
+import {aiEventConflictSummary} from './ai-event-actions.js?v=6';
+import {applyNativeEventUndo,buildNativeEventUndo} from './native-event-commands.js?v=6';
+import {applyCalendarRepairUndo} from './calendar-repair.js?v=7';
 import {assertCalendarTimezones,assertCalendarImportTimezone} from './calendar-policy.js?v=1';
 import {plannerChanges,undoPlannerChanges,plannerChangeRows} from './planner-changes.js?v=2';
 import {assertFindTimeSettings} from './schedule-find-time-model.js?v=8';
@@ -11,7 +11,7 @@ import { db } from './firebase.js?v=1';
 import { doc, getDoc, runTransaction, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { mergePlanEdits, planState, stableStringify } from './plan-merge.js?v=1';
 import {validateAssignmentOrderChanges} from './assignment-order.js?v=5';
-import { applyTaskListCommand, taskListFingerprint } from './task-list-model.js?v=27';
+import { applyTaskListCommand, taskListFingerprint } from './task-list-model.js?v=28';
 import {completedScheduleChanges,assertCompletedScheduleChanges} from './schedule-policy.js?v=5';
 import {applyScheduleUndo} from './schedule-change-model.js?v=11';
 

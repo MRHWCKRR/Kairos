@@ -1,5 +1,5 @@
-import {applyNativeEventChange} from './native-event-commands.js?v=5';
-import {applyCalendarRepair} from './calendar-repair.js?v=6';
+import {applyNativeEventChange} from './native-event-commands.js?v=6';
+import {applyCalendarRepair} from './calendar-repair.js?v=7';
 import {applyCalendarCommand} from './calendar-commands.js?v=1';
 import {buildScheduleCreate as buildEntryCreate,applyScheduleCreate,buildReviewedSchedule as buildReviewedEntry,applyReviewedSchedule} from './schedule-entry-commands.js?v=8';
 import {applyRecurringInspectorCommand,applyInspectorDelete,buildRecurringInspectorCommand as buildRecurringCommand,buildInspectorDelete as buildDeleteCommand} from './schedule-inspector-commands.js?v=6';
@@ -10,7 +10,7 @@ import {applySectionCommand} from './task-section-model.js?v=1';
 import {buildTaskToolCommand,applyTaskToolCommand} from './task-tools-model.js?v=1';
 import {parseTime,formatTime,taskDurationMinutes} from './schedule-utils.js?v=6';
 import {normalizeRecurrence,validateRecurrence,generateTaskOccurrences,applyOccurrenceOverride} from './recurrence-utils.js?v=14';
-import {applyPlanningCommand} from './planning-commands.js?v=15';
+import {applyPlanningCommand} from './planning-commands.js?v=16';
 import {assertCompletedScheduleChanges} from './schedule-policy.js?v=5';
 import {applyScheduleChange} from './schedule-change-model.js?v=11';
 export {buildScheduleChange,applyScheduleUndo} from './schedule-change-model.js?v=11';

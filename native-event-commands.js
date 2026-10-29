@@ -2,7 +2,7 @@ import {eventOccurrence,isEventOccurrenceDate,validEventDate,withinEventDates} f
 import {validEventReminder} from './event-reminders.js?v=1';
 import {zonedTaskStart} from './task-reminders.js?v=8';
 import {stableStringify} from './plan-merge.js?v=1';
-import {planningSignature} from './planning-commands.js?v=15';
+import {planningSignature} from './planning-commands.js?v=16';
 import {planningClock,validPlanningDate,shiftPlanningDate} from './planning-model.js?v=1';
 import {eventSegmentsForDate} from './schedule-events.js?v=4';
 import {calendarConflicts} from './calendar-conflicts.js?v=4';
