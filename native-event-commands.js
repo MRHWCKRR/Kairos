@@ -65,13 +65,24 @@ export function buildNativeEventChange(state,{eventId,event,occurrenceDate,occur
  return {inactiveExceptions,reactivatedExceptions,command,expected:{before,signature:reviewSignature(state)},range,conflicts:nativeEventConflicts(state,afterEvent,range,timezone),undoRecord:record,nextEvent:after,beforeEvent,afterEvent};
 }
 
+function reviewDifferenceFields(actual,expected){
+ // Only fixed schema names may leave this boundary, never values or caller keys.
+ try{
+  const [a,b]=[actual,expected].map(value=>JSON.parse(value));
+  const fields={tasks:['board','section','id','date','startTime','endTime','dueDate','estimatedMinutes','remainingMinutes','lastScheduledMinutes','completed','scheduleLocked','schedulingPreference','assignmentId','sessionIndex','sessionOrder','recurrence'],events:['id','day','date','start','end','archived','transparent','allDay','exceptions','startDate','endDate','intervalWeeks','anchorDate']};
+  return Object.entries(fields).flatMap(([kind,keys])=>{
+   if(!Array.isArray(a?.[kind])||!Array.isArray(b?.[kind]))return [kind+'.shape'];
+   return [...(a[kind].length!==b[kind].length?[kind+'.count']:[]),...keys.filter(key=>!same(a[kind].map(row=>row?.[key]),b[kind].map(row=>row?.[key]))).map(key=>kind+'.'+key)];
+  });
+ }catch{return ['signature.shape'];}
+}
 export function applyNativeEventChange(state,command,expected,{now=Date.now()}={}){
  if(command?.type!=='native_event_change'||Object.keys(command).some(k=>!['type','eventId','event','timezone','range','occurrenceDate','occurrenceOperation'].includes(k)))throw Error('Invalid native event command.');
  const fresh=buildNativeEventChange(state,command,command.timezone,now);
  const mismatch={command:!same(fresh.command,command),event:!same(fresh.expected.before,expected?.before),schedule:fresh.expected.signature!==expected?.signature};
  if(mismatch.command||!same(fresh.expected,expected)){
-  // Log only boundary flags, never task contents, identifiers or signatures.
-  console.warn('[Kairos] Native event review rejected.',mismatch);
+  const commandFields=['type','eventId','event','timezone','range','occurrenceDate','occurrenceOperation'].filter(key=>!same(fresh.command[key],command[key]));
+  console.warn('[Kairos] Native event review rejected.',JSON.stringify({...mismatch,commandFields,scheduleFields:mismatch.schedule?reviewDifferenceFields(fresh.expected.signature,expected?.signature):[]}));
   throw Object.assign(Error('The schedule or event changed. Review a new preview.'),{code:'native-event-review-stale',reviewMismatch:mismatch});
  }
  const next=replace(state,command.eventId,fresh.nextEvent);

@@ -19,7 +19,11 @@ test('stale event reviews identify the failing boundary without logging planner 
    assert.deepEqual(error.reviewMismatch,{command:true,event:false,schedule:false});return true;
   });
   assert.equal(logs.length,2);
-  assert.deepEqual(logs.map(args=>args[1]),[{command:false,event:false,schedule:true},{command:true,event:false,schedule:false}]);
+  assert.ok(logs.every(args=>typeof args[1]==='string'),'captured logs must preserve diagnostics without object expansion');
+  assert.deepEqual(logs.map(args=>JSON.parse(args[1])),[
+   {command:false,event:false,schedule:true,commandFields:[],scheduleFields:['tasks.startTime']},
+   {command:true,event:false,schedule:false,commandFields:['range'],scheduleFields:[]}
+  ]);
   assert.doesNotMatch(JSON.stringify(logs),/private|Private|23:00|2026-10-28/);
   assert.equal(applyNativeEventChange(data,preview.command,preview.expected,{now}).next.scheduleEvents.length,1);
   assert.equal(logs.length,2,'successful saves do not log rejection diagnostics');
