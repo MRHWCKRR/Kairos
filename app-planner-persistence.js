@@ -39,8 +39,9 @@ export function createPlannerPersistence({writes,getOwnerId,getPlanId,getState,s
                 const migrated=migrate(latest);
                 const state=planState({boards:normalizeBoards(migrated||getState().boards),dayInsights:latest.dayInsights||{},scheduleEvents:Array.isArray(latest.scheduleEvents)?latest.scheduleEvents:[],calendarSources:Array.isArray(latest.calendarSources)?latest.calendarSources:[]});
                 setIdentity(Array.isArray(migrated)?user.uid:null,latest.docId);
-                setState(state);writes.snapshot=state;
-                onInvalidate({ownerId:user.uid,planId:latest.docId,before:previous,after:state});
+                // UI edits mutate live collections; the confirmed baseline must stay independent.
+                setState(state);writes.snapshot=planState(state);
+                onInvalidate({ownerId:user.uid,planId:latest.docId,before:previous,after:writes.snapshot});
                 onReminders();
             }else{
                 setIdentity(null,null);writes.snapshot=null;setState(planState({}));
