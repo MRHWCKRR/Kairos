@@ -1,7 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
 import { getAuth, initializeRecaptchaConfig } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
 import { initializeFirestore } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
-import { initializeAppCheck, ReCaptchaEnterpriseProvider } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app-check.js";
+import { initializeAppCheck, ReCaptchaEnterpriseProvider, onTokenChanged } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app-check.js";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -32,6 +32,25 @@ export const appCheckReady = (() => {
         const appCheck = initializeAppCheck(app, {
             provider: new ReCaptchaEnterpriseProvider(RECAPTCHA_ENTERPRISE_SITE_KEY),
             isTokenAutoRefreshEnabled: true
+        });
+        // Report freshness only: never log the token, claims, or app identifiers.
+        onTokenChanged(appCheck, result => {
+            let ageSeconds = null;
+            let expiresInSeconds = null;
+            try {
+                const claims = JSON.parse(atob(result.token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+                const now = Date.now() / 1000;
+                if (Number.isFinite(claims.iat) && Number.isFinite(claims.exp)) {
+                    ageSeconds = Math.floor(now - claims.iat);
+                    expiresInSeconds = Math.floor(claims.exp - now);
+                }
+            } catch {
+                // A diagnostic must never interfere with token delivery.
+            }
+            console.debug('[Kairos] App Check token available.', JSON.stringify({ageSeconds, expiresInSeconds}));
+        }, error => {
+            const code = /^appCheck\/[a-z-]+$/.test(error?.code) ? error.code : 'appCheck/unknown';
+            console.warn('[Kairos] App Check token refresh failed.', code);
         });
         return Promise.resolve(appCheck);
     } catch (error) {
