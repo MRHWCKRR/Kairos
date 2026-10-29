@@ -5,8 +5,8 @@ import {applyTaskListCommand} from './task-list-model.js?v=28';
 import {planningUndoPreview} from './planning-undo.js?v=9';
 import {savedPlanningPreferences,planningPreferencesText} from './planning-preferences.js?v=9';
 import {savedWeeklyAvailability} from './weekly-availability.js?v=4';
-import { auth, db } from './firebase.js?v=1';
-import { persistAiPlanAction, getConfirmedAiAction, applyStoredPlanningUndo } from './plan-store.js?v=30';
+import { auth, db } from './firebase.js?v=2';
+import { persistAiPlanAction, getConfirmedAiAction, applyStoredPlanningUndo } from './plan-store.js?v=31';
 import { validateActionShape } from './ai-action-schema.js?v=16';
 import { stableStringify, planState } from './plan-merge.js?v=1';
 import {previewAiPlanning,resolveAiPlanningTimezone} from './ai-planning.js?v=20';
@@ -14,7 +14,7 @@ import {planningConflicts,planningGapText,planningDailyLimitText} from './planni
 import {applyPlanningCommand} from './planning-commands.js?v=16';
 import {
     collection, getDocs, query, where, doc, getDoc
-} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+} from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
 const ACTIONS_REQUIRING_CONFIRMATION = new Set(['delete_task', 'delete_schedule_event', 'delete_board', 'delete_section']);
 

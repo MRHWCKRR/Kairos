@@ -1,9 +1,9 @@
-import {auth,db} from './firebase.js';
-import {onAuthStateChanged} from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
-import {doc,onSnapshot} from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
+import {auth,db} from './firebase.js?v=2';
+import {onAuthStateChanged} from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js';
+import {doc,onSnapshot} from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 import {readMessageUsage,usageDay} from './ai-usage.js?v=1';
 import {mountAiActivity} from './statistics-ai-view.js?v=1';
-import {flushMessageUsage,initializeMessageUsage} from './ai-usage-store.js?v=1';
+import {flushMessageUsage,initializeMessageUsage} from './ai-usage-store.js?v=2';
 
 const root=document.getElementById('ai-activity');
 if(root) {

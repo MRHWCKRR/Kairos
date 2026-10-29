@@ -1,11 +1,11 @@
 import { createAuthFeedback } from './auth-feedback.js?v=1';
-import { auth, authProtectionReady } from './firebase.js';
+import { auth, authProtectionReady } from './firebase.js?v=2';
 import {
     createUserWithEmailAndPassword,
     GoogleAuthProvider,
     signInWithPopup,
     sendEmailVerification
-} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+} from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
 
 const feedback = createAuthFeedback(document);
 const form = document.getElementById('signup-form');

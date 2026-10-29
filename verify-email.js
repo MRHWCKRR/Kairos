@@ -1,9 +1,9 @@
-import { auth, authProtectionReady } from './firebase.js';
+import { auth, authProtectionReady } from './firebase.js?v=2';
 import {
     onAuthStateChanged,
     reload,
     sendEmailVerification
-} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+} from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
 
 const params = new URLSearchParams(window.location.search);
 const email = params.get('email') || '';

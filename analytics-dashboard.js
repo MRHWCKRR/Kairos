@@ -1,6 +1,6 @@
 import { showNotice, confirmDialog, promptDialog } from './ui-dialogs.js?v=1';
-import { auth } from "./firebase.js";
-import { signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { auth } from './firebase.js?v=2';
+import { signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
 
 const login = document.getElementById("analytics-login");
 const dashboard = document.getElementById("analytics-dashboard");
