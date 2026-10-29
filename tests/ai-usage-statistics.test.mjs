@@ -57,7 +57,7 @@ test('activity viewer shows zero days, accessible dates, errors and only one gri
 test('Statistics loads activity once without loading the chat workspace',async()=>{
   const modules=[],styles=[];const loader=createPageLoader({loadStyle:async url=>styles.push(url),importModule:async url=>modules.push(url)});
   await loader.prepare('statistics-page');await loader.prepare('statistics-page');
-  assert.deepEqual(modules,['./statistics-ai.js?v=1']);assert.deepEqual(styles,['statistics-ai.css?v=2']);
+  assert.equal(modules.length,1);assert.match(modules[0],/^\.\/statistics-ai\.js\?v=\d+$/);assert.deepEqual(styles,['statistics-ai.css?v=2']);
 });
 
 test('live activity subscribes only while Statistics is visible and clears on account change',async()=>{

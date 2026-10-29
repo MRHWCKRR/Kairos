@@ -1,8 +1,8 @@
 import { showNotice, confirmDialog, promptDialog } from './ui-dialogs.js?v=1';
 /* Kairos Web onboarding — shared Firebase onboarding state across web/iOS/Android. */
-import { auth, db } from "./firebase.js";
-import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { auth, db } from './firebase.js?v=2';
+import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
+import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 import ct from "https://cdn.jsdelivr.net/npm/countries-and-timezones@3.8.0/+esm";
 import { LANGUAGES, getLocale } from "./i18n.js";
 

@@ -1,15 +1,15 @@
 import {isAiEventAction,aiEventPreviewMarkup} from './ai-event-actions.js?v=7';
 import {weeklyAvailabilityText} from './weekly-availability.js?v=4';
-import { aiFetch, aiErrorMessage, aiConversationMessages } from './ai-client.js?v=2';
-import { auth, db } from './firebase.js?v=1';
-import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { getKairosContext } from './ai-context.js?v=24';
-import { actionNeedsConfirmation, executeKairosAction, getAiPlanId, previewKairosAction, confirmedKairosAction } from './ai-actions.js?v=32';
+import { aiFetch, aiErrorMessage, aiConversationMessages } from './ai-client.js?v=3';
+import { auth, db } from './firebase.js?v=2';
+import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
+import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
+import { getKairosContext } from './ai-context.js?v=25';
+import { actionNeedsConfirmation, executeKairosAction, getAiPlanId, previewKairosAction, confirmedKairosAction } from './ai-actions.js?v=33';
 import { ACTION_TYPES, ACTION_INSTRUCTIONS, explicitDurationIntent, validateActionShape } from './ai-action-schema.js?v=16';
 import { appendPlanLimitActions } from './plan-usage.js';
 import {savedMessageCount} from './ai-usage.js?v=1';
-import {recordSentMessage,initializeMessageUsage} from './ai-usage-store.js?v=1';
+import {recordSentMessage,initializeMessageUsage} from './ai-usage-store.js?v=2';
 
 const MAX_CHATS=12, MAX_MESSAGES=80, CONTEXT_MESSAGES=18;
 const ACTION_INTENT=/\b(add|create|make|move|schedule|set|change|update|complete|finish|delete|remove|archive|organize|organise)\b/i;

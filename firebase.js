@@ -1,7 +1,7 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getAuth, initializeRecaptchaConfig } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-import { initializeFirestore } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { initializeAppCheck, ReCaptchaEnterpriseProvider } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app-check.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
+import { getAuth, initializeRecaptchaConfig } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
+import { initializeFirestore } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
+import { initializeAppCheck, ReCaptchaEnterpriseProvider } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app-check.js";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -105,7 +105,7 @@ if (typeof window !== "undefined") {
 
         // Load onboarding only after this module has finished exporting the
         // primary Firebase app. This prevents onboarding from blocking app.js.
-        import("./onboarding-force.js?v=9").catch(error => {
+        import("./onboarding-force.js?v=10").catch(error => {
             console.error("Kairos onboarding module failed to load:", error);
             releaseLoadingGate();
         });

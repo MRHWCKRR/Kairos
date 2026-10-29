@@ -1,5 +1,5 @@
-import { auth, appCheckReady } from './firebase.js';
-import { getToken } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app-check.js';
+import { auth, appCheckReady } from './firebase.js?v=2';
+import { getToken } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-app-check.js';
 import { createAiRequester } from './ai-request.js?v=2';
 export { aiErrorMessage, aiConversationMessages } from './ai-request.js?v=2';
 

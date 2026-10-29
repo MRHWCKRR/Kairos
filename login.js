@@ -1,5 +1,5 @@
 import { createAuthFeedback } from './auth-feedback.js?v=1';
-import { auth } from './firebase.js';
+import { auth } from './firebase.js?v=2';
 import {
     signInWithEmailAndPassword,
     sendPasswordResetEmail,
@@ -9,7 +9,7 @@ import {
     GoogleAuthProvider,
     signInWithPopup,
     onAuthStateChanged
-} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+} from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
 
 const feedback = createAuthFeedback(document);
 const loginForm = document.getElementById('email-login-form');

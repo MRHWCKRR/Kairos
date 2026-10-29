@@ -1,8 +1,8 @@
 import {savedPlanningPreferences} from './planning-preferences.js?v=9';
 import {savedWeeklyAvailability} from './weekly-availability.js?v=4';
-import { auth, db } from './firebase.js?v=1';
+import { auth, db } from './firebase.js?v=2';
 import {aiPlanningSummary,resolveAiPlanningTimezone} from './ai-planning.js?v=20';
-import { collection, doc, getDoc, getDocs, query, where } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { collection, doc, getDoc, getDocs, query, where } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
 const PROFILE_CACHE_MS = 15000;
 let cached = null;

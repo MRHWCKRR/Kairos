@@ -1,5 +1,5 @@
-import {auth,db} from './firebase.js';
-import {doc,runTransaction} from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
+import {auth,db} from './firebase.js?v=2';
+import {doc,runTransaction} from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 import {createMessageRecorder} from './ai-usage.js?v=1';
 import {createUsageOutbox} from './ai-usage-outbox.js?v=1';
 

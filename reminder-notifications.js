@@ -1,5 +1,5 @@
-import { db } from './firebase.js?v=1';
-import { doc, runTransaction } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { db } from './firebase.js?v=2';
+import { doc, runTransaction } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 import { dueTaskReminders,dueBedtimeReminders } from './task-reminders.js?v=8';
 import {dueEventReminders} from './event-reminders.js?v=1';
 import { mergePlanEdits, planState } from './plan-merge.js?v=1';

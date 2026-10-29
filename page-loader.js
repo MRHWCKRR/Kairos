@@ -34,12 +34,12 @@ export function createPageLoader({importModule=url=>import(url),loadStyle=loadPa
         // Markdown enhances already-escaped text; a CDN outage must not prevent
         // authentication or plain-text chat. Sanitisation stays in ai-markdown.
         void importModule('./ai-markdown.js?v=1').catch(error=>warn('[Kairos] Markdown unavailable; using plain text.',error));
-        await importModule('./ai-workspace.js?v=62');
+        await importModule('./ai-workspace.js?v=63');
         await waitForChat();
       }
       if(page==='statistics-page') {
         await loadStyle('statistics-ai.css?v=2');
-        await importModule('./statistics-ai.js?v=1');
+        await importModule('./statistics-ai.js?v=2');
       }
       if(page==='schedule-page'&&scheduleEnabled) {
         await Promise.all(scheduleStyles.map(name=>loadStyle(name+(name==='schedule-keyboard.css'?'?v=1':name==='schedule-find-time.css'?'?v=2':name==='schedule-workspace.css'?'?v=11':name==='schedule-inspector.css'?'?v=11':name==='schedule-calendar.css'?'?v=11':name==='schedule-ai.css'?'?v=11':name==='planning-hub.css'?'?v=3':name==='assignment-progress.css'?'?v=2':name==='schedule-day-change.css'?'?v=1':name==='schedule-interactions.css'?'?v=12':'?v=10'))));

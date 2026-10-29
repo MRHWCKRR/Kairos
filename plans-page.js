@@ -1,6 +1,6 @@
-import {auth} from './firebase.js';
-import {onAuthStateChanged} from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
-import {requestBilling} from './billing-client.js?v=2';
+import {auth} from './firebase.js?v=2';
+import {onAuthStateChanged} from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js';
+import {requestBilling} from './billing-client.js?v=3';
 import {mountPlanUsage} from './plan-usage.js?v=6';
 import {mountStandalonePlans} from './plans-controller.js?v=1';
 
