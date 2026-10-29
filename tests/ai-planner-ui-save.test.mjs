@@ -1,3 +1,4 @@
+import {createPlannerWrites} from '../app-planner-writes.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
@@ -7,7 +8,7 @@ import {injectScheduleBridge} from '../build-transforms.js';
 
 test('ordinary planner save preserves an AI task committed since the UI loaded',async()=>{
   const base={userID:'one',boards:[{id:'b',title:'Study',sections:[{id:'s',title:'General',tasks:[{id:'one',title:'Essay'}]}]}],dayInsights:{},scheduleEvents:[]};
-  const f=await plannerFixture(base);
+  const f=await plannerFixture(base);f.context.createPlannerWrites=createPlannerWrites;
   await f.execute({type:'create_task',args:{title:'Science revision'}},{operationId:'ui-race',ownerId:'one',planId:'plan'});
   f.context.seed=structuredClone(base);
   f.context.window.addEventListener=()=>{};
@@ -18,7 +19,7 @@ test('ordinary planner save preserves an AI task committed since the UI loaded',
   const source=await readFile(new URL('../app.js',import.meta.url),'utf8');
   const functions=source.slice(source.indexOf('    // --- 6 Cloud Sync Data Actions ---'),source.indexOf('    // --- 7 AI Plan Generator ---'));
   vm.runInContext('let currentPlanDocId="plan",boardsData=seed.boards,dayInsights={},scheduleData=[];\n'+functions,f.context);
-  vm.runInContext('planSnapshot=planState(seed);boardsData[0].sections[0].tasks[0].completed=true;',f.context);
+  vm.runInContext('plannerWrites.snapshot=planState(seed);boardsData[0].sections[0].tasks[0].completed=true;',f.context);
   await f.context.updatePlanInFirestore();
   assert.equal(f.data().boards[0].sections[0].tasks.length,2);
   assert.equal(f.data().boards[0].sections[0].tasks[0].completed,true);
@@ -32,7 +33,7 @@ test('schedule bridge routes saves through the same safe planner save',()=>{
 
 test('a confirmed schedule save supplies its before/after times to the AI helper',async()=>{
   const base={userID:'one',boards:[{id:'b',title:'Study',sections:[{id:'s',title:'General',tasks:[{id:'one',title:'Essay',date:'2026-10-16',startTime:'13:00',endTime:'14:00'}]}]}],scheduleEvents:[]};
-  const f=await plannerFixture(base);
+  const f=await plannerFixture(base);f.context.createPlannerWrites=createPlannerWrites;
   Object.assign(f.context,{seed:structuredClone(base),localStorage:{getItem:()=>null},renderApp(){},showNotice(){}});
   f.context.window.addEventListener=()=>{};
   const contextSource=await readFile(new URL('../ai-context.js',import.meta.url),'utf8');
@@ -40,7 +41,7 @@ test('a confirmed schedule save supplies its before/after times to the AI helper
   const app=await readFile(new URL('../app.js',import.meta.url),'utf8');
   const functions=app.slice(app.indexOf('    // --- 6 Cloud Sync Data Actions ---'),app.indexOf('    // --- 7 AI Plan Generator ---'));
   vm.runInContext('let currentPlanDocId="plan",boardsData=seed.boards,dayInsights={},scheduleData=[];\n'+functions,f.context);
-  vm.runInContext('planSnapshot=planState(seed);boardsData[0].sections[0].tasks[0].startTime="15:00";boardsData[0].sections[0].tasks[0].endTime="16:00";',f.context);
+  vm.runInContext('plannerWrites.snapshot=planState(seed);boardsData[0].sections[0].tasks[0].startTime="15:00";boardsData[0].sections[0].tasks[0].endTime="16:00";',f.context);
   assert.equal(await f.context.updatePlanInFirestore(),true);
   const prompt=await f.context.getKairosContext();
   assert.match(prompt,/Recent confirmed schedule changes/);

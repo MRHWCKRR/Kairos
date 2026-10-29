@@ -1,3 +1,4 @@
+import {createPlannerWrites} from '../app-planner-writes.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 async function fixture({status=200,errorStatus,waitToken}={}) {
@@ -27,10 +28,10 @@ test('the first board save succeeds even when rules deny reading a missing plann
  const {plannerFixture}=await import('./helpers/planner-fixture.mjs');
  const {readFile}=await import('node:fs/promises'),vm=await import('node:vm');
  const f=await plannerFixture(null,{denyMissingReads:true});
- f.context.renderApp=()=>{};f.context.showNotice=message=>assert.fail(message);
+ f.context.plannerWrites=createPlannerWrites();f.context.renderApp=()=>{};f.context.showNotice=message=>assert.fail(message);
  const app=await readFile(new URL('../app.js',import.meta.url),'utf8');
  const flow=app.slice(app.indexOf('    async function updatePlanInFirestore('),app.indexOf('    async function loadLatestPlanFromFirestore('));
- vm.runInContext('let currentPlanDocId=null,planSnapshot=null,planEditRevision=0,planSaveQueue=Promise.resolve(),boardsData=[{id:"new-board",title:"Launch",sections:[]}],dayInsights={},scheduleData=[];'+flow,f.context);
+ vm.runInContext('let currentPlanDocId=null,boardsData=[{id:"new-board",title:"Launch",sections:[]}],dayInsights={},scheduleData=[];'+flow,f.context);
  assert.equal(await f.context.updatePlanInFirestore(),true);
  assert.equal(f.data().boards[0].title,'Launch');assert.equal(f.data().userID,'one');
 });

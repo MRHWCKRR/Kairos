@@ -294,22 +294,16 @@
 
             </div>
 
-            <!-- Schedule Page: recurring weekly commitments (sleep, classes, tutoring, training, etc.) -->
-            <div id="schedule-page" class="page-view">
-            <div class="schedule-modern-header">
-                <div><span class="schedule-eyebrow">YOUR PLANNER</span><h2>Schedule</h2><p>Plan your day, see your week, and keep tasks and commitments together.</p></div>
-                <button id="add-schedule-event-btn" class="action-btn">+ Add recurring event</button>
+            <!-- Schedule Page: Schedule 3.0 calendar-first workspace -->
+            <div id="schedule-page" class="page-view schedule-page">
+                <div id="schedule-toolbar" class="schedule-toolbar" aria-label="Schedule controls"></div>
+                <div class="schedule-workspace-shell">
+                    <aside id="schedule-backlog" class="schedule-backlog" aria-label="Unscheduled tasks"></aside>
+                    <section id="schedule-calendar" class="schedule-calendar" aria-label="Schedule calendar"></section>
+                    <aside id="schedule-inspector" class="schedule-inspector" aria-label="Selected schedule item" hidden></aside>
+                </div>
+                <div id="schedule-ai-review" class="schedule-ai-review" hidden></div>
             </div>
-            <div class="schedule-view-tabs" role="group" aria-label="Schedule view">
-                <button type="button" data-schedule-view="today" class="active" aria-pressed="true">Today</button>
-                <button type="button" data-schedule-view="week" aria-pressed="false">Week</button>
-            </div>
-            <div id="schedule-today-container" class="schedule-today"></div>
-            <div id="schedule-week-container" class="schedule-week">
-                <!-- Content injected by JavaScript -->
-            </div>
-
-        </div>
 
              <!-- Calendar and Routines -->
             <div id="calendar-page" class="page-view">
