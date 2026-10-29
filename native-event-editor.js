@@ -1,6 +1,6 @@
 import {eventReminderText,eventReminderNotice} from './event-reminders.js?v=1';
 import {eventOccurrence,isWeeklyNativeEvent,isEventOccurrenceDate} from './event-occurrences.js?v=3';
-import {buildNativeEventChange,buildNativeEventUndo} from './native-event-commands.js?v=5';
+import {buildNativeEventChange,buildNativeEventUndo} from './native-event-commands.js?v=6';
 import {stableStringify} from './plan-merge.js?v=1';
 const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 const scope=id=>JSON.stringify([id?.ownerId??null,id?.planId??null]);

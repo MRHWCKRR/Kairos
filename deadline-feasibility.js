@@ -2,7 +2,7 @@ import {taskRemainingMinutes} from './remaining-work.js?v=6';
 import {assertAssignmentOrder} from './assignment-order.js?v=5';
 import {planningTasks,validPlanningDate,shiftPlanningDate} from './planning-model.js?v=1';
 import {planningAvailability,planningWindows,planningOccupancy,planningBlockValid,intervalsOverlap,planningDailyWork,planningDailyRemaining,planningDailyLimit} from './planning-slots.js?v=10';
-import {previewCarryover} from './planning-commands.js?v=15';
+import {previewCarryover} from './planning-commands.js?v=16';
 import {parseTime,taskDurationMinutes} from './schedule-utils.js?v=6';
 
 // Capacity is an upper bound: gaps may be too short, restricted by preferences,
