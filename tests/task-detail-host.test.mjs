@@ -1,3 +1,4 @@
+import {attachPlannerPersistence} from './helpers/planner-persistence-host.mjs';
 import {createPlannerWrites} from '../app-planner-writes.js';
 import {createMutationSession} from '../mutation-session.js';
 import test from 'node:test';
@@ -13,7 +14,7 @@ async function fixture(empty=false){
   vm.runInContext(`let boardsData=${JSON.stringify(data.boards)},dayInsights={},scheduleData=[],currentPlanDocId='plan';plannerWrites.snapshot=planState({boards:boardsData});function renderApp(){}`,f.context);
   const source=await readFile(new URL('../app.js',import.meta.url),'utf8');
   vm.runInContext(source.slice(source.indexOf('    async function commitTaskDetails('),source.indexOf('    const pageLoader =')),f.context);
-  vm.runInContext(source.slice(source.indexOf('    async function updatePlanInFirestore('),source.indexOf('    async function loadLatestPlanFromFirestore(')),f.context);
+  attachPlannerPersistence(f.context);
   vm.runInContext('let taskDetails={open:async target=>({planId:currentPlanDocId,target})};const pageLoader={prepare:async()=>{}};const pageRouter={navigate:async()=>{}};',f.context);
   const opening=source.indexOf('    async function openTaskDetailsFromList(');
   if(opening>=0)vm.runInContext(source.slice(opening,source.indexOf("    document.getElementById('tasks-page')?.addEventListener('click'",opening)),f.context);

@@ -11,5 +11,5 @@
     "types": [],
     "skipLibCheck": true
   },
-  "include": ["app-auth-session.js", "app-settings-model.js", "app-planner-writes.js", "tests/types/*.check.js"]
+  "include": ["app-auth-session.js", "app-settings-model.js", "app-planner-writes.js", "planner-value-contract.js", "tests/types/*.check.js"]
 }

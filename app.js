@@ -1,3 +1,5 @@
+import {createPlannerPersistence} from './app-planner-persistence.js?v=1';
+import {createSettingsForm} from './app-settings-form.js?v=1';
 import {cloneDeep,deepMerge,defaultSettings} from './app-settings-model.js?v=1';
 import {createAuthSession} from './app-auth-session.js?v=1';
 import {createPlannerWrites} from './app-planner-writes.js?v=1';
@@ -18,8 +20,6 @@ import {mountFocusTimer} from './focus-timer.js?v=10';
 import {persistFocusLog,persistFocusCorrection,loadFocusHistory} from './focus-store.js?v=10';
 import {mountFocusHistory} from './focus-history.js?v=7';
 import {taskFocusTarget} from './task-focus.js?v=7';
-import {mountPlanningPreferencesEditor} from './planning-preferences-editor.js?v=9';
-import {mountWeeklyAvailabilityEditor} from './weekly-availability-editor.js?v=4';
 import { showNotice, confirmDialog, promptDialog } from './ui-dialogs.js?v=1';
 import { aiFetch, aiErrorMessage } from './ai-client.js?v=3';
 import { requestBilling } from './billing-client.js?v=3';
@@ -64,7 +64,6 @@ import {mountFocusBreakdown} from './focus-breakdown.js?v=5';
 import {mountGlobalSearch} from './global-search.js?v=5';
 import {mountTaskCapture} from './task-capture.js?v=14';
 import {normaliseShortcuts,describeShortcut} from './shortcut-model.js?v=1';
-import {mountShortcutSettings} from './shortcut-settings.js?v=1';
 import {mountSidebarIcons} from './sidebar-icons.js?v=2';
 console.log("APP.js is loaded and running");
 
@@ -322,6 +321,8 @@ function bootApp() {
         onError:(phase,error,record)=>{if(phase==='validation')showNotice(error.message);else if(phase==='save')showNotice(record.persisted?'Could not sync your settings. Your changes are saved on this device; use Retry save when you are ready.':'Could not sync or store these settings locally. Keep this tab open and retry saving.');if(phase!=='validation')console.error('Error '+phase+' user settings:',error);}
     });
     let gettingStarted=null;
+    const settingsForm=createSettingsForm({document,getDraft:()=>pendingSettings,setDraft:value=>{pendingSettings=value},getApplied:()=>userSettings,getUser:()=>auth.currentUser,settingsSync,onDirty:checkDirty,onControlsRefresh:()=>document.dispatchEvent(new Event('kairos-controls-refresh')),onSaveBar:updateSaveBarVisibility,tr,getLocale,updateBrowserPushHint});
+
     let confettiEnabled = userSettings.appearance.confetti;
 
     // --- Notifications state ---
@@ -1207,99 +1208,19 @@ function bootApp() {
         return updatePlanInFirestore(options);
     }
 
-    async function updatePlanInFirestore(options={}) {
-        const user = auth.currentUser;
-        if (!user) return false;
-        plannerWrites.markEdit();
-        const work = plannerWrites.enqueue(async () => {
-            if (auth.currentUser?.uid !== user.uid) throw new Error('The signed-in account changed.');
-            const planId = currentPlanDocId || 'plan-' + user.uid;
-            const local = planState({ boards: boardsData, dayInsights, scheduleEvents: scheduleData, calendarSources:calendarSourcesData });
-            if(!currentPlanDocId)await initializePlanner(user.uid);
-            const saved = await savePlannerEdits(planId, user.uid, plannerWrites.snapshot || planState({}), local, options);
-            if (auth.currentUser?.uid !== user.uid) throw new Error('The signed-in account changed.');
-            const live = planState({ boards: boardsData, dayInsights, scheduleEvents: scheduleData, calendarSources:calendarSourcesData });
-            const rebased = mergePlanEdits(local, live, saved);
-            const remoteChanges = JSON.stringify(rebased) !== JSON.stringify(live);
-            boardsData = rebased.boards;
-            dayInsights = rebased.dayInsights;
-            scheduleData = rebased.scheduleEvents;
-            calendarSourcesData = rebased.calendarSources;
-            invalidateKairosContext({ownerId:user.uid,planId,before:plannerWrites.snapshot,after:saved});
-            plannerWrites.snapshot = saved;
-            currentPlanDocId = planId;
-            searchPlannerOwnerId = user.uid;
-            globalSearchController?.sync();taskCaptureController?.sync();
-            window.__kairosScheduleWorkspace?.invalidate();
-            if (remoteChanges) renderApp();
-            void window.__kairosTaskReminders?.check();
-            return true;
-        });
-        try { return await work; }
-        catch (error) {
-            console.error('Error syncing task progress:', error);
-            showNotice('Your changes could not be synced. ' + error.message);
-            return false;
-        }
-    }
-
-    async function loadLatestPlanFromFirestore(user) {
-        const loadRevision = plannerWrites.beginLoad();
-        loadRevision.edit = await plannerWrites.idle();
-        const current = () => auth.currentUser?.uid === user.uid && plannerWrites.isCurrentLoad(loadRevision);
-        if (!current()) return;
-        try {
-            const plansColRef = collection(db, "study_plans");
-            const q = query(plansColRef, where("userID", "==", user.uid));
-            const querySnapshot = await getDocs(q);
-            if (!current()) return;
-
-            if (!querySnapshot.empty) {
-                const plans = querySnapshot.docs.map(doc => ({
-                    docId: doc.id,
-                    ...doc.data()
-                }));
-
-                plans.sort((a, b) => {
-                    const timeA = a.createdAt?.seconds || 0;
-                    const timeB = b.createdAt?.seconds || 0;
-                    return timeB - timeA;
-                });
-
-                const latestPlan = plans[0];
-                const previousSnapshot = currentPlanDocId === latestPlan.docId ? plannerWrites.snapshot : null;
-                currentPlanDocId = latestPlan.docId;
-                const migrated = migrateToBoards(latestPlan);
-                boardsData = normalizeArchiveFields(migrated || boardsData);
-                searchPlannerOwnerId = Array.isArray(migrated) ? user.uid : null;
-                dayInsights = latestPlan.dayInsights || {};
-                scheduleData = Array.isArray(latestPlan.scheduleEvents) ? latestPlan.scheduleEvents : [];
-                calendarSourcesData = Array.isArray(latestPlan.calendarSources) ? latestPlan.calendarSources : [];
-                plannerWrites.snapshot = planState({ boards: boardsData, dayInsights, scheduleEvents: scheduleData, calendarSources:calendarSourcesData });
-                invalidateKairosContext({ownerId:user.uid,planId:currentPlanDocId,before:previousSnapshot,after:plannerWrites.snapshot});
-                void window.__kairosTaskReminders?.check();
-
-                console.log("Successfully loaded latest study plan from Firestore!");
-                renderApp();
-            } else {
-                console.log("No saved study plans found in Firestore. Using default placeholder routines.");
-                currentPlanDocId = null;
-                searchPlannerOwnerId = null;
-                plannerWrites.snapshot = null;
-                boardsData = [];
-                dayInsights = {};
-                scheduleData = [];
-                calendarSourcesData = [];
-                renderApp();
-            }
-        } catch (error) {
-            if (!current()) return;
-            console.error("Error loading plans from Firestore:", error);
-            renderApp();
-        } finally {
-            if (current()) markInitialLoadComplete();
-        }
-    }
+    const plannerPersistence=createPlannerPersistence({
+        writes:plannerWrites,getOwnerId:()=>auth.currentUser?.uid||null,getPlanId:()=>currentPlanDocId,
+        getState:()=>({boards:boardsData,dayInsights,scheduleEvents:scheduleData,calendarSources:calendarSourcesData}),
+        setState:state=>{boardsData=state.boards;dayInsights=state.dayInsights;scheduleData=state.scheduleEvents;calendarSourcesData=state.calendarSources},
+        setIdentity:(ownerId,planId)=>{searchPlannerOwnerId=ownerId;currentPlanDocId=planId},
+        readPlans:async ownerId=>{const snapshot=await getDocs(query(collection(db,'study_plans'),where('userID','==',ownerId)));return snapshot.docs.map(item=>({docId:item.id,...item.data()}))},
+        initialize:initializePlanner,saveEdits:(...args)=>savePlannerEdits(...args),migrate:migrateToBoards,normalizeBoards:normalizeArchiveFields,
+        onInvalidate:invalidateKairosContext,onSaved:()=>{globalSearchController?.sync();taskCaptureController?.sync();window.__kairosScheduleWorkspace?.invalidate()},
+        onReminders:()=>{void window.__kairosTaskReminders?.check()},onRender:renderApp,onLoadComplete:markInitialLoadComplete,
+        onError:(phase,error)=>{if(phase==='save'){console.error('Error syncing task progress:',error);showNotice('Your changes could not be synced. '+error.message)}else console.error('Error loading plans from Firestore:',error)}
+    });
+    async function updatePlanInFirestore(options={}) { return plannerPersistence.save(options); }
+    async function loadLatestPlanFromFirestore(user) { return plannerPersistence.load(user); }
 
     window.addEventListener('kairos-data-changed', () => {
         if (auth.currentUser) loadLatestPlanFromFirestore(auth.currentUser);
@@ -2030,130 +1951,11 @@ function bootApp() {
         setupNotificationBell();
     }
 
-    function enterSettingsPage() {
-        const recovery = settingsSync.state().pending;
-        pendingSettings = cloneDeep(recovery && auth.currentUser?.uid && recovery.ownerId === auth.currentUser.uid ? recovery.settings : userSettings);
-        populateSettingsForm();
-        document.dispatchEvent(new Event('kairos-controls-refresh'));
-        updateSaveBarVisibility(false);
-    }
-
-    function setActiveTile(containerId, value) {
-        const container = document.getElementById(containerId);
-        if (!container) return;
-        container.querySelectorAll('.option-tile').forEach(el => {
-            el.classList.toggle('active', el.dataset.value === String(value));
-        });
-    }
-
-    function setActiveSwatch(containerId, value) {
-        const container = document.getElementById(containerId);
-        if (!container) return;
-        container.querySelectorAll('.swatch').forEach(el => {
-            el.classList.toggle('active', el.dataset.value === String(value));
-        });
-    }
-
-    function updateYoutubeRowVisibility() {
-        const row = document.getElementById('youtube-ambient-row');
-        if (row) row.style.display = pendingSettings.appearance.ambientSound === 'custom' ? 'block' : 'none';
-    }
-
-    function populateTimezoneSelect() {
-        const select = document.getElementById('settings-timezone');
-        if (!select) return;
-        if (!select.dataset.populated) {
-            let zones = [];
-            try { zones = Intl.supportedValuesOf('timeZone'); } catch (e) {
-                zones = ['UTC','America/New_York','America/Chicago','America/Denver','America/Los_Angeles','Europe/London','Europe/Berlin','Europe/Paris','Asia/Tokyo','Asia/Shanghai','Asia/Kolkata','Australia/Sydney','Australia/Brisbane','Pacific/Auckland'];
-            }
-            select.innerHTML = zones.map(z => `<option value="${z}">${z.replace(/_/g, ' ')}</option>`).join('');
-            select.dataset.populated = 'true';
-        }
-        select.value = pendingSettings.profile.timezone;
-    }
-
-    let weeklyAvailabilityEditor=null,planningPreferencesEditor=null,shortcutSettingsEditor=null;
-    function populateSettingsForm() {
-        shortcutSettingsEditor ||= mountShortcutSettings({root:document.getElementById('shortcut-settings-editor'),getValue:()=>pendingSettings.accessibility.shortcuts,onChange:value=>{pendingSettings.accessibility.shortcuts=value;checkDirty()}});
-        shortcutSettingsEditor.refresh();
-        planningPreferencesEditor ||= mountPlanningPreferencesEditor({root:document.getElementById('planning-preferences-editor'),getValue:()=>pendingSettings.planning||{},onChange:value=>{pendingSettings.planning={...(pendingSettings.planning||{}),...value};checkDirty()}});
-        planningPreferencesEditor?.refresh();
-        weeklyAvailabilityEditor ||= mountWeeklyAvailabilityEditor({root:document.getElementById('weekly-availability-editor'),getValue:()=>pendingSettings.planning?.weeklyAvailability??null,onChange:value=>{pendingSettings.planning={...(pendingSettings.planning||{}),weeklyAvailability:value};checkDirty()}});
-        weeklyAvailabilityEditor?.refresh();
-        const completedToggle=document.getElementById('settings-reschedule-completed');if(completedToggle)completedToggle.checked=pendingSettings.planning?.rescheduleCompleted===true;
-        const user = auth.currentUser;
-
-        const emailEl = document.getElementById('settings-current-email');
-        if (emailEl) emailEl.textContent = user ? user.email : '—';
-
-        const signinMethodEl = document.getElementById('settings-signin-method');
-        if (signinMethodEl && user) {
-            const providerId = user.providerData[0]?.providerId || 'password';
-            const labels = { 'password': 'Email & Password', 'google.com': 'Google', 'github.com': 'GitHub', 'microsoft.com': 'Microsoft' };
-            signinMethodEl.textContent = labels[providerId] || providerId;
-        }
-
-        const lastSigninEl = document.getElementById('security-last-signin');
-        if (lastSigninEl && user?.metadata?.lastSignInTime) {
-            const locale = getLocale(userSettings.accessibility.language || 'en');
-            lastSigninEl.textContent = `${tr('last_signin')}: ${new Date(user.metadata.lastSignInTime).toLocaleString(locale)}`;
-        }
-
-        const displayNameEl = document.getElementById('settings-display-name');
-        if (displayNameEl) displayNameEl.value = pendingSettings.profile.displayName || '';
-
-        const birthdayEl = document.getElementById('settings-birthday');
-        if (birthdayEl) birthdayEl.value = pendingSettings.profile.birthday || '';
-
-        const avatarPreview = document.getElementById('settings-avatar-preview');
-        if (avatarPreview) {
-            avatarPreview.src = pendingSettings.profile.avatarURL || user?.photoURL || `https://ui-avatars.com/api/?name=User&background=a855f7&color=fff`;
-        }
-        const avatarUrlEl = document.getElementById('settings-avatar-url');
-        if (avatarUrlEl) {
-            avatarUrlEl.value = (pendingSettings.profile.avatarURL && !pendingSettings.profile.avatarURL.startsWith('data:')) ? pendingSettings.profile.avatarURL : '';
-        }
-
-        populateTimezoneSelect();
-
-        setActiveTile('density-options', pendingSettings.accessibility.density);
-        setActiveTile('time-format-options', pendingSettings.accessibility.timeFormat);
-        setActiveTile('language-options', pendingSettings.accessibility.language || 'en');
-        const reduceMotionEl = document.getElementById('settings-reduce-motion');
-        if (reduceMotionEl) reduceMotionEl.checked = !!pendingSettings.accessibility.reduceMotion;
-
-        setActiveTile('mode-options', pendingSettings.appearance.mode);
-        setActiveSwatch('theme-options', pendingSettings.appearance.theme);
-        setActiveSwatch('text-color-options', pendingSettings.appearance.textColor || 'default');
-        setActiveTile('font-options', pendingSettings.appearance.font);
-        setActiveSwatch('background-options', pendingSettings.appearance.background);
-        setActiveSwatch('cursor-options', pendingSettings.appearance.cursor);
-        setActiveTile('ambient-options', pendingSettings.appearance.ambientSound);
-
-        const confettiEl = document.getElementById('settings-confetti-toggle');
-        if (confettiEl) confettiEl.checked = !!pendingSettings.appearance.confetti;
-
-        const notifEnabledEl = document.getElementById('settings-notif-enabled');
-        if (notifEnabledEl) notifEnabledEl.checked = !!pendingSettings.notifications.enabled;
-
-        const notifBoardCompletionEl = document.getElementById('settings-notif-board-completion');
-        if (notifBoardCompletionEl) notifBoardCompletionEl.checked = !!pendingSettings.notifications.boardCompletion;
-
-        const notifBedtimeEl = document.getElementById('settings-notif-bedtime');
-        if (notifBedtimeEl) notifBedtimeEl.checked = !!pendingSettings.notifications.bedtimeReminders;
-
-        const notifBrowserPushEl = document.getElementById('settings-notif-browser-push');
-        if (notifBrowserPushEl) notifBrowserPushEl.checked = !!pendingSettings.notifications.browserPush;
-        updateBrowserPushHint();
-
-        const volumeEl = document.getElementById('ambient-volume');
-        if (volumeEl) volumeEl.value = pendingSettings.appearance.ambientVolume ?? 35;
-
-        const youtubeUrlEl = document.getElementById('settings-ambient-youtube-url');
-        if (youtubeUrlEl) youtubeUrlEl.value = pendingSettings.appearance.customAmbientYoutubeUrl || '';
-        updateYoutubeRowVisibility();
-    }
+    function enterSettingsPage() { settingsForm.enter(); }
+    function populateSettingsForm() { settingsForm.populate(); }
+    function setActiveTile(containerId,value) { settingsForm.setActiveTile(containerId,value); }
+    function setActiveSwatch(containerId,value) { settingsForm.setActiveSwatch(containerId,value); }
+    function updateYoutubeRowVisibility() { settingsForm.updateYoutubeRowVisibility(); }
 
     function previewLive() {
         [...document.body.classList].forEach(cls => {
@@ -2482,7 +2284,6 @@ function bootApp() {
         populateSettingsForm();document.dispatchEvent(new Event('kairos-controls-refresh'));updateSaveBarVisibility(false);
     });
 
-    document.getElementById('settings-reschedule-completed')?.addEventListener('change',event=>{pendingSettings.planning={...(pendingSettings.planning||{}),rescheduleCompleted:event.target.checked};checkDirty()});
     async function openPlanningSettings(){
         const actor=auth.currentUser?.uid,plan=currentPlanDocId;if(!actor)return false;
         if(!await (window.__kairosScheduleWorkspace?.inspectorSession?.requestLeave?.()??true))return false;

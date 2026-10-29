@@ -1,0 +1,11 @@
+# Planner contracts and packaged checks
+
+`planner-contracts.d.ts` describes native event writes, recurrence inputs and planner values. Existing event/recurrence entrypoints expose these through JSDoc; negative compiler fixtures exercise the real exports. This is gradual typing of public boundaries, not a claim that all legacy implementation code has been migrated to strict checking.
+
+`planner-value-contract.js` checks application-owned planner state and retained receipts immediately before transactional writes. Undefined/function/symbol/bigint values, unsupported object instances, sparse arrays, cyclic graphs and excessive nesting produce a field-path error before any write. Shared references, null, valid dates and Firestore-supported numeric values remain compatible. SDK timestamp sentinels are added outside this application-data check. Existing semantic validators, ownership checks and Firestore rules continue to apply.
+
+`app-planner-persistence.js` owns ordinary save/load orchestration with explicit host adapters. It uses the shell's existing `app-planner-writes.js` instance; task commands and focus logs retain that same queue. The shell still owns live arrays, account clearing and identity. `app-settings-form.js` owns form hydration, owner-scoped recovery entry and editor mounting; callbacks always read the current shell draft, and settings-sync remains the only settings persistence owner.
+
+Run `npm run test:packaged-browser` with Chrome (`CHROME_BIN` may override `google-chrome`). It builds `dist`, serves the packaged assets over local HTTP and uses native module imports with their generated release URLs. The fixture mounts the real packaged Tasks/Schedule/Settings modules against isolated read-only data and the real application shell; it deliberately omits authentication/bootstrap scripts and external services. A second run blocks a Schedule module and requires a visible recovery action. No test files or fixture services enter the public asset allowlist.
+
+The packaged test covers module MIME types, relative imports, lazy route preparation, final URLs, Schedule boot/rendering and settings hydration. It complements the bundled mutation journeys and does not prove live Firebase sign-in, App Check renewal, billing or operating-system notification delivery.

@@ -1,3 +1,4 @@
+import {attachPlannerPersistence} from './helpers/planner-persistence-host.mjs';
 import {createPlannerWrites} from '../app-planner-writes.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -32,11 +33,10 @@ test('the reminder runner includes bedtime checks and respects the bedtime setti
 });
 
 test('saving a plan checks reminders immediately after persistence, with no check on failure',async()=>{
- const app=await readFile(new URL('../app.js',import.meta.url),'utf8'),source=app.slice(app.indexOf('    async function updatePlanInFirestore('),app.indexOf('    async function loadLatestPlanFromFirestore('));
  for(const fail of [false,true]){
   let resolveSave,rejectSave,checks=0;const stored=new Promise((resolve,reject)=>{resolveSave=resolve;rejectSave=reject});
   const context=vm.createContext({plannerWrites:createPlannerWrites(),globalSearchController:null,taskCaptureController:null,searchPlannerOwnerId:null,auth:{currentUser:{uid:'one'}},currentPlanDocId:'plan',plannerWrites:createPlannerWrites(),boardsData:[],dayInsights:{},scheduleData:[],calendarSourcesData:[],planState:value=>value,savePlannerEdits:()=>stored,mergePlanEdits:(_base,_local,saved)=>saved,invalidateKairosContext(){},renderApp(){},showNotice(){},console:{error(){}},window:{__kairosTaskReminders:{check:()=>{checks++}}}});
-  vm.runInContext(source,context);const saving=context.updatePlanInFirestore();await tick();assert.equal(checks,0);if(fail)rejectSave(Error('Offline'));else resolveSave({boards:[],dayInsights:{},scheduleEvents:[]});await saving;assert.equal(checks,fail?0:1);
+  attachPlannerPersistence(context);const saving=context.updatePlanInFirestore();await tick();assert.equal(checks,0);if(fail)rejectSave(Error('Offline'));else resolveSave({boards:[],dayInsights:{},scheduleEvents:[]});await saving;assert.equal(checks,fail?0:1);
  }
 });
 

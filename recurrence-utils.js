@@ -27,6 +27,7 @@ function parseMinutes(value){const match=/^(\d{1,2}):(\d{2})$/.exec(String(value
 function formatMinutes(value){const n=Math.max(0,Math.min(1440,Math.round(value)));return `${String(Math.floor(n/60)%24).padStart(2,'0')}:${String(n%60).padStart(2,'0')}`}
 function taskDuration(task){const start=parseMinutes(task?.startTime),end=parseMinutes(task?.endTime);if(start!==null&&end!==null&&end>start)return end-start;const estimate=Math.round(Number(task?.estimatedMinutes));return Number.isFinite(estimate)&&estimate>0?estimate:60}
 
+/** @param {import('./planner-contracts.js').RecurrenceInput|{recurrence:import('./planner-contracts.js').RecurrenceInput}} [input] @param {string|null} [fallbackDate] */
 export function normalizeRecurrence(input={},fallbackDate=null){
   const source=input?.recurrence&&typeof input.recurrence==='object'?input.recurrence:input||{},preset=String(source.preset||'').toLowerCase();
   let frequency=FREQUENCIES.has(source.frequency)?source.frequency:'daily',weekdays=normalizedWeekdays(source.weekdays);
@@ -65,6 +66,7 @@ export function preserveOccurrenceOnSeriesEdit(exception){return hasOccurrenceSc
 export function generateOccurrenceDates(input,rangeStart,rangeEnd){const rule=normalizeRecurrence(input);if(!rule.enabled||!validDateKey(rule.startDate)||!validDateKey(rangeStart)||!validDateKey(rangeEnd)||rangeEnd<rangeStart)return [];let dates=candidateStream(rule,rangeEnd);if(rule.endType==='count')dates=dates.slice(0,rule.count);dates=dates.filter(key=>key>=rangeStart&&key<=rangeEnd&&(rule.endType!=='date'||key<=rule.endDate));for(const [key,exception] of Object.entries(rule.exceptions||{}))if(validDateKey(key)&&key>=rangeStart&&key<=rangeEnd&&preserveOccurrenceOnSeriesEdit(exception))dates.push(key);return [...new Set(dates)].sort()}
 export function nextOccurrenceDate(input,afterDate){const rule=normalizeRecurrence(input);if(!rule.enabled||!validDateKey(rule.startDate)||!validDateKey(afterDate))return null;const maxEnd=rule.endType==='date'?rule.endDate:`${dateFromKey(afterDate).getFullYear()+400}-12-31`,dates=candidateStream(rule,maxEnd),limited=rule.endType==='count'?dates.slice(0,rule.count):dates;return limited.find(key=>key>afterDate)||null}
 
+/** @param {import('./planner-contracts.js').RecurringTask} task @param {string} rangeStart @param {string} rangeEnd @param {{today?:string,includeDeleted?:boolean,includeSkipped?:boolean}} [options] */
 export function generateTaskOccurrences(task,rangeStart,rangeEnd,options={}){
   const rule=normalizeRecurrence(task,task?.date||rangeStart),today=validDateKey(options.today)?options.today:dateKey(new Date());if(!rule.enabled)return [];
   const logicalDates=generateOccurrenceDates(rule,rangeStart,rangeEnd);

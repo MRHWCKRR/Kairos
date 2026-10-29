@@ -1,3 +1,4 @@
+import {createSettingsForm} from '../app-settings-form.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -11,7 +12,6 @@ import {mountPageRouter} from '../page-router.js';
 
 const creatorSource=await readFile(new URL('../schedule-task-create.js',import.meta.url),'utf8');
 const appSource=await readFile(new URL('../app.js',import.meta.url),'utf8');
-const settingsEntry=appSource.slice(appSource.indexOf('    function enterSettingsPage()'),appSource.indexOf('    function setActiveTile('));
 
 test('Schedule toolbar retains event creation alongside task creation after decoration and rerender',async()=>{
  const {document,window}=parseHTML('<html><body><div id="schedule-toolbar"></div><div class="schedule-workspace-shell"><div id="schedule-inspector" hidden></div></div></body></html>');
@@ -43,14 +43,17 @@ for(const scenario of [
  {name:'with matching recovery',user:{uid:'one'},pending:{ownerId:'one',settings:{profile:{displayName:'Recovered'}}},want:'Recovered'},
  {name:'with recovery belonging to another account',user:{uid:'two'},pending:{ownerId:'one',settings:{profile:{displayName:'Private'}}},want:'Applied'}
 ])test('Settings entry opens safely '+scenario.name,()=>{
- let populated=0,refreshed=0,saveBar;
- const context=vm.createContext({auth:{currentUser:scenario.user},settingsSync:{state:()=>({pending:scenario.pending})},userSettings:{profile:{displayName:'Applied'}},cloneDeep:structuredClone,populateSettingsForm:()=>populated++,updateSaveBarVisibility:value=>saveBar=value,document:{dispatchEvent:()=>refreshed++},Event:class{}});
- vm.runInContext('let pendingSettings;'+settingsEntry+';enterSettingsPage();',context);
- assert.equal(vm.runInContext('pendingSettings.profile.displayName',context),scenario.want);
- assert.equal(populated,1);assert.equal(refreshed,1);assert.equal(saveBar,false);
- vm.runInContext('pendingSettings.profile.displayName="Edited"',context);
+ let refreshed=0,saveBar;
+ const {document}=parseHTML('<html><body><input id="settings-display-name"><div id="shortcut-settings-editor"></div><div id="planning-preferences-editor"></div><div id="weekly-availability-editor"></div></body></html>');
+ let draft;const applied={profile:{displayName:'Applied'},accessibility:{},appearance:{},notifications:{}};
+ if(scenario.pending)scenario.pending.settings={...applied,...scenario.pending.settings};
+ const form=createSettingsForm({document,getUser:()=>scenario.user,settingsSync:{state:()=>({pending:scenario.pending})},getApplied:()=>applied,getDraft:()=>draft,setDraft:value=>{draft=value},onControlsRefresh:()=>refreshed++,onSaveBar:value=>saveBar=value,onDirty(){},tr:key=>key,getLocale:()=> 'en',updateBrowserPushHint(){}});
+ form.enter();
+ assert.equal(draft.profile.displayName,scenario.want);
+ assert.equal(document.getElementById('settings-display-name').value,scenario.want);assert.equal(refreshed,1);assert.equal(saveBar,false);
+ draft.profile.displayName='Edited';
  assert.equal(scenario.pending?.settings?.profile.displayName,scenario.want==='Recovered'?'Recovered':scenario.pending?'Private':undefined);
- assert.equal(context.userSettings.profile.displayName,'Applied');
+ assert.equal(applied.profile.displayName,'Applied');
 });
 
 test('Today opens task details only after Tasks navigation completes',async()=>{

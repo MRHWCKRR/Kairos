@@ -207,7 +207,10 @@
     "ai-task-commands.js",
     "app-settings-model.js",
     "app-auth-session.js",
-    "app-planner-writes.js"
+    "app-planner-writes.js",
+    "planner-value-contract.js",
+    "app-planner-persistence.js",
+    "app-settings-form.js"
   ],
   "directories": [
     "images",
