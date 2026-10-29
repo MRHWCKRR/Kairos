@@ -44,6 +44,12 @@ function checkedExceptions(event,timezone){
  if(event.exceptions==null)return;const entries=Object.entries(event.exceptions);if(!object(event.exceptions)||entries.length>200)throw Error('A weekly event supports at most 200 exceptions. Restore unused exceptions first.');
  for(const [date,value]of entries){if(!isEventOccurrenceDate({...event,startDate:null,endDate:null},date)||!object(value))throw Error('Invalid weekly event exception.');if(value.skipped===true){if(Object.keys(value).length!==1)throw Error('Invalid skipped event exception.');}else{if(Object.keys(value).length!==1||!value.override||!validEventDate(value.override.date))throw Error('Invalid event override.');inputEvent(value.override,event.id);wallTimes(value.override,timezone);}}
 }
+/**
+ * @param {import('./planner-contracts.js').PlannerState} state
+ * @param {import('./planner-contracts.js').NativeEventRequest} request
+ * @param {string} timezone
+ * @param {number} [now]
+ */
 export function buildNativeEventChange(state,{eventId,event,occurrenceDate,occurrenceOperation},timezone,now=Date.now()){
  timezoneValid(timezone);const before=target(state,eventId);if(event===null&&!before)throw Error('This event is no longer available.');
  const scoped=occurrenceDate!==undefined||occurrenceOperation!==undefined;let normalized=null,after=null,beforeEvent=before,afterEvent=null;

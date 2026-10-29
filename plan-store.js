@@ -1,4 +1,5 @@
 import {aiEventConflictSummary} from './ai-event-actions.js?v=7';
+import {assertPlannerValue} from './planner-value-contract.js';
 import {applyNativeEventUndo,buildNativeEventUndo} from './native-event-commands.js?v=6';
 import {applyCalendarRepairUndo} from './calendar-repair.js?v=7';
 import {assertCalendarTimezones,assertCalendarImportTimezone} from './calendar-policy.js?v=1';
@@ -88,6 +89,7 @@ export async function savePlannerEdits(planId, uid, base, local, options={}) {
         if(completedScheduleChanges(planState(data),merged)){const userSnapshot=await transaction.get(doc(db,'users',uid));assertCompletedScheduleChanges(planState(data),merged,userSnapshot.data()?.settings?.planning?.rescheduleCompleted===true);}
         if((merged.calendarSources||[]).length){const userSnapshot=await transaction.get(doc(db,'users',uid));assertCalendarTimezones(planState(data),merged,userSnapshot.data()?.settings?.profile?.timezone);}
         validateAssignmentOrderChanges(planState(data),merged);
+        assertPlannerValue(merged);
         transaction.set(ref, { ...(!snapshot.exists() ? data : {}), ...merged }, { merge: true });
         return merged;
     });
@@ -170,6 +172,8 @@ export async function persistAiPlanAction(planId, uid, action, operationId, crea
         // Batch results stay small; bound the whole history as well as its count.
         while(retained.length>1&&JSON.stringify(retained).length>65536)removed.push(retained.shift());
         if(JSON.stringify(retained).length>65536)throw new Error('This operation receipt is too large to save safely.');
+        assertPlannerValue(next);
+        assertPlannerValue(retained);
         transaction.set(ref, {
             ...(!snapshot.exists() ? data : {}),
             ...next,

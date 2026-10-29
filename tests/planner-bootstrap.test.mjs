@@ -1,3 +1,4 @@
+import {attachPlannerPersistence} from './helpers/planner-persistence-host.mjs';
 import {createPlannerWrites} from '../app-planner-writes.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -26,12 +27,11 @@ test('account changes during credentials cannot initialize the previous users pl
 });
 test('the first board save succeeds even when rules deny reading a missing planner',async()=>{
  const {plannerFixture}=await import('./helpers/planner-fixture.mjs');
- const {readFile}=await import('node:fs/promises'),vm=await import('node:vm');
+ const vm=await import('node:vm');
  const f=await plannerFixture(null,{denyMissingReads:true});
  f.context.plannerWrites=createPlannerWrites();f.context.renderApp=()=>{};f.context.showNotice=message=>assert.fail(message);
- const app=await readFile(new URL('../app.js',import.meta.url),'utf8');
- const flow=app.slice(app.indexOf('    async function updatePlanInFirestore('),app.indexOf('    async function loadLatestPlanFromFirestore('));
- vm.runInContext('let currentPlanDocId=null,boardsData=[{id:"new-board",title:"Launch",sections:[]}],dayInsights={},scheduleData=[];'+flow,f.context);
+ vm.runInContext('let currentPlanDocId=null,boardsData=[{id:"new-board",title:"Launch",sections:[]}],dayInsights={},scheduleData=[];',f.context);
+ attachPlannerPersistence(f.context);
  assert.equal(await f.context.updatePlanInFirestore(),true);
  assert.equal(f.data().boards[0].title,'Launch');assert.equal(f.data().userID,'one');
 });

@@ -1,3 +1,4 @@
+import {createSettingsForm} from '../app-settings-form.js';
 import {createSettingsSync} from '../settings-sync.js';
 import {normalisePlanningPreferences} from '../planning-preferences.js';
 import {normaliseShortcuts} from '../shortcut-model.js';
@@ -11,11 +12,11 @@ import {normaliseWeeklyAvailability} from '../weekly-availability.js';
 async function fixture({cache=new Map(),cloud={appearance:{mode:'dark'},profile:{displayName:'Original'}},fail=false,loadFail=false,blockedStorage=false}={}){
  const app=await readFile(new URL('../app.js',import.meta.url),'utf8');
  let helper={};try{helper=await import('../settings-recovery.js')}catch(error){if(error.code!=='ERR_MODULE_NOT_FOUND')throw error}
- const {document,window}=parseHTML('<html><body><div id="settings-save-bar"><span></span><button id="settings-save-btn">Save</button><button id="settings-cancel-btn">Cancel</button></div></body></html>');
+ const {document,window}=parseHTML('<html><body><div id="shortcut-settings-editor"></div><div id="planning-preferences-editor"></div><div id="weekly-availability-editor"></div><div id="settings-save-bar"><span></span><button id="settings-save-btn">Save</button><button id="settings-cancel-btn">Cancel</button></div></body></html>');
  const storage={getItem:key=>cache.get(key)||null,setItem:(key,value)=>{if(blockedStorage)throw Error('Quota exceeded');cache.set(key,value)},removeItem:key=>cache.delete(key)};
  let stored=structuredClone(cloud),offline=fail,gate=null,writes=0,owner='one',saveClick,cancelClick;
  const save=document.getElementById('settings-save-btn'),cancel=document.getElementById('settings-cancel-btn');save.addEventListener=(_event,fn)=>saveClick=fn;cancel.addEventListener=(_event,fn)=>cancelClick=fn;
- const defaults=()=>({appearance:{mode:'dark'},profile:{displayName:'Original'},accessibility:{shortcuts:normaliseShortcuts()}});
+ const defaults=()=>({appearance:{mode:'dark'},profile:{displayName:'Original'},notifications:{},accessibility:{shortcuts:normaliseShortcuts()}});
  const context=vm.createContext({...helper,createSettingsSync,normaliseShortcuts,normalisePlanningPreferences,normaliseWeeklyAvailability,document,window,Event:window.Event,localStorage:storage,auth:{get currentUser(){return owner?{uid:owner}:null}},db:{},doc:(_db,_collection,id)=>id,
   taskDetails:null,userSettings:defaults(),pendingSettings:defaults(),settingsCloudSnapshot:defaults(),settingsPendingRecord:null,settingsSaveTicket:null,settingsLoadRevision:0,
   settingsRecovery:helper.createSettingsRecovery?.(storage),defaultSettings:defaults,cloneDeep:structuredClone,deepMerge:(base,value)=>({...base,...value}),console:{error(){}},tr:key=>key,
@@ -26,11 +27,13 @@ async function fixture({cache=new Map(),cloud={appearance:{mode:'dark'},profile:
  });
  const functions=app.slice(app.indexOf('    function loadUserSettingsFromFirestore('),app.indexOf('    function renderUserProfileMenu('));
  const dirty=app.slice(app.indexOf('    function checkDirty()'),app.indexOf('    function renderConfigOptions()'));
- const enter=app.slice(app.indexOf('    function enterSettingsPage()'),app.indexOf('    function setActiveTile('));
+ const enter='';
  const actions=app.slice(app.indexOf("    const settingsSaveBtn = document.getElementById('settings-save-btn');"),app.indexOf('    // Settings tab switching'));
  const setup=app.slice(app.indexOf('    const settingsSync=createSettingsSync('),app.indexOf('    let gettingStarted=null;'));
  vm.runInContext(setup+'\nglobalThis.settingsSync=settingsSync;\n'+functions+'\n'+dirty+'\n'+enter+'\n'+actions,context);
  for(const [key,field] of [['settingsCloudSnapshot','cloud'],['settingsPendingRecord','pending'],['settingsSaveTicket','saving']])Object.defineProperty(context,key,{get:()=>context.settingsSync.state()[field],configurable:true});
+ const form=createSettingsForm({document,getDraft:()=>context.pendingSettings,setDraft:value=>{context.pendingSettings=value},getApplied:()=>context.userSettings,getUser:()=>context.auth.currentUser,settingsSync:context.settingsSync,onDirty:()=>context.checkDirty(),onControlsRefresh(){},onSaveBar:value=>context.updateSaveBarVisibility(value),tr:key=>key,getLocale:()=> 'en',updateBrowserPushHint(){}});
+ context.populateSettingsForm=form.populate;context.enterSettingsPage=form.enter;
  await context.loadUserSettingsFromFirestore({uid:'one'});
  return {context,document,cache,save,cancel,clickSave:()=>saveClick(),clickCancel:()=>cancelClick(),stored:()=>stored,writes:()=>writes,setOffline:value=>offline=value,setOwner:value=>owner=value,setCloud:value=>stored=structuredClone(value),block:value=>gate=value};
 }
