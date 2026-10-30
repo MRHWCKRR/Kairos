@@ -2,11 +2,11 @@
 // Authentication/network services are outside this fixture; planner data is isolated.
 import {createPageLoader,loadPageStyle} from '/page-loader.js?v=@@VERSION@@';
 import {mountPageRouter} from '/page-router.js?v=@@VERSION@@';
-import {createPackagedPlannerHost} from '/__planner-host.js';
+import {createPackagedPlannerHost,createPackagedErrorLedger} from '/__planner-host.js';
 
-const result=document.getElementById('packaged-smoke-result'),errors=[],urls=[];
-window.addEventListener('error',event=>{if(event.error)errors.push(event.message);});
-window.addEventListener('unhandledrejection',event=>errors.push(String(event.reason)));
+const result=document.getElementById('packaged-smoke-result'),runtime=createPackagedErrorLedger(sessionStorage),urls=[];
+window.addEventListener('error',event=>{if(event.error)runtime.record(event.message);});
+window.addEventListener('unhandledrejection',event=>runtime.record(event.reason));
 document.getElementById('app-loading-screen')?.remove();
 const check=(condition,message)=>{if(!condition)throw Error(message);};
 const host=await createPackagedPlannerHost(),date=host.date;
@@ -35,12 +35,12 @@ try {
   check(await router.navigate('settings-page'),'Packaged Settings navigation failed');
   check(document.getElementById('settings-current-email').textContent==='fixture@example.invalid','Packaged settings form did not hydrate');
   await runPersistenceJourney();
-  if(sessionStorage.getItem('packaged-phase')==='reload'){location.reload();return;}
+  if(sessionStorage.getItem('packaged-phase')==='reload'){runtime.check();location.reload();return;}
   if(sessionStorage.getItem('packaged-phase')==='verify-settings')return;
   check(await router.navigate('tasks-page'),'Returning to Tasks failed');
   for(const url of urls)check(new URL(url,location.href).searchParams.get('v')==='@@VERSION@@','Noncanonical runtime URL: '+url);
   check(!document.querySelector('.page-load-status'),'Successful navigation left a loading/error panel');
-  check(errors.length===0,'Packaged runtime errors: '+errors.join('; '));
+  runtime.check();
  }
  result.dataset.result='passed';result.textContent='Passed packaged '+(new URL(location.href).searchParams.has('fail')?'missing-module recovery':'task create/edit/retry, settings recovery, reload, Tasks, Schedule and Settings journeys')+'.';
 }catch(error){result.dataset.result='failed';result.textContent='Failed packaged smoke: '+error.message;}
@@ -50,6 +50,11 @@ void run();
 
 async function runPersistenceJourney(){
  const wait=async(predicate,label)=>{for(let i=0;i<200;i++){if(predicate())return;await new Promise(r=>setTimeout(r,10));}throw Error('Timed out: '+label);};
+ const saveSettings=async()=>{
+  const bar=document.getElementById('settings-save-bar'),button=document.getElementById('settings-save-btn');bar.scrollIntoView({block:'nearest'});
+  await wait(()=>getComputedStyle(bar).opacity==='1'&&getComputedStyle(bar).pointerEvents!=='none','visible settings Save/Retry');
+  check(button.getBoundingClientRect().width>0&&!button.disabled,'Settings Save/Retry must be interactable');button.focus();check(document.activeElement===button,'Settings save must be keyboard accessible');button.click();return await host.getSaving();
+ };
  const field=(selector,value)=>{const el=document.querySelector(selector);check(el,'Missing control: '+selector);el.value=value;el.dispatchEvent(new Event('input',{bubbles:true}));};
  const savedId=sessionStorage.getItem('packaged-created');
  const phase=sessionStorage.getItem('packaged-phase');
@@ -68,9 +73,9 @@ async function runPersistenceJourney(){
   check(host.sync.state().pending,'Failed settings save must recover after reload');
   check(document.getElementById('settings-reschedule-completed').checked,'Recovered settings draft did not hydrate');
   check(host.sync.state().cloud.planning.rescheduleCompleted===false,'Failed setting must not be reported as confirmed');
-  document.getElementById('settings-save-btn').click();check(await host.getSaving(),'Recovered settings retry failed');
+  check(await saveSettings(),'Recovered settings retry failed');
   check(!host.sync.state().pending,'Successful settings retry left recovery pending');
-  sessionStorage.setItem('packaged-phase','verify-settings');location.reload();return;
+  sessionStorage.setItem('packaged-phase','verify-settings');runtime.check();location.reload();return;
  }
  if(phase==='verify-settings'){
   check(document.getElementById('settings-reschedule-completed').checked,'Confirmed setting did not survive a second reload');
@@ -101,7 +106,7 @@ async function runPersistenceJourney(){
  check(await router.navigate('settings-page'),'Settings mutation route failed');
  const toggle=document.getElementById('settings-reschedule-completed');toggle.checked=true;toggle.dispatchEvent(new Event('change',{bubbles:true}));
  check(host.getDraft().planning.rescheduleCompleted,'Setting control did not update the real draft');
- host.failNextSettings();document.getElementById('settings-save-btn').click();check(await host.getSaving()===false,'Simulated settings outage must fail');
+ host.failNextSettings();check(await saveSettings()===false,'Simulated settings outage must fail');
  check(host.sync.state().pending,'Settings failure lost recovery');
  sessionStorage.setItem('packaged-phase','reload');
 }
