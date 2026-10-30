@@ -30,7 +30,7 @@ jobs:
         run: node scripts/run-planner-browser-test.mjs
       - name: Run Cloudflare tests and build
         run: npm run build:cloudflare
-      - name: Smoke test packaged routes and missing-module recovery over HTTP
+      - name: Test packaged task/settings persistence, reload and module recovery over HTTP
         run: npm run test:packaged-browser
       - name: Verify Cloudflare runtime and bundle
         run: |
