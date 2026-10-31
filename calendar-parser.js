@@ -1,16 +1,22 @@
 import ICAL from './calendar-ical.js?v=1';
 
 const DAY=86400000,MAX_BYTES=1024*1024,MAX_EVENTS=1000,MAX_STEPS=20000;
-const dateValid=value=>typeof value==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(value)&&new Date(value+'T00:00:00Z').toISOString().slice(0,10)===value;
+const dateValid=value=>typeof value==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(value)&&Number.isFinite(Date.parse(value+'T00:00:00Z'))&&new Date(value+'T00:00:00Z').toISOString().slice(0,10)===value;
 const shift=(date,days)=>new Date(Date.parse(date+'T12:00:00Z')+days*DAY).toISOString().slice(0,10);
 const pad=value=>String(value).padStart(2,'0');
 const dateKey=t=>String(t.year).padStart(4,'0')+'-'+pad(t.month)+'-'+pad(t.day);
 const clock=t=>pad(t.hour)+':'+pad(t.minute);
 const logicalKey=time=>time.isDate?'date:'+dateKey(time):'instant:'+time.toUnixTime();
 const scheduledProperties=new Set(['dtstart','dtend','recurrence-id','rdate','exdate']);
-function validateRawDates(component){
- for(const property of component[1]||[])if(scheduledProperties.has(property[0])&&['date','date-time'].includes(property[2]))for(const value of property.slice(3)){if(typeof value!=='string'||!dateValid(value.slice(0,10))||property[2]==='date-time'&&!/^\d{4}-\d{2}-\d{2}T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\dZ?$/.test(value))error('Invalid calendar date or time.');}
- for(const child of component[2]||[])validateRawDates(child);
+function withEventContext(index,title,work){
+ try{return work()}catch(failure){
+  const name=String(title||'').replace(/[\u0000-\u001f\u007f]/g,' ').trim().slice(0,60);
+  throw Error('Calendar event '+index+(name?' ("'+name+'")':'')+': '+failure.message+' No events were imported.');
+ }
+}
+function validateRawDates(component,counter={value:0}){
+ for(const property of component[1]||[])if(scheduledProperties.has(property[0])&&['date','date-time'].includes(property[2]))for(const value of property.slice(3)){if(typeof value!=='string'||!dateValid(value.slice(0,10))||property[2]==='date-time'&&!/^\d{4}-\d{2}-\d{2}T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\dZ?$/.test(value))error('Invalid calendar '+property[0].toUpperCase()+' date or time.');}
+ for(const child of component[2]||[])if(child[0]==='vevent')withEventContext(++counter.value,child[1]?.find(p=>p[0]==='summary')?.[3],()=>validateRawDates(child,counter));else validateRawDates(child,counter);
 }
 const cancelled=component=>String(component.getFirstPropertyValue('status')||'').toUpperCase()==='CANCELLED';
 const error=message=>{throw Error(message)};
@@ -54,13 +60,14 @@ function prepareTimezones(calendar,timezone){
  function zone(id){const supplied=original(id);if(supplied)return supplied;if(zoneCache.has(id))return zoneCache.get(id);const format=formatter(id),value=new ICAL.Timezone({tzid:id});value.utcOffset=time=>(wallStamp(time)-wallEpoch(time,format))/1000;zoneCache.set(id,value);return value;}
  calendar.getTimeZoneByID=id=>zone(id);
  const floating=zone(timezone);
+ let eventIndex=0;
  function walk(component){
   for(const property of component.getAllProperties()){
    if(!scheduledProperties.has(property.name))continue;
    if(property.type==='date-time')for(const time of property.getValues()){if(!time.isDate&&time.zone===ICAL.Timezone.localTimezone&&!property.getParameter('tzid'))time.zone=floating;if(time.second!==0)error('Calendar times with seconds are not supported. Export events on whole-minute boundaries.');if(time.year<1900||time.year>2200)error('Calendar dates must be between 1900 and 2200.');}
    if(property.type==='period')error('RDATE periods are not supported. Use explicit calendar events instead.');
   }
-  for(const child of component.getAllSubcomponents())if(child.name!=='vtimezone')walk(child);
+  for(const child of component.getAllSubcomponents())if(child.name==='vevent')withEventContext(++eventIndex,child.getFirstPropertyValue('summary'),()=>walk(child));else if(child.name!=='vtimezone')walk(child);
  }
  walk(calendar);
  return floating;
@@ -87,9 +94,11 @@ function validateRules(component,to){
 }
 function plainTitle(component){const title=String(component.getFirstPropertyValue('summary')||'Calendar event').replace(/[\u0000-\u001f\u007f]/g,' ').trim();if(title.length>180)error('A calendar event title exceeds 180 characters. Shorten it before importing.');return title||'Calendar event';}
 function validateRawRules(text){
- const allowed=new Set(['FREQ','UNTIL','COUNT','INTERVAL','BYDAY','BYMONTH','BYMONTHDAY','BYSETPOS','WKST']);
+ const allowed=new Set(['FREQ','UNTIL','COUNT','INTERVAL','BYDAY','BYMONTH','BYMONTHDAY','BYSETPOS','WKST']);let eventIndex=0,inEvent=false;
  for(const line of text.replace(/\r?\n[ \t]/g,'').split(/\r?\n/)){
+  if(/^BEGIN:VEVENT$/i.test(line)){eventIndex++;inEvent=true;}if(/^END:VEVENT$/i.test(line))inEvent=false;
   if(!/^RRULE[:;]/i.test(line))continue;
+  const validate=()=>{
   if(!/^RRULE:/i.test(line))error('This calendar recurrence syntax is not supported.');
   const fields=new Map();
   for(const part of line.slice(6).split(';')){
@@ -104,6 +113,7 @@ function validateRawRules(text){
    }
   }
   if(!fields.has('FREQ')||fields.has('COUNT')&&fields.has('UNTIL'))error('Invalid calendar recurrence combination.');
+  };if(inEvent)withEventContext(eventIndex,'',validate);else validate();
  }
 }
 function expand(text,{timezone,from,to}){
@@ -114,7 +124,8 @@ function expand(text,{timezone,from,to}){
  const calendar=new ICAL.Component(parsed);validateObservances(calendar,to);prepareTimezones(calendar,timezone);
  const components=calendar.getAllSubcomponents('vevent');if(components.length>2000)error('This calendar contains too many event definitions.');
  const groups=new Map(),rows=[],seen=new Set(),format=formatter(timezone);let steps=0;
- for(const component of components){const uid=component.getFirstPropertyValue('uid');if(typeof uid!=='string'||!uid||uid.length>2048)error('Every calendar event needs a valid UID.');const group=groups.get(uid)||{master:null,exceptions:new Map()};const recurrence=component.getFirstPropertyValue('recurrence-id');if(recurrence){if(component.getFirstProperty('recurrence-id').getParameter('range'))error('RANGE recurrence changes are not supported. Export individual changed occurrences.');const key=logicalKey(recurrence);if(group.exceptions.has(key))error('Duplicate calendar occurrence identity.');group.exceptions.set(key,component);}else{if(group.master)error('Duplicate calendar event UID.');group.master=component;}groups.set(uid,group);}
+ const scoped=(component,work)=>withEventContext(components.indexOf(component)+1,component.getFirstPropertyValue('summary'),work);
+ for(const component of components)scoped(component,()=>{const uid=component.getFirstPropertyValue('uid');if(typeof uid!=='string'||!uid||uid.length>2048)error('Every calendar event needs a valid UID.');const group=groups.get(uid)||{master:null,exceptions:new Map()};const recurrence=component.getFirstPropertyValue('recurrence-id');if(recurrence){if(component.getFirstProperty('recurrence-id').getParameter('range'))error('RANGE recurrence changes are not supported. Export individual changed occurrences.');const key=logicalKey(recurrence);if(group.exceptions.has(key))error('Duplicate calendar occurrence identity.');group.exceptions.set(key,component);}else{if(group.master)error('Duplicate calendar event UID.');group.master=component;}groups.set(uid,group);});
  function add(uid,logical,start,end,component,recurring){
   if(cancelled(component))return;
   if(!start||!end||start.isDate!==end.isDate)error('A calendar event needs compatible start and end dates.');
@@ -133,17 +144,19 @@ function expand(text,{timezone,from,to}){
  }
  for(const [uid,group] of groups){
   const master=group.master;if(master&&cancelled(master))continue;
-  for(const [logical,component] of group.exceptions){if(cancelled(component))continue;const exception=new ICAL.Event(component,{exceptions:[]});add(uid,logical,exception.startDate,exception.endDate,component,true);}
+  for(const [logical,component] of group.exceptions){if(cancelled(component))continue;scoped(component,()=>{const exception=new ICAL.Event(component,{exceptions:[]});add(uid,logical,exception.startDate,exception.endDate,component,true);});}
   if(!master)continue;
+  scoped(master,()=>{
   if(!master.hasProperty('dtstart'))error('A calendar event is missing its start date.');validateRules(master,to);
   const event=new ICAL.Event(master,{exceptions:[],strictExceptions:true});
-  if(!event.isRecurring()){add(uid,'single',event.startDate,event.endDate,master,false);continue;}
+  if(!event.isRecurring()){add(uid,'single',event.startDate,event.endDate,master,false);return;}
   const iterator=event.iterator();
   for(const ruleIterator of iterator.ruleIterators){const check=ruleIterator.check_contracting_rules.bind(ruleIterator);ruleIterator.check_contracting_rules=function(){if(++steps>MAX_STEPS)error('Calendar recurrence expansion exceeded its safe limit. Use a smaller date range.');return check();};}
   let occurrence;while((occurrence=iterator.next())){
    if(++steps>MAX_STEPS)error('Calendar recurrence expansion exceeded its safe limit. Use a smaller date range.');if(dateKey(occurrence)>shift(to,2))break;
    const logical=logicalKey(occurrence);if(group.exceptions.has(logical))continue;const details=event.getOccurrenceDetails(occurrence);add(uid,logical,details.startDate,details.endDate,master,true);
   }
+  });
  }
  return {rows,name:String(calendar.getFirstPropertyValue('x-wr-calname')||'').trim().slice(0,120)};
 }

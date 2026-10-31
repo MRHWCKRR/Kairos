@@ -27,6 +27,22 @@ function parseMinutes(value){const match=/^(\d{1,2}):(\d{2})$/.exec(String(value
 function formatMinutes(value){const n=Math.max(0,Math.min(1440,Math.round(value)));return `${String(Math.floor(n/60)%24).padStart(2,'0')}:${String(n%60).padStart(2,'0')}`}
 function taskDuration(task){const start=parseMinutes(task?.startTime),end=parseMinutes(task?.endTime);if(start!==null&&end!==null&&end>start)return end-start;const estimate=Math.round(Number(task?.estimatedMinutes));return Number.isFinite(estimate)&&estimate>0?estimate:60}
 
+// Validate supplied edits before legacy read-time normalization can repair them.
+export function assertRecurrenceInput(input){
+ const invalid=field=>{throw Error('Invalid repeat rule: review '+field+'.');};
+ if(!input||typeof input!=='object'||Array.isArray(input)||input.enabled!==true)invalid('enabled');
+ for(const [field,values] of [['frequency',FREQUENCIES],['mode',MODES],['endType',END_TYPES]])if(input[field]!==undefined&&!values.has(input[field]))invalid(field);
+ if(Object.hasOwn(input,'interval')&&input.interval==null)invalid('interval');
+ for(const field of ['interval','count'])if(input[field]!=null&&(!Number.isSafeInteger(input[field])||input[field]<1))invalid(field);
+ if(input.endType==='count'&&input.count==null)invalid('count');
+ for(const field of ['startDate','endDate'])if(input[field]!=null&&(typeof input[field]!=='string'||!validDateKey(input[field])))invalid(field);
+ if(input.endType==='date'&&input.endDate==null)invalid('end date');
+ if(input.weekdays!==undefined&&(!Array.isArray(input.weekdays)||input.weekdays.some(day=>!Number.isInteger(day)||day<0||day>6)))invalid('weekdays');
+ for(const [field,max] of [['monthDay',31],['month',12],['weekday',6]])if(input[field]!=null&&(!Number.isInteger(input[field])||input[field]<(field==='weekday'?0:1)||input[field]>max))invalid(field);
+ if(input.monthlyMode!=null&&!MONTHLY_MODES.has(input.monthlyMode))invalid('monthly mode');
+ if(input.weekdayPosition!=null&&!POSITIONS.has(input.weekdayPosition))invalid('weekday position');
+}
+
 /** @param {import('./planner-contracts.js').RecurrenceInput|{recurrence:import('./planner-contracts.js').RecurrenceInput}} [input] @param {string|null} [fallbackDate] */
 export function normalizeRecurrence(input={},fallbackDate=null){
   const source=input?.recurrence&&typeof input.recurrence==='object'?input.recurrence:input||{},preset=String(source.preset||'').toLowerCase();

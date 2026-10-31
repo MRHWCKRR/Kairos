@@ -37,7 +37,7 @@ export function explicitDurationIntent(text) {
 }
 
 export function validateActionShape(action) {
-    const fields = ACTION_FIELDS[action?.type], args = action?.args;
+    const fields = Object.hasOwn(ACTION_FIELDS,action?.type)?ACTION_FIELDS[action.type]:null, args = action?.args;
     if (!fields || !args || typeof args !== 'object' || Array.isArray(args) || Object.keys(args).some(key => !fields.includes(key))) throw new Error('Unsupported or invalid AI action fields.');
     for (const [key, value] of Object.entries(args)) {
         if (key === 'taskIds' || key === 'assignmentIds' || key === 'focusAssignmentIds') {
@@ -66,6 +66,23 @@ export function validateActionShape(action) {
             if (!Number.isInteger(value) || value < 0 || value > 6) throw new Error('Invalid schedule event day.');
         } else if (value !== null && typeof value !== 'string') throw new Error('Invalid AI action value.');
     }
+    if(['create_task','update_task','resize_task'].includes(action.type)){
+        const realDate=value=>typeof value==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(value)&&Number.isFinite(Date.parse(value+'T12:00:00Z'))&&new Date(value+'T12:00:00Z').toISOString().slice(0,10)===value;
+        if(args.date!=null&&args.date!==''&&!realDate(args.date))throw Error('Invalid task date: choose a real calendar date.');
+        for(const field of ['startTime','endTime'])if(args[field]!=null&&args[field]!==''&&!/^([01]\d|2[0-3]):[0-5]\d$/.test(args[field]))throw Error('Invalid task time: use HH:MM on a 24-hour clock.');
+        if(action.type==='create_task'){
+            const start=!!args.startTime,end=!!args.endTime;
+            if(start!==end||start&&!args.date)throw Error('Invalid task schedule: date and both times are required.');
+            if(start&&args.endTime<=args.startTime)throw Error('Invalid task schedule duration.');
+        }
+        if(action.type==='resize_task'&&args.endTime===undefined&&args.durationMinutes===undefined)throw Error('A duration or end time is required for resizing.');
+    }
+    for(const field of ['title','newTitle'])if(Object.hasOwn(args,field)){
+        const value=args[field],limit=action.type.includes('board')||action.type.includes('section')?100:180;
+        if(typeof value!=='string'||!value.trim()||value.length>limit)throw Error('Invalid title: use 1-'+limit+' characters.');
+    }
+    if(['create_task','create_board','create_section'].includes(action.type)&&!args.title)throw Error('A title is required.');
+    if(action.type==='set_task_reminder'&&!Object.hasOwn(args,'minutesBefore'))throw Error('A reminder lead time is required.');
     if(['create_schedule_event','update_schedule_event','delete_schedule_event'].includes(action.type)){
         const creating=action.type==='create_schedule_event';
         if(['intervalWeeks','anchorDate'].some(k=>args[k]!==undefined)&&(args.date!==undefined||args.occurrenceDate!==undefined))throw Error('Repeat interval and reference date apply to an entire series only.');
