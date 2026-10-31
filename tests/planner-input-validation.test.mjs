@@ -30,6 +30,9 @@ test('AI shape rejects impossible task dates and malformed times before preview'
 test('AI shape rejects missing required task values and inherited action names',()=>{
  for(const action of [{type:'create_task',args:{}},{type:'set_task_reminder',args:{taskId:'t'}},{type:'update_task',args:{taskId:'t',newTitle:null}},{type:'update_task',args:{taskId:'t',newTitle:'x'.repeat(181)}},{type:'toString',args:{}}])assert.throws(()=>validateActionShape(action),/title|reminder|required|unsupported/i);
 });
+test('AI action types must be strings rather than coercible arrays',()=>{
+ assert.throws(()=>validateActionShape({type:['create_task'],args:{title:'New'}}),/unsupported|invalid/i);
+});
 test('AI shape retains explicit null and empty schedule clearing',()=>{
  for(const value of [null,''])assert.doesNotThrow(()=>validateActionShape({type:'update_task',args:{taskId:'t',date:value,startTime:value,endTime:value}}));
 });

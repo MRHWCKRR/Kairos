@@ -37,7 +37,7 @@ export function explicitDurationIntent(text) {
 }
 
 export function validateActionShape(action) {
-    const fields = Object.hasOwn(ACTION_FIELDS,action?.type)?ACTION_FIELDS[action.type]:null, args = action?.args;
+    const fields = typeof action?.type==='string'&&Object.hasOwn(ACTION_FIELDS,action.type)?ACTION_FIELDS[action.type]:null, args = action?.args;
     if (!fields || !args || typeof args !== 'object' || Array.isArray(args) || Object.keys(args).some(key => !fields.includes(key))) throw new Error('Unsupported or invalid AI action fields.');
     for (const [key, value] of Object.entries(args)) {
         if (key === 'taskIds' || key === 'assignmentIds' || key === 'focusAssignmentIds') {

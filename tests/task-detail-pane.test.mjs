@@ -3,6 +3,19 @@ import assert from 'node:assert/strict';
 import {parseHTML} from 'linkedom';
 import {applyTaskListCommand,resolveTaskDetail} from '../task-list-model.js';
 
+test('invalid raw repeat editor numbers retain the draft and cannot save',async()=>{
+ for(const [selector,value,setup] of [
+  ['[data-recurrence-interval]','0'],['[data-recurrence-interval]','1.5'],['[data-recurrence-interval]','-2'],['[data-recurrence-interval]',''],
+  ['[data-recurrence-count]','0',{'[data-recurrence-end-type]':'count'}],
+  ['[data-recurrence-month-day]','32',{'[data-recurrence-unit]':'months'}]
+ ]){
+  const f=await fixture();await f.open();const change=(selector,value)=>{const el=f.root.querySelector(selector);el.value=value;if(el.localName==='select'){for(const option of el.querySelectorAll('option'))option.removeAttribute('selected');[...el.querySelectorAll('option')].find(option=>option.value===value)?.setAttribute('selected','');}assert.equal(el.value,value);assert.doesNotThrow(()=>el.dispatchEvent(new f.window.Event('change',{bubbles:true})));};
+  change('[data-recurrence-preset]','custom');for(const [key,val] of Object.entries(setup||{}))change(key,val);change(selector,value);
+  assert.equal(await f.pane.save(),false,'invalid recurrence '+selector+'='+value+' must not be normalized and saved');assert.equal(f.calls.length,0);assert.equal(f.root.querySelector(selector).value,value);
+  assert.match(f.root.querySelector('.task-detail-footer [role="status"]').textContent,/repeat|recurrence/i);f.pane.dispose();
+ }
+});
+
 test('save feedback follows actual changes including reverting edits and pending step entry',async()=>{
  const f=await fixture();await f.open();const panel=()=>f.root.querySelector('[data-task-detail-pane]'),save=()=>f.root.querySelector('[type="submit"]');
  assert.equal(panel().dataset.saveState,'saved');assert.equal(save().disabled,true);
