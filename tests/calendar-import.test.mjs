@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {parseHTML} from 'linkedom';
 import {createMutationSession} from '../mutation-session.js';
 import {buildCalendarSync,buildCalendarRemove,applyCalendarCommand} from '../calendar-commands.js';
+import {parseCalendar} from '../calendar-parser.js';
 const module=await import('../calendar-import.js').catch(error=>{if(error.code==='ERR_MODULE_NOT_FOUND')return {};throw error});
 const tick=()=>new Promise(setImmediate),defer=()=>{let resolve;const promise=new Promise(r=>resolve=r);return {promise,resolve}};
 function fixture({parse,fetchFeed,commit,confirmRemove=async()=>true,directCommit,ensurePlan,onReviewConflicts}={}){
@@ -18,6 +19,15 @@ function fixture({parse,fetchFeed,commit,confirmRemove=async()=>true,directCommi
  return {view,session,document,window,writes,map,find,field,setActor:id=>{actor=id;session.sync();view.sync()},setData:value=>data=value,data:()=>data,setTimezone:value=>{timezone=value;view.sync()}};
 }
 async function preview(f){await f.view.open();f.field('url','https://calendar.google.com/calendar/ical/test/public/basic.ics');f.find('[data-calendar-form]').dispatchEvent(new f.window.Event('submit',{bubbles:true,cancelable:true}));await tick();}
+
+test('a malformed calendar refresh names its entry and preserves the entire saved source',async()=>{
+ const text=['BEGIN:VCALENDAR','VERSION:2.0','BEGIN:VEVENT','UID:good','DTSTART:20261026T090000','DTEND:20261026T100000','SUMMARY:Valid new event','END:VEVENT','BEGIN:VEVENT','UID:bad','DTSTART:20261026T100000','DTEND:20261026T090000','SUMMARY:<img src=x onerror=bad>','END:VEVENT','END:VCALENDAR'].join('\r\n');
+ const f=fixture({parse:parseCalendar,fetchFeed:async()=>({calendar:text,url:'https://calendar.google.com/calendar/ical/secret/basic.ics'})});
+ const before={boards:[],scheduleEvents:[{id:'saved',title:'Saved event',calendarSourceId:'school'}],calendarSources:[{id:'school',name:'School',kind:'feed',url:'https://calendar.google.com/calendar/ical/secret/basic.ics',from:'2026-10-01',to:'2026-12-31',timezone:'Australia/Brisbane',updatedAt:1000}]};
+ f.setData(structuredClone(before));await f.view.open();f.find('[data-calendar-refresh="school"]').click();await tick();await tick();
+ assert.match(f.find('[data-calendar-status]').textContent,/Calendar event 2.*end/i);assert.doesNotMatch(f.find('[data-calendar-status]').textContent,/secret/);
+ assert.equal(f.find('.calendar-import-dialog img'),null);assert.equal(f.find('[data-calendar-apply]').disabled,true);assert.equal(f.writes.length,0);assert.deepEqual(f.data(),before);f.view.dispose();
+});
 
 test('calendar preview escapes imported titles and waits for explicit import',async()=>{
  const f=fixture();await preview(f);assert.equal(f.writes.length,0);assert.equal(f.find('.calendar-import-dialog img'),null);assert.match(f.find('[data-calendar-preview-list]').textContent,/<img/);assert.equal(f.find('[name="from"]').value,'2026-10-19');assert.equal(f.find('[name="to"]').value,'2027-01-24');f.find('[data-calendar-apply]').click();await tick();assert.equal(f.writes.length,1);assert.equal(f.writes[0].c.source.kind,'feed');f.view.dispose();

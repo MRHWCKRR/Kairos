@@ -3,6 +3,17 @@ let parseCalendar;try{({parseCalendar}=await import('../calendar-parser.js'))}ca
 const options={sourceId:'school',timezone:'Australia/Brisbane',from:'2026-10-01',to:'2026-11-30'};
 const calendar=(...events)=>['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Kairos Tests//EN','X-WR-CALNAME:School',...events,'END:VCALENDAR'].join('\r\n');
 const event=(uid,lines)=>['BEGIN:VEVENT','UID:'+uid,...lines,'END:VEVENT'].join('\r\n');
+
+test('malformed entries identify the event and field without returning a partial calendar',async()=>{
+ const valid=event('good',['SUMMARY:Keep this event','DTSTART:20261002T090000','DTEND:20261002T100000']);
+ for(const [lines,reason] of [
+  [['SUMMARY:Broken date','DTSTART:20260230T090000','DTEND:20260230T100000'],/Calendar event 2.*Broken date.*DTSTART/i],
+  [['SUMMARY:Broken range','DTSTART:20261002T100000','DTEND:20261002T090000'],/Calendar event 2.*Broken range.*end/i],
+  [['SUMMARY:Broken rule','DTSTART:20261002T090000','DTEND:20261002T100000','RRULE:FREQ=DAILY;COUNT=1.5'],/Calendar event 2.*recurrence/i],
+  [['SUMMARY:Broken zone','DTSTART;TZID=Unknown\/Zone:20261002T090000','DTEND;TZID=Unknown\/Zone:20261002T100000'],/Calendar event 2.*Broken zone.*timezone/i]
+ ])await assert.rejects(parseCalendar(calendar(valid,event('bad',lines)),options),reason);
+ assert.equal((await parseCalendar(calendar(valid),options)).events.length,1);
+});
 test('UTC, floating and IANA times become bounded profile-local segments with stable identifiers',async()=>{
  assert.equal(typeof parseCalendar,'function');const text=calendar(event('utc',['DTSTART:20261002T230000Z','DTEND:20261003T010000Z','SUMMARY:Science\\, revision']),event('floating',['DTSTART:20261003T093000','DTEND:20261003T103000','SUMMARY:Read']),event('new-york',['DTSTART;TZID=America/New_York:20261003T090000','DTEND;TZID=America/New_York:20261003T100000','SUMMARY:Call']));
  const result=await parseCalendar(text,options);assert.equal(result.name,'School');assert.equal(result.events.length,3);assert.deepEqual(result.events.map(e=>[e.date,e.start,e.end]).sort(),[['2026-10-03','09:00','11:00'],['2026-10-03','09:30','10:30'],['2026-10-03','23:00','00:00']]);assert.match(result.events[0].externalId,/^[a-f0-9]{64}$/);assert.deepEqual(result.events,(await parseCalendar(text,options)).events);

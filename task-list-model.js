@@ -9,14 +9,15 @@ import {stableStringify,mergePlanEdits} from './plan-merge.js?v=1';
 import {applySectionCommand} from './task-section-model.js?v=1';
 import {buildTaskToolCommand,applyTaskToolCommand} from './task-tools-model.js?v=1';
 import {parseTime,formatTime,taskDurationMinutes} from './schedule-utils.js?v=6';
-import {normalizeRecurrence,validateRecurrence,generateTaskOccurrences,applyOccurrenceOverride} from './recurrence-utils.js?v=14';
+import {assertRecurrenceInput,normalizeRecurrence,validateRecurrence,generateTaskOccurrences,applyOccurrenceOverride} from './recurrence-utils.js?v=14';
+import {assertPlannerValue} from './planner-value-contract.js';
 import {applyPlanningCommand} from './planning-commands.js?v=16';
 import {assertCompletedScheduleChanges} from './schedule-policy.js?v=5';
 import {applyScheduleChange} from './schedule-change-model.js?v=11';
 export {buildScheduleChange,applyScheduleUndo} from './schedule-change-model.js?v=11';
 
 export const TASK_DETAIL_FIELDS=['title','notes','date','startTime','dueDate','durationMinutes','estimatedMinutes','priority','reminderMinutes','scheduleLocked','schedulingPreference','color','recurrence','checklist'];
-const dateValid=value=>/^\d{4}-\d{2}-\d{2}$/.test(value)&&Number.isFinite(Date.parse(value+'T12:00:00Z'))&&new Date(value+'T12:00:00Z').toISOString().slice(0,10)===value;
+const dateValid=value=>typeof value==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(value)&&Number.isFinite(Date.parse(value+'T12:00:00Z'))&&new Date(value+'T12:00:00Z').toISOString().slice(0,10)===value;
 export async function taskListFingerprint(command,expected){
     const bytes=new TextEncoder().encode(stableStringify({command,expected}));
     const digest=await globalThis.crypto.subtle.digest('SHA-256',bytes);
@@ -217,6 +218,7 @@ export function applyTaskListCommand(state,command,expected,{now=Date.now(),allo
     }
     if(command?.type==='create_task'){
         const item=command.task;
+        assertPlannerValue(item);
         if(!item||typeof item!=='object'||Array.isArray(item)||Object.keys(item).some(key=>!['id','title','date','dueDate','estimatedMinutes','startTime','endTime'].includes(key))||typeof item.id!=='string'||!item.id.trim()||item.id.length>160||typeof item.title!=='string'||!item.title.trim()||item.title.length>180)throw new Error('Enter a task title up to 180 characters and a valid ID.');
         for(const field of ['date','dueDate'])if(item[field]!=null&&(typeof item[field]!=='string'||!dateValid(item[field])))throw new Error('Enter a valid date or deadline.');
         if(item.estimatedMinutes!=null&&(!Number.isInteger(item.estimatedMinutes)||item.estimatedMinutes<1||item.estimatedMinutes>1440))throw new Error('Enter an estimate from 1 to 1440 minutes.');
@@ -234,7 +236,8 @@ export function applyTaskListCommand(state,command,expected,{now=Date.now(),allo
         return {next,result:{type:'create_task',task,board:board.title,section:section.title}};
     }
     if(['add_checklist_item','edit_checklist_item','remove_checklist_item','reorder_checklist'].includes(command?.type))return checklistCommand(state,command,expected);
-    if(command?.type!=='edit_task'||!command.changes||Array.isArray(command.changes))throw new Error('Unsupported task detail command.');
+    if(command?.type!=='edit_task'||!command.changes||Object.prototype.toString.call(command.changes)!=='[object Object]')throw new Error('Unsupported task detail command.');
+    assertPlannerValue(command.changes);
     const next=structuredClone(state),found=resolveTaskDetail(next,command.target),task=found.task,values=taskDetailValues(task,command.target),changes=command.changes;
     if(command.target?.occurrenceDate&&Object.keys(changes).some(key=>key!=='checklist'))throw new Error('Edit individual occurrence metadata from Schedule.');
     if(found.board.id!==expected?.boardId||found.section.id!==expected?.sectionId)throw new Error('This task moved. Reopen its details.');
@@ -254,14 +257,15 @@ export function applyTaskListCommand(state,command,expected,{now=Date.now(),allo
         if(key==='notes'&&(typeof value!=='string'||value.length>3000))throw new Error('Notes must be text up to 3000 characters.');
         if(['date','dueDate'].includes(key)&&value!==null&&!dateValid(value))throw new Error('Invalid date.');
         if(key==='startTime'&&value!==null&&(typeof value!=='string'||!/^([01]\d|2[0-3]):[0-5]\d$/.test(value)))throw new Error('Invalid start time.');
-        if(key==='estimatedMinutes'&&value!==null&&(!Number.isInteger(value)||value<1||value>=1440))throw new Error('Estimate must be 1-1439 minutes.');
+        if(key==='estimatedMinutes'&&value!==null&&(!Number.isInteger(value)||value<1||value>1440))throw new Error('Estimate must be 1-1440 minutes.');
         if(key==='durationMinutes'&&(!Number.isInteger(value)||value<1||value>=1440))throw new Error('Duration must be 1–1439 minutes.');
         if(key==='reminderMinutes'&&value!==null&&(!Number.isInteger(value)||value<1||value>10080))throw new Error('Invalid reminder lead time.');
         if(key==='priority'&&![null,'low','medium','high'].includes(value))throw new Error('Invalid priority.');
         if(key==='schedulingPreference'&&![null,'morning','afternoon','evening'].includes(value))throw new Error('Invalid preferred time.');
         if(key==='scheduleLocked'&&typeof value!=='boolean')throw new Error('Invalid lock value.');
-        if(key==='color'&&value!==null&&!/^#[0-9a-f]{6}$/i.test(value))throw new Error('Invalid task color.');
+        if(key==='color'&&value!==null&&(typeof value!=='string'||!/^#[0-9a-f]{6}$/i.test(value)))throw new Error('Invalid task color.');
         if(key==='recurrence'&&value!==null&&(typeof value!=='object'||Array.isArray(value)||value.enabled!==true||!['daily','weekly','monthly','yearly'].includes(value.frequency)))throw new Error('Invalid repeat rule.');
+        if(key==='recurrence'&&value!==null)assertRecurrenceInput(value);
     }
     // Derived end times depend on both start and duration: reject stale schedule
     // expectations even if the editor only deliberately changes one of them.

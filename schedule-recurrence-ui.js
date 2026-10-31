@@ -1,4 +1,4 @@
-import { normalizeRecurrence, formatRecurrenceSummary } from './recurrence-utils.js?v=14';
+import { assertRecurrenceInput, normalizeRecurrence, formatRecurrenceSummary } from './recurrence-utils.js?v=14';
 
 const esc=value=>String(value??'').replace(/[&<>'"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[ch]));
 const DAY_SHORT=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
@@ -61,7 +61,7 @@ function refresh(form,options={}){
   const yearly=form.querySelector('[data-recurrence-yearly-row]');if(yearly)yearly.hidden=unit!=='years';
   const endType=form.querySelector('[data-recurrence-end-type]')?.value||'never';
   const endDate=form.querySelector('[data-recurrence-end-date-label]'),count=form.querySelector('[data-recurrence-count-label]');if(endDate)endDate.hidden=endType!=='date';if(count)count.hidden=endType!=='count';
-  const summary=form.querySelector('[data-recurrence-summary]');if(summary){const rule=readRecurrenceFields(form,options.fallbackDate||form.elements?.date?.value||null);summary.textContent=rule?formatRecurrenceSummary(rule):'Does not repeat'}
+  const summary=form.querySelector('[data-recurrence-summary]');if(summary){try{const rule=readRecurrenceFields(form,options.fallbackDate||form.elements?.date?.value||null);summary.textContent=rule?formatRecurrenceSummary(rule):'Does not repeat'}catch(error){summary.textContent=error.message}}
 }
 
 export function bindRecurrenceFields(form,options={}){
@@ -80,7 +80,10 @@ export function readRecurrenceFields(form,fallbackDate=null){
   let sourceExceptions={};
   try{sourceExceptions=JSON.parse(form.querySelector('[data-recurrence-exceptions]')?.value||'{}')}catch{sourceExceptions={}}
   const preservedExceptions=structuredClone(sourceExceptions);
-  const rule={enabled:true,frequency,interval:preset==='custom'?Math.max(1,Number(form.querySelector('[data-recurrence-interval]')?.value)||1):1,weekdays,startDate,mode:form.querySelector('[data-recurrence-mode]')?.value||'flexible',endType:form.querySelector('[data-recurrence-end-type]')?.value||'never',endDate:form.querySelector('[data-recurrence-end-date]')?.value||null,count:Math.max(1,Number(form.querySelector('[data-recurrence-count]')?.value)||1),monthlyMode:form.querySelector('[data-recurrence-monthly-mode]')?.value||'date',monthDay:Number(frequency==='yearly'?form.querySelector('[data-recurrence-year-day]')?.value:form.querySelector('[data-recurrence-month-day]')?.value)||1,weekdayPosition:form.querySelector('[data-recurrence-position]')?.value||'first',weekday:Number(form.querySelector('[data-recurrence-position-weekday]')?.value)||0,month:Number(form.querySelector('[data-recurrence-year-month]')?.value)||1,exceptions:preservedExceptions};
+  const number=selector=>Number(form.querySelector(selector)?.value),value=(selector,fallback)=>form.querySelector(selector)?.value||fallback;
+  const endType=value('[data-recurrence-end-type]','never'),monthlyMode=frequency==='monthly'?value('[data-recurrence-monthly-mode]','date'):null,position=monthlyMode==='weekdayPosition';
+  const rule={enabled:true,frequency,interval:preset==='custom'?number('[data-recurrence-interval]'):1,weekdays,startDate,mode:value('[data-recurrence-mode]','flexible'),endType,endDate:endType==='date'?value('[data-recurrence-end-date]',null):null,count:endType==='count'?number('[data-recurrence-count]'):null,monthlyMode,monthDay:frequency==='yearly'?number('[data-recurrence-year-day]'):frequency==='monthly'&&!position?number('[data-recurrence-month-day]'):null,weekdayPosition:position?value('[data-recurrence-position]','first'):null,weekday:position?number('[data-recurrence-position-weekday]'):null,month:frequency==='yearly'?number('[data-recurrence-year-month]'):null,exceptions:preservedExceptions};
+  assertRecurrenceInput(rule);
   return normalizeRecurrence(rule,startDate);
 }
 

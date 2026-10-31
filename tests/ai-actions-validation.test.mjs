@@ -6,6 +6,14 @@ async function fixture(tasks) {
   return plannerFixture({ userID: 'one', boards: [{ id: 'b', title: 'Study', sections: [{ id: 's', title: 'General', tasks }] }] });
 }
 
+test('invalid AI proposals fail before planner reads, previews or writes',async()=>{
+ for(const action of [{type:'update_task',args:{taskId:'one',date:'2026-02-30'}},{type:'update_task',args:{taskId:'one',startTime:'25:00'}},{type:'set_task_reminder',args:{taskId:'one'}},{type:'update_task',args:{taskId:'one',newTitle:null}}]){
+  const f=await fixture([{id:'one',title:'Essay'}]);let reads=0;f.context.getDoc=async()=>{reads++;throw Error('Unexpected planner read')};
+  await assert.rejects(f.context.previewKairosAction(action,{planId:'plan',ownerId:'one'}),/invalid|required/i);
+  await assert.rejects(f.execute(action,{planId:'plan'}),/invalid|required/i);assert.equal(reads,0);assert.equal(f.writes.length,0);
+ }
+});
+
 
 test('a supplied nonexistent ID never falls back to another task title', async () => {
   const f = await fixture([{ id: 'real', title: 'Essay outline' }]);
