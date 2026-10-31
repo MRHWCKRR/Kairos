@@ -94,6 +94,12 @@ async function runPersistenceJourney(){
  const created=host.getState().boards[0].sections[0].tasks.find(task=>task.title==='Created packaged task');check(created,'Quick Add did not persist');
  sessionStorage.setItem('packaged-created',created.id);
  check(await host.getDetails().open({taskId:created.id}),'Packaged inspector did not open');
+ const preset=document.querySelector('[data-recurrence-preset]');preset.value='custom';preset.dispatchEvent(new Event('change',{bubbles:true}));
+ field('[data-recurrence-interval]','0');document.querySelector('.task-detail-pane [type="submit"]').click();
+ await wait(()=>document.querySelector('.task-detail-pane').dataset.saveState==='error','invalid repeat field error');
+ check(document.querySelector('[data-recurrence-interval]').value==='0','Invalid repeat draft was replaced');
+ check((await host.request()).writes===1&&!host.session.state().pending,'Invalid repeat input reached persistence');
+ preset.value='never';preset.dispatchEvent(new Event('change',{bubbles:true}));
  field('.task-detail-pane [name="title"]','Edited packaged task');field('.task-detail-pane [name="notes"]','Saved from the packaged inspector');
  host.failNextTask();document.querySelector('.task-detail-pane [type="submit"]').click();
  await wait(()=>host.session.state().pending&&!host.session.state().busy,'lost acknowledgement recovery');
