@@ -14,3 +14,7 @@ test('an unfinished native browser journey fails its deadline instead of passing
 test('Chrome is allowed to finish graceful shutdown before profile cleanup',async()=>{
  const f=fixture({closeDelay:10});await run({executable:'chrome',profile:'fixture-profile',url:'http://localhost/fixture',timeoutMs:1000,pollMs:1,spawnImpl:f.spawnImpl});assert.equal(f.killed,false,'do not interrupt Chrome while its profile is closing');
 });
+
+test('real-time journeys invoke the network controller on each poll',async()=>{
+ const f=fixture();let calls=0;await run({executable:'chrome',profile:'fixture-profile',url:'http://localhost/fixture',timeoutMs:1000,pollMs:1,spawnImpl:f.spawnImpl,onPoll:async({send,sessionId})=>{calls++;assert.equal(sessionId,'session');await send('Network.enable',{},sessionId);}});assert.equal(calls,2);
+});

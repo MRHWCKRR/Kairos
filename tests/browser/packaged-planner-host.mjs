@@ -17,11 +17,11 @@ export async function createPackagedPlannerHost(){
   const response=await fetch('/__fixture/'+identity.ownerId+path,{method:body===undefined?'GET':'POST',headers:{'Content-Type':'application/json',...(fault?{'x-fixture-failure':fault}:{})},...(body===undefined?{}:{body:JSON.stringify(body)})});
   const value=await response.json();if(!response.ok)throw Error(value.error||'Fixture request failed.');return value;
  }
- const initial=await request();let data=initial.planner,applied=defaultSettings(),draft=defaultSettings(),details,workspace,failTask=false,failSettings=false;
+ const initial=await request();let data=initial.planner,applied=defaultSettings(),draft=defaultSettings(),details,workspace,failTask=false,failSettings=false,holdTask=false;
  const date=data.boards[0].sections[0].tasks[0].date,root=document.getElementById('tasks-page'),overview=document.getElementById('tasks-manager-container');
  const render=()=>workspace?.render();
  const session=createMutationSession({getIdentity:()=>identity,storage:localStorage,commit:async(command,expected,id)=>{
-  const fault=failTask?'after-task':null;failTask=false;
+  const fault=holdTask?'hold-task':failTask?'after-task':null;failTask=false;holdTask=false;
   const saved=await request('/tasks',{command,expected,identity:id},fault);data=saved.planner;render();return saved.result;
  }});
  const commit=(...args)=>session.submit(...args);
@@ -40,7 +40,7 @@ export async function createPackagedPlannerHost(){
  let saving=null;
  document.getElementById('settings-save-btn').addEventListener('click',()=>{saving=sync.save();});
  return {identity,date,session,capture,sync,form,request,getState:()=>data,getApplied:()=>applied,getDraft:()=>draft,getDetails:()=>details,getWorkspace:()=>workspace,getSaving:()=>saving,
-  failNextTask(){failTask=true},failNextSettings(){failSettings=true},
+  failNextTask(){failTask=true},failNextSettings(){failSettings=true},holdNextTask(){holdTask=true},
   setupTaskDetails(module){details=module.mountTaskDetailPane({root,document,window,getOwnerId:()=>identity.ownerId,getPlanId:()=>identity.planId,getState:()=>data,getToday:()=>date,resolveTarget:target=>resolveTaskDetail(data,target),commit});},
   setupTaskWorkspace(module){workspace=module.mountTaskListWorkspace({root,overview,getState:()=>data,getOwnerId:()=>identity.ownerId,getPlanId:()=>identity.planId,getToday:()=>date,commit,requestCloseDetails:()=>details.requestClose()});},
  };

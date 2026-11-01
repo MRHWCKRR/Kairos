@@ -13,10 +13,13 @@ export function normaliseSettings(settings){
 // recovery record and async tickets, including merges after edits during a save.
 export function createSettingsSync({getOwnerId,getDraft,setDraft,getApplied,setApplied,defaults,mergeDefaults,readRemote,writeRemote,storage=globalThis.localStorage,onApply=()=>{},onLoaded=()=>{},onSaved=()=>{},onSettled=()=>{},onStatus=()=>{},onError=()=>{},onLoadComplete=()=>{}}={}){
     const recovery=createSettingsRecovery(storage);
-    let cloud=structuredClone(getApplied()),pending=null,saving=null,revision=0,disposed=false,owner=getOwnerId(),readyOwner=owner;
+    let cloud=structuredClone(getApplied()),pending=null,saving=null,revision=0,disposed=false,owner=getOwnerId(),readyOwner=owner,savedOnce=false;
+    const listeners=new Set();
+    const state=()=>({cloud,pending,saving,ownerId:owner,status:saving?'saving':pending?'unconfirmed':savedOnce?'saved':'idle',ready:!!owner&&owner===getOwnerId()&&readyOwner===owner});
+    function notify(){onStatus();for(const listener of listeners)listener(state());}
     const same=(id,ticket)=>!disposed&&getOwnerId()===id&&revision===ticket;
     function cache(id,settings){try{storage?.setItem('kairos_settings_cache',JSON.stringify(settings));storage?.setItem('kairos_settings_cache_uid',id);}catch{}}
-    function reset(){revision++;const next=getOwnerId();readyOwner=null;owner=next;saving=null;pending=null;cloud=defaults();}
+    function reset(){revision++;const next=getOwnerId();readyOwner=null;owner=next;saving=null;pending=null;cloud=defaults();savedOnce=false;notify();}
     async function load(id){
         if(disposed||!id)return false;
         if(owner!==id)reset();owner=id;const ticket=++revision;
@@ -27,31 +30,31 @@ export function createSettingsSync({getOwnerId,getDraft,setDraft,getApplied,setA
             if(!same(id,ticket))return false;
             if(!confirmed){const staged=recovery.read(id);if(staged)loaded=mergeDefaults(staged.base);}
             readyOwner=id;cloud=structuredClone(loaded);const restored=recovery.restore(id,loaded,{confirmed});pending=restored.pending;
-            setApplied(structuredClone(restored.settings));setDraft(structuredClone(restored.settings));cache(id,restored.settings);onApply();onStatus();onLoaded();return true;
+            setApplied(structuredClone(restored.settings));setDraft(structuredClone(restored.settings));cache(id,restored.settings);onApply();notify();onLoaded();return true;
         }finally{onLoadComplete();}
     }
-    function dirty(){const id=getOwnerId();if(disposed)return;if(id&&pending?.ownerId===id)pending=recovery.stage(id,cloud,getDraft());onStatus();}
+    function dirty(){const id=getOwnerId();if(disposed)return;if(id&&pending?.ownerId===id)pending=recovery.stage(id,cloud,getDraft());notify();}
     async function save(){
         const id=getOwnerId();if(disposed||!id||id!==readyOwner||saving?.ownerId===id)return false;
         let submitted;try{submitted=normaliseSettings(getDraft());}catch(error){onError('validation',error);return false;}
         if(owner!==id)reset();owner=id;
         const ticket={ownerId:id},base=structuredClone(cloud),record=recovery.stage(id,base,submitted);pending=record;saving=ticket;revision++;
-        setDraft(structuredClone(submitted));setApplied(structuredClone(submitted));cache(id,submitted);onApply();onStatus();
+        setDraft(structuredClone(submitted));setApplied(structuredClone(submitted));cache(id,submitted);onApply();notify();
         try{
             let saved=false;
             try{saved=await writeRemote(id,remote=>normaliseSettings(overlaySettingsEdits(base,submitted,mergeDefaults(remote))));}
             catch(error){if(!disposed&&getOwnerId()===id&&saving===ticket)onError('save',error,record);}
             if(disposed||getOwnerId()!==id||saving!==ticket)return false;
             if(saved){
-                recovery.clear(id,record);cloud=structuredClone(saved);const draft=overlaySettingsEdits(submitted,getDraft(),saved);setDraft(draft);setApplied(structuredClone(saved));pending=null;
+                savedOnce=true;recovery.clear(id,record);cloud=structuredClone(saved);const draft=overlaySettingsEdits(submitted,getDraft(),saved);setDraft(draft);setApplied(structuredClone(saved));pending=null;
                 if(JSON.stringify(draft)!==JSON.stringify(saved))pending=recovery.stage(id,saved,draft);
                 cache(id,pending?draft:saved);onApply();onSaved({hasDraft:!!pending});
             }else{pending=recovery.stage(id,cloud,getDraft());cache(id,getDraft());}
             onSettled();return !!saved;
-        }finally{if(saving===ticket){saving=null;if(!disposed&&getOwnerId()===id)onStatus();}}
+        }finally{if(saving===ticket){saving=null;if(!disposed&&getOwnerId()===id)notify();}}
     }
-    function cancel(){const id=getOwnerId();if(disposed||saving?.ownerId===id)return false;if(pending?.ownerId===id){recovery.clear(id,pending);pending=null;setApplied(structuredClone(cloud));cache(id,cloud);}setDraft(structuredClone(getApplied()));onApply();onStatus();return true;}
+    function cancel(){const id=getOwnerId();if(disposed||saving?.ownerId===id)return false;if(pending?.ownerId===id){recovery.clear(id,pending);pending=null;setApplied(structuredClone(cloud));cache(id,cloud);}setDraft(structuredClone(getApplied()));onApply();notify();return true;}
     function clear(id){recovery.clear(id);}
-    function dispose(){if(disposed)return;disposed=true;revision++;saving=null;}
-    return {load,save,dirty,cancel,reset,clear,dispose,state:()=>({cloud,pending,saving,ready:!!owner&&owner===getOwnerId()&&readyOwner===owner})};
+    function dispose(){if(disposed)return;disposed=true;revision++;saving=null;listeners.clear();}
+    return {load,save,dirty,cancel,reset,clear,dispose,state,subscribe(listener){listeners.add(listener);return()=>listeners.delete(listener)}};
 }

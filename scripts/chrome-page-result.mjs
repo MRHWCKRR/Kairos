@@ -2,7 +2,7 @@ import {spawn} from 'node:child_process';
 
 // Native Web Locks use browser IPC. Virtual-time dump-dom may finish before IPC
 // settles, so these journeys wait on their actual result using an isolated pipe.
-export async function readChromePageResult({executable,profile,url,timeoutMs=45000,pollMs=100,spawnImpl=spawn}){
+export async function readChromePageResult({executable,profile,url,timeoutMs=45000,pollMs=100,spawnImpl=spawn,onPoll}){
  const browser=spawnImpl(executable,['--headless=new','--no-sandbox','--disable-gpu','--disable-background-networking','--no-first-run','--user-data-dir='+profile,'--remote-debugging-pipe'],{stdio:['ignore','pipe','pipe','pipe','pipe'],windowsHide:true});
  let serial=0,buffer='',stderr='',closed=false;const pending=new Map(),deadline=Date.now()+timeoutMs;
  const rejectAll=error=>{for(const entry of pending.values()){clearTimeout(entry.timer);entry.reject(error);}pending.clear();};
@@ -30,6 +30,7 @@ export async function readChromePageResult({executable,profile,url,timeoutMs=450
   await send('Browser.getVersion');const {targetId}=await send('Target.createTarget',{url});const {sessionId}=await send('Target.attachToTarget',{targetId,flatten:true});
   while(Date.now()<deadline){
    try{
+    if(onPoll)await onPoll({send,sessionId});
     const value=await send('Runtime.evaluate',{expression:'document.querySelector("#packaged-smoke-result")?.outerHTML',returnByValue:true},sessionId),markup=value.result?.value;
     if(typeof markup==='string'&&/data-result="(?:passed|failed)"/.test(markup))return {markup,stderr};
    }catch(error){if(!/execution context|cannot find context/i.test(error.message))throw error;}

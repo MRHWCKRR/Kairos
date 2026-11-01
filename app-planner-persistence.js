@@ -2,9 +2,14 @@ import {planState,mergePlanEdits} from './plan-merge.js?v=1';
 
 /** Ordinary planner persistence. The host owns live collections; writes owns the shared queue/baseline. */
 export function createPlannerPersistence({writes,getOwnerId,getPlanId,getState,setState,setIdentity,readPlans,initialize,saveEdits,migrate,normalizeBoards,onInvalidate=()=>{},onSaved=()=>{},onReminders=()=>{},onRender=()=>{},onLoadComplete=()=>{},onError=()=>{}}) {
+    const listeners=new Set();let record;
+    function currentRecord(){const ownerId=getOwnerId();if(record?.ownerId!==ownerId)record={ownerId,count:0,failed:false,saved:false,options:{}};return record;}
+    function state(){const r=currentRecord();return {ownerId:r.ownerId,busy:r.count>0,pending:r.failed||r.count>0,retained:false,status:r.count?'saving':r.failed?'unconfirmed':r.saved?'saved':'idle'};}
+    function notify(r){if(currentRecord()===r)for(const listener of listeners)listener(state());}
     async function save(options={}) {
         const ownerId=getOwnerId();
         if(!ownerId)return false;
+        const status=currentRecord();status.count++;status.options={...options};notify(status);
         writes.markEdit();
         const work=writes.enqueue(async()=>{
             if(getOwnerId()!==ownerId)throw new Error('The signed-in account changed.');
@@ -23,11 +28,15 @@ export function createPlannerPersistence({writes,getOwnerId,getPlanId,getState,s
             onReminders();
             return true;
         });
-        try{return await work}catch(error){onError('save',error);return false}
+        try{const result=await work;status.failed=false;status.saved=true;return result}catch(error){status.failed=true;if(currentRecord()===status)onError('save',error);return false}
+        finally{status.count--;notify(status);}
     }
     async function load(user) {
+        // A reload must not replace live-only edits after a rejected save.
+        if(currentRecord().failed)return;
         const ticket=writes.beginLoad();
         ticket.edit=await writes.idle();
+        if(currentRecord().failed)return;
         const current=()=>getOwnerId()===user.uid&&writes.isCurrentLoad(ticket);
         if(!current())return;
         try {
@@ -50,5 +59,5 @@ export function createPlannerPersistence({writes,getOwnerId,getPlanId,getState,s
         }catch(error){if(!current())return;onError('load',error);onRender()}
         finally{if(current())onLoadComplete()}
     }
-    return {save,load};
+    return {save,load,state,assertReady(){if(currentRecord().failed)throw Error('Retry the pending planner save before submitting another change.');},subscribe(listener){listeners.add(listener);return()=>listeners.delete(listener)},retry(){const r=currentRecord();return r.failed&&!r.count?save(r.options):Promise.resolve(false)}};
 }

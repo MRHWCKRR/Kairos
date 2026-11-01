@@ -10,6 +10,8 @@ export async function startPackagedServer({directory,blockedAsset=null}) {
  if(!version)throw Error('Build the app before running packaged smoke checks.');
  const entry=(await readFile(new URL('../tests/browser/packaged-smoke-entry.mjs',import.meta.url),'utf8')).replaceAll('@@VERSION@@',version);
  const host=(await readFile(new URL('../tests/browser/packaged-planner-host.mjs',import.meta.url),'utf8')).replaceAll('@@VERSION@@',version);
+ const offlineEntry=(await readFile(new URL('../tests/browser/offline-planner-entry.mjs',import.meta.url),'utf8')).replaceAll('@@VERSION@@',version);
+ let held=null;
  const store=createPackagedFixtureStore(),failures=new Set();
  const clean=original.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,'').replace(/<link\b[^>]*href=["']https?:[^>]*>/gi,'');
  const shell=clean.replace('</body>','<p id="packaged-smoke-result" data-result="pending">Starting packaged smoke.</p><script type="module" src="/__smoke.js"></script></body>');
@@ -31,12 +33,21 @@ export async function startPackagedServer({directory,blockedAsset=null}) {
      const value=JSON.parse(body),fault=request.headers?.['x-fixture-failure'];
      if(action==='settings'&&fault==='before-settings'&&!failures.has(fault)){failures.add(fault);response.statusCode=503;response.end(JSON.stringify({error:'Simulated settings outage.'}));return;}
      const result=action==='tasks'?store.commit(owner,value):store.saveSettings(owner,value);
+     // Changing Chrome's offline setting does not reliably terminate a request
+     // already in flight. Close this committed request's socket after the driver
+     // applies offline mode, so its acknowledgement is genuinely lost.
+     if(action==='tasks'&&fault==='hold-task'){
+      await new Promise(resolve=>{held=()=>{response.destroy();resolve();};});
+      return;
+     }
      if(action==='tasks'&&fault==='after-task'&&!failures.has(fault)){failures.add(fault);response.statusCode=503;response.end(JSON.stringify({error:'Simulated lost acknowledgement.'}));return;}
      response.end(JSON.stringify({result,...store.read(owner)}));
     }catch(error){response.statusCode=400;response.end(JSON.stringify({error:error.message}));}
     return;
    }
    if(name==='/__smoke.html'){response.setHeader('Content-Type','text/html; charset=utf-8');response.end(shell);return;}
+   if(name==='/__offline.html'){response.setHeader('Content-Type','text/html; charset=utf-8');response.end(shell.replace('/__smoke.js','/__offline.js'));return;}
+   if(name==='/__offline.js'){response.setHeader('Content-Type','application/javascript; charset=utf-8');response.end(offlineEntry);return;}
    if(name==='/__tab.html'){response.setHeader('Content-Type','text/html; charset=utf-8');response.end(tabShell);return;}
    if(name==='/__tab-app.js'){response.setHeader('Content-Type','application/javascript; charset=utf-8');response.end('document.documentElement.dataset.workspaceStarted="true";document.documentElement.dataset.workspaceStarts=String(Number(document.documentElement.dataset.workspaceStarts||0)+1);');return;}
    if(name==='/__single-tab.html'){response.setHeader('Content-Type','text/html; charset=utf-8');response.end('<!doctype html><html><head><title>Single workspace regression</title></head><body><p id="packaged-smoke-result" data-result="pending">Starting single-tab check.</p><script type="module" src="/__single-tab.js"></script></body></html>');return;}
@@ -52,5 +63,5 @@ export async function startPackagedServer({directory,blockedAsset=null}) {
  const server=http.createServer(handleRequest);
  await new Promise((resolve,reject)=>{server.once('error',reject);server.listen(0,'127.0.0.1',resolve);});
  const address=server.address();
- return {url:'http://127.0.0.1:'+address.port,requests,handleRequest,close:()=>new Promise(resolve=>{server.close(resolve);server.closeAllConnections();})};
+ return {url:'http://127.0.0.1:'+address.port,requests,handleRequest,hasHeldWrite:()=>!!held,releaseHeldWrite(){const release=held;held=null;release?.();},close:()=>new Promise(resolve=>{held?.();held=null;server.close(resolve);server.closeAllConnections();})};
 }
