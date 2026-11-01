@@ -25,6 +25,16 @@ async function fixture(empty=false){
 const command={type:'edit_task',target:{taskId:'t'},changes:{notes:'New'}};
 const expected={boardId:'b',sectionId:'s',fields:{notes:'Old'}};
 const identity=()=>({ownerId:'one',planId:'plan',operationId:'detail-host',createdAt:Date.now()});
+
+test('a failed ordinary edit must sync before a task command can replace live collections',async()=>{
+ const f=await fixture(),save=f.context.savePlannerEdits;f.context.showNotice=()=>{};f.context.savePlannerEdits=async()=>{throw Error('offline')};
+ vm.runInContext("boardsData[0].title='Unsynced board title'",f.context);
+ assert.equal(await f.context.updatePlanInFirestore(),false);
+ await assert.rejects(f.context.commitTaskDetails(command,expected,identity()),/pending planner save/i);
+ assert.equal(vm.runInContext('boardsData[0].title',f.context),'Unsynced board title');assert.equal(f.data().boards[0].sections[0].tasks[0].notes,'Old');
+ f.context.savePlannerEdits=save;assert.equal(await f.context.updatePlanInFirestore(),true);
+ assert.ok(await f.context.plannerMutations.retry());assert.equal(f.data().boards[0].title,'Unsynced board title');assert.equal(f.data().boards[0].sections[0].tasks[0].notes,'New');
+});
 test('Details rejects a same-account planner switch during lazy preparation',async()=>{
  const f=await fixture();vm.runInContext("pageLoader.prepare=async()=>{currentPlanDocId='replacement'}",f.context);
  assert.equal(await f.context.openTaskDetailsFromList('t',null),false);

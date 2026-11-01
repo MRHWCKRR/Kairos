@@ -76,6 +76,7 @@ test('the app gateway retains failed caller saves and retries through low-level 
  const start=source.indexOf('    async function commitTaskDetails('),end=source.indexOf('    async function openTaskDetailsInSchedule(',start);
  context.plannerWrites=createPlannerWrites();
  Object.assign(context,{currentPlanDocId:'plan',boardsData:x.f.data().boards,dayInsights:{},scheduleData:[],renderApp(){}});
+ context.plannerPersistence={assertReady(){}};
  vm.runInContext(source.slice(start,end),context);
  context.plannerMutations=createMutationSession({getIdentity:()=>({ownerId:'one',planId:'plan'}),storage:x.storage,commit:(...args)=>context.persistTaskDetails(...args)});
  const identity=id();await assert.rejects(context.commitTaskDetails(command,expected,identity),/response lost/);assert.equal(context.plannerMutations.state().pending,true);

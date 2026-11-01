@@ -16,10 +16,10 @@ export function mountSyncStatus({root,window=globalThis.window,getOwnerId,source
  function sync(){
   if(disposed)return;
   const current=states(),offline=window.navigator?.onLine===false;
-  const pending=current.filter(s=>s.pending||s.busy),review=pending.find(s=>s.conflict)||pending[0];
+  const pending=current.filter(s=>s.pending||s.busy),review=pending.find(s=>s.retained===false)||pending.find(s=>s.conflict)||pending[0];
   let text='';action=null;button.hidden=true;button.textContent='';
   if(current.length){
-   if(offline)text=pending.length?'Offline · changes pending':'Offline';
+   if(offline)text=pending.some(s=>s.retained===false)?'Offline — keep this tab open':pending.length?'Offline · changes pending':'Offline';
    else if(pending.some(s=>s.busy))text='Saving…';
    else if(pending.some(s=>s.conflict))text='Changes need review';
    else if(pending.length)text=pending.some(s=>s.retained===false)?'Not synced — keep this tab open':'Not synced';

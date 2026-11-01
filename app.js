@@ -500,6 +500,7 @@ function bootApp() {
         plannerWrites.markEdit(true);
         const work=plannerWrites.enqueue(async()=>{
             if(auth.currentUser?.uid!==user.uid||currentPlanDocId!==identity.planId)throw new Error('The signed-in account or planner changed.');
+            plannerPersistence.assertReady();
             const before=planState({boards:boardsData,dayInsights,scheduleEvents:scheduleData,calendarSources:calendarSourcesData});
             const result=await persistTaskListCommand(identity.planId,user.uid,command,expected,identity.operationId,identity.createdAt);
             const snapshot=await getDoc(doc(db,'study_plans',identity.planId));

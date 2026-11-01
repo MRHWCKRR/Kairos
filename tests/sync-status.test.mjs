@@ -30,3 +30,11 @@ test('dispose removes subscriptions and network/leave listeners',()=>{
  f.set({ownerId:'one',status:'saved'});f.window.dispatchEvent(new Event('offline'));assert.equal(f.root.textContent,text);
  const event=new Event('beforeunload',{cancelable:true});f.window.dispatchEvent(event);assert.equal(event.defaultPrevented,false);
 });
+
+test('live-only recovery takes retry priority over a retained command and stays visible offline',()=>{
+ const {document}=parseHTML('<div id="status"></div>'),window=new EventTarget();window.navigator={onLine:true};let retried=0,reviewed=0;
+ const source=(state,review)=>({state:()=>state,subscribe:()=>()=>{},review});
+ const view=mountSyncStatus({root:document.querySelector('#status'),window,getOwnerId:()=> 'one',sources:[source({ownerId:'one',pending:true,retained:true},()=>reviewed++),{...source({ownerId:'one',pending:true,retained:false},()=>retried++),retry:true}]});
+ document.querySelector('button').click();assert.equal(retried,1);assert.equal(reviewed,0);
+ window.navigator.onLine=false;window.dispatchEvent(new Event('offline'));assert.match(document.querySelector('#status').textContent,/Offline.*keep this tab open/);assert.equal(document.querySelector('button').hidden,true);view.dispose();
+});

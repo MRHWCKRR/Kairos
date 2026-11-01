@@ -59,5 +59,5 @@ export function createPlannerPersistence({writes,getOwnerId,getPlanId,getState,s
         }catch(error){if(!current())return;onError('load',error);onRender()}
         finally{if(current())onLoadComplete()}
     }
-    return {save,load,state,subscribe(listener){listeners.add(listener);return()=>listeners.delete(listener)},retry(){const r=currentRecord();return r.failed&&!r.count?save(r.options):Promise.resolve(false)}};
+    return {save,load,state,assertReady(){if(currentRecord().failed)throw Error('Retry the pending planner save before submitting another change.');},subscribe(listener){listeners.add(listener);return()=>listeners.delete(listener)},retry(){const r=currentRecord();return r.failed&&!r.count?save(r.options):Promise.resolve(false)}};
 }
