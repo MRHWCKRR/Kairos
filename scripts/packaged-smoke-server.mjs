@@ -33,7 +33,13 @@ export async function startPackagedServer({directory,blockedAsset=null}) {
      const value=JSON.parse(body),fault=request.headers?.['x-fixture-failure'];
      if(action==='settings'&&fault==='before-settings'&&!failures.has(fault)){failures.add(fault);response.statusCode=503;response.end(JSON.stringify({error:'Simulated settings outage.'}));return;}
      const result=action==='tasks'?store.commit(owner,value):store.saveSettings(owner,value);
-     if(action==='tasks'&&fault==='hold-task')await new Promise(resolve=>{held=resolve;});
+     // Changing Chrome's offline setting does not reliably terminate a request
+     // already in flight. Close this committed request's socket after the driver
+     // applies offline mode, so its acknowledgement is genuinely lost.
+     if(action==='tasks'&&fault==='hold-task'){
+      await new Promise(resolve=>{held=()=>{response.destroy();resolve();};});
+      return;
+     }
      if(action==='tasks'&&fault==='after-task'&&!failures.has(fault)){failures.add(fault);response.statusCode=503;response.end(JSON.stringify({error:'Simulated lost acknowledgement.'}));return;}
      response.end(JSON.stringify({result,...store.read(owner)}));
     }catch(error){response.statusCode=400;response.end(JSON.stringify({error:error.message}));}
