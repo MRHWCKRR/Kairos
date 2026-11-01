@@ -9,10 +9,12 @@ window.addEventListener('unhandledrejection',event=>runtime.record(event.reason)
 const check=(value,message)=>{if(!value)throw Error(message)},wait=async(predicate,label)=>{for(let i=0;i<500;i++){if(predicate())return;await new Promise(resolve=>setTimeout(resolve,10))}throw Error('Timed out: '+label)};
 async function network(value){document.documentElement.dataset.networkRequest=value;await wait(()=>document.documentElement.dataset.networkApplied===value&&navigator.onLine===(value==='online'),'actual network '+value);}
 const status=()=>document.getElementById('planner-sync-status').textContent;
+let diagnostics=()=>({online:navigator.onLine,network:{...document.documentElement.dataset}});
 const field=(selector,value)=>{const input=document.querySelector(selector);check(input,'Missing '+selector);input.value=value;input.dispatchEvent(new Event('input',{bubbles:true}));};
 async function run(){try{
  document.getElementById('app-loading-screen')?.remove();
  const host=await createPackagedPlannerHost();
+ diagnostics=()=>({online:navigator.onLine,network:{...document.documentElement.dataset},session:host.session.state(),status:status(),capture:document.querySelector('[data-capture-status]')?.textContent});
  const loader=createPageLoader({taskDetailsEnabled:true,setupTaskDetails:host.setupTaskDetails,setupTaskWorkspace:host.setupTaskWorkspace});
  const router=mountPageRouter({preparePage:async page=>{await loader.prepare(page);if(page==='settings-page')host.form.enter();}});
  const persistence={state:()=>({ownerId:host.identity.ownerId,status:'idle'}),subscribe:()=>()=>{},retry:async()=>false};
@@ -48,5 +50,5 @@ async function run(){try{
  const stored=await host.request();check(stored.writes===2&&stored.planner.boards[0].sections[0].tasks[0].title==='Newer remote title','Conflict changed remote data');
  const other=await(await fetch('/__fixture/other-fixture')).json();check(other.writes===0&&!other.settings.planning.rescheduleCompleted,'Another owner changed');
  runtime.check();result.dataset.result='passed';result.textContent='Passed real network interruption, reload, explicit task/settings retry, deduplication and conflict review.';
-}catch(error){result.dataset.result='failed';result.textContent='Failed offline journey: '+error.message;}}
+}catch(error){result.dataset.result='failed';result.textContent='Failed offline journey: '+error.message+' '+JSON.stringify(diagnostics());}}
 void run();

@@ -5,7 +5,13 @@ export function createNetworkJourneyDriver(server){
  return async({send,sessionId})=>{
   const evaluate=async expression=>(await send('Runtime.evaluate',{expression,returnByValue:true},sessionId)).result?.value;
   const requested=await evaluate('document.documentElement.dataset.networkRequest');
-  if(!requested||requested===applied)return;
+  if(!requested)return;
+  if(requested===applied){
+   // Chrome may retry a connection reset before surfacing the fetch failure.
+   // Every transport attempt must lose its acknowledgement during this cut.
+   if(requested==='cut'&&server.hasHeldWrite())server.releaseHeldWrite();
+   return;
+  }
   if(requested==='cut'&&!server.hasHeldWrite())return;
   const offline=requested!=='online';
   await send('Network.enable',{},sessionId);

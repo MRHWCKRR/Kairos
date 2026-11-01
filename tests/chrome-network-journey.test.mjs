@@ -6,5 +6,6 @@ test('network cut waits for a committed held write and applies real transport em
  const send=async(method,params)=>{calls.push(method);return method==='Runtime.evaluate'?{result:{value:params.expression==='document.documentElement.dataset.networkRequest'?request:undefined}}:{}};
  await driver({send,sessionId:'session'});assert.equal(released,false);assert.deepEqual(calls,['Runtime.evaluate']);calls.length=0;held=true;
  await driver({send,sessionId:'session'});assert.deepEqual(calls,['Runtime.evaluate','Network.enable','Network.emulateNetworkConditions','release','Runtime.evaluate']);
+ calls.length=0;await driver({send,sessionId:'session'});assert.deepEqual(calls,['Runtime.evaluate','release'],'a transparent transport retry must also lose its acknowledgement');
  request='online';calls.length=0;await driver({send:async(method,params)=>{if(method==='Network.emulateNetworkConditions')assert.equal(params.offline,false);return send(method,params)},sessionId:'session'});assert.ok(calls.includes('Network.emulateNetworkConditions'));
 });
