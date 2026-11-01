@@ -30,6 +30,10 @@ test('a failed ordinary edit must sync before a task command can replace live co
  const f=await fixture(),save=f.context.savePlannerEdits;f.context.showNotice=()=>{};f.context.savePlannerEdits=async()=>{throw Error('offline')};
  vm.runInContext("boardsData[0].title='Unsynced board title'",f.context);
  assert.equal(await f.context.updatePlanInFirestore(),false);
+ const source=await readFile(new URL('../app.js',import.meta.url),'utf8'),start=source.indexOf('    async function commitFocusTime(');
+ vm.runInContext(source.slice(start,source.indexOf('    function logTaskCompletionForStats(',start)),f.context);
+ f.context.persistFocusLog=async()=>{throw Error('Focus write reached remote')};
+ await assert.rejects(f.context.commitFocusTime({ownerId:'one',planId:'plan'}),/pending planner save/i);
  await assert.rejects(f.context.commitTaskDetails(command,expected,identity()),/pending planner save/i);
  assert.equal(vm.runInContext('boardsData[0].title',f.context),'Unsynced board title');assert.equal(f.data().boards[0].sections[0].tasks[0].notes,'Old');
  f.context.savePlannerEdits=save;assert.equal(await f.context.updatePlanInFirestore(),true);

@@ -3270,6 +3270,7 @@ function bootApp() {
         const uid=auth.currentUser?.uid;if(uid!==entry.ownerId||entry.planId&&entry.planId!==currentPlanDocId)throw Error('The signed-in account or planner changed.');
         const work=plannerWrites.enqueue(async()=>{
             if(auth.currentUser?.uid!==uid||entry.planId&&entry.planId!==currentPlanDocId)throw Error('The signed-in account or planner changed.');
+            if(entry.planId)plannerPersistence.assertReady();
             const before=planState({boards:boardsData,dayInsights,scheduleEvents:scheduleData,calendarSources:calendarSourcesData}),result=await (correction?persistFocusCorrection:persistFocusLog)(entry.planId,uid,entry);
             if(auth.currentUser?.uid!==uid||entry.planId&&entry.planId!==currentPlanDocId)throw Error('The signed-in account or planner changed.');
             if(entry.planId){const snapshot=await getDoc(doc(db,'study_plans',entry.planId));if(auth.currentUser?.uid!==uid||currentPlanDocId!==entry.planId)throw Error('The signed-in account or planner changed.');if(snapshot.exists()&&snapshot.data().userID===uid){const saved=planState(snapshot.data()),live=planState({boards:boardsData,dayInsights,scheduleEvents:scheduleData,calendarSources:calendarSourcesData}),rebased=mergePlanEdits(before,live,saved);boardsData=rebased.boards;dayInsights=rebased.dayInsights;scheduleData=rebased.scheduleEvents;calendarSourcesData=rebased.calendarSources;invalidateKairosContext({ownerId:uid,planId:entry.planId,before:plannerWrites.snapshot,after:saved});plannerWrites.snapshot=saved;}}
