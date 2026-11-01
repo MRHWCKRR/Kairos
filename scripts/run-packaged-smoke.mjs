@@ -8,17 +8,19 @@ import {startPackagedServer} from './packaged-smoke-server.mjs';
 
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 await buildCloudflare();
-for(const broken of [false,true]) {
+for(const scenario of ['planner','missing-module','single-tab']) {
+ const broken=scenario==='missing-module';
  const server=await startPackagedServer({directory:path.join(root,'dist'),blockedAsset:broken?'schedule-inspector.js':null});
  const profile=await mkdtemp(path.join(os.tmpdir(),'kairos-packaged-chrome-'));
  try {
-  const browser=spawn(process.env.CHROME_BIN||'google-chrome',['--headless=new','--no-sandbox','--disable-gpu','--disable-background-networking','--no-first-run','--user-data-dir='+profile,'--virtual-time-budget=20000','--dump-dom',server.url+'/__smoke.html'+(broken?'?fail=1':'')],{windowsHide:true});
+  const target=scenario==='single-tab'?'/__single-tab.html':'/__smoke.html'+(broken?'?fail=1':'');
+  const browser=spawn(process.env.CHROME_BIN||'google-chrome',['--headless=new','--no-sandbox','--disable-gpu','--disable-background-networking','--no-first-run','--user-data-dir='+profile,'--virtual-time-budget=20000','--dump-dom',server.url+target],{windowsHide:true});
   let stdout='',stderr='';browser.stdout.on('data',chunk=>{stdout+=chunk;});browser.stderr.on('data',chunk=>{stderr+=chunk;});
   const timer=setTimeout(()=>browser.kill(),45000);
   const status=await new Promise((resolve,reject)=>{browser.once('error',reject);browser.once('close',resolve);}).finally(()=>clearTimeout(timer));
   const result=stdout.match(/<p[^>]*id="packaged-smoke-result"[^>]*>[\s\S]*?<\/p>/)?.[0];
   if(status!==0||!result?.includes('data-result="passed"'))throw Error((result||'Packaged browser smoke did not complete')+'\n'+stderr.slice(-2000));
-  if(!broken&&server.requests.filter(name=>name==='/__smoke.html').length<3)throw Error('Packaged persistence journey did not reload the real document twice.');
+  if(scenario==='planner'&&server.requests.filter(name=>name==='/__smoke.html').length<3)throw Error('Packaged persistence journey did not reload the real document twice.');
   console.log(result.replace(/<[^>]+>/g,''));
  } finally {
   await server.close();

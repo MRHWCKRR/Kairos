@@ -1,5 +1,7 @@
 {
   "files": [
+    "app-single-tab.js",
+    "app-single-tab.css",
     "event-reminders.js",
     "calendar-export-view.js",
     "calendar-export.js",
