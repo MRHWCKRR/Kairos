@@ -5,6 +5,7 @@ import os from 'node:os';
 import {fileURLToPath} from 'node:url';
 import {buildCloudflare} from '../cloudflare/build.js';
 import {startPackagedServer} from './packaged-smoke-server.mjs';
+import {readChromePageResult} from './chrome-page-result.mjs';
 
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 await buildCloudflare();
@@ -14,6 +15,11 @@ for(const scenario of ['planner','missing-module','single-tab','missing-tab-guar
  const profile=await mkdtemp(path.join(os.tmpdir(),'kairos-packaged-chrome-'));
  try {
   const target=scenario==='single-tab'?'/__single-tab.html':scenario==='missing-tab-guard'?'/__single-tab.html?guard-missing=1':'/__smoke.html'+(broken?'?fail=1':'');
+  if(scenario==='single-tab'||scenario==='missing-tab-guard'){
+   const {markup,stderr}=await readChromePageResult({executable:process.env.CHROME_BIN||'google-chrome',profile,url:server.url+target});
+   if(!markup.includes('data-result="passed"'))throw Error(markup+'\n'+stderr.slice(-2000));
+   console.log(markup.replace(/<[^>]+>/g,''));continue;
+  }
   const browser=spawn(process.env.CHROME_BIN||'google-chrome',['--headless=new','--no-sandbox','--disable-gpu','--disable-background-networking','--no-first-run','--user-data-dir='+profile,'--virtual-time-budget=20000','--dump-dom',server.url+target],{windowsHide:true});
   let stdout='',stderr='';browser.stdout.on('data',chunk=>{stdout+=chunk;});browser.stderr.on('data',chunk=>{stderr+=chunk;});
   const timer=setTimeout(()=>browser.kill(),45000);

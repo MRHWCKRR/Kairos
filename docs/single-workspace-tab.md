@@ -9,3 +9,5 @@ This coordinates participating tabs on the same origin in one browser profile. I
 Tests cover simultaneous acquisition, repeated starts/retries, denied locks, failed startup ownership, blocked app imports, prior inert state restoration and BFCache reload. The packaged Chrome journey uses multiple same-origin browsing contexts, real generated bootstrap/guard files and native Web Locks; only app.js is import-mapped to a harmless fixture, so the lock test never signs into Firebase. It verifies one owner, denied initialization, keyboard recovery, owner removal/retry, normal reload, and recovery when the guard asset returns 404.
 
 Reference: https://www.w3.org/TR/web-locks/
+
+Native lock checks use a real-time isolated Chrome debugging pipe and wait for the page result with a fixed deadline. They do not fast-forward the browser clock: native lock IPC can outlive a virtual-time DOM snapshot. Protocol waiting, deadline failure and graceful shutdown have separate runner tests. Existing planner and missing-module journeys retain their established runner.
