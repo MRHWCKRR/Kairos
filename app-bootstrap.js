@@ -1,6 +1,5 @@
 // This entry has no Firebase imports, so blocked mobile clients never download
 // the desktop application's module graph.
-import {createWorkspaceTabGuard,createWorkspaceTabView} from './app-single-tab.js?v=1';
 async function boot() {
   if(window.__kairosMobileDevice) {
     document.getElementById('mobile-access-screen')?.setAttribute('aria-hidden','false');
@@ -16,6 +15,17 @@ async function boot() {
   // Restored documents must pass startup/ownership again, rather than resume an
   // old workspace while another document may have acquired the browser lock.
   window.addEventListener('pageshow',event=>{if(event.persisted){document.documentElement.setAttribute('inert','');location.reload();}});
+  let createWorkspaceTabGuard,createWorkspaceTabView;
+  try {({createWorkspaceTabGuard,createWorkspaceTabView}=await import('./app-single-tab.js?v=1'));}
+  catch(error){
+    console.error('[Kairos] Tab coordination could not load.',error);
+    const root=document.getElementById('app-loading-screen');if(!root)return;
+    const panel=document.createElement('div');panel.className='workspace-tab-content';
+    const title=document.createElement('h1');title.textContent='Kairos could not load';
+    const message=document.createElement('p');message.textContent='Check your connection, then reload to try again.';
+    const reload=document.createElement('button');reload.type='button';reload.className='action-btn';reload.dataset.startupRetry='';reload.textContent='Reload';reload.addEventListener('click',()=>location.reload());
+    panel.append(title,message,reload);root.replaceChildren(panel);root.classList.remove('hidden');root.setAttribute('role','alert');return;
+  }
   let locks=null;try{locks=navigator.locks||null;}catch{}
   const view=createWorkspaceTabView({document,onRetry:()=>guard.enter(),onReload:()=>location.reload()});
   const guard=createWorkspaceTabGuard({locks,

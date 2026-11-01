@@ -8,12 +8,12 @@ import {startPackagedServer} from './packaged-smoke-server.mjs';
 
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 await buildCloudflare();
-for(const scenario of ['planner','missing-module','single-tab']) {
+for(const scenario of ['planner','missing-module','single-tab','missing-tab-guard']) {
  const broken=scenario==='missing-module';
- const server=await startPackagedServer({directory:path.join(root,'dist'),blockedAsset:broken?'schedule-inspector.js':null});
+ const server=await startPackagedServer({directory:path.join(root,'dist'),blockedAsset:broken?'schedule-inspector.js':scenario==='missing-tab-guard'?'app-single-tab.js':null});
  const profile=await mkdtemp(path.join(os.tmpdir(),'kairos-packaged-chrome-'));
  try {
-  const target=scenario==='single-tab'?'/__single-tab.html':'/__smoke.html'+(broken?'?fail=1':'');
+  const target=scenario==='single-tab'?'/__single-tab.html':scenario==='missing-tab-guard'?'/__single-tab.html?guard-missing=1':'/__smoke.html'+(broken?'?fail=1':'');
   const browser=spawn(process.env.CHROME_BIN||'google-chrome',['--headless=new','--no-sandbox','--disable-gpu','--disable-background-networking','--no-first-run','--user-data-dir='+profile,'--virtual-time-budget=20000','--dump-dom',server.url+target],{windowsHide:true});
   let stdout='',stderr='';browser.stdout.on('data',chunk=>{stdout+=chunk;});browser.stderr.on('data',chunk=>{stderr+=chunk;});
   const timer=setTimeout(()=>browser.kill(),45000);
