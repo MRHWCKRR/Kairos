@@ -50,3 +50,16 @@ test('App Check accepts only signed tokens for the configured project and web ap
   const other = await generateKeyPair('RS256');
   await assert.rejects(verifier.verifyToken(await sign(payload, other.privateKey, header)));
 });
+
+test('App Check permits explicitly registered native apps without admitting other project apps', async () => {
+  const verifier = verifiers.createFirebaseAppCheck({ projectNumber: '1234', appId: 'web-app', appIds: ['ios-app'], keySet: keys });
+  const payload = { sub: 'ios-app', aud: ['projects/1234'], iss: 'https://firebaseappcheck.googleapis.com/1234', iat: now - 5, exp: now + 3600 };
+  const header = { alg: 'RS256', kid: 'fixture-key', typ: 'JWT' };
+  for (const sub of ['web-app', 'ios-app']) assert.equal((await verifier.verifyToken(await sign({ ...payload, sub }, privateKey, header))).sub, sub);
+  for (const patch of [{ sub: 'another-ios-app' }, { aud: ['projects/9999'] }, { iss: 'https://firebaseappcheck.googleapis.com/9999' }, { exp: now - 10 }]) {
+    await assert.rejects(verifier.verifyToken(await sign({ ...payload, ...patch }, privateKey, header)));
+  }
+  assert.throws(() => verifiers.createFirebaseAppCheck({ projectNumber: '1234', appId: 'web-app', appIds: [''], keySet: keys }));
+  assert.throws(() => verifiers.createFirebaseAppCheck({ projectNumber: '1234', appId: 'web-app', appIds: 'ios-app', keySet: keys }));
+});
+

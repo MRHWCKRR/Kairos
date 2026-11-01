@@ -1,0 +1,19 @@
+name: Native App Check compatibility
+on:
+  pull_request:
+    paths: [cloudflare/firebase-auth.js, cloudflare/firebase-services.js, tests/cloudflare-firebase-auth.test.mjs, wrangler.jsonc, .github/workflows/native-app-check.yml]
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: node --test tests/cloudflare-firebase-auth.test.mjs
+      - run: npm test
+      - run: npm run check
