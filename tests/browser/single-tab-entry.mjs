@@ -5,7 +5,7 @@ const check=(value,message)=>{if(!value)throw Error(message);};
 const wait=async(predicate,label)=>{for(let i=0;i<300;i++){if(predicate())return;await new Promise(resolve=>setTimeout(resolve,10));}throw Error('Timed out: '+label);};
 const frames=[];
 function frame(id){const element=document.createElement('iframe');element.title='Workspace '+id;element.src='/__tab.html?id='+id;element.style='width:640px;height:460px';document.body.appendChild(element);frames.push(element);return element;}
-const started=frame=>frame.contentDocument?.documentElement.dataset.workspaceStarted==='true';
+const started=frame=>frame.contentDocument?.documentElement?.dataset.workspaceStarted==='true';
 const blocked=frame=>frame.contentDocument?.getElementById('workspace-tab-gate')?.dataset.reason==='blocked';
 try{
  if(new URL(location.href).searchParams.has('guard-missing')){
