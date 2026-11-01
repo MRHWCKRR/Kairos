@@ -1,0 +1,4 @@
+.planner-sync-status { display:flex; align-items:center; gap:8px; margin-right:16px; color:var(--text-muted,#9ca3af); font-size:12px; }
+.planner-sync-status[hidden] { display:none; }
+.planner-sync-status button { padding:3px 5px; border:0; background:transparent; color:var(--text-primary,#eee); font:inherit; text-decoration:underline; cursor:pointer; }
+.planner-sync-status button:focus-visible { outline:2px solid var(--text-primary,#eee); outline-offset:2px; }

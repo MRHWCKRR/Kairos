@@ -1,3 +1,4 @@
+import {mountSyncStatus,plannerSyncSources} from './sync-status.js?v=1';
 import {createPlannerPersistence} from './app-planner-persistence.js?v=1';
 import {createSettingsForm} from './app-settings-form.js?v=1';
 import {cloneDeep,deepMerge,defaultSettings} from './app-settings-model.js?v=1';
@@ -3424,6 +3425,7 @@ function bootApp() {
         openTask:openTaskDetailsFromList,requestClose:()=>taskDetails?.requestClose?.()??true,navigate:page=>pageRouter.navigate(page),setScheduleDate:date=>window.__kairosScheduleBridge?.setScheduleDate(date),selectOccurrence:target=>window.__kairosScheduleWorkspace?.selectOccurrence?.(target),selectItem:(kind,id)=>window.__kairosScheduleWorkspace?.selectItem?.(kind,id)
     });
     dashboardController.mount();
+    mountSyncStatus({root:document.getElementById('planner-sync-status'),window,getOwnerId:()=>globalSearchIdentity().ownerId,sources:plannerSyncSources({mutations:plannerMutations,settings:settingsSync,persistence:plannerPersistence,navigate:page=>pageRouter.navigate(page)})});
     renderApp();
     renderAchievementsPage();
     renderGoalSelects();

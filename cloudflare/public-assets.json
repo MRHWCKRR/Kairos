@@ -1,5 +1,7 @@
 {
   "files": [
+    "sync-status.js",
+    "sync-status.css",
     "app-single-tab.js",
     "app-single-tab.css",
     "event-reminders.js",
