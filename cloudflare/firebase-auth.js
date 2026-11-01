@@ -4,8 +4,10 @@ import { createRemoteJWKSet, jwtVerify } from 'jose';
 const googleKeys = createRemoteJWKSet(new URL('https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com'), { timeoutDuration: 10000 });
 const appCheckKeys = createRemoteJWKSet(new URL('https://firebaseappcheck.googleapis.com/v1/jwks'), { timeoutDuration: 10000, cacheMaxAge: 6 * 3600000 });
 
-export function createFirebaseAppCheck({ projectNumber, appId, keySet = appCheckKeys }) {
+export function createFirebaseAppCheck({ projectNumber, appId, appIds = [], keySet = appCheckKeys }) {
   if (!/^\d+$/.test(projectNumber || '') || !appId) throw Error('App Check configuration is required.');
+  if (!Array.isArray(appIds) || appIds.some(id => typeof id !== 'string' || !id.trim())) throw Error('Invalid App Check app identities.');
+  const allowedApps = new Set([appId, ...appIds]);
   return {
     async verifyToken(token) {
       const { payload } = await jwtVerify(token, keySet, {
@@ -13,7 +15,7 @@ export function createFirebaseAppCheck({ projectNumber, appId, keySet = appCheck
         issuer: `https://firebaseappcheck.googleapis.com/${projectNumber}`,
         audience: `projects/${projectNumber}`, requiredClaims: ['exp', 'iat', 'sub']
       });
-      if (payload.sub !== appId || !Number.isFinite(payload.iat) || payload.iat > Math.floor(Date.now() / 1000)) throw Error('Invalid App Check claims.');
+      if (!allowedApps.has(payload.sub) || !Number.isFinite(payload.iat) || payload.iat > Math.floor(Date.now() / 1000)) throw Error('Invalid App Check claims.');
       return payload;
     }
   };
@@ -38,3 +40,4 @@ export function createFirebaseAuth({ projectId, keySet = googleKeys }) {
     }
   };
 }
+
