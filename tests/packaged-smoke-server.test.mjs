@@ -28,4 +28,6 @@ test('packaged smoke serves real asset bytes, blocks missing modules and never f
  assert.equal((await request('/__fixture/packaged-fixture/tasks',{method:'POST',body:'x'.repeat(270000)})).status,413);
  assert.equal((await request('/__fixture/unknown')).status,400);
  const host=(await request('/__planner-host.js')).text();assert.match(host,/0123456789abcdef/);assert.doesNotMatch(host,/@{2}VERSION/);
+ const tab=(await request('/__tab.html')).text();assert.match(tab,/<script type="importmap">/);assert.match(tab,/app-bootstrap\.js\?v=0123456789abcdef/);assert.match(tab,/app\.js\?v=0123456789abcdef/);assert.doesNotMatch(tab,/__smoke\.js/);
+ assert.match((await request('/__single-tab.html')).text(),/packaged-smoke-result/);
 });

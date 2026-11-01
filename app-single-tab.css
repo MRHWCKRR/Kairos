@@ -1,0 +1,13 @@
+.workspace-tab-gate {
+ position:fixed;inset:0;z-index:2147483647;
+ display:flex;align-items:center;justify-content:center;
+ overflow:auto;padding:32px;background:var(--bg-main,#0f0f0f);color:var(--text-primary,#f5f5f5);
+ font-family:var(--font-family,system-ui,sans-serif);
+}
+.workspace-tab-content {width:100%;max-width:440px;}
+.workspace-tab-brand {font-size:16px;font-weight:700;margin-bottom:32px;}
+.workspace-tab-content h1 {font-size:26px;line-height:1.25;letter-spacing:-.5px;margin:0 0 16px;}
+.workspace-tab-content h1:focus {outline:none;}
+.workspace-tab-content [data-tab-message] {font-size:15px;line-height:1.65;color:var(--text-muted,#929292);margin-bottom:28px;}
+.workspace-tab-content button {min-height:44px;}
+.workspace-tab-content button:focus-visible {outline:2px solid var(--text-primary,#f5f5f5);outline-offset:4px;}

@@ -11,8 +11,10 @@ export async function startPackagedServer({directory,blockedAsset=null}) {
  const entry=(await readFile(new URL('../tests/browser/packaged-smoke-entry.mjs',import.meta.url),'utf8')).replaceAll('@@VERSION@@',version);
  const host=(await readFile(new URL('../tests/browser/packaged-planner-host.mjs',import.meta.url),'utf8')).replaceAll('@@VERSION@@',version);
  const store=createPackagedFixtureStore(),failures=new Set();
- const shell=original.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,'').replace(/<link\b[^>]*href=["']https?:[^>]*>/gi,'')
-  .replace('</body>','<p id="packaged-smoke-result" data-result="pending">Starting packaged smoke.</p><script type="module" src="/__smoke.js"></script></body>');
+ const clean=original.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,'').replace(/<link\b[^>]*href=["']https?:[^>]*>/gi,'');
+ const shell=clean.replace('</body>','<p id="packaged-smoke-result" data-result="pending">Starting packaged smoke.</p><script type="module" src="/__smoke.js"></script></body>');
+ const tabShell=clean.replace('</body>','<script type="importmap">'+JSON.stringify({imports:{['/app.js?v='+version]:'/__tab-app.js'}})+'</script><script type="module" src="/app-bootstrap.js?v='+version+'"></script></body>');
+ const tabEntry=await readFile(new URL('../tests/browser/single-tab-entry.mjs',import.meta.url),'utf8');
  const requests=[];
  const handleRequest=async(request,response)=>{
   try {
@@ -35,6 +37,10 @@ export async function startPackagedServer({directory,blockedAsset=null}) {
     return;
    }
    if(name==='/__smoke.html'){response.setHeader('Content-Type','text/html; charset=utf-8');response.end(shell);return;}
+   if(name==='/__tab.html'){response.setHeader('Content-Type','text/html; charset=utf-8');response.end(tabShell);return;}
+   if(name==='/__tab-app.js'){response.setHeader('Content-Type','application/javascript; charset=utf-8');response.end('document.documentElement.dataset.workspaceStarted="true";document.documentElement.dataset.workspaceStarts=String(Number(document.documentElement.dataset.workspaceStarts||0)+1);');return;}
+   if(name==='/__single-tab.html'){response.setHeader('Content-Type','text/html; charset=utf-8');response.end('<!doctype html><html><head><title>Single workspace regression</title></head><body><p id="packaged-smoke-result" data-result="pending">Starting single-tab check.</p><script type="module" src="/__single-tab.js"></script></body></html>');return;}
+   if(name==='/__single-tab.js'){response.setHeader('Content-Type','application/javascript; charset=utf-8');response.end(tabEntry);return;}
    if(name==='/__smoke.js'){response.setHeader('Content-Type','application/javascript; charset=utf-8');response.end(entry);return;}
    if(name==='/__planner-host.js'){response.setHeader('Content-Type','application/javascript; charset=utf-8');response.end(host);return;}
    const target=path.resolve(directory,'.'+name);

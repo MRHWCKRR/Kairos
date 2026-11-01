@@ -45,10 +45,10 @@ test('signed-out and unverified accounts cannot load billing, and return targets
   f.controller.destroy();
 });
 test('legacy Plans and checkout return links redirect before loading the workspace',async()=>{
-  const source=await readFile(new URL('../app-bootstrap.js',import.meta.url),'utf8');
+  const source=(await readFile(new URL('../app-bootstrap.js',import.meta.url),'utf8')).replace(/import\('\.\/app-single-tab\.js\?v=\d+'\)/g,'importGuard()');
   for(const query of ['page=plans','billing=return','billing=canceled']) {
     let redirected='';const href='https://kairos.invalid/app.html?'+query;
-    vm.runInNewContext(source,{URL,window:{},document:{readyState:'complete'},location:{href,replace:url=>redirected=url}});
+    vm.runInNewContext(source,{URL,window:{},document:{readyState:'complete'},location:{href,replace:url=>redirected=url},importGuard:()=>assert.fail('Billing return must not load the workspace guard')});
     assert.equal(new URL(redirected).pathname,'/plans.html');
     if(query.startsWith('billing'))assert.equal(new URL(redirected).searchParams.get('billing'),query.split('=')[1]);
   }
