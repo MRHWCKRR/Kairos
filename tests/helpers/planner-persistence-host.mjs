@@ -1,10 +1,12 @@
 import vm from 'node:vm';
 import {createPlannerPersistence} from '../../app-planner-persistence.js';
+import {memoryStorage} from './memory-storage.mjs';
 /** Bind real persistence to legacy host fixtures without evaluating its source. */
 export function attachPlannerPersistence(context) {
  context.createPlannerPersistence=createPlannerPersistence;
+ context.plannerRecoveryStorage=memoryStorage();
  vm.runInContext(`
- const plannerPersistence=createPlannerPersistence({
+ const plannerPersistence=createPlannerPersistence({storage:plannerRecoveryStorage,
  writes:plannerWrites,getOwnerId:()=>auth.currentUser?.uid||null,getPlanId:()=>currentPlanDocId,
  getState:()=>({boards:boardsData,dayInsights,scheduleEvents:scheduleData,calendarSources:calendarSourcesData}),
  setState:state=>{boardsData=state.boards;dayInsights=state.dayInsights;scheduleData=state.scheduleEvents;calendarSourcesData=state.calendarSources},

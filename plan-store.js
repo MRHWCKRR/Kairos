@@ -83,6 +83,7 @@ export async function savePlannerEdits(planId, uid, base, local, options={}) {
     const ref = doc(db, 'study_plans', planId);
     return runTransaction(db, async transaction => {
         const snapshot = await transaction.get(ref);
+        if(options.requireExisting&&!snapshot.exists())throw Error('The planner is no longer available. Review the retained changes.');
         const data = ownedPlan(snapshot, uid);
         if(options.scheduleAvailability){const userSnapshot=await transaction.get(doc(db,'users',uid));assertScheduleAvailability(options.scheduleAvailability,userSnapshot.exists()?userSnapshot.data():{});}
         const merged = mergePlanEdits(planState(base), planState(local), planState(data));

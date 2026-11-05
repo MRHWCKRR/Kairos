@@ -1,0 +1,13 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {parseHTML} from 'linkedom';
+import {mountPlannerSaveFeedback} from '../planner-save-feedback.js';
+function fixture(){
+ const {document}=parseHTML('<section id="feedback"></section>');const window=new EventTarget();let state={ownerId:'one',pending:true,retained:true,canRetry:true,canDiscard:true},pending={id:'first',base:{boards:[]},local:{boards:[{id:'b',title:'<script>private</script>',sections:[]}]}};
+ let listener,retries=0,discarded,confirm=async()=>true;
+ const controller={state:()=>state,recovery:()=>pending,subscribe:fn=>{listener=fn;return()=>listener=null},retry:async()=>{retries++},discard:async id=>{discarded=id}};
+ const view=mountPlannerSaveFeedback({root:document.querySelector('section'),window,controller,getOwnerId:()=> 'one',confirmDiscard:(...args)=>confirm(...args)});
+ return {view,document,window,root:document.querySelector('section'),set(value){state={...state,...value};listener?.()},setPending(value){pending=value},setConfirm(fn){confirm=fn},get retries(){return retries},get discarded(){return discarded}};
+}
+test('recovery review shows safe change summaries and explicit retry',async()=>{const f=fixture();assert.equal(f.root.hidden,false);assert.match(f.root.textContent,/saved on this device/i);assert.match(f.root.textContent,/<script>private<\/script>/);assert.equal(f.root.querySelector('script'),null);f.root.querySelector('[data-planner-retry]').click();await new Promise(setImmediate);assert.equal(f.retries,1);f.view.dispose()});
+test('storage, busy, conflict and account states keep meaningful controls',()=>{const f=fixture();f.set({retained:false});assert.match(f.root.textContent,/keep this tab open/i);f.set({busy:true});assert.equal(f.root.querySelector('button').disabled,true);f.set({busy:false,conflict:true,message:'Saved planner changed.'});assert.match(f.root.textContent,/Saved planner changed/);f.set({ownerId:'two'});assert.equal(f.root.hidden,true);f.view.dispose()});
+test('discard requires confirmation and passes the exact reviewed recovery identity',async()=>{const f=fixture();f.setConfirm(async()=>false);f.root.querySelector('[data-planner-discard]').click();await new Promise(setImmediate);assert.equal(f.discarded,undefined);let resolve;f.setConfirm(()=>new Promise(yes=>resolve=yes));f.root.querySelector('[data-planner-discard]').click();f.setPending({id:'replacement'});resolve(true);await new Promise(setImmediate);assert.equal(f.discarded,'first');f.view.dispose()});
+test('disposing removes subscriptions and action listeners',async()=>{const f=fixture();f.view.dispose();f.root.querySelector('[data-planner-retry]').click();await new Promise(setImmediate);assert.equal(f.retries,0)});

@@ -27,12 +27,15 @@ export async function readChromePageResult({executable,profile,url,timeoutMs=450
   });
  }
  try{
-  await send('Browser.getVersion');const {targetId}=await send('Target.createTarget',{url});const {sessionId}=await send('Target.attachToTarget',{targetId,flatten:true});
+  await send('Browser.getVersion');let {targetId}=await send('Target.createTarget',{url});let {sessionId}=await send('Target.attachToTarget',{targetId,flatten:true});let reopened=0;
   while(Date.now()<deadline){
    try{
-    if(onPoll)await onPoll({send,sessionId});
+    if(onPoll&&(await onPoll({send,sessionId}))?.reopen){
+     await send('Target.closeTarget',{targetId});
+     ({targetId}=await send('Target.createTarget',{url}));({sessionId}=await send('Target.attachToTarget',{targetId,flatten:true}));reopened++;continue;
+    }
     const value=await send('Runtime.evaluate',{expression:'document.querySelector("#packaged-smoke-result")?.outerHTML',returnByValue:true},sessionId),markup=value.result?.value;
-    if(typeof markup==='string'&&/data-result="(?:passed|failed)"/.test(markup))return {markup,stderr};
+    if(typeof markup==='string'&&/data-result="(?:passed|failed)"/.test(markup))return {markup,stderr,reopened};
    }catch(error){if(!/execution context|cannot find context/i.test(error.message))throw error;}
    await new Promise(resolve=>setTimeout(resolve,pollMs));
   }

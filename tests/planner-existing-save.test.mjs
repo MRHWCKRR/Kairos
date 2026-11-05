@@ -1,0 +1,2 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {plannerFixture} from './helpers/planner-fixture.mjs';import {planState} from '../plan-merge.js';
+test('recovery save cannot recreate a planner deleted after the preflight read',async()=>{const f=await plannerFixture(null),base=planState({boards:[{id:'b',sections:[]}]}),local=planState({});await assert.rejects(f.context.savePlannerEdits('plan','one',base,local,{requireExisting:true}),/no longer|missing/i);assert.equal(f.writes.length,0)});

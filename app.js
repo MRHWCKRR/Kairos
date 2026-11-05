@@ -1,4 +1,5 @@
 import {mountSyncStatus,plannerSyncSources} from './sync-status.js?v=1';
+import {mountPlannerSaveFeedback} from './planner-save-feedback.js?v=1';
 import {createPlannerPersistence} from './app-planner-persistence.js?v=1';
 import {createSettingsForm} from './app-settings-form.js?v=1';
 import {cloneDeep,deepMerge,defaultSettings} from './app-settings-model.js?v=1';
@@ -2476,6 +2477,7 @@ function bootApp() {
                 await deleteUser(user);
 
                 settingsSync.clear(user.uid);
+                plannerPersistence.clear(user.uid);
                 localStorage.removeItem('kairos_settings_cache');
                 localStorage.removeItem('kairos_settings_cache_uid');
                 localStorage.removeItem('kairos_bedtime_fired');
@@ -3427,7 +3429,8 @@ function bootApp() {
         openTask:openTaskDetailsFromList,requestClose:()=>taskDetails?.requestClose?.()??true,navigate:page=>pageRouter.navigate(page),setScheduleDate:date=>window.__kairosScheduleBridge?.setScheduleDate(date),selectOccurrence:target=>window.__kairosScheduleWorkspace?.selectOccurrence?.(target),selectItem:(kind,id)=>window.__kairosScheduleWorkspace?.selectItem?.(kind,id)
     });
     dashboardController.mount();
-    mountSyncStatus({root:document.getElementById('planner-sync-status'),window,getOwnerId:()=>globalSearchIdentity().ownerId,sources:plannerSyncSources({mutations:plannerMutations,settings:settingsSync,persistence:plannerPersistence,navigate:page=>pageRouter.navigate(page)})});
+    const plannerSaveFeedback=mountPlannerSaveFeedback({root:document.getElementById('planner-save-feedback'),window,controller:plannerPersistence,getOwnerId:()=>globalSearchIdentity().ownerId,confirmDiscard:message=>confirmDialog(message,{confirmText:'Discard changes'})});
+    mountSyncStatus({root:document.getElementById('planner-sync-status'),window,getOwnerId:()=>globalSearchIdentity().ownerId,sources:plannerSyncSources({mutations:plannerMutations,settings:settingsSync,persistence:plannerPersistence,navigate:page=>pageRouter.navigate(page),reviewPlanner:()=>plannerSaveFeedback.open()})});
     renderApp();
     renderAchievementsPage();
     renderGoalSelects();

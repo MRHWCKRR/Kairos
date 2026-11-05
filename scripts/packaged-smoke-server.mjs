@@ -11,6 +11,7 @@ export async function startPackagedServer({directory,blockedAsset=null}) {
  const entry=(await readFile(new URL('../tests/browser/packaged-smoke-entry.mjs',import.meta.url),'utf8')).replaceAll('@@VERSION@@',version);
  const host=(await readFile(new URL('../tests/browser/packaged-planner-host.mjs',import.meta.url),'utf8')).replaceAll('@@VERSION@@',version);
  const offlineEntry=(await readFile(new URL('../tests/browser/offline-planner-entry.mjs',import.meta.url),'utf8')).replaceAll('@@VERSION@@',version);
+ const recoveryEntry=(await readFile(new URL('../tests/browser/durable-planner-entry.mjs',import.meta.url),'utf8')).replaceAll('@@VERSION@@',version);
  let held=null;
  const store=createPackagedFixtureStore(),failures=new Set();
  const clean=original.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,'').replace(/<link\b[^>]*href=["']https?:[^>]*>/gi,'');
@@ -25,14 +26,15 @@ export async function startPackagedServer({directory,blockedAsset=null}) {
    if(name.startsWith('/__fixture/')){
     response.setHeader('Content-Type','application/json');
     try{
-     const [,owner,action]=name.match(/^\/__fixture\/([^/]+)(?:\/(tasks|settings))?$/)||[];
+     const [,owner,action]=name.match(/^\/__fixture\/([^/]+)(?:\/(tasks|settings|planner))?$/)||[];
      if(!owner)throw Error('Unknown fixture endpoint.');
      if(request.method==='GET'&&!action){response.end(JSON.stringify(store.read(owner)));return;}
      if(request.method!=='POST'||!action)throw Error('Invalid fixture request.');
      let body='';for await(const chunk of request){body+=chunk;if(Buffer.byteLength(body)>262144){response.statusCode=413;response.end(JSON.stringify({error:'Fixture body too large.'}));return;}}
      const value=JSON.parse(body),fault=request.headers?.['x-fixture-failure'];
      if(action==='settings'&&fault==='before-settings'&&!failures.has(fault)){failures.add(fault);response.statusCode=503;response.end(JSON.stringify({error:'Simulated settings outage.'}));return;}
-     const result=action==='tasks'?store.commit(owner,value):store.saveSettings(owner,value);
+     const result=action==='tasks'?store.commit(owner,value):action==='planner'?store.savePlanner(owner,value):store.saveSettings(owner,value);
+     if(action==='planner'&&fault==='after-planner'&&!failures.has(fault)){failures.add(fault);response.statusCode=503;response.end(JSON.stringify({error:'Lost planner acknowledgement.'}));return;}
      // Changing Chrome's offline setting does not reliably terminate a request
      // already in flight. Close this committed request's socket after the driver
      // applies offline mode, so its acknowledgement is genuinely lost.
@@ -48,6 +50,8 @@ export async function startPackagedServer({directory,blockedAsset=null}) {
    if(name==='/__smoke.html'){response.setHeader('Content-Type','text/html; charset=utf-8');response.end(shell);return;}
    if(name==='/__offline.html'){response.setHeader('Content-Type','text/html; charset=utf-8');response.end(shell.replace('/__smoke.js','/__offline.js'));return;}
    if(name==='/__offline.js'){response.setHeader('Content-Type','application/javascript; charset=utf-8');response.end(offlineEntry);return;}
+   if(name==='/__recovery.html'){response.setHeader('Content-Type','text/html; charset=utf-8');response.end(shell.replace('/__smoke.js','/__recovery.js'));return;}
+   if(name==='/__recovery.js'){response.setHeader('Content-Type','application/javascript; charset=utf-8');response.end(recoveryEntry);return;}
    if(name==='/__tab.html'){response.setHeader('Content-Type','text/html; charset=utf-8');response.end(tabShell);return;}
    if(name==='/__tab-app.js'){response.setHeader('Content-Type','application/javascript; charset=utf-8');response.end('document.documentElement.dataset.workspaceStarted="true";document.documentElement.dataset.workspaceStarts=String(Number(document.documentElement.dataset.workspaceStarts||0)+1);');return;}
    if(name==='/__single-tab.html'){response.setHeader('Content-Type','text/html; charset=utf-8');response.end('<!doctype html><html><head><title>Single workspace regression</title></head><body><p id="packaged-smoke-result" data-result="pending">Starting single-tab check.</p><script type="module" src="/__single-tab.js"></script></body></html>');return;}

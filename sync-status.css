@@ -2,3 +2,11 @@
 .planner-sync-status[hidden] { display:none; }
 .planner-sync-status button { padding:3px 5px; border:0; background:transparent; color:var(--text-primary,#eee); font:inherit; text-decoration:underline; cursor:pointer; }
 .planner-sync-status button:focus-visible { outline:2px solid var(--text-primary,#eee); outline-offset:2px; }
+.planner-save-feedback { margin:0 24px 16px; padding:12px 0; border-bottom:1px solid var(--border-color,#3a3a3a); font-size:13px; }
+.planner-save-feedback[hidden] { display:none; }
+.planner-save-feedback h3 { margin:0 0 6px; font-size:14px; }
+.planner-save-feedback p { margin:4px 0; }
+.planner-save-feedback ul { max-height:160px; overflow:auto; padding-left:20px; overflow-wrap:anywhere; }
+.planner-save-feedback button { margin:6px 12px 0 0; padding:6px 10px; border:1px solid var(--border-color,#555); background:var(--bg-tertiary,#292929); color:inherit; font:inherit; cursor:pointer; }
+.planner-save-feedback button:disabled { opacity:.6; cursor:default; }
+.planner-save-feedback button:focus-visible { outline:2px solid var(--text-primary,#eee); outline-offset:2px; }
