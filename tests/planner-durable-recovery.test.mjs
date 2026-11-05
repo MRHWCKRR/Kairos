@@ -1,7 +1,7 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import {createPlannerPersistence} from '../app-planner-persistence.js';
 import {createPlannerWrites} from '../app-planner-writes.js';
-import {planState,mergePlanEdits} from '../plan-merge.js';
+import {planState,mergePendingPlanEdits} from '../plan-merge.js';
 const seed=()=>planState({boards:[{id:'b',title:'Original',sections:[{id:'s',title:'Section',tasks:[]}]}]});
 const memory=()=>{const data=new Map();return {data,getItem:key=>data.get(key)||null,setItem:(key,value)=>data.set(key,value),removeItem:key=>data.delete(key)}};
 function fixture({storage=memory(),backend={plan:seed(),id:'plan',exists:true,attempts:0,writes:0},owner='one'}={}){
@@ -10,7 +10,7 @@ function fixture({storage=memory(),backend={plan:seed(),id:'plan',exists:true,at
  const controller=createPlannerPersistence({storage,writes,getOwnerId:()=>user,getPlanId:()=>id,getState:()=>live,setState:value=>live=value,setIdentity:(_owner,plan)=>id=plan,
   readPlans:async()=>{if(readFailure)throw Error('offline read');return backend.exists?[{docId:backend.id,...structuredClone(backend.plan)}]:[]},
   initialize:async()=>{initializes++;backend.exists=true;backend.id='plan-'+user;backend.plan=planState({})},migrate:plan=>plan.boards,normalizeBoards:value=>value,
-  saveEdits:async(plan,_owner,base,local,options)=>{backend.attempts++;backend.options=options;if(backend.pause)await backend.pause();if(backend.fail)throw Error('offline');assert.equal(plan,backend.id);if(!backend.exists)throw Error('Planner missing');backend.plan=mergePlanEdits(base,local,backend.plan);backend.writes++;if(backend.failAfter)throw Error('Lost acknowledgement');return structuredClone(backend.plan)}
+  saveEdits:async(plan,_owner,base,local,options)=>{backend.attempts++;backend.options=options;if(backend.pause)await backend.pause();if(backend.fail)throw Error('offline');assert.equal(plan,backend.id);if(!backend.exists)throw Error('Planner missing');backend.plan=mergePendingPlanEdits(base,local,backend.plan,options.recoveryAttempt);backend.writes++;if(backend.failAfter)throw Error('Lost acknowledgement');return structuredClone(backend.plan)}
  });
  return {controller,writes,storage,backend,get live(){return live},get initializes(){return initializes},setOwner(next){user=next;writes.setOwner(next)},setReadFailure(value){readFailure=value},setPlan(next){id=next}};
 }
@@ -59,7 +59,7 @@ test('edits during an in-flight save remain durable across reopening',async()=>{
  f.live.boards[0].title='Second';const queued=f.controller.save();f.backend.pause=null;release();assert.equal(await work,true);assert.equal(await queued,true);assert.equal(f.backend.plan.boards[0].title,'Second');assert.equal(f.storage.data.size,0);
 });
 test('save policy options survive a failed save and reopening',async()=>{
- const f=fixture(),options={scheduleAvailability:{timezone:'UTC',weeklyAvailability:null}};f.backend.fail=true;f.live.boards[0].title='Pending';await f.controller.save(options);const reopened=fixture(f);await reopened.controller.load({uid:'one'});f.backend.fail=false;await reopened.controller.retry();assert.deepEqual(f.backend.options,{...options,requireExisting:true});
+ const f=fixture(),options={scheduleAvailability:{timezone:'UTC',weeklyAvailability:null}};f.backend.fail=true;f.live.boards[0].title='Pending';await f.controller.save(options);const reopened=fixture(f);await reopened.controller.load({uid:'one'});f.backend.fail=false;await reopened.controller.retry();assert.deepEqual(f.backend.options.scheduleAvailability,options.scheduleAvailability);assert.equal(f.backend.options.requireExisting,true);
 });
 test('invalid and externally replaced recovery records fail closed',async()=>{
  const f=fixture();f.backend.fail=true;f.live.boards[0].title='Pending';await f.controller.save();const key=[...f.storage.data.keys()][0];f.storage.data.set(key,'invalid');f.backend.fail=false;assert.equal(await f.controller.retry(),false);assert.equal(f.backend.attempts,1);assert.equal(f.storage.data.get(key),'invalid');
@@ -91,4 +91,8 @@ test('deletion or revert after an uncertain in-flight save survives reopening',a
   assert.equal(reopened.live.boards.some(b=>b.id==='later-deleted'),false);assert.equal(reopened.live.boards[0].title,'Original');
   f.backend.failAfter=false;assert.equal(await reopened.controller.retry(),true);assert.equal(f.backend.plan.boards.some(b=>b.id==='later-deleted'),false);assert.equal(f.backend.plan.boards[0].title,'Original');
  }
+});
+test('a canceled uncertain create stays pending until an explicit transaction confirms the cancellation',async()=>{
+ const f=fixture();f.backend.fail=true;f.live.boards.push({id:'uncertain',title:'Uncertain',sections:[]});await f.controller.save();f.live.boards.pop();await f.controller.save();
+ const reopened=fixture(f);await reopened.controller.load({uid:'one'});assert.equal(reopened.controller.state().pending,true,'the earlier request may still commit after this read');f.backend.fail=false;assert.equal(await reopened.controller.retry(),true);assert.equal(f.backend.plan.boards.some(b=>b.id==='uncertain'),false);
 });

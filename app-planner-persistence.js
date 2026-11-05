@@ -1,4 +1,4 @@
-import {planState,mergePlanEdits,stableStringify} from './plan-merge.js?v=1';
+import {planState,mergePlanEdits,mergePendingPlanEdits,stableStringify} from './plan-merge.js?v=1';
 import {createPlannerSaveRecovery} from './planner-save-recovery.js?v=1';
 
 /** One owner for ordinary saves, their confirmed baseline and durable recovery. */
@@ -29,22 +29,22 @@ export function createPlannerPersistence({writes,getOwnerId,getPlanId,getState,s
   const r=currentRecord();if(!r.ownerId||r.blocked||r.pending&&!r.live&&!internal)return false;
   if(r.pending&&!scope(r)){r.conflict=true;r.blocked=true;r.message='The planner changed. Review the pending changes.';notify(r);return false;}
   writes.markEdit();r.live=true;
-  try{if(!stageLive(r,options)){notify(r);return false;}}catch(error){fail(r,error);return false;}
+  try{if(!(internal?retain(r,r.pending):stageLive(r,options))){notify(r);return false;}}catch(error){fail(r,error);return false;}
   if((r.action||r.conflict)&&!internal){notify(r);return false;}
   r.count++;notify(r);
   try{return await writes.enqueue(async()=>{
    if(!current(r))throw Error('The signed-in account changed.');
    if(!r.pending)return true;
    if(!scope(r)||r.blocked)throw Error('The planner changed. Review the pending changes.');
-   if(r.pending.attempt)throw Error('A previous planner save is unconfirmed. Review and retry it before submitting another save.');
+   if(r.pending.attempt&&!internal)throw Error('A previous planner save is unconfirmed. Review and retry it before submitting another save.');
    // Retain the actual live collections at the network boundary, including a
    // newer queued submission, without advancing the confirmed merge baseline.
-   if(!stageLive(r))throw Error(r.message);
-   if(!retain(r,{...r.pending,attempt:{base:r.pending.base,local:r.pending.local}}))throw Error(r.message);
+   if(!internal&&!stageLive(r))throw Error(r.message);
+   if(!retain(r,{...r.pending,attempt:r.pending.attempt||{base:r.pending.base,local:r.pending.local}}))throw Error(r.message);
    const attempt=structuredClone(r.pending),expectedPlan=getPlanId();
    if(!expectedPlan){if(!attempt.newPlan)throw Error('The planner is no longer available.');await initialize(r.ownerId);}
    if(!current(r)||!scope(r))throw Error('The signed-in account or planner changed.');
-   const saved=await saveEdits(attempt.planId,r.ownerId,attempt.base,attempt.local,{...attempt.options,requireExisting:true});
+   const saved=await saveEdits(attempt.planId,r.ownerId,attempt.base,attempt.local,{...attempt.options,requireExisting:true,recoveryAttempt:attempt.attempt});
    if(!current(r)||!scope(r))throw Error('The signed-in account or planner changed.');
    const live=planState(getState()),rebased=mergePlanEdits(attempt.local,live,saved),remoteChanges=!same(rebased,live),before=writes.snapshot;
    if(same(rebased,saved)){recoveryStore.clear(r.ownerId,r.raw);r.raw=null;r.pending=null;r.retained=false;r.saved=true;r.message='Saved';}
@@ -70,8 +70,10 @@ export function createPlannerPersistence({writes,getOwnerId,getPlanId,getState,s
    // flight. Collapsing these into one baseline loses create/delete and revert
    // intent when the first write committed without an acknowledgement.
    const intermediate=pending.attempt?mergePlanEdits(pending.attempt.base,pending.attempt.local,remote.data):null;
-   const merged=pending.attempt?mergePlanEdits(pending.attempt.local,pending.local,intermediate):mergePlanEdits(pending.base,pending.local,remote.data);
-   if(same(merged,remote.data)){recoveryStore.clear(r.ownerId,r.raw);r.raw=null;r.pending=null;r.retained=false;r.saved=true;r.message='Saved';}
+   const merged=mergePendingPlanEdits(pending.base,pending.local,remote.data,pending.attempt);
+   const uncertain=pending.attempt&&!same(pending.attempt.local,pending.local)&&!same(intermediate,remote.data);
+   if(uncertain)retain(r,pending);
+   else if(same(merged,remote.data)){recoveryStore.clear(r.ownerId,r.raw);r.raw=null;r.pending=null;r.retained=false;r.saved=true;r.message='Saved';}
    else {const {attempt:confirmed,...remaining}=pending;retain(r,{...remaining,base:remote.data,local:merged,newPlan:!remote.id});}
    r.conflict=false;publish(r,remote,merged);
   }catch(error){r.conflict=true;r.message='Saved planner changes conflict with these pending edits. Review them before retrying.';publish(r,remote,pending.local);}

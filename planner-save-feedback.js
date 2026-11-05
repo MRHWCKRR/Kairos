@@ -12,7 +12,7 @@ export function mountPlannerSaveFeedback({root,window=globalThis.window,controll
   retention.textContent=state.retained?'Pending edits are saved on this device.':'Pending edits could not be saved on this device. Keep this tab open.';
   retry.disabled=state.busy||state.canRetry===false;discard.disabled=state.busy||confirming||state.canDiscard===false;
   const record=controller.recovery();list.replaceChildren();
-  if(record)try{const rows=plannerChangeRows(record.base,record.local);for(const row of rows.slice(0,12)){const item=document.createElement('li');item.textContent=row.title+' · '+row.field+': '+row.before+' → '+row.after;list.append(item);}if(rows.length>12){const item=document.createElement('li');item.textContent=(rows.length-12)+' more pending changes.';list.append(item);}}catch{const item=document.createElement('li');item.textContent='Pending planner edits are retained for review.';list.append(item);}
+  if(record)try{let rows=plannerChangeRows(record.base,record.local);if(!rows.length&&record.attempt)rows=plannerChangeRows(record.attempt.local,record.local);for(const row of rows.slice(0,12)){const item=document.createElement('li');item.textContent=row.title+' · '+row.field+': '+row.before+' → '+row.after;list.append(item);}if(rows.length>12){const item=document.createElement('li');item.textContent=(rows.length-12)+' more pending changes.';list.append(item);}}catch{const item=document.createElement('li');item.textContent='Pending planner edits are retained for review.';list.append(item);}
  }
  async function retrySave(){if(!disposed&&!retry.disabled)await controller.retry();}
  async function discardChanges(){

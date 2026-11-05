@@ -10,7 +10,7 @@ import {assertScheduleAvailability} from './schedule-planning-availability.js?v=
 import {assertSavedAvailability} from './weekly-availability.js?v=4';
 import { db } from './firebase.js?v=2';
 import { doc, getDoc, runTransaction, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
-import { mergePlanEdits, planState, stableStringify } from './plan-merge.js?v=1';
+import { mergePlanEdits, mergePendingPlanEdits, planState, stableStringify } from './plan-merge.js?v=1';
 import {validateAssignmentOrderChanges} from './assignment-order.js?v=5';
 import { applyTaskListCommand, taskListFingerprint } from './task-list-model.js?v=28';
 import {completedScheduleChanges,assertCompletedScheduleChanges} from './schedule-policy.js?v=5';
@@ -86,7 +86,7 @@ export async function savePlannerEdits(planId, uid, base, local, options={}) {
         if(options.requireExisting&&!snapshot.exists())throw Error('The planner is no longer available. Review the retained changes.');
         const data = ownedPlan(snapshot, uid);
         if(options.scheduleAvailability){const userSnapshot=await transaction.get(doc(db,'users',uid));assertScheduleAvailability(options.scheduleAvailability,userSnapshot.exists()?userSnapshot.data():{});}
-        const merged = mergePlanEdits(planState(base), planState(local), planState(data));
+        const merged = mergePendingPlanEdits(planState(base), planState(local), planState(data), options.recoveryAttempt);
         if(completedScheduleChanges(planState(data),merged)){const userSnapshot=await transaction.get(doc(db,'users',uid));assertCompletedScheduleChanges(planState(data),merged,userSnapshot.data()?.settings?.planning?.rescheduleCompleted===true);}
         if((merged.calendarSources||[]).length){const userSnapshot=await transaction.get(doc(db,'users',uid));assertCalendarTimezones(planState(data),merged,userSnapshot.data()?.settings?.profile?.timezone);}
         validateAssignmentOrderChanges(planState(data),merged);

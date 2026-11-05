@@ -1,5 +1,5 @@
 import {applyTaskListCommand} from '../task-list-model.js';
-import {planState,stableStringify,mergePlanEdits} from '../plan-merge.js';
+import {planState,stableStringify,mergePendingPlanEdits} from '../plan-merge.js';
 import {assertPlannerValue} from '../planner-value-contract.js';
 import {defaultSettings} from '../app-settings-model.js';
 
@@ -22,6 +22,6 @@ export function createPackagedFixtureStore({date=new Date().toISOString().slice(
    return structuredClone(applied.result);
   },
   saveSettings(owner,settings){const data=record(owner);assertPlannerValue(settings);data.settings=structuredClone(settings);return structuredClone(data.settings)},
-  savePlanner(owner,{base,local}){const data=record(owner),merged=mergePlanEdits(base,local,data.planner);assertPlannerValue(merged);data.planner=structuredClone(merged);data.plannerWrites=(data.plannerWrites||0)+1;return structuredClone(merged)}
+  savePlanner(owner,{base,local,options}){const data=record(owner),merged=mergePendingPlanEdits(base,local,data.planner,options?.recoveryAttempt);assertPlannerValue(merged);data.planner=structuredClone(merged);data.plannerWrites=(data.plannerWrites||0)+1;return structuredClone(merged)}
  };
 }
