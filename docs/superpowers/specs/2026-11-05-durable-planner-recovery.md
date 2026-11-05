@@ -6,6 +6,8 @@ Use a focused local recovery module and extend the existing ordinary persistence
 
 Restore records during planner loading, merge unrelated confirmed remote changes, and retain conflicting edits for review. A confirmed remote state already containing all submitted changes clears recovery without another write. Never replay automatically. Never apply a record to another account or planner. Missing/replaced planners require review and must not be recreated by a retry. Account deletion removes the owner's recovery record.
 
+Preserve any uncertain in-flight attempt separately from newer edits: a later deletion or revert must not disappear when the earlier write committed without an acknowledgement. Confirm restore/discard decisions with a server-only Firestore query; offline cached query results are not confirmation.
+
 Review uses a small existing-style feedback panel with pending change summaries, Retry and confirmed Discard. Discard loads the last confirmed planner; a failed discard read leaves recovery intact. No force overwrite. LocalStorage records may contain planner data just as existing task/settings recovery does. Do not show private content in the global status label.
 
 Approach considered: migrating every older UI handler to task commands is broader and changes unrelated behavior; using Firestore automatic offline writes obscures explicit conflict handling. Reuse the current three-way merge and queue, adding durable retention and explicit review.

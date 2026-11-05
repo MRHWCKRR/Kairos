@@ -80,3 +80,15 @@ test('account transition immediately notifies recovery subscribers',async()=>{
 test('malformed nested recovery cannot publish invalid planner collections',async()=>{
  const f=fixture();f.backend.fail=true;f.live.boards[0].title='Pending';await f.controller.save();const key=[...f.storage.data.keys()][0],record=JSON.parse(f.storage.data.get(key));record.local.boards=[null];f.storage.data.set(key,JSON.stringify(record));const reopened=fixture(f);await reopened.controller.load({uid:'one'});assert.equal(reopened.controller.recovery(),null);assert.equal(reopened.controller.state().conflict,true);assert.equal(reopened.live.boards[0].title,'Original');
 });
+test('deletion or revert after an uncertain in-flight save survives reopening',async()=>{
+ for(const mode of ['create-delete','edit-revert']){
+  const f=fixture();let release;f.backend.pause=()=>new Promise(resolve=>release=resolve);f.backend.failAfter=true;
+  if(mode==='create-delete')f.live.boards.push({id:'later-deleted',title:'Temporary',sections:[]});else f.live.boards[0].title='Temporary';
+  const first=f.controller.save();await new Promise(setImmediate);
+  if(mode==='create-delete')f.live.boards.pop();else f.live.boards[0].title='Original';
+  const next=f.controller.save();f.backend.pause=null;release();assert.equal(await first,false);await next;
+  const reopened=fixture(f);await reopened.controller.load({uid:'one'});assert.equal(reopened.controller.state().pending,true,'later intent must not be acknowledged as already saved');
+  assert.equal(reopened.live.boards.some(b=>b.id==='later-deleted'),false);assert.equal(reopened.live.boards[0].title,'Original');
+  f.backend.failAfter=false;assert.equal(await reopened.controller.retry(),true);assert.equal(f.backend.plan.boards.some(b=>b.id==='later-deleted'),false);assert.equal(f.backend.plan.boards[0].title,'Original');
+ }
+});

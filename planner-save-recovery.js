@@ -4,7 +4,8 @@ import {assertPlannerValue} from './planner-value-contract.js';
 const object=value=>value&&typeof value==='object'&&!Array.isArray(value);
 function validate(record,owner){
  if(record?.version!==1||record.ownerId!==owner||typeof record.id!=='string'||!record.id||typeof record.planId!=='string'||!record.planId||record.planId.includes('/')||typeof record.newPlan!=='boolean'||!object(record.options))throw Error('Invalid planner recovery data.');
- for(const state of [record.base,record.local])if(!object(state)||!Array.isArray(state.boards)||!Array.isArray(state.scheduleEvents)||!Array.isArray(state.calendarSources)||!object(state.dayInsights)||stableStringify(planState(state))!==stableStringify(state))throw Error('Invalid planner recovery data.');
+ if(record.attempt!==undefined&&!object(record.attempt))throw Error('Invalid planner recovery attempt.');
+ for(const state of [record.base,record.local,...(record.attempt?[record.attempt.base,record.attempt.local]:[])])if(!object(state)||!Array.isArray(state.boards)||!Array.isArray(state.scheduleEvents)||!Array.isArray(state.calendarSources)||!object(state.dayInsights)||stableStringify(planState(state))!==stableStringify(state))throw Error('Invalid planner recovery data.');
  assertPlannerValue(record);
 }
 export function createPlannerSaveRecovery(storage){

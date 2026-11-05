@@ -51,7 +51,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
 import {
     doc, setDoc, getDoc, onSnapshot, collection, addDoc, serverTimestamp,
-    query, where, orderBy, limit, getDocs, updateDoc, deleteDoc, runTransaction
+    query, where, orderBy, limit, getDocs, getDocsFromServer, updateDoc, deleteDoc, runTransaction
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 import { LANGUAGES, applyTranslations, getLocale, getLanguageName, t, ACHIEVEMENT_I18N } from './i18n.js';
 import { invalidateKairosContext } from './ai-context.js?v=25';
@@ -1216,7 +1216,7 @@ function bootApp() {
         getState:()=>({boards:boardsData,dayInsights,scheduleEvents:scheduleData,calendarSources:calendarSourcesData}),
         setState:state=>{boardsData=state.boards;dayInsights=state.dayInsights;scheduleData=state.scheduleEvents;calendarSourcesData=state.calendarSources},
         setIdentity:(ownerId,planId)=>{searchPlannerOwnerId=ownerId;currentPlanDocId=planId},
-        readPlans:async ownerId=>{const snapshot=await getDocs(query(collection(db,'study_plans'),where('userID','==',ownerId)));return snapshot.docs.map(item=>({docId:item.id,...item.data()}))},
+        readPlans:async ownerId=>{const snapshot=await getDocsFromServer(query(collection(db,'study_plans'),where('userID','==',ownerId)));return snapshot.docs.map(item=>({docId:item.id,...item.data()}))},
         initialize:initializePlanner,saveEdits:(...args)=>savePlannerEdits(...args),migrate:migrateToBoards,normalizeBoards:normalizeArchiveFields,
         onInvalidate:invalidateKairosContext,onSaved:()=>{globalSearchController?.sync();taskCaptureController?.sync();window.__kairosScheduleWorkspace?.invalidate()},
         onReminders:()=>{void window.__kairosTaskReminders?.check()},onRender:renderApp,onLoadComplete:markInitialLoadComplete,
