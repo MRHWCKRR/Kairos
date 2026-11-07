@@ -1,9 +1,9 @@
 // Read existing save owners; this view never queues or automatically replays work.
-export function plannerSyncSources({mutations,settings,persistence,navigate}){
+export function plannerSyncSources({mutations,settings,persistence,navigate,reviewPlanner}){
  return [
   {state:()=>{const s=mutations.state();return {ownerId:s.pendingIdentity?.ownerId||s.identity?.ownerId,busy:s.busy,pending:s.pending,retained:true,conflict:s.status==='conflict',status:s.status}},subscribe:fn=>mutations.subscribe(fn),review:()=>navigate('home-page')},
   {state:()=>{const s=settings.state();return {ownerId:s.ownerId,busy:!!s.saving,pending:!!s.pending,retained:s.pending?.persisted===true,status:s.status}},subscribe:fn=>settings.subscribe(fn),review:()=>navigate('settings-page')},
-  {state:()=>persistence.state(),subscribe:fn=>persistence.subscribe(fn),review:()=>persistence.retry(),retry:true}
+  {state:()=>persistence.state(),subscribe:fn=>persistence.subscribe(fn),review:reviewPlanner||(()=>persistence.retry()),retry:!reviewPlanner,priority:true}
  ];
 }
 
@@ -16,7 +16,7 @@ export function mountSyncStatus({root,window=globalThis.window,getOwnerId,source
  function sync(){
   if(disposed)return;
   const current=states(),offline=window.navigator?.onLine===false;
-  const pending=current.filter(s=>s.pending||s.busy),review=pending.find(s=>s.retained===false)||pending.find(s=>s.conflict)||pending[0];
+  const pending=current.filter(s=>s.pending||s.busy),review=pending.find(s=>s.source.priority)||pending.find(s=>s.retained===false)||pending.find(s=>s.conflict)||pending[0];
   let text='';action=null;button.hidden=true;button.textContent='';
   if(current.length){
    if(offline)text=pending.some(s=>s.retained===false)?'Offline — keep this tab open':pending.length?'Offline · changes pending':'Offline';

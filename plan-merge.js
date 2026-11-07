@@ -53,3 +53,12 @@ export function planState(data) {
         dayInsights: data.dayInsights || {}, scheduleEvents: data.scheduleEvents || [], calendarSources: data.calendarSources || []
     });
 }
+
+// Keep an uncertain submitted state and later edits as two separate changes.
+// Evaluate both against the transaction's actual remote state, so an inverse
+// edit still applies if the first request commits after a recovery preflight.
+export function mergePendingPlanEdits(base,local,remote,attempt){
+    if(!attempt)return mergePlanEdits(base,local,remote);
+    const submitted=mergePlanEdits(attempt.base,attempt.local,remote);
+    return mergePlanEdits(attempt.local,local,submitted);
+}

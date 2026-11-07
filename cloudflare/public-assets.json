@@ -1,5 +1,7 @@
 {
   "files": [
+    "planner-save-recovery.js",
+    "planner-save-feedback.js",
     "sync-status.js",
     "sync-status.css",
     "app-single-tab.js",

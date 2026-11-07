@@ -5,13 +5,15 @@ import {mountTaskCapture} from '/task-capture.js?v=@@VERSION@@';
 import {createSettingsSync} from '/settings-sync.js?v=@@VERSION@@';
 import {createSettingsForm} from '/app-settings-form.js?v=@@VERSION@@';
 import {defaultSettings,deepMerge} from '/app-settings-model.js?v=@@VERSION@@';
+import {createPlannerPersistence} from '/app-planner-persistence.js?v=@@VERSION@@';
+import {createPlannerWrites} from '/app-planner-writes.js?v=@@VERSION@@';
 
 export function createPackagedErrorLedger(storage){
  const key='packaged-runtime-errors',errors=JSON.parse(storage.getItem(key)||'[]');
  return {record(message){errors.push(String(message));storage.setItem(key,JSON.stringify(errors));},check(){if(errors.length)throw Error('Packaged runtime errors: '+errors.join('; '));}};
 }
 
-export async function createPackagedPlannerHost(){
+export async function createPackagedPlannerHost({ordinary=false}={}){
  const identity={ownerId:'packaged-fixture',planId:'fixture'};
  async function request(path='',body,fault){
   const response=await fetch('/__fixture/'+identity.ownerId+path,{method:body===undefined?'GET':'POST',headers:{'Content-Type':'application/json',...(fault?{'x-fixture-failure':fault}:{})},...(body===undefined?{}:{body:JSON.stringify(body)})});
@@ -20,6 +22,10 @@ export async function createPackagedPlannerHost(){
  const initial=await request();let data=initial.planner,applied=defaultSettings(),draft=defaultSettings(),details,workspace,failTask=false,failSettings=false,holdTask=false;
  const date=data.boards[0].sections[0].tasks[0].date,root=document.getElementById('tasks-page'),overview=document.getElementById('tasks-manager-container');
  const render=()=>workspace?.render();
+ let failPlanner=false;
+ const writes=createPlannerWrites(identity.ownerId);writes.snapshot=structuredClone(data);
+ const persistence=ordinary?createPlannerPersistence({writes,storage:localStorage,getOwnerId:()=>identity.ownerId,getPlanId:()=>identity.planId,getState:()=>data,setState:value=>{data=value},setIdentity(){},readPlans:async()=>[{docId:identity.planId,...(await request()).planner}],migrate:plan=>plan.boards,normalizeBoards:value=>value,saveEdits:async(_plan,_owner,base,local,options)=>{const fault=failPlanner?'after-planner':null;failPlanner=false;return(await request('/planner',{base,local,options},fault)).result},onRender:render}):null;
+ if(persistence)await persistence.load({uid:identity.ownerId});
  const session=createMutationSession({getIdentity:()=>identity,storage:localStorage,commit:async(command,expected,id)=>{
   const fault=holdTask?'hold-task':failTask?'after-task':null;failTask=false;holdTask=false;
   const saved=await request('/tasks',{command,expected,identity:id},fault);data=saved.planner;render();return saved.result;
@@ -39,7 +45,7 @@ export async function createPackagedPlannerHost(){
  const form=createSettingsForm({document,getDraft:()=>draft,setDraft:value=>{draft=value},getApplied:()=>applied,getUser:()=>({uid:identity.ownerId,email:'fixture@example.invalid',providerData:[]}),settingsSync:sync,onDirty:()=>sync.dirty(),onControlsRefresh(){},onSaveBar:refreshSaveBar,tr:key=>key,getLocale:()=> 'en',updateBrowserPushHint(){}});
  let saving=null;
  document.getElementById('settings-save-btn').addEventListener('click',()=>{saving=sync.save();});
- return {identity,date,session,capture,sync,form,request,getState:()=>data,getApplied:()=>applied,getDraft:()=>draft,getDetails:()=>details,getWorkspace:()=>workspace,getSaving:()=>saving,
+ return {identity,date,session,capture,sync,form,request,persistence,failNextPlannerAfter(){failPlanner=true},getState:()=>data,getApplied:()=>applied,getDraft:()=>draft,getDetails:()=>details,getWorkspace:()=>workspace,getSaving:()=>saving,
   failNextTask(){failTask=true},failNextSettings(){failSettings=true},holdNextTask(){holdTask=true},
   setupTaskDetails(module){details=module.mountTaskDetailPane({root,document,window,getOwnerId:()=>identity.ownerId,getPlanId:()=>identity.planId,getState:()=>data,getToday:()=>date,resolveTarget:target=>resolveTaskDetail(data,target),commit});},
   setupTaskWorkspace(module){workspace=module.mountTaskListWorkspace({root,overview,getState:()=>data,getOwnerId:()=>identity.ownerId,getPlanId:()=>identity.planId,getToday:()=>date,commit,requestCloseDetails:()=>details.requestClose()});},
