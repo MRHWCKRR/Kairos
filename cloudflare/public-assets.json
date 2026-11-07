@@ -216,7 +216,8 @@
     "app-planner-writes.js",
     "planner-value-contract.js",
     "app-planner-persistence.js",
-    "app-settings-form.js"
+    "app-settings-form.js",
+    "app-board-section-handlers.js"
   ],
   "directories": [
     "images",
@@ -225,3 +226,4 @@
     "cursors"
   ]
 }
+
