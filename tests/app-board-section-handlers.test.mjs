@@ -13,7 +13,7 @@ const initial=()=>planState({boards:[{id:'b',title:'Board',archived:false,sectio
 function fixture({storage=memoryStorage(),remote={state:initial()},planId='plan'}={}) {
  let state=initial(),owner='one',renders=0,fail=false,updates=0,creates=0,dialog=async()=> '  New name  ';
  const restored=[],writes=createPlannerWrites(owner);writes.snapshot=initial();
- const persistence=createPlannerPersistence({storage,writes,getOwnerId:()=>owner,getPlanId:()=>planId,getState:()=>state,setState:value=>{state=value},setIdentity:(_owner,id)=>{planId=id},readPlans:async()=>[{docId:'plan',...structuredClone(remote.state)}],migrate:p=>p.boards,normalizeBoards:b=>b,
+ const persistence=createPlannerPersistence({storage,writes,getOwnerId:()=>owner,getPlanId:()=>planId,getState:()=>state,setState:value=>{state=value},setIdentity:(_owner,id)=>{planId=id},readPlans:async()=>[{docId:'plan',...structuredClone(remote.state)}],migrate:p=>p.boards,normalizeBoards:b=>b,initialize:async()=>{},
   saveEdits:async(_id,_owner,base,local,options)=>{if(fail)throw Error('offline');remote.state=mergePendingPlanEdits(base,local,remote.state,options.recoveryAttempt);return structuredClone(remote.state)}});
  // Exercise the actual shell guards with controllable dialogs and identities.
  const source=readFileSync(new URL('../app.js',import.meta.url),'utf8');
@@ -30,7 +30,7 @@ function fixture({storage=memoryStorage(),remote={state:initial()},planId='plan'
  return {adapters,event,click:selector=>click(event(selector)),persistence,writes,remote,restored,storage,get state(){return state},get renders(){return renders},get updates(){return updates},get creates(){return creates},setFail:v=>{fail=v},setDialog:v=>{dialog=v},setOwner:v=>{owner=v;writes.setOwner(v)},setPlan:v=>{planId=v},replace:v=>{state=v}};
 }
 
-test('the shell delegates nested board clicks once and publishes the module as a public asset',async()=>{
+test('the shell delegates board clicks once and publishes the module as a public asset',async()=>{
  const f=fixture(),source=readFileSync(new URL('../app.js',import.meta.url),'utf8');let listener;
  runInNewContext(source.slice(source.indexOf('    const handleBoardSectionClick='),source.indexOf('    function updateRoutineStats()')),{
   ...f.adapters,createBoardSectionHandlers,get boardsData(){return f.state.boards},set boardsData(value){f.adapters.setBoards(value)},currentPlanDocId:'plan',document:{body:{addEventListener:(type,fn)=>{assert.equal(type,'click');listener=fn}},querySelector:()=>null}});
@@ -42,7 +42,7 @@ test('board and section names preserve trimming, one save and immediate renderin
  for(const [selector,read] of [['#add-board-btn',f=>f.state.boards.at(-1).title],['.board-rename-btn',f=>f.state.boards[0].title],['.add-section-btn',f=>f.state.boards[0].sections.at(-1).title],['.section-rename-btn',f=>f.state.boards[0].sections[0].title]]){
   const f=fixture();assert.equal(await f.click(selector),true);await f.writes.idle();assert.equal(read(f),'New name');assert.equal(f.updates,1);assert.equal(f.renders,1);assert.equal(f.persistence.state().status,'saved');
  }
- const f=fixture({planId:null});await f.click('#add-board-btn');assert.equal(f.creates,1);await f.writes.idle();
+ const f=fixture({planId:null});await f.click('#add-board-btn');assert.equal(f.creates,1);await f.writes.idle();assert.equal(f.persistence.state().status,'saved');
 });
 test('archive retains children; permanent deletion removes only its target',async()=>{
  for(const selector of ['.board-delete-btn','.section-delete-btn','.archive-delete-board-btn','.archive-delete-section-btn']){

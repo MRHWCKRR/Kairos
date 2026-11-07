@@ -3317,4 +3317,3 @@ function bootApp() {
     document.addEventListener("visibilitychange", () => { if (!document.hidden) checkPlanReminders(); });
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bootApp,{once:true});else bootApp();
-
