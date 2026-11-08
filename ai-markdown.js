@@ -1,5 +1,5 @@
 import { marked } from 'https://cdn.jsdelivr.net/npm/marked@15.0.7/+esm';
-import DOMPurify from 'https://cdn.jsdelivr.net/npm/dompurify@3.2.6/+esm';
+import DOMPurify from 'https://cdn.jsdelivr.net/npm/dompurify@3.4.17/+esm';
 
 marked.setOptions({ breaks: true, gfm: true });
 

@@ -28,6 +28,8 @@ jobs:
         run: npm test
       - name: Run planner journeys in a real browser
         run: node scripts/run-planner-browser-test.mjs
+      - name: Verify real CDN Markdown sanitizer and rendering
+        run: node scripts/run-markdown-browser-test.mjs
       - name: Run Cloudflare tests and build
         run: npm run build:cloudflare
       - name: Test packaged task/settings persistence, reload and module recovery over HTTP
