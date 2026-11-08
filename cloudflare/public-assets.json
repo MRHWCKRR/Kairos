@@ -217,7 +217,8 @@
     "planner-value-contract.js",
     "app-planner-persistence.js",
     "app-settings-form.js",
-    "app-board-section-handlers.js"
+    "app-board-section-handlers.js",
+    "app-task-archive-handlers.js"
   ],
   "directories": [
     "images",

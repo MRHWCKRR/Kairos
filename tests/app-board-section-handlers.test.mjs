@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {runInNewContext} from 'node:vm';
 import {createBoardSectionHandlers} from '../app-board-section-handlers.js';
+import {createTaskArchiveHandlers} from '../app-task-archive-handlers.js';
 import {createPlannerPersistence} from '../app-planner-persistence.js';
 import {createPlannerWrites} from '../app-planner-writes.js';
 import {planState,mergePendingPlanEdits} from '../plan-merge.js';
@@ -23,7 +24,7 @@ function fixture({storage=memoryStorage(),remote={state:initial()},planId='plan'
  const adapters={getBoards:()=>state.boards,setBoards:b=>{state.boards=b},getPlanId:()=>planId,findBoard:id=>state.boards.find(b=>b.id===id),findSection:id=>{for(const board of state.boards){const section=board.sections.find(s=>s.id===id);if(section)return {board,section}}},...guards,tr:key=>key,restoreArchived:async target=>{restored.push(target)},updatePlanInFirestore:save,savePlanToFirestore:()=>{creates++;return save()},renderApp:()=>renders++};
  const click=createBoardSectionHandlers(adapters);
  function event(selector) {
-  const container={getAttribute:name=>name==='data-board-id'?'b':'s'};
+  const container={getAttribute:name=>name==='data-board-id'?'b':name==='data-task-id'||name==='data-task'?'t':'s'};
   const button={getAttribute:container.getAttribute,closest:()=>container};
   return {target:{closest:match=>match===selector?button:null}};
  }
@@ -33,9 +34,9 @@ function fixture({storage=memoryStorage(),remote={state:initial()},planId='plan'
 test('the shell delegates board clicks once and publishes the module as a public asset',async()=>{
  const f=fixture(),source=readFileSync(new URL('../app.js',import.meta.url),'utf8');let listener;
  runInNewContext(source.slice(source.indexOf('    const handleBoardSectionClick='),source.indexOf('    function updateRoutineStats()')),{
-  ...f.adapters,createBoardSectionHandlers,get boardsData(){return f.state.boards},set boardsData(value){f.adapters.setBoards(value)},currentPlanDocId:'plan',document:{body:{addEventListener:(type,fn)=>{assert.equal(type,'click');listener=fn}},querySelector:()=>null}});
- await listener(f.event('.board-rename-btn'));await f.writes.idle();assert.equal(f.state.boards[0].title,'New name');assert.equal(f.updates,1);assert.equal(f.renders,1);
- const manifest=JSON.parse(readFileSync(new URL('../cloudflare/public-assets.json',import.meta.url),'utf8'));assert.ok(manifest.files.includes('app-board-section-handlers.js'));
+  ...f.adapters,createBoardSectionHandlers,createTaskArchiveHandlers,get boardsData(){return f.state.boards},set boardsData(value){f.adapters.setBoards(value)},currentPlanDocId:'plan',document:{body:{addEventListener:(type,fn)=>{assert.equal(type,'click');listener=fn}},querySelector:()=>null}});
+ await listener(f.event('.board-rename-btn'));await f.writes.idle();assert.equal(f.state.boards[0].title,'New name');assert.equal(f.updates,1);assert.equal(f.renders,1);await listener(f.event('.task-delete-btn'));await f.writes.idle();assert.equal(f.state.boards[0].sections[0].tasks[0].archived,true);assert.equal(f.updates,2);
+ const manifest=JSON.parse(readFileSync(new URL('../cloudflare/public-assets.json',import.meta.url),'utf8'));assert.ok(manifest.files.includes('app-board-section-handlers.js'));assert.ok(manifest.files.includes('app-task-archive-handlers.js'));
 });
 
 test('board and section names preserve trimming, one save and immediate rendering',async()=>{
