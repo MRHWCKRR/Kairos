@@ -79,6 +79,14 @@ function ownedPlan(snapshot, uid) {
     return data;
 }
 
+/**
+ * @param {string} planId
+ * @param {string} uid
+ * @param {import('./app-planner-persistence.js').PlannerState} base
+ * @param {import('./app-planner-persistence.js').PlannerState} local
+ * @param {import('./app-planner-persistence.js').PlannerSaveOptions} [options]
+ * @returns {Promise<import('./app-planner-persistence.js').PlannerState>}
+ */
 export async function savePlannerEdits(planId, uid, base, local, options={}) {
     const ref = doc(db, 'study_plans', planId);
     return runTransaction(db, async transaction => {
