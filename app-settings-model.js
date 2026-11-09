@@ -40,7 +40,10 @@ export function defaultSettings() {
             ambientSound: 'none',
             ambientVolume: 35,
             customAmbientYoutubeUrl: '',
-            confetti: true
+            confetti: true,
+            timerType: 'digital',
+            timerTheme: 'violet',
+            timerBorder: 'glow'
         },
         planning: {weeklyAvailability:null,dailyLimitMinutes:0,gapMinutes:0,rescheduleCompleted:false},
         notifications: { enabled: true, boardCompletion: true, bedtimeReminders: true, browserPush: false }

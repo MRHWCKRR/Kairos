@@ -6,6 +6,11 @@ import {mountShortcutSettings} from './shortcut-settings.js?v=1';
 /** Settings form lifecycle; all editor callbacks read the host's current draft. */
 export function createSettingsForm({document,getDraft,setDraft,getApplied,getUser,settingsSync,onDirty,onControlsRefresh,onSaveBar,tr,getLocale,updateBrowserPushHint}) {
     document.getElementById('settings-reschedule-completed')?.addEventListener('change',event=>{const draft=getDraft();draft.planning={...(draft.planning||{}),rescheduleCompleted:event.target.checked};onDirty()});
+    document.querySelectorAll('[data-timer-appearance]').forEach(container=>container.addEventListener('click',event=>{
+        const button=event.target.closest('.option-tile');if(!button||!container.contains(button))return;
+        getDraft().appearance[container.dataset.timerAppearance]=button.dataset.value;
+        setActiveTile(container.id,button.dataset.value);onDirty();
+    }));
     function enterSettingsPage() {
         const recovery = settingsSync.state().pending,user=getUser();
         setDraft(cloneDeep(recovery && user?.uid && recovery.ownerId === user.uid ? recovery.settings : getApplied()));
@@ -104,6 +109,9 @@ export function createSettingsForm({document,getDraft,setDraft,getApplied,getUse
         setActiveSwatch('background-options', getDraft().appearance.background);
         setActiveSwatch('cursor-options', getDraft().appearance.cursor);
         setActiveTile('ambient-options', getDraft().appearance.ambientSound);
+        setActiveTile('timer-type-options', getDraft().appearance.timerType || 'digital');
+        setActiveTile('timer-theme-options', getDraft().appearance.timerTheme || 'violet');
+        setActiveTile('timer-border-options', getDraft().appearance.timerBorder || 'glow');
 
         const confettiEl = document.getElementById('settings-confetti-toggle');
         if (confettiEl) confettiEl.checked = !!getDraft().appearance.confetti;

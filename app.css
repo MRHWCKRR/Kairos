@@ -827,6 +827,7 @@ body.theme-peacefulplains .logo-stop-right-b { stop-color: #15803d; }
 }
 .option-tile:hover { border-color: var(--accent-glow); }
 .option-tile.active { background-color: var(--accent-glow-soft); border-color: var(--accent-glow); color: var(--accent-glow); }
+.timer-setting-label { display: block; margin-top: 16px; }
 .font-preview-round { font-family: 'Quicksand', sans-serif; }
 .font-preview-mono { font-family: 'JetBrains Mono', monospace; }
 .font-preview-sans { font-family: 'Inter', sans-serif; }

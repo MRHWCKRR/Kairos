@@ -1,7 +1,7 @@
 import {focusElapsedMs,recoverFocus,validFocusSession,MAX_FOCUS_MS} from './focus-model.js?v=9';
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const format=ms=>{const s=Math.floor(ms/1000);return [Math.floor(s/3600),Math.floor(s%3600/60),s%60].map(n=>String(n).padStart(2,'0')).join(':')};
-export function mountFocusTimer({document=globalThis.document,window=globalThis.window,getIdentity,persist,chooseOutcome=null,getLongestSeconds=()=>0,confirmDiscard=async()=>false,storage,locks=window.navigator?.locks,now=()=>Date.now(),setInterval=window.setInterval.bind(window),clearInterval=window.clearInterval.bind(window)}={}){
+export function mountFocusTimer({document=globalThis.document,window=globalThis.window,getIdentity,persist,chooseOutcome=null,getLongestSeconds=()=>0,getAppearance=()=>({}),confirmDiscard=async()=>false,storage,locks=window.navigator?.locks,now=()=>Date.now(),setInterval=window.setInterval.bind(window),clearInterval=window.clearInterval.bind(window)}={}){
  if(!storage)try{storage=window.localStorage}catch{}if(!storage)storage={getItem(){throw Error('Recovery storage is unavailable.')},setItem(){throw Error('Recovery storage is unavailable.')},removeItem(){throw Error('Recovery storage is unavailable.')}};
  let owner=null,state=null,control=false,claim=null,release=null,busy=false,message='',disposed=false,generation=0,checkinAbort=null;
  const bar=document.createElement('aside');bar.className='task-focus-bar';bar.setAttribute('aria-label','Active focus timer');document.body.appendChild(bar);
@@ -31,6 +31,8 @@ export function mountFocusTimer({document=globalThis.document,window=globalThis.
  }
  function render(){if(disposed)return;const home=document.getElementById('focus-timer-container'),active=document.activeElement,action=active?.dataset?.focusAction,inBar=bar.contains(active),name=state?.target?.title||'General focus';
   const running=!!state&&state.startedAt!=null&&!state.pending;
+  const requested=getAppearance()||{},pick=(value,allowed,fallback)=>allowed.includes(value)?value:fallback,appearance={type:pick(requested.timerType,['watch','digital','nuclear'],'digital'),theme:pick(requested.timerTheme,['violet','cyan','green','amber','rose'],'violet'),border:pick(requested.timerBorder,['none','glow','neon','hazard'],'glow')};
+  for(const element of [home,bar])if(element){element.dataset.timerType=appearance.type;element.dataset.timerTheme=appearance.theme;element.dataset.timerBorder=appearance.border}
   home?.classList.toggle('focus-timer-running',running);bar.classList.toggle('focus-timer-running',running);
   const html='<div class="task-focus-heading"><strong>'+esc(name)+'</strong><span class="focus-timer-display" data-focus-elapsed>'+format(focusElapsedMs(state,now()))+'</span></div><div class="focus-timer-controls">'+controls()+'</div><p data-focus-status role="status" aria-live="polite">'+esc(!samePlan()?'Switch back to this timer’s planner before logging.':message)+'</p>';
   if(home)home.innerHTML='<h3>Focus timer</h3>'+html+'<p class="text-muted focus-timer-longest-row">Longest session '+format((getLongestSeconds()||0)*1000)+'</p><button type="button" class="focus-timer-secondary" data-focus-history-open>Focus history</button> <button type="button" class="focus-timer-secondary" data-focus-manual-open>Add focus time</button>';
