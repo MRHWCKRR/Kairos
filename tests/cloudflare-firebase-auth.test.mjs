@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { generateKeyPair, exportJWK, createLocalJWKSet, SignJWT } from 'jose';
 import { createFirebaseAuth } from '../cloudflare/firebase-auth.js';
 import * as verifiers from '../cloudflare/firebase-auth.js';
+import { createFirebaseServices } from '../cloudflare/firebase-services.js';
 
 const { privateKey, publicKey } = await generateKeyPair('RS256');
 const jwk = { ...await exportJWK(publicKey), kid: 'fixture-key', alg: 'RS256', use: 'sig' };
@@ -52,14 +53,27 @@ test('App Check accepts only signed tokens for the configured project and web ap
 });
 
 test('App Check permits explicitly registered native apps without admitting other project apps', async () => {
-  const verifier = verifiers.createFirebaseAppCheck({ projectNumber: '1234', appId: 'web-app', appIds: ['ios-app'], keySet: keys });
+  const verifier = verifiers.createFirebaseAppCheck({ projectNumber: '1234', appId: 'web-app', appIds: ['ios-app', 'android-app'], keySet: keys });
   const payload = { sub: 'ios-app', aud: ['projects/1234'], iss: 'https://firebaseappcheck.googleapis.com/1234', iat: now - 5, exp: now + 3600 };
   const header = { alg: 'RS256', kid: 'fixture-key', typ: 'JWT' };
-  for (const sub of ['web-app', 'ios-app']) assert.equal((await verifier.verifyToken(await sign({ ...payload, sub }, privateKey, header))).sub, sub);
-  for (const patch of [{ sub: 'another-ios-app' }, { aud: ['projects/9999'] }, { iss: 'https://firebaseappcheck.googleapis.com/9999' }, { exp: now - 10 }]) {
+  for (const sub of ['web-app', 'ios-app', 'android-app']) assert.equal((await verifier.verifyToken(await sign({ ...payload, sub }, privateKey, header))).sub, sub);
+  for (const patch of [{ sub: 'another-ios-app' }, { sub: 'another-android-app' }, { aud: ['projects/9999'] }, { iss: 'https://firebaseappcheck.googleapis.com/9999' }, { exp: now - 10 }]) {
     await assert.rejects(verifier.verifyToken(await sign({ ...payload, ...patch }, privateKey, header)));
   }
   assert.throws(() => verifiers.createFirebaseAppCheck({ projectNumber: '1234', appId: 'web-app', appIds: [''], keySet: keys }));
   assert.throws(() => verifiers.createFirebaseAppCheck({ projectNumber: '1234', appId: 'web-app', appIds: 'ios-app', keySet: keys }));
 });
 
+test('Firebase services validate and refresh configured Android app identity', () => {
+  const env = { FIREBASE_PROJECT_ID: 'fixture-project', FIREBASE_CLIENT_EMAIL: 'fixture@example.com',
+    FIREBASE_PRIVATE_KEY: 'fixture-key', FIREBASE_PROJECT_NUMBER: '1234', FIREBASE_WEB_APP_ID: 'web-app',
+    FIREBASE_IOS_APP_ID: 'ios-app' };
+  const webAndIos = createFirebaseServices(env);
+  assert.equal(createFirebaseServices(env), webAndIos);
+  env.FIREBASE_ANDROID_APP_ID = 'android-app';
+  const withAndroid = createFirebaseServices(env);
+  assert.notEqual(withAndroid, webAndIos);
+  assert.equal(createFirebaseServices(env), withAndroid);
+  env.FIREBASE_ANDROID_APP_ID = ' ';
+  assert.throws(() => createFirebaseServices(env), /app identities/i);
+});
