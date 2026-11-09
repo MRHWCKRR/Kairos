@@ -10,7 +10,7 @@ export function plannerSyncSources({mutations,settings,persistence,navigate,revi
 export function mountSyncStatus({root,window=globalThis.window,getOwnerId,sources}){
  if(!root)return {sync(){},dispose(){}};
  const document=root.ownerDocument,label=document.createElement('span'),button=document.createElement('button');
- label.setAttribute('role','status');label.setAttribute('aria-live','polite');button.type='button';button.hidden=true;
+ label.setAttribute('role','status');label.setAttribute('aria-live','polite');label.setAttribute('aria-atomic','true');button.type='button';button.hidden=true;
  root.replaceChildren(label,button);root.title='Submitted planner and settings saves';let action=null,disposed=false;
  const states=()=>{const owner=getOwnerId();return owner?sources.map(source=>({source,...source.state()})).filter(s=>s.ownerId===owner):[]};
  function sync(){
@@ -18,9 +18,10 @@ export function mountSyncStatus({root,window=globalThis.window,getOwnerId,source
   const current=states(),offline=window.navigator?.onLine===false;
   const pending=current.filter(s=>s.pending||s.busy),review=pending.find(s=>s.source.priority)||pending.find(s=>s.retained===false)||pending.find(s=>s.conflict)||pending[0];
   let text='';action=null;button.hidden=true;button.textContent='';
-  if(current.length){
-   if(offline)text=pending.some(s=>s.retained===false)?'Offline — keep this tab open':pending.length?'Offline · changes pending':'Offline';
-   else if(pending.some(s=>s.busy))text='Saving…';
+  if(offline){
+   text=pending.some(s=>s.retained===false)?'Offline. These changes are only saved in this tab, not the cloud. Keep this tab open, reconnect, then retry.':pending.length?'Offline. Your submitted changes are saved in this browser, not the cloud. Reconnect, then review and retry.':'Offline. Changes you submit will be saved in this browser, not the cloud. Reconnect, then retry.';
+  }else if(current.length){
+   if(pending.some(s=>s.busy))text='Saving…';
    else if(pending.some(s=>s.conflict))text='Changes need review';
    else if(pending.length)text=pending.some(s=>s.retained===false)?'Not synced — keep this tab open':'Not synced';
    else if(current.some(s=>s.status==='saved'))text='Saved';
@@ -28,7 +29,7 @@ export function mountSyncStatus({root,window=globalThis.window,getOwnerId,source
     action=review.source.review;button.textContent=review.source.retry?'Retry save':'Review';button.hidden=!action;
    }
   }
-  root.hidden=!text;label.textContent=text;
+  root.hidden=!text;root.toggleAttribute('data-offline',offline);label.textContent=text;
  }
  function activate(){if(!disposed)void action?.();}
  function leaving(event){if(states().some(s=>s.pending||s.busy)){event.preventDefault();event.returnValue='';}}
