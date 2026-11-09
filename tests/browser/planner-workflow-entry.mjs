@@ -1,3 +1,4 @@
+import {runTimerAppearanceJourney} from './timer-appearance-journey.mjs';
 import {runCalendarExportJourney} from './calendar-export-journey.mjs';
 import {runEventReleaseJourney} from './event-release-journey.mjs';
 import {runScheduleEntrypointJourney} from './schedule-entrypoint-journey.mjs';
@@ -88,6 +89,7 @@ async function run(){
   await runEventReleaseJourney({document,window,wait:async predicate=>{try{await wait(predicate);}catch(error){throw Error('Event release journey: '+error.message);}},check});
   await runAiEventJourney({document,window,wait,check});
   await runWeeklyEventJourney({document,window,wait,check});
+  runTimerAppearanceJourney({document,window,check});
   await runCalendarExportJourney({document,window,wait,check});
   await runScheduleEntrypointJourney({document,window,wait,check});
   await runScheduleEntrypointJourney({document,window,wait,check});
