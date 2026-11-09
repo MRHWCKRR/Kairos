@@ -14,13 +14,14 @@ Schedule markup and the shell bridge now live explicitly in `app.html` and `app.
 
 `npm run lint` uses the explicitly pinned esbuild dependency to parse application entrypoints and resolve local exports, including source imports with legacy version queries. Remote Firebase/CDN modules and installed packages remain external. This checks syntax and module linkage; it is not a formatting or full-project undefined-variable checker.
 
-`npm run typecheck` uses pinned TypeScript 5.9.3 to check JSDoc contracts in the three extracted application boundary modules. Compiler-only negative fixtures fail if invalid inputs stop producing errors. Existing untyped application modules are migrated gradually; legacy arbitrary settings merges and planner snapshots retain their existing flexible shape.
+`npm run typecheck` uses pinned TypeScript 5.9.3 to check JSDoc contracts in the extracted application boundary modules and the ordinary planner persistence adapter declaration. Compiler-only negative fixtures fail if invalid inputs stop producing errors. Existing untyped application modules are migrated gradually; legacy arbitrary settings merges and planner snapshots retain their existing flexible shape.
 
 ## Shell ownership
 
 - `app-settings-model.js`: settings defaults and cloning/merge functions; each default is independent. UI drafts and cloud settings still belong to the existing settings controller.
 - `app-auth-session.js`: verification, redirects, loading fallback, independent initial loaders, and stale-session guards. The shell clears private views synchronously before invoking it.
 - `app-planner-writes.js`: one queue, cloud baseline, owner identity, and edit/load revisions for ordinary saves, task commands, and focus logging. Owner changes invalidate old reads and clear the baseline while retaining the queue. The shell clears old planner arrays, document identity, settings, and progress before controllers synchronize; empty reads also clear retained arrays. Same-owner refreshes preserve local state.
+- `app-planner-persistence.d.ts`: checked host adapter and controller result types for ordinary planner saves and recovery. The runtime controller and server-only Firestore read remain unchanged.
 
 The release browser journey uses real editor, mutation-session, event-command, AI-preview, and Undo modules with isolated serialized storage. It covers failure before save, reload recovery, legacy task defaults, lost acknowledgement after an AI reminder edit, one-use recovery, reviewed Undo, and account-switch cleanup. It does not replace live Firebase token-renewal or operating-system notification checks.
 
