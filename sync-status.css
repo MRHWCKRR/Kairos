@@ -1,5 +1,6 @@
 .planner-sync-status { display:flex; align-items:center; gap:8px; margin-right:16px; color:var(--text-muted,#9ca3af); font-size:12px; }
 .planner-sync-status[hidden] { display:none; }
+.planner-sync-status[data-offline] { position:fixed; left:50%; bottom:24px; z-index:31000; width:max-content; max-width:calc(100vw - 32px); box-sizing:border-box; justify-content:center; flex-wrap:wrap; margin:0; padding:10px 14px; transform:translateX(-50%); border:1px solid rgba(245,158,11,.55); border-radius:8px; background:var(--bg-card,#18181b); color:var(--text-primary,#f4f4f5); box-shadow:0 10px 30px rgba(0,0,0,.22); font-size:13px; line-height:1.4; text-align:center; }
 .planner-sync-status button { padding:3px 5px; border:0; background:transparent; color:var(--text-primary,#eee); font:inherit; text-decoration:underline; cursor:pointer; }
 .planner-sync-status button:focus-visible { outline:2px solid var(--text-primary,#eee); outline-offset:2px; }
 .planner-save-feedback { margin:0 24px 16px; padding:12px 0; border-bottom:1px solid var(--border-color,#3a3a3a); font-size:13px; }

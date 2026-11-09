@@ -1,6 +1,6 @@
 import {createTaskArchiveHandlers} from './app-task-archive-handlers.js';
 import {createBoardSectionHandlers} from './app-board-section-handlers.js';
-import {mountSyncStatus,plannerSyncSources} from './sync-status.js?v=1';
+import {mountSyncStatus,plannerSyncSources} from './sync-status.js?v=2';
 import {mountPlannerSaveFeedback} from './planner-save-feedback.js?v=1';
 import {createPlannerPersistence} from './app-planner-persistence.js?v=1';
 import {createSettingsForm} from './app-settings-form.js?v=1';
